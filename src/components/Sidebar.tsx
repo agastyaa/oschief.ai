@@ -1,17 +1,21 @@
 import { Calendar, FileText, Home, Search, Settings, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const navItems = [
-  { icon: Home, label: "Home", active: true },
-  { icon: FileText, label: "All Notes", active: false },
-  { icon: Calendar, label: "Calendar", active: false },
-  { icon: Sparkles, label: "Ask Granola", active: false },
-  { icon: Settings, label: "Settings", active: false },
+  { icon: Home, label: "Home", path: "/" },
+  { icon: FileText, label: "All Notes", path: "/notes" },
+  { icon: Calendar, label: "Calendar", path: "/calendar" },
+  { icon: Sparkles, label: "Ask Granola", path: "/ask" },
+  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 export function Sidebar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-border bg-sidebar p-4">
+    <aside className="flex h-screen w-64 flex-shrink-0 flex-col border-r border-border bg-sidebar p-4">
       <div className="mb-8 flex items-center gap-2.5 px-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Sparkles className="h-4 w-4 text-primary-foreground" />
@@ -19,7 +23,10 @@ export function Sidebar() {
         <span className="font-display text-xl font-semibold text-foreground">Granola</span>
       </div>
 
-      <button className="mb-6 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:opacity-90">
+      <button
+        onClick={() => navigate("/")}
+        className="mb-6 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
+      >
         <Plus className="h-4 w-4" />
         New Meeting
       </button>
@@ -34,20 +41,24 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {navItems.map((item) => (
-          <button
-            key={item.label}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              item.active
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-            )}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+          return (
+            <button
+              key={item.label}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="mt-auto rounded-lg border border-border bg-sage-light p-3">
