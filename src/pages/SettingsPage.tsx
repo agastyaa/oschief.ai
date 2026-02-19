@@ -1,7 +1,7 @@
 import {
-  User, Mic, Globe, Keyboard, Calendar, Share2, Bell, Sparkles, Brain, Download,
+  User, Mic, Globe, Calendar, Bell, Sparkles, Brain, Download,
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
-  Languages, Volume2, PanelLeftClose, PanelLeft, ArrowLeft
+  Languages, Volume2, PanelLeftClose, PanelLeft, ArrowLeft, Save
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,6 @@ const sections = [
   { icon: Languages, label: "Language", id: "language" },
   { icon: Calendar, label: "Calendar", id: "calendar" },
   { icon: Bell, label: "Notifications", id: "notifications" },
-  { icon: Share2, label: "Sharing", id: "sharing" },
-  { icon: Keyboard, label: "Shortcuts", id: "shortcuts" },
   { icon: Globe, label: "Integrations", id: "integrations" },
 ];
 
@@ -57,6 +55,70 @@ function SectionHeader({ title, description }: { title: string; description?: st
       <h2 className="font-display text-lg text-foreground">{title}</h2>
       {description && <p className="text-[12px] text-muted-foreground mt-1">{description}</p>}
     </div>
+  );
+}
+
+const ACCOUNT_LS_KEY = "syag-account";
+
+function loadAccount() {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { name: "", email: "", role: "", company: "" };
+}
+
+function AccountSection() {
+  const [account, setAccount] = useState(loadAccount);
+  const [saved, setSaved] = useState(false);
+
+  const handleChange = (field: string, value: string) => {
+    setAccount((prev: any) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    localStorage.setItem(ACCOUNT_LS_KEY, JSON.stringify(account));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const fields = [
+    { key: "name", label: "Name", placeholder: "Your name" },
+    { key: "email", label: "Email", placeholder: "you@example.com" },
+    { key: "role", label: "Role", placeholder: "e.g. Product Lead" },
+    { key: "company", label: "Company", placeholder: "e.g. Acme Inc." },
+  ];
+
+  return (
+    <>
+      <div className="space-y-3">
+        {fields.map((field) => (
+          <div key={field.key}>
+            <label className="text-[13px] font-medium text-foreground">{field.label}</label>
+            <input
+              value={account[field.key] || ""}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              placeholder={field.placeholder}
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleSave}
+          className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:opacity-90"
+        >
+          <Save className="h-3 w-3" />
+          Save Changes
+        </button>
+        {saved && <span className="text-xs text-accent flex items-center gap-1"><Check className="h-3 w-3" /> Saved</span>}
+      </div>
+      <div className="pt-4 border-t border-border">
+        <button className="text-[12px] text-destructive hover:underline">Delete Account</button>
+      </div>
+    </>
   );
 }
 
@@ -165,29 +227,7 @@ export default function SettingsPage() {
               {active === "account" && (
                 <div className="space-y-5">
                   <SectionHeader title="Account" description="Your personal information and preferences" />
-                  <div className="space-y-3">
-                    {[
-                      { label: "Name", value: "Alex Johnson" },
-                      { label: "Email", value: "alex@company.com" },
-                      { label: "Role", value: "Product Lead" },
-                      { label: "Company", value: "Acme Inc." },
-                    ].map((field) => (
-                      <div key={field.label}>
-                        <label className="text-[13px] font-medium text-foreground">{field.label}</label>
-                        <input
-                          defaultValue={field.value}
-                          className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:opacity-90">Save Changes</button>
-                    <button className="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary">Cancel</button>
-                  </div>
-                  <div className="pt-4 border-t border-border">
-                    <button className="text-[12px] text-destructive hover:underline">Delete Account</button>
-                  </div>
+                  <AccountSection />
                 </div>
               )}
 
@@ -524,19 +564,17 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <h3 className="text-[13px] font-medium text-foreground">Connected Calendars</h3>
                     {[
-                      { name: "Google Calendar", email: "alex@company.com", connected: true },
-                      { name: "Outlook Calendar", email: "", connected: false },
+                      { name: "Google Calendar", desc: "Sync with Google Calendar", connected: false },
+                      { name: "Outlook Calendar", desc: "Sync with Microsoft Outlook", connected: false },
+                      { name: "Apple Calendar", desc: "Sync with iCloud Calendar", connected: false },
                     ].map((cal) => (
                       <div key={cal.name} className="flex items-center justify-between rounded-md border border-border bg-card p-3">
                         <div>
                           <span className="text-[13px] font-medium text-foreground">{cal.name}</span>
-                          {cal.email && <p className="text-[11px] text-muted-foreground">{cal.email}</p>}
+                          <p className="text-[11px] text-muted-foreground">{cal.desc}</p>
                         </div>
-                        <button className={cn(
-                          "rounded-md px-2.5 py-1 text-[11px] font-medium",
-                          cal.connected ? "bg-accent/10 text-accent" : "border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                        )}>
-                          {cal.connected ? "Connected" : "Connect"}
+                        <button className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                          Connect
                         </button>
                       </div>
                     ))}
@@ -562,48 +600,6 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* ─── Sharing ─── */}
-              {active === "sharing" && (
-                <div className="space-y-5">
-                  <SectionHeader title="Sharing" description="Control how you share meeting notes with others" />
-                  <SettingRow label="Share notes by default" description="Automatically share notes with meeting participants">
-                    <Toggle enabled={toggles.shareByDefault} onToggle={() => toggle("shareByDefault")} />
-                  </SettingRow>
-                  <div>
-                    <label className="text-[13px] font-medium text-foreground mb-2 block">Default sharing permission</label>
-                    <select className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20">
-                      <option>Can view</option>
-                      <option>Can comment</option>
-                      <option>Can edit</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* ─── Shortcuts ─── */}
-              {active === "shortcuts" && (
-                <div className="space-y-5">
-                  <SectionHeader title="Keyboard Shortcuts" description="Quick keys to navigate and control the app" />
-                  <div className="space-y-0.5">
-                    {[
-                      { action: "New quick note", keys: "⌘ N" },
-                      { action: "Search notes", keys: "⌘ K" },
-                      { action: "Toggle sidebar", keys: "⌘ B" },
-                      { action: "Start / stop recording", keys: "⌘ R" },
-                      { action: "Pause / resume recording", keys: "⌘ P" },
-                      { action: "Toggle transcript panel", keys: "⌘ T" },
-                      { action: "Open settings", keys: "⌘ ," },
-                      { action: "Focus ask bar", keys: "/" },
-                      { action: "Navigate back", keys: "⌘ ←" },
-                    ].map((s) => (
-                      <div key={s.action} className="flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-secondary/50 transition-colors">
-                        <span className="text-[13px] text-foreground">{s.action}</span>
-                        <kbd className="rounded border border-border bg-card px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{s.keys}</kbd>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* ─── Integrations ─── */}
               {active === "integrations" && (
@@ -611,25 +607,22 @@ export default function SettingsPage() {
                   <SectionHeader title="Integrations" description="Connect third-party tools to enhance your workflow" />
                   <div className="space-y-2">
                     {[
-                      { name: "Google Calendar", desc: "Sync meetings and events", connected: true },
-                      { name: "Slack", desc: "Share summaries to channels", connected: true },
-                      { name: "Notion", desc: "Export notes to Notion pages", connected: false },
-                      { name: "Linear", desc: "Create issues from action items", connected: false },
-                      { name: "Zoom", desc: "Record Zoom meetings directly", connected: false },
-                      { name: "Microsoft Teams", desc: "Integrate with Teams calls", connected: false },
-                      { name: "Jira", desc: "Create tickets from action items", connected: false },
-                      { name: "Confluence", desc: "Export notes as Confluence pages", connected: false },
+                      { name: "Google Calendar", desc: "Sync meetings and events" },
+                      { name: "Slack", desc: "Share summaries to channels" },
+                      { name: "Notion", desc: "Export notes to Notion pages" },
+                      { name: "Linear", desc: "Create issues from action items" },
+                      { name: "Zoom", desc: "Record Zoom meetings directly" },
+                      { name: "Microsoft Teams", desc: "Integrate with Teams calls" },
+                      { name: "Jira", desc: "Create tickets from action items" },
+                      { name: "Confluence", desc: "Export notes as Confluence pages" },
                     ].map((item) => (
                       <div key={item.name} className="flex items-center justify-between rounded-md border border-border bg-card p-3">
                         <div>
                           <span className="text-[13px] font-medium text-foreground">{item.name}</span>
                           <p className="text-[11px] text-muted-foreground">{item.desc}</p>
                         </div>
-                        <button className={cn(
-                          "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                          item.connected ? "bg-accent/10 text-accent" : "border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                        )}>
-                          {item.connected ? "Connected" : "Connect"}
+                        <button className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                          Connect
                         </button>
                       </div>
                     ))}
