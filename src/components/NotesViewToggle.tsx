@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
 
 type ViewMode = "my-notes" | "ai-notes";
 
@@ -33,7 +32,7 @@ export function NotesViewToggle({ viewMode, onViewModeChange }: NotesViewToggleP
       <button
         onClick={() => onViewModeChange("ai-notes")}
         className={cn(
-          "flex items-center gap-0.5 px-2 py-2 transition-colors",
+          "flex items-center justify-center p-2 transition-colors",
           viewMode === "ai-notes"
             ? "bg-secondary text-foreground"
             : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -44,7 +43,6 @@ export function NotesViewToggle({ viewMode, onViewModeChange }: NotesViewToggleP
           <path d="M8 1l1.3 3.7L13 6l-3.7 1.3L8 11l-1.3-3.7L3 6l3.7-1.3L8 1z" />
           <path d="M12 9l.7 2L15 12l-2.3.7-.7 2-.7-2L9 12l2.3-.7.7-2z" />
         </svg>
-        <ChevronDown className="h-3 w-3" />
       </button>
     </div>
   );

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ModelSettingsProvider } from "@/contexts/ModelSettingsContext";
 import { FolderProvider } from "@/contexts/FolderContext";
+import { NotesProvider } from "@/contexts/NotesContext";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
 import AskGranola from "./pages/AskGranola";
@@ -20,6 +21,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ModelSettingsProvider>
     <FolderProvider>
+    <NotesProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -36,6 +38,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+    </NotesProvider>
     </FolderProvider>
     </ModelSettingsProvider>
   </QueryClientProvider>

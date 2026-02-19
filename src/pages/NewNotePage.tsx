@@ -7,10 +7,11 @@ import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
   PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
   Calendar, Clock, Users, Plus, FolderOpen, Check, X, Hash,
-  CheckCircle2, Circle, Loader2
+  CheckCircle2, Circle, Loader2, Copy, Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
+import { useNotes } from "@/contexts/NotesContext";
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -69,9 +70,13 @@ export default function NewNotePage() {
   const [summary, setSummary] = useState<ReturnType<typeof generateSummary> | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [noteId] = useState(() => crypto.randomUUID());
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
+  const { addNote, deleteNote } = useNotes();
 
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
 
@@ -105,14 +110,31 @@ export default function NewNotePage() {
   const handleStop = useCallback(() => {
     setRecordingState("stopped");
     setTranscriptVisible(true);
-    if (!title) setTitle("Meeting notes");
+    const noteTitle = title || "Meeting notes";
+    if (!title) setTitle(noteTitle);
     setIsSummarizing(true);
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     // Simulate AI processing delay
     setTimeout(() => {
-      setSummary(generateSummary(personalNotes, fakeTranscriptLines));
+      const generatedSummary = generateSummary(personalNotes, fakeTranscriptLines);
+      setSummary(generatedSummary);
       setIsSummarizing(false);
+      // Save note
+      addNote({
+        id: noteId,
+        title: noteTitle,
+        date: dateStr,
+        time: timeStr,
+        duration: formatTime(elapsedSeconds),
+        personalNotes,
+        transcript: fakeTranscriptLines,
+        summary: generatedSummary,
+        folderId: selectedFolderId,
+      });
     }, 1500);
-  }, [title, personalNotes]);
+  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote]);
 
   const handleViewModeChange = useCallback((mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -134,6 +156,40 @@ export default function NewNotePage() {
       setCreatingFolder(false);
       setShowFolderPicker(false);
     }
+  };
+
+  // Close more menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    if (showMoreMenu) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMoreMenu]);
+
+  const handleCopyText = () => {
+    if (!summary) return;
+    const text = [
+      `# ${title}`,
+      "",
+      "## Meeting Overview",
+      summary.overview,
+      "",
+      "## Key Points",
+      ...summary.keyPoints.map((p) => `• ${p}`),
+      "",
+      "## Next Steps",
+      ...summary.nextSteps.map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
+    ].join("\n");
+    navigator.clipboard.writeText(text);
+    setShowMoreMenu(false);
+  };
+
+  const handleDeleteNote = () => {
+    deleteNote(noteId);
+    navigate("/");
   };
 
   const elapsed = formatTime(elapsedSeconds);
@@ -243,9 +299,33 @@ export default function NewNotePage() {
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
-              <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
+              <div ref={moreMenuRef} className="relative">
+                <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+                {showMoreMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+                    <button
+                      onClick={handleCopyText}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                      Copy text
+                    </button>
+                    <div className="border-t border-border" />
+                    <button
+                      onClick={handleDeleteNote}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
