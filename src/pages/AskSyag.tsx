@@ -13,11 +13,9 @@ interface Message {
 }
 
 const recipes = [
-  { label: "Streamline my calendar", color: "bg-blue-400/70" },
-  { label: "List recent todos", color: "bg-emerald-400/70" },
-  { label: "Coach me", color: "bg-amber-400/70" },
-  { label: "Write weekly recap", color: "bg-orange-400/70" },
-  { label: "Blind spots", color: "bg-lime-500/70" },
+  { label: "TL;DR", color: "bg-blue-400/70" },
+  { label: "Action items", color: "bg-emerald-400/70" },
+  { label: "Weekly recap", color: "bg-orange-400/70" },
 ];
 
 export default function AskSyag() {
@@ -170,10 +168,6 @@ export default function AskSyag() {
                     {r.label}
                   </button>
                 ))}
-                <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-all hover:shadow-sm hover:border-ring/20">
-                  <LayoutGrid className="h-3 w-3" />
-                  All recipes
-                </button>
               </div>
             </div>
           ) : (
