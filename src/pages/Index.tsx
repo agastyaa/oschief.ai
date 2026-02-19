@@ -62,8 +62,8 @@ const Index = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex flex-1 flex-col">
-        <div className="flex-1 overflow-y-auto">
+      <main className="flex flex-1 flex-col min-w-0 relative">
+        <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-8">
             {/* Quick Note top-right */}
             <div className="flex items-center justify-end mb-6">
@@ -141,8 +141,10 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Bottom Ask bar */}
-        <AskBar context="home" />
+        {/* Bottom Ask bar - positioned within main content, not overlapping sidebar */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <AskBar context="home" />
+        </div>
       </main>
     </div>
   );

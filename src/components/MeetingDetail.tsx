@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import {
   Calendar, Clock, Users, CheckCircle2, Circle, Sparkles,
-  Share2, MoreHorizontal, Pause, Play, Mic
+  Share2, MoreHorizontal, Pause, Play, Mic, FolderOpen, Plus, Check, X
 } from "lucide-react";
 import type { Meeting } from "@/data/meetings";
 import { cn } from "@/lib/utils";
+import { useFolders } from "@/contexts/FolderContext";
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -16,7 +17,24 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
   const [activeTab, setActiveTab] = useState<NoteTab>("ai-notes");
   const [isRecording, setIsRecording] = useState(true);
   const [personalNotes, setPersonalNotes] = useState("");
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { folders, noteFolders, addNoteToFolder, removeNoteFromFolder, createFolder } = useFolders();
+
+  const currentFolderId = noteFolders[meeting.id];
+  const currentFolder = folders.find((f) => f.id === currentFolderId);
+
+  const handleCreateAndAssign = () => {
+    if (newFolderName.trim()) {
+      const folder = createFolder(newFolderName.trim());
+      addNoteToFolder(meeting.id, folder.id);
+      setNewFolderName("");
+      setCreatingFolder(false);
+      setShowFolderPicker(false);
+    }
+  };
 
   return (
     <div className="animate-fade-in">
@@ -102,6 +120,85 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
         <div className="mt-2 flex items-center gap-1.5">
           <Users className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">{meeting.participants.join(", ")}</span>
+        </div>
+
+        {/* Folder assignment */}
+        <div className="mt-3 flex items-center gap-2 relative">
+          {currentFolder ? (
+            <button
+              onClick={() => setShowFolderPicker(!showFolderPicker)}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
+            >
+              <FolderOpen className="h-3 w-3 text-accent" />
+              {currentFolder.name}
+              <X
+                className="h-3 w-3 text-muted-foreground hover:text-foreground ml-0.5"
+                onClick={(e) => { e.stopPropagation(); removeNoteFromFolder(meeting.id); }}
+              />
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowFolderPicker(!showFolderPicker)}
+              className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+              Add to folder
+            </button>
+          )}
+
+          {/* Folder picker dropdown */}
+          {showFolderPicker && (
+            <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+              <div className="px-3 py-2 border-b border-border">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
+              </div>
+              <div className="max-h-40 overflow-y-auto py-1">
+                {folders.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => { addNoteToFolder(meeting.id, f.id); setShowFolderPicker(false); }}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-1.5 text-xs transition-colors",
+                      currentFolderId === f.id
+                        ? "bg-accent/10 text-foreground font-medium"
+                        : "text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <FolderOpen className="h-3 w-3 text-accent" />
+                    {f.name}
+                    {currentFolderId === f.id && <Check className="h-3 w-3 ml-auto text-accent" />}
+                  </button>
+                ))}
+              </div>
+              <div className="px-3 py-2 border-t border-border">
+                {creatingFolder ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCreateAndAssign();
+                        if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                      }}
+                      placeholder="Folder name"
+                      className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <button onClick={handleCreateAndAssign} className="text-accent"><Check className="h-3 w-3" /></button>
+                    <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="text-muted-foreground"><X className="h-3 w-3" /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setCreatingFolder(true)}
+                    className="flex items-center gap-1.5 text-xs text-accent hover:underline"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New folder
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -192,7 +289,7 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
       )}
 
       {/* Tags */}
-      <div className="mt-5 flex flex-wrap gap-1.5">
+      <div className="mt-5 flex flex-wrap gap-1.5 pb-20">
         {meeting.tags.map((tag) => (
           <span key={tag} className="rounded-full bg-sage-light px-2.5 py-0.5 text-[11px] font-medium text-accent">
             {tag}

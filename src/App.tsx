@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ModelSettingsProvider } from "@/contexts/ModelSettingsContext";
+import { FolderProvider } from "@/contexts/FolderContext";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
 import AskGranola from "./pages/AskGranola";
@@ -18,6 +19,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ModelSettingsProvider>
+    <FolderProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -34,6 +36,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+    </FolderProvider>
     </ModelSettingsProvider>
   </QueryClientProvider>
 );

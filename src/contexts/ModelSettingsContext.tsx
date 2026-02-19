@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type ModelProvider = {
   id: string;
@@ -37,6 +37,28 @@ export const localModels: LocalModel[] = [
 
 type DownloadState = "idle" | "downloading" | "downloaded";
 
+const LS_KEY = "granola-model-settings";
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function saveToStorage(data: {
+  selectedAIModel: string;
+  selectedSTTModel: string;
+  useLocalModels: boolean;
+  downloadStates: Record<string, DownloadState>;
+  connectedProviders: Record<string, { connected: boolean; apiKey: string }>;
+}) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 interface ModelSettingsContextType {
   selectedAIModel: string;
   setSelectedAIModel: (model: string) => void;
@@ -55,15 +77,28 @@ interface ModelSettingsContextType {
 
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
 
+const defaults = {
+  selectedAIModel: "local:phi-3-mini",
+  selectedSTTModel: "local:whisper-medium",
+  useLocalModels: true,
+  downloadStates: { "whisper-medium": "downloaded" as DownloadState, "phi-3-mini": "downloaded" as DownloadState },
+  connectedProviders: {} as Record<string, { connected: boolean; apiKey: string }>,
+};
+
 export function ModelSettingsProvider({ children }: { children: ReactNode }) {
-  const [selectedAIModel, setSelectedAIModel] = useState("local:phi-3-mini");
-  const [selectedSTTModel, setSelectedSTTModel] = useState("local:whisper-medium");
-  const [useLocalModels, setUseLocalModels] = useState(true);
-  const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({
-    "whisper-medium": "downloaded",
-    "phi-3-mini": "downloaded",
-  });
-  const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>({});
+  const stored = loadFromStorage();
+  const init = stored || defaults;
+
+  const [selectedAIModel, setSelectedAIModel] = useState(init.selectedAIModel);
+  const [selectedSTTModel, setSelectedSTTModel] = useState(init.selectedSTTModel);
+  const [useLocalModels, setUseLocalModels] = useState(init.useLocalModels);
+  const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>(init.downloadStates);
+  const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>(init.connectedProviders);
+
+  // Persist on change
+  useEffect(() => {
+    saveToStorage({ selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders });
+  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders]);
 
   const handleDownload = (modelId: string) => {
     setDownloadStates((prev) => ({ ...prev, [modelId]: "downloading" }));
@@ -94,13 +129,9 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   const getAvailableAIModels = () => {
     const models: { value: string; label: string; group: string }[] = [];
-
-    // Local LLMs
     localModels
       .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
       .forEach((m) => models.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local" }));
-
-    // Connected providers
     Object.entries(connectedProviders)
       .filter(([_, v]) => v.connected)
       .forEach(([pid]) => {
@@ -110,26 +141,18 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
           models.push({ value: `${pid}:${m}`, label: m, group: provider.name })
         );
       });
-
     return models;
   };
 
   return (
     <ModelSettingsContext.Provider
       value={{
-        selectedAIModel,
-        setSelectedAIModel,
-        selectedSTTModel,
-        setSelectedSTTModel,
-        downloadStates,
-        handleDownload,
-        handleDeleteModel,
-        connectedProviders,
-        setConnectedProviders,
-        useLocalModels,
-        setUseLocalModels,
-        getActiveAIModelLabel,
-        getAvailableAIModels,
+        selectedAIModel, setSelectedAIModel,
+        selectedSTTModel, setSelectedSTTModel,
+        downloadStates, handleDownload, handleDeleteModel,
+        connectedProviders, setConnectedProviders,
+        useLocalModels, setUseLocalModels,
+        getActiveAIModelLabel, getAvailableAIModels,
       }}
     >
       {children}

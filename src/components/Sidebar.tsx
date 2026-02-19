@@ -1,18 +1,34 @@
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, ChevronRight, Plus, NotebookPen } from "lucide-react";
+import { useState } from "react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, NotebookPen, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useFolders, type Folder } from "@/contexts/FolderContext";
 
-const folders = [
-  { icon: Users, label: "Team meetings", color: "bg-accent/20 text-accent" },
-  { icon: FolderOpen, label: "Sales calls", color: "bg-amber-100 text-amber-700" },
-];
+const iconMap = {
+  folder: FolderOpen,
+  users: Users,
+  briefcase: Briefcase,
+  star: Star,
+  archive: Archive,
+};
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { folders, createFolder } = useFolders();
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createFolder(newFolderName.trim());
+      setNewFolderName("");
+      setCreatingFolder(false);
+    }
+  };
 
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
@@ -53,22 +69,55 @@ export function Sidebar() {
       <div className="mt-4 px-3">
         <div className="flex items-center justify-between px-2 mb-1">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Folders</span>
-          <button className="rounded p-0.5 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => setCreatingFolder(true)}
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+          >
             <Plus className="h-3 w-3" />
           </button>
         </div>
         <div className="flex flex-col gap-0.5">
-          {folders.map((f) => (
-            <button
-              key={f.label}
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-sidebar-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
-            >
-              <div className={cn("flex h-4 w-4 items-center justify-center rounded", f.color)}>
-                <f.icon className="h-2.5 w-2.5" />
+          {folders.map((f) => {
+            const Icon = iconMap[f.icon] || FolderOpen;
+            return (
+              <button
+                key={f.id}
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-sidebar-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+              >
+                <div className={cn("flex h-4 w-4 items-center justify-center rounded", f.color)}>
+                  <Icon className="h-2.5 w-2.5" />
+                </div>
+                {f.name}
+              </button>
+            );
+          })}
+
+          {/* Inline create folder */}
+          {creatingFolder && (
+            <div className="flex items-center gap-1 px-2 py-1">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-accent/20 text-accent flex-shrink-0">
+                <FolderOpen className="h-2.5 w-2.5" />
               </div>
-              {f.label}
-            </button>
-          ))}
+              <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                }}
+                placeholder="Folder name"
+                className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+              <button onClick={handleCreateFolder} className="rounded p-0.5 text-accent hover:text-accent/80">
+                <Check className="h-3 w-3" />
+              </button>
+              <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           <button className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground">
             <ChevronRight className="h-3 w-3" />
             Browse all folders...
@@ -122,7 +171,6 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Bottom padding */}
       <div className="h-2" />
     </aside>
   );
