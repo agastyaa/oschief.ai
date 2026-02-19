@@ -33,7 +33,7 @@ export default function AllNotes() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-6 py-8">
-          <h1 className="font-display text-2xl text-foreground mb-1">Shared with me</h1>
+          <h1 className="font-display text-2xl text-foreground mb-1">All Notes</h1>
           <p className="text-xs text-muted-foreground mb-6">{meetings.length} notes</p>
 
           {/* Search + Tags */}

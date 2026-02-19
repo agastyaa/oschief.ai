@@ -1,4 +1,4 @@
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Share2, ChevronRight, Plus, NotebookPen } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, ChevronRight, Plus, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -46,18 +46,6 @@ export function Sidebar() {
         >
           <FileText className="h-3.5 w-3.5" />
           My notes
-        </button>
-        <button
-          onClick={() => navigate("/notes")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/notes")
-              ? "bg-secondary text-foreground font-medium"
-              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <Share2 className="h-3.5 w-3.5" />
-          Shared with me
         </button>
       </nav>
 
@@ -134,16 +122,8 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Note Loop / Quick Note */}
-      <div className="border-t border-sidebar-border px-3 py-2">
-        <button
-          onClick={() => navigate("/")}
-          className="flex w-full items-center gap-2 rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground transition-all hover:opacity-90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Quick Note
-        </button>
-      </div>
+      {/* Bottom padding */}
+      <div className="h-2" />
     </aside>
   );
 }
