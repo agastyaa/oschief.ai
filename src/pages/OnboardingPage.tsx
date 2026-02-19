@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Sparkles, FileText, ArrowRight, Check } from "lucide-react";
+import { Mic, Sparkles, FileText, ArrowRight, Check, ShieldCheck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ONBOARDING_KEY = "syag-onboarding-complete";
@@ -13,7 +13,7 @@ export function completeOnboarding() {
   localStorage.setItem(ONBOARDING_KEY, "true");
 }
 
-const steps = [
+const featureSteps = [
   {
     icon: Mic,
     title: "Record your meetings",
@@ -31,14 +31,31 @@ const steps = [
   },
 ];
 
+// Total steps: 3 features + 1 mic permission + 1 name = 5
+const TOTAL_DOTS = 5;
+const MIC_STEP = 3;
+const NAME_STEP = 4;
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [name, setName] = useState("");
+  const [micStatus, setMicStatus] = useState<"idle" | "granted" | "denied">("idle");
 
   const handleNext = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep((s) => s + 1);
+    setCurrentStep((s) => s + 1);
+  };
+
+  const requestMic = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop tracks immediately — we just needed the permission
+      stream.getTracks().forEach((t) => t.stop());
+      setMicStatus("granted");
+      // Auto-advance after a short delay
+      setTimeout(() => setCurrentStep((s) => s + 1), 600);
+    } catch {
+      setMicStatus("denied");
     }
   };
 
@@ -55,15 +72,17 @@ export default function OnboardingPage() {
     navigate("/");
   };
 
-  const isLastFeatureStep = currentStep === steps.length - 1;
-  const isNameStep = currentStep === steps.length;
+  const isFeatureStep = currentStep < featureSteps.length;
+  const isMicStep = currentStep === MIC_STEP;
+  const isNameStep = currentStep === NAME_STEP;
+  const isLastFeatureStep = currentStep === featureSteps.length - 1;
 
   return (
     <div className="flex h-screen items-center justify-center bg-background">
       <div className="w-full max-w-md px-6">
         {/* Progress dots */}
         <div className="flex items-center justify-center gap-2 mb-12">
-          {[...steps, null].map((_, i) => (
+          {Array.from({ length: TOTAL_DOTS }).map((_, i) => (
             <div
               key={i}
               className={cn(
@@ -74,20 +93,19 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        {!isNameStep ? (
-          /* Feature steps */
+        {isFeatureStep && (
           <div className="text-center animate-fade-in" key={currentStep}>
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
               {(() => {
-                const Icon = steps[currentStep].icon;
+                const Icon = featureSteps[currentStep].icon;
                 return <Icon className="h-7 w-7" />;
               })()}
             </div>
             <h1 className="font-display text-2xl text-foreground mb-3">
-              {steps[currentStep].title}
+              {featureSteps[currentStep].title}
             </h1>
             <p className="text-[15px] text-muted-foreground leading-relaxed max-w-sm mx-auto mb-10">
-              {steps[currentStep].description}
+              {featureSteps[currentStep].description}
             </p>
             <button
               onClick={handleNext}
@@ -97,8 +115,65 @@ export default function OnboardingPage() {
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-        ) : (
-          /* Name step */
+        )}
+
+        {isMicStep && (
+          <div className="text-center animate-fade-in" key="mic">
+            <div className={cn(
+              "flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-6",
+              micStatus === "granted" ? "bg-accent/10 text-accent" :
+              micStatus === "denied" ? "bg-destructive/10 text-destructive" :
+              "bg-accent/10 text-accent"
+            )}>
+              {micStatus === "granted" ? (
+                <ShieldCheck className="h-7 w-7" />
+              ) : micStatus === "denied" ? (
+                <AlertCircle className="h-7 w-7" />
+              ) : (
+                <Mic className="h-7 w-7" />
+              )}
+            </div>
+            <h1 className="font-display text-2xl text-foreground mb-2">
+              {micStatus === "granted" ? "Microphone enabled!" :
+               micStatus === "denied" ? "Microphone access denied" :
+               "Enable your microphone"}
+            </h1>
+            <p className="text-[15px] text-muted-foreground leading-relaxed max-w-sm mx-auto mb-8">
+              {micStatus === "granted"
+                ? "You're all set to record meetings."
+                : micStatus === "denied"
+                ? "Syag needs microphone access to record meetings. You can enable it in your browser settings."
+                : "Syag needs access to your microphone to capture meeting audio. We never record without your explicit action."}
+            </p>
+            {micStatus === "idle" && (
+              <button
+                onClick={requestMic}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+              >
+                <Mic className="h-4 w-4" />
+                Allow microphone
+              </button>
+            )}
+            {micStatus === "denied" && (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={requestMic}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                >
+                  Try again
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Skip for now
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isNameStep && (
           <div className="text-center animate-fade-in" key="name">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
               <Check className="h-7 w-7" />
