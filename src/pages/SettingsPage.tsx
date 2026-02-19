@@ -1,7 +1,7 @@
 import {
   User, Mic, Globe, Calendar, Bell, Sparkles, Brain, Download,
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
-  Languages, Volume2, PanelLeftClose, PanelLeft, ArrowLeft, Save
+  Languages, Volume2, Save
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
@@ -127,7 +127,6 @@ export default function SettingsPage() {
   const modelSettings = useModelSettings();
   const { selectedAIModel, setSelectedAIModel, selectedSTTModel, setSelectedSTTModel, downloadStates, handleDownload, handleDeleteModel, connectedProviders, setConnectedProviders, useLocalModels, setUseLocalModels } = modelSettings;
   const [active, setActive] = useState("account");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Toggles
   const [toggles, setToggles] = useState<Record<string, boolean>>({
@@ -180,23 +179,9 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0",
-        sidebarOpen ? "w-56" : "w-0"
-      )}>
-        <Sidebar />
-      </div>
+      <Sidebar />
 
       <main className="flex-1 overflow-y-auto">
-        {/* Top bar */}
-        <div className="flex items-center gap-2 px-6 pt-4 pb-2">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-          </button>
-        </div>
 
         <div className="mx-auto max-w-3xl px-6 pb-12">
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>

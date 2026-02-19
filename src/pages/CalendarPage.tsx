@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Link2 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
-import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -18,7 +17,6 @@ function getStartDayOffset(year: number, month: number) {
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function CalendarPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -44,21 +42,8 @@ export default function CalendarPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0",
-        sidebarOpen ? "w-56" : "w-0"
-      )}>
-        <Sidebar />
-      </div>
+      <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="flex items-center gap-2 px-6 pt-4 pb-2">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-          </button>
-        </div>
 
         <div className="mx-auto max-w-4xl px-6 pb-8">
           {/* Connect prompt */}

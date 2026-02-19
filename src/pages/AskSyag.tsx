@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, ArrowUp, ChevronDown, ChevronRight, FileText, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, FileText, Square } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { useNotes } from "@/contexts/NotesContext";
+
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -20,7 +20,7 @@ const recipes = [
 
 export default function AskSyag() {
   const { getActiveAIModelLabel } = useModelSettings();
-  const { notes } = useNotes();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function AskSyag() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const noteCount = Math.min(notes.length, 25);
+  
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -44,7 +44,7 @@ export default function AskSyag() {
     const userMsg: Message = {
       role: "user",
       text: question,
-      context: { label: "My notes", detail: useTranscripts ? `+ Last ${noteCount || 25} transcripts` : "All notes" },
+      context: { label: "My notes", detail: useTranscripts ? "+ Last 25 transcripts" : "All notes" },
       recipe,
     };
 
