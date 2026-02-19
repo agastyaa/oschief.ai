@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
+import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square,
   PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
@@ -59,6 +60,7 @@ export default function NewNotePage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
@@ -74,7 +76,7 @@ export default function NewNotePage() {
     return () => clearInterval(timer);
   }, [recordingState]);
 
-  // Simulate live transcription (add lines over time while recording)
+  // Simulate live transcription
   useEffect(() => {
     if (recordingState !== "recording") return;
     if (visibleLines >= fakeTranscriptLines.length) return;
@@ -95,7 +97,6 @@ export default function NewNotePage() {
   const handleStop = useCallback(() => {
     setRecordingState("stopped");
     setTranscriptVisible(false);
-    // Auto-generate title if empty
     if (!title) setTitle("Meeting notes");
   }, [title]);
 
@@ -112,7 +113,6 @@ export default function NewNotePage() {
   const elapsed = formatTime(elapsedSeconds);
   const isStopped = recordingState === "stopped";
 
-  // Folder picker shared component
   const folderChip = (
     <>
       {selectedFolder ? (
@@ -210,9 +210,10 @@ export default function NewNotePage() {
               ← Back to notes
             </button>
           </div>
-          {/* Show share/more only after summary */}
+          {/* Show toggle + share/more only after summary */}
           {isStopped && (
             <div className="flex items-center gap-1.5">
+              <NotesViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
@@ -269,8 +270,9 @@ export default function NewNotePage() {
                 {folderChip}
               </div>
 
-              {/* Recording: notes textarea / Stopped: summary view */}
+              {/* Content: recording vs stopped */}
               {!isStopped ? (
+                /* During recording: editable notes */
                 <textarea
                   value={personalNotes}
                   onChange={(e) => setPersonalNotes(e.target.value)}
@@ -279,70 +281,77 @@ export default function NewNotePage() {
                   autoFocus
                 />
               ) : (
+                /* Stopped: AI summary + personal notes */
                 <div className="animate-fade-in">
-                  {/* Meeting Overview */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                      <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
-                    </div>
-                    <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{fakeSummary.overview}</p>
-                  </div>
-
-                  {/* Key Points */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                      <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
-                    </div>
-                    <ul className="space-y-2 pl-6">
-                      {fakeSummary.keyPoints.map((point, i) => (
-                        <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
-                          <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Next Steps */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                      <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
-                    </div>
-                    <div className="space-y-2 pl-6">
-                      {fakeSummary.nextSteps.map((item, i) => (
-                        <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
-                          {item.done ? (
-                            <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
-                          ) : (
-                            <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
-                          )}
-                          <div>
-                            <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
-                              {item.text}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Personal notes section if any were taken */}
-                  {personalNotes && (
+                  {/* AI sections - shown in ai-notes mode */}
+                  {viewMode === "ai-notes" && (
                     <>
-                      <div className="border-t border-border/50 my-8" />
                       <div className="mb-8">
                         <div className="flex items-center gap-2 mb-2">
                           <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                          <h2 className="font-display text-base font-semibold text-foreground/70">Personal Notes</h2>
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
                         </div>
-                        <p className="text-[15px] leading-relaxed text-foreground/70 pl-6 whitespace-pre-wrap">{personalNotes}</p>
+                        <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{fakeSummary.overview}</p>
                       </div>
+
+                      <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
+                        </div>
+                        <ul className="space-y-2 pl-6">
+                          {fakeSummary.keyPoints.map((point, i) => (
+                            <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
+                              <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
+                              {point}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
+                        </div>
+                        <div className="space-y-2 pl-6">
+                          {fakeSummary.nextSteps.map((item, i) => (
+                            <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
+                              {item.done ? (
+                                <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
+                              ) : (
+                                <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
+                              )}
+                              <div>
+                                <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
+                                  {item.text}
+                                </span>
+                                <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-border/50 my-8" />
                     </>
                   )}
+
+                  {/* Personal Notes - always shown, editable */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                      <h2 className="font-display text-base font-semibold text-foreground/70">
+                        {viewMode === "ai-notes" ? "Personal Notes" : "My Notes"}
+                      </h2>
+                    </div>
+                    <textarea
+                      value={personalNotes}
+                      onChange={(e) => setPersonalNotes(e.target.value)}
+                      placeholder="Write your notes..."
+                      className="min-h-[200px] w-full resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none pl-6"
+                    />
+                  </div>
                 </div>
               )}
             </div>
