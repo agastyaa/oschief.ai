@@ -327,12 +327,6 @@ export default function NewNotePage() {
                       </div>
                     ) : (
                       <>
-                        {personalNotes && (
-                          <div className="mb-8 pb-6 border-b border-border/50">
-                            <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap">{personalNotes}</p>
-                          </div>
-                        )}
-
                         <div className="mb-8">
                           <div className="flex items-center gap-2 mb-2">
                             <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
