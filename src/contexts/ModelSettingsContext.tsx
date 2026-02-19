@@ -78,10 +78,10 @@ interface ModelSettingsContextType {
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
 
 const defaults = {
-  selectedAIModel: "local:phi-3-mini",
-  selectedSTTModel: "local:whisper-medium",
-  useLocalModels: true,
-  downloadStates: { "whisper-medium": "downloaded" as DownloadState, "phi-3-mini": "downloaded" as DownloadState },
+  selectedAIModel: "",
+  selectedSTTModel: "",
+  useLocalModels: false,
+  downloadStates: {} as Record<string, DownloadState>,
   connectedProviders: {} as Record<string, { connected: boolean; apiKey: string }>,
 };
 

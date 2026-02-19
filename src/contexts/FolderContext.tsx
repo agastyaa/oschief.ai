@@ -20,10 +20,7 @@ interface FolderContextType {
 
 const LS_KEY = "syag-folders";
 
-const defaultFolders: Folder[] = [
-  { id: "team-meetings", name: "Team meetings", color: "bg-accent/20 text-accent", icon: "users" },
-  { id: "sales-calls", name: "Sales calls", color: "bg-amber-100 text-amber-700", icon: "briefcase" },
-];
+const defaultFolders: Folder[] = [];
 
 const colors = [
   "bg-accent/20 text-accent",
