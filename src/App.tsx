@@ -19,6 +19,7 @@ import SettingsPage from "./pages/SettingsPage";
 import NoteDetailPage from "./pages/NoteDetailPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
+import { TrayMenu } from "@/components/TrayMenu";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,11 @@ function AppContent() {
         <Route path="/new-note" element={<NewNotePage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/tray-preview" element={
+          <div className="flex items-center justify-center min-h-screen bg-muted/50">
+            <TrayMenu />
+          </div>
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
