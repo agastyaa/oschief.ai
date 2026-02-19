@@ -94,18 +94,7 @@ const Index = () => {
       <main className="flex flex-1 flex-col min-w-0 relative">
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-8">
-            {/* Quick Note top-right */}
-            <div className="flex items-center justify-end mb-6">
-              <button
-                onClick={() => navigate("/new-note")}
-                className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-all hover:opacity-90"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Quick Note
-              </button>
-            </div>
-
-            {/* Coming up section - placeholder for calendar integration */}
+            {/* Coming up section */}
             <div className="mb-8">
               <h2 className="font-display text-lg text-foreground mb-3">Coming up</h2>
               <div className="rounded-xl border border-border bg-card/50 px-5 py-6 text-center">
@@ -129,7 +118,7 @@ const Index = () => {
                   onClick={() => navigate("/new-note")}
                   className="mt-5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
                 >
-                  Start Recording
+                  Quick Note
                 </button>
               </div>
             ) : (
