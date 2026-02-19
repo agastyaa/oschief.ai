@@ -438,38 +438,13 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
 
               {/* Right side controls */}
               <div className="flex items-center gap-1 flex-shrink-0">
-                {hasInput ? (
+                {hasInput && (
                   <button
                     onClick={handleSend}
                     className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90"
                   >
                     <ArrowUp className="h-3.5 w-3.5" />
                   </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setShowModelPicker(!showModelPicker)}
-                      className={cn(
-                        "rounded px-2 py-0.5 text-xs font-medium transition-colors",
-                        showModelPicker ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {activeLabel.length > 8 ? activeLabel.slice(0, 8) + "…" : activeLabel}
-                    </button>
-                    <button className="rounded p-1.5 text-muted-foreground hover:text-foreground transition-colors" title="Attach file">
-                      <Paperclip className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={toggleVoice}
-                      className={cn(
-                        "rounded-full p-1.5 transition-colors",
-                        isListening ? "text-destructive animate-pulse bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                      )}
-                      title={isListening ? "Stop listening" : "Voice input"}
-                    >
-                      {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </button>
-                  </>
                 )}
               </div>
             </div>
