@@ -93,7 +93,7 @@ export default function AskSyag() {
                     {useTranscripts ? (
                       <>
                         <span className="font-medium text-foreground">My transcripts</span>
-                        <span className="text-muted-foreground">Last {noteCount || 25} meetings</span>
+                        <span className="text-muted-foreground">Last 25 meetings</span>
                       </>
                     ) : (
                       <>
