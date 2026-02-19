@@ -186,7 +186,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   // Collapsed state - simple single-line bar
   if (!expanded && !showChat) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 pointer-events-none">
+      <div className="px-4 pb-4 pointer-events-none">
         <div className="mx-auto max-w-2xl pointer-events-auto">
           <div
             onClick={handleExpand}
@@ -211,7 +211,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   }
 
   return (
-    <div ref={barRef} className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+    <div ref={barRef} className="z-40 pointer-events-none">
       <div className="mx-auto max-w-2xl px-4 pb-4 pointer-events-auto">
         {/* Floating chat panel */}
         {showChat && messages.length > 0 && (
