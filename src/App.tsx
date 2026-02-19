@@ -12,7 +12,7 @@ import { isOnboardingComplete } from "@/pages/OnboardingPage";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
 import AskSyag from "./pages/AskSyag";
-import MeetingPage from "./pages/MeetingPage";
+
 import NewNotePage from "./pages/NewNotePage";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -39,7 +39,7 @@ function AppContent() {
         <Route path="/" element={<Index />} />
         <Route path="/notes" element={<AllNotes />} />
         <Route path="/ask" element={<AskSyag />} />
-        <Route path="/meeting/:id" element={<MeetingPage />} />
+        
         <Route path="/note/:id" element={<NoteDetailPage />} />
         <Route path="/new-note" element={<NewNotePage />} />
         <Route path="/calendar" element={<CalendarPage />} />
