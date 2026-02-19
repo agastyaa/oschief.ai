@@ -281,8 +281,18 @@ export default function NewNotePage() {
                   autoFocus
                 />
               ) : (
-                /* Stopped: AI summary + personal notes */
+                /* Stopped: personal notes on top, then AI summary below */
                 <div className="animate-fade-in">
+                  {/* Personal notes area at top - "Add your thoughts..." */}
+                  <div className="mb-6">
+                    <textarea
+                      value={personalNotes}
+                      onChange={(e) => setPersonalNotes(e.target.value)}
+                      placeholder="Add your thoughts..."
+                      className="min-h-[80px] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
+                    />
+                  </div>
+
                   {/* AI sections - shown in ai-notes mode */}
                   {viewMode === "ai-notes" && (
                     <>
@@ -332,26 +342,8 @@ export default function NewNotePage() {
                           ))}
                         </div>
                       </div>
-
-                      <div className="border-t border-border/50 my-8" />
                     </>
                   )}
-
-                  {/* Personal Notes - always shown, editable */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                      <h2 className="font-display text-base font-semibold text-foreground/70">
-                        {viewMode === "ai-notes" ? "Personal Notes" : "My Notes"}
-                      </h2>
-                    </div>
-                    <textarea
-                      value={personalNotes}
-                      onChange={(e) => setPersonalNotes(e.target.value)}
-                      placeholder="Write your notes..."
-                      className="min-h-[200px] w-full resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none pl-6"
-                    />
-                  </div>
                 </div>
               )}
             </div>
@@ -411,6 +403,10 @@ export default function NewNotePage() {
           <AskBar
             context="meeting"
             meetingTitle={title || "New note"}
+            onResumeRecording={isStopped ? () => {
+              setRecordingState("recording");
+              setTranscriptVisible(true);
+            } : undefined}
             leftSlot={
               !isStopped ? (
                 <div className="flex items-center gap-0 rounded-full border border-border bg-card shadow-lg overflow-hidden flex-shrink-0">
