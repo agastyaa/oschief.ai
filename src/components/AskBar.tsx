@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { ListTodo, PenLine, FileText, Hash, Mail, BookOpen, Zap, ArrowUp, X, Home, Play, Eye, EyeOff } from "lucide-react";
+import { ArrowUp, X, FileText, Play, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-
 
 interface AskBarProps {
   context?: "home" | "meeting";
@@ -17,175 +16,127 @@ interface AskBarProps {
   elapsed?: string;
 }
 
-const homeQuickActions = [
-  { icon: ListTodo, label: "List recent todos" },
-  { icon: PenLine, label: "Coach me Matt" },
-  { icon: FileText, label: "Write weekly recap" },
-];
-
-const meetingQuickActions = [
-  { icon: Mail, label: "Write follow up email" },
-  { icon: ListTodo, label: "List my todos" },
-  { icon: PenLine, label: "Make notes longer" },
-];
-
-const recipes = [
-  { icon: ListTodo, label: "List my to-dos", description: "Extract action items from the meeting" },
-  { icon: PenLine, label: "Write a recap", description: "Generate a polished summary" },
-  { icon: FileText, label: "Summarize key points", description: "Pull out the highlights" },
-  { icon: Mail, label: "Draft follow-up email", description: "Write a follow-up based on meeting" },
-  { icon: Hash, label: "Extract key decisions", description: "List decisions made during the call" },
-  { icon: BookOpen, label: "Meeting minutes", description: "Format as formal meeting minutes" },
-  { icon: Zap, label: "Action plan", description: "Create an action plan with owners" },
-];
-
 export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecording, onPauseRecording, onStopRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed }: AskBarProps) {
   const { getActiveAIModelLabel } = useModelSettings();
 
   const [input, setInput] = useState("");
-  const [expanded, setExpanded] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; model?: string }[]>([]);
-  const [showRecipes, setShowRecipes] = useState(false);
-  const [recipeFilter, setRecipeFilter] = useState("");
-  const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
-  
-  const [chatTitle, setChatTitle] = useState("New chat");
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [isActive, setIsActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recipeMenuRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const hasInput = input.trim().length > 0;
-  const activeLabel = getActiveAIModelLabel();
-  const quickActions = context === "meeting" ? meetingQuickActions : homeQuickActions;
+  const contextLabel = context === "meeting" ? meetingTitle || "This note" : "All notes";
 
-  const filteredRecipes = recipes.filter((r) =>
-    r.label.toLowerCase().includes(recipeFilter.toLowerCase())
-  );
-
-  useEffect(() => {
-    setSelectedRecipeIndex(0);
-  }, [recipeFilter]);
-
-  // Click outside to collapse expanded bar / close chat
+  // Click outside to close chat and deactivate
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
-        setShowRecipes(false);
-        if (expanded || showChat) {
-          setExpanded(false);
-          setShowChat(false);
-          setMessages([]);
-          setChatTitle("New chat");
-        }
+        setIsActive(false);
+        setShowChat(false);
+        setMessages([]);
+        setInput("");
       }
     };
-    if (expanded || showChat || showRecipes) {
+    if (isActive || showChat) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [expanded, showChat, showRecipes]);
+  }, [isActive, showChat]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setInput(val);
-    if (val === "/") {
-      setShowRecipes(true);
-      setRecipeFilter("");
-    } else if (val.startsWith("/")) {
-      setShowRecipes(true);
-      setRecipeFilter(val.slice(1));
-    } else {
-      setShowRecipes(false);
-      setRecipeFilter("");
-    }
-  };
-
-  const handleSelectRecipe = (label: string) => {
-    setShowRecipes(false);
-    setInput("");
-    setRecipeFilter("");
-    setShowChat(true);
-    setExpanded(true);
-    setChatTitle(label);
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: `/${label}` },
-      { role: "assistant", text: `Here are the results for "${label}"${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}. This is a simulated response.`, model: activeLabel },
-    ]);
-  };
+  // Auto-scroll chat
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = () => {
     if (!input.trim()) return;
-    if (showRecipes && filteredRecipes.length > 0) {
-      handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
-      return;
-    }
     const q = input;
     setInput("");
-    setShowRecipes(false);
     setShowChat(true);
-    setExpanded(true);
     setMessages((prev) => [
       ...prev,
       { role: "user", text: q },
-      { role: "assistant", text: `Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: Simulated response to "${q}".`, model: activeLabel },
-    ]);
-  };
-
-  const handleQuickAction = (label: string) => {
-    setShowChat(true);
-    setExpanded(true);
-    setChatTitle(label);
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: label },
-      { role: "assistant", text: `Results for "${label}". Simulated response.`, model: activeLabel },
+      { role: "assistant", text: `Here's what I found${context === "meeting" ? ` from "${meetingTitle}"` : " across your notes"}: Simulated response to "${q}".` },
     ]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (showRecipes) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedRecipeIndex((prev) => Math.min(prev + 1, filteredRecipes.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedRecipeIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        if (filteredRecipes.length > 0) handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
-      } else if (e.key === "Escape") {
-        setShowRecipes(false);
-      }
-    } else if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === "Escape") {
+      setIsActive(false);
+      setShowChat(false);
+      setMessages([]);
+      setInput("");
     }
   };
 
-  const handleNewChat = () => {
-    setMessages([]);
-    setShowChat(false);
-    setChatTitle("New chat");
-  };
-
-  const handleExpand = () => {
-    setExpanded(true);
+  const handleBarClick = () => {
+    setIsActive(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  // Collapsed state - simple single-line bar
-  if (!expanded && !showChat) {
-    return (
-      <div className="px-4 pb-4 pointer-events-none">
-      <div className="mx-auto max-w-md pointer-events-auto flex items-center gap-2">
+  const handleCloseChat = () => {
+    setShowChat(false);
+    setMessages([]);
+  };
+
+  return (
+    <div ref={barRef} className="px-4 pb-4 pointer-events-none relative">
+      <div className="mx-auto max-w-md pointer-events-auto">
+        {/* Floating chat panel - fixed height, scrollable */}
+        {showChat && messages.length > 0 && (
+          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-md">
+            <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+              {/* Chat header */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    Context: <span className="text-foreground font-medium">{contextLabel}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={handleCloseChat}
+                  className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Chat messages - fixed height, scrollable */}
+              <div ref={scrollRef} className="h-64 overflow-y-auto px-4 py-3 space-y-3">
+                {messages.map((msg, i) => (
+                  <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    <div
+                      className={cn(
+                        "max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-secondary text-foreground"
+                      )}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bar row with controls */}
+        <div className="flex items-center gap-2">
           {/* Recording indicator */}
           {leftSlot}
+
           {/* Recording controls for meeting context */}
           {context === "meeting" && recordingState && recordingState !== "stopped" && (
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              {/* Transcript toggle */}
               <button
                 onClick={onToggleTranscript}
                 className="flex items-center justify-center rounded-full border border-border bg-card shadow-lg w-10 h-10 text-muted-foreground hover:text-foreground transition-colors"
@@ -193,7 +144,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
               >
                 {transcriptVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
-              {/* Pause/Resume button */}
               <button
                 onClick={recordingState === "recording" ? onStopRecording : onResumeRecording}
                 className={cn(
@@ -202,7 +152,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                     ? "border-border bg-card text-muted-foreground hover:text-foreground"
                     : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
                 )}
-                title={recordingState === "recording" ? "Pause recording" : "Resume recording"}
+                title={recordingState === "recording" ? "Stop recording" : "Resume recording"}
               >
                 {elapsed && <span className="text-xs font-medium">{elapsed}</span>}
                 {recordingState === "recording" ? (
@@ -230,6 +180,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
               </button>
             </div>
           )}
+
           {context === "meeting" && recordingState === "stopped" && (
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
@@ -248,144 +199,34 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
               </button>
             </div>
           )}
+
+          {/* The pill bar - same shape always, just becomes editable on click */}
           <div
-            onClick={handleExpand}
-            className="flex flex-1 items-center justify-between rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
+            onClick={handleBarClick}
+            className="flex flex-1 items-center rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
           >
-            <span className="text-sm text-muted-foreground">Ask anything</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={barRef} className="z-40 pointer-events-none">
-      <div className="mx-auto max-w-2xl px-4 pb-4 pointer-events-auto">
-        {/* Floating chat panel */}
-        {showChat && messages.length > 0 && (
-          <div className="mb-2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-
-            {/* Chat messages */}
-            <div className="max-h-72 overflow-y-auto px-4 py-3 space-y-3">
-              {/* Context badge */}
-              <div className="flex justify-end">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs">
-                  <Home className="h-3.5 w-3.5 text-foreground" />
-                  <div className="text-left">
-                    <div className="font-medium text-foreground">{context === "meeting" ? "This note" : "My notes"}</div>
-                    <div className="text-muted-foreground">{context === "meeting" ? meetingTitle : "All meetings"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Last action chip */}
-              {messages.length > 0 && (
-                <div className="flex justify-end">
-                  <div className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
-                      <span className="text-[10px] text-accent-foreground font-bold">/</span>
-                    </span>
-                    {messages.find(m => m.role === "user")?.text.replace(/^\//, "")}
-                    <span className="text-muted-foreground">›</span>
-                  </div>
-                </div>
-              )}
-
-              {/* AI responses */}
-              {messages.filter(m => m.role === "assistant").map((msg, i) => (
-                <div key={i} className="text-sm text-foreground leading-relaxed">
-                  {msg.model && (
-                    <span className="inline-block mb-1 rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                      {msg.model}
-                    </span>
-                  )}
-                  <div>{msg.text}</div>
-                </div>
-              ))}
-
-              {/* Scroll indicator */}
-              <div className="flex justify-center pt-1">
-                <ArrowUp className="h-4 w-4 text-muted-foreground rotate-180" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Expanded bar */}
-        <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-
-          {/* Input row */}
-          <div className="px-4 py-2.5 relative">
-            {/* Recipes dropdown */}
-            {showRecipes && (
-              <div ref={recipeMenuRef} className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                <div className="px-3 py-2 border-b border-border">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Recipes</span>
-                </div>
-                <div className="max-h-52 overflow-y-auto py-1">
-                  {filteredRecipes.length > 0 ? filteredRecipes.map((recipe, i) => (
-                    <button
-                      key={recipe.label}
-                      onClick={() => handleSelectRecipe(recipe.label)}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
-                        i === selectedRecipeIndex ? "bg-accent/10 text-foreground" : "text-foreground hover:bg-secondary"
-                      )}
-                    >
-                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent flex-shrink-0">
-                        <recipe.icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium truncate">{recipe.label}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{recipe.description}</div>
-                      </div>
-                    </button>
-                  )) : (
-                    <div className="px-3 py-4 text-center text-[12px] text-muted-foreground">No recipes found</div>
-                  )}
-                </div>
-                <div className="px-3 py-2 border-t border-border">
-                  <button className="flex items-center gap-1.5 text-[11px] text-accent hover:underline">
-                    <Zap className="h-3 w-3" />
-                    Create custom recipe
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-
-
-              {/* Input */}
-              <div className="relative flex-1">
+            {isActive ? (
+              <>
                 <input
                   ref={inputRef}
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  onBlur={() => {
-                    if (!input && !showChat && !showRecipes) {
-                      setTimeout(() => setExpanded(false), 200);
-                    }
-                  }}
                   placeholder="Ask anything..."
-                  className="w-full rounded-lg bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
                 />
-              </div>
-
-              {/* Right side controls */}
-              <div className="flex items-center gap-1 flex-shrink-0">
                 {hasInput && (
                   <button
-                    onClick={handleSend}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90"
+                    onClick={(e) => { e.stopPropagation(); handleSend(); }}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90 ml-2 flex-shrink-0"
                   >
-                    <ArrowUp className="h-3.5 w-3.5" />
+                    <ArrowUp className="h-3 w-3" />
                   </button>
                 )}
-              </div>
-            </div>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Ask anything</span>
+            )}
           </div>
         </div>
       </div>
