@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Calendar, Clock, Users, CheckCircle2, Circle,
-  Share2, MoreHorizontal, Mic, FolderOpen, Plus, Check, X, Hash
+  FolderOpen, Plus, Check, X, Hash
 } from "lucide-react";
 import type { Meeting } from "@/data/meetings";
 import { cn } from "@/lib/utils";
@@ -9,10 +9,11 @@ import { useFolders } from "@/contexts/FolderContext";
 
 interface MeetingDetailProps {
   meeting: Meeting;
+  viewMode?: "my-notes" | "ai-notes";
 }
 
-export function MeetingDetail({ meeting }: MeetingDetailProps) {
-  const [personalNotes, setPersonalNotes] = useState("");
+export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailProps) {
+  const [personalNotes, setPersonalNotes] = useState("These are my personal notes from the meeting...");
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -77,7 +78,6 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
             </button>
           )}
 
-          {/* Folder picker dropdown */}
           {showFolderPicker && (
             <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
               <div className="px-3 py-2 border-b border-border">
@@ -133,67 +133,93 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
         </div>
       </div>
 
-      {/* Meeting Overview */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-2">
-          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
-        </div>
-        <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{meeting.summary}</p>
-      </div>
-
-      {/* Key Points */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
-        </div>
-        <ul className="space-y-2 pl-6">
-          {meeting.keyPoints.map((point, i) => (
-            <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
-              <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
-              {point}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Next Steps / Action Items */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
-        </div>
-        <div className="space-y-2 pl-6">
-          {meeting.actionItems.map((item, i) => (
-            <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
-              {item.done ? (
-                <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
-              ) : (
-                <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
-              )}
-              <div>
-                <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
-                  {item.text}
-                </span>
-                <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
-              </div>
+      {/* AI Notes sections - shown in ai-notes mode */}
+      {viewMode === "ai-notes" && (
+        <>
+          {/* Meeting Overview */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-2">
+              <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+              <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
             </div>
-          ))}
-        </div>
-      </div>
+            <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{meeting.summary}</p>
+          </div>
 
-      {/* Separator */}
-      <div className="border-t border-border/50 my-8" />
+          {/* Key Points */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+              <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
+            </div>
+            <ul className="space-y-2 pl-6">
+              {meeting.keyPoints.map((point, i) => (
+                <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
+                  <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Next Steps / Action Items */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+              <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
+            </div>
+            <div className="space-y-2 pl-6">
+              {meeting.actionItems.map((item, i) => (
+                <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
+                  {item.done ? (
+                    <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
+                  ) : (
+                    <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
+                  )}
+                  <div>
+                    <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
+                      {item.text}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-border/50 my-8" />
+        </>
+      )}
+
+      {/* Personal Notes - always shown */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+          <h2 className="font-display text-base font-semibold text-foreground/70">
+            {viewMode === "ai-notes" ? "Personal Notes" : "My Notes"}
+          </h2>
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={personalNotes}
+          onChange={(e) => setPersonalNotes(e.target.value)}
+          placeholder="Write your notes..."
+          className="min-h-[200px] w-full resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none pl-6"
+        />
+      </div>
 
       {/* Tags */}
-      <div className="flex flex-wrap gap-1.5 pb-20">
-        {meeting.tags.map((tag) => (
-          <span key={tag} className="rounded-full bg-sage-light px-2.5 py-0.5 text-[11px] font-medium text-accent">
-            {tag}
-          </span>
-        ))}
-      </div>
+      {viewMode === "ai-notes" && (
+        <>
+          <div className="border-t border-border/50 my-8" />
+          <div className="flex flex-wrap gap-1.5 pb-20">
+            {meeting.tags.map((tag) => (
+              <span key={tag} className="rounded-full bg-sage-light px-2.5 py-0.5 text-[11px] font-medium text-accent">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
