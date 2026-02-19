@@ -82,39 +82,34 @@ export default function AskSyag() {
             <div className="flex h-full flex-col items-center justify-center px-6">
               <h1 className="font-display text-2xl text-foreground mb-6">Ask anything about your notes</h1>
 
-              {/* Transcript toggle - floating above card */}
-              <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 mb-3 shadow-sm">
-                <span className="text-sm text-foreground">Use transcripts (max 25)</span>
-                <button
-                  onClick={() => setUseTranscripts(!useTranscripts)}
-                  className={cn(
-                    "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                    useTranscripts ? "bg-accent" : "bg-muted-foreground/30"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
-                      useTranscripts ? "translate-x-4.5" : "translate-x-1"
-                    )}
-                    style={{ transform: useTranscripts ? "translateX(18px)" : "translateX(3px)" }}
-                  />
-                </button>
-              </div>
-
               {/* Input card */}
               <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-sm p-4 mb-5">
-                {/* Scope row */}
-                {useTranscripts && (
-                  <div className="relative mb-3">
+                {/* Transcript scope row */}
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={() => setUseTranscripts(!useTranscripts)}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors",
+                      useTranscripts ? "bg-accent" : "bg-muted-foreground/30"
+                    )}
+                  >
+                    <span
+                      className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform"
+                      style={{ transform: useTranscripts ? "translateX(18px)" : "translateX(3px)" }}
+                    />
+                  </button>
+                  <div className="relative">
                     <button
-                      onClick={() => setScopeOpen(!scopeOpen)}
-                      className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-secondary"
+                      onClick={() => useTranscripts && setScopeOpen(!scopeOpen)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-sm transition-colors",
+                        useTranscripts ? "text-foreground" : "text-muted-foreground"
+                      )}
                     >
                       <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium text-foreground">{scope}</span>
-                      <span className="text-muted-foreground">Last {noteCount || 25} meetings</span>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      <span className={useTranscripts ? "font-medium" : ""}>{scope}</span>
+                      <span className="text-muted-foreground">· Last {noteCount || 25} meetings</span>
+                      {useTranscripts && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
                     </button>
                     {scopeOpen && (
                       <div className="absolute top-full left-0 mt-1 rounded-lg border border-border bg-card shadow-lg py-1 z-10 min-w-[180px]">
@@ -133,7 +128,7 @@ export default function AskSyag() {
                       </div>
                     )}
                   </div>
-                )}
+                </div>
 
                 {/* Input row */}
                 <div className="flex items-center gap-2">
