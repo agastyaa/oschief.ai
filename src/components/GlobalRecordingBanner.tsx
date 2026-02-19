@@ -1,32 +1,37 @@
 import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate } from "react-router-dom";
-import { Mic } from "lucide-react";
-
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+import { X } from "lucide-react";
 
 export function GlobalRecordingBanner() {
-  const { activeSession } = useRecording();
+  const { activeSession, clearSession } = useRecording();
   const navigate = useNavigate();
 
   if (!activeSession) return null;
 
   return (
-    <button
-      onClick={() => navigate("/new-note")}
-      className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 bg-destructive/90 px-4 py-1.5 text-destructive-foreground backdrop-blur-sm transition-all hover:bg-destructive"
-    >
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive-foreground opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive-foreground" />
-      </span>
-      <Mic className="h-3 w-3" />
-      <span className="text-xs font-medium">
-        Recording in progress — {activeSession.title} · {formatTime(activeSession.elapsedSeconds)}
-      </span>
-    </button>
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-full bg-foreground/90 pl-4 pr-2 py-2 shadow-lg backdrop-blur-sm">
+      <button
+        onClick={() => navigate("/new-note")}
+        className="flex items-center gap-2.5"
+      >
+        <span className="flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse [animation-delay:150ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse [animation-delay:300ms]" />
+        </span>
+        <span className="text-sm font-medium text-background">
+          {activeSession.title || "Untitled"}
+        </span>
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          clearSession();
+        }}
+        className="rounded-full p-1 text-background/60 hover:text-background transition-colors"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
