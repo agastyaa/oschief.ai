@@ -25,19 +25,24 @@ const fakeTranscriptLines = [
   { speaker: "You", time: "0:45", text: "And we should schedule the demo recording for next Tuesday." },
 ];
 
-const fakeSummary = {
-  overview: "This was a planning session focused on the upcoming product launch timeline, covering feature prioritization, marketing materials status, and scheduling key deliverables.",
-  keyPoints: [
-    "Product launch timeline needs to be finalized by end of week",
-    "Marketing materials are nearly complete and in review",
-    "Landing page copy still requires a final review pass",
-    "Demo recording needs to be scheduled for next Tuesday",
-  ],
-  nextSteps: [
-    { text: "Finalize the feature list", assignee: "You", done: false },
-    { text: "Complete landing page copy review", assignee: "You", done: false },
-    { text: "Schedule demo recording for Tuesday", assignee: "You", done: false },
-  ],
+const generateSummary = (notes: string, transcript: typeof fakeTranscriptLines) => {
+  const transcriptText = transcript.map(l => l.text).join(" ");
+  const combined = [notes, transcriptText].filter(Boolean).join(" ");
+  
+  // Simulate AI summarization based on content
+  const sentences = combined.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  const keyPoints = sentences.slice(0, Math.min(4, sentences.length)).map(s => s.trim());
+  
+  return {
+    overview: combined.length > 100 
+      ? `This session covered: ${combined.substring(0, 150).trim()}...`
+      : "A brief session covering key discussion points.",
+    keyPoints: keyPoints.length > 0 ? keyPoints : ["No key points identified yet"],
+    nextSteps: [
+      { text: "Review and finalize discussed items", assignee: "You", done: false },
+      { text: "Follow up on action items", assignee: "You", done: false },
+    ],
+  };
 };
 
 function formatTime(seconds: number) {
@@ -61,6 +66,7 @@ export default function NewNotePage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
+  const [summary, setSummary] = useState<ReturnType<typeof generateSummary> | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
@@ -98,7 +104,17 @@ export default function NewNotePage() {
     setRecordingState("stopped");
     setTranscriptVisible(true);
     if (!title) setTitle("Meeting notes");
-  }, [title]);
+    // Generate initial summary from notes + transcript
+    setSummary(generateSummary(personalNotes, fakeTranscriptLines));
+  }, [title, personalNotes]);
+
+  const handleViewModeChange = useCallback((mode: "my-notes" | "ai-notes") => {
+    if (mode === "ai-notes" && viewMode === "my-notes") {
+      // Re-summarize when switching back to AI notes
+      setSummary(generateSummary(personalNotes, fakeTranscriptLines));
+    }
+    setViewMode(mode);
+  }, [viewMode, personalNotes]);
 
   const handleCreateAndAssign = () => {
     if (newFolderName.trim()) {
@@ -213,7 +229,7 @@ export default function NewNotePage() {
           {/* Show toggle + share/more only after summary */}
           {isStopped && (
             <div className="flex items-center gap-1.5">
-              <NotesViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+              <NotesViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
@@ -253,20 +269,24 @@ export default function NewNotePage() {
                   </h1>
                 )}
 
-                {/* Meta chips - only show during recording */}
-                {!isStopped && (
-                  <div className="flex items-center gap-2 mb-6 flex-wrap relative">
+                {/* Meta chips */}
+                <div className="flex items-center gap-2 mb-6 flex-wrap relative">
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                    <Calendar className="h-3 w-3" />
+                    Today
+                  </span>
+                  {isStopped && (
                     <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
-                      <Calendar className="h-3 w-3" />
-                      Today
+                      <Clock className="h-3 w-3" />
+                      {elapsed}
                     </span>
-                    <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
-                      <Users className="h-3 w-3" />
-                      Me
-                    </span>
-                    {folderChip}
-                  </div>
-                )}
+                  )}
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                    <Users className="h-3 w-3" />
+                    Me
+                  </span>
+                  {folderChip}
+                </div>
 
                 {/* Content: recording vs stopped */}
                 {!isStopped ? (
@@ -301,7 +321,7 @@ export default function NewNotePage() {
                             <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
                             <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
                           </div>
-                          <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{fakeSummary.overview}</p>
+                          <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{summary?.overview}</p>
                         </div>
 
                         <div className="mb-8">
@@ -310,7 +330,7 @@ export default function NewNotePage() {
                             <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
                           </div>
                           <ul className="space-y-2 pl-6">
-                            {fakeSummary.keyPoints.map((point, i) => (
+                            {summary?.keyPoints.map((point, i) => (
                               <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
                                 <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
                                 {point}
@@ -325,7 +345,7 @@ export default function NewNotePage() {
                             <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
                           </div>
                           <div className="space-y-2 pl-6">
-                            {fakeSummary.nextSteps.map((item, i) => (
+                            {summary?.nextSteps.map((item, i) => (
                               <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
                                 {item.done ? (
                                   <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
@@ -363,24 +383,6 @@ export default function NewNotePage() {
                 onPauseRecording={() => setRecordingState("paused")}
                 onStopRecording={handleStop}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
-                leftSlot={
-                  !isStopped ? (
-                    <div className={cn(
-                      "flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3 py-2.5 text-xs font-medium flex-shrink-0",
-                      recordingState === "recording"
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-secondary text-muted-foreground"
-                    )}>
-                      {recordingState === "recording" && (
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-destructive" />
-                        </span>
-                      )}
-                      <Mic className="h-3 w-3" />
-                    </div>
-                  ) : undefined
-                }
                 elapsed={elapsed}
               />
             </div>
