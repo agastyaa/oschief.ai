@@ -253,24 +253,20 @@ export default function NewNotePage() {
                   </h1>
                 )}
 
-                {/* Meta chips */}
-                <div className="flex items-center gap-2 mb-6 flex-wrap relative">
-                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
-                    <Calendar className="h-3 w-3" />
-                    Today
-                  </span>
-                  {isStopped && (
+                {/* Meta chips - only show during recording */}
+                {!isStopped && (
+                  <div className="flex items-center gap-2 mb-6 flex-wrap relative">
                     <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
-                      <Clock className="h-3 w-3" />
-                      {elapsed}
+                      <Calendar className="h-3 w-3" />
+                      Today
                     </span>
-                  )}
-                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
-                    <Users className="h-3 w-3" />
-                    Me
-                  </span>
-                  {folderChip}
-                </div>
+                    <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                      <Users className="h-3 w-3" />
+                      Me
+                    </span>
+                    {folderChip}
+                  </div>
+                )}
 
                 {/* Content: recording vs stopped */}
                 {!isStopped ? (
@@ -283,8 +279,23 @@ export default function NewNotePage() {
                   />
                 ) : (
                   <div className="animate-fade-in">
-                    {viewMode === "ai-notes" && (
+                    {viewMode === "my-notes" ? (
+                      <textarea
+                        value={personalNotes}
+                        onChange={(e) => setPersonalNotes(e.target.value)}
+                        placeholder="Add your personal notes..."
+                        className="min-h-[40vh] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none"
+                        autoFocus
+                      />
+                    ) : (
                       <>
+                        {/* Show personal notes above AI notes if any exist */}
+                        {personalNotes && (
+                          <div className="mb-8 pb-6 border-b border-border/50">
+                            <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap">{personalNotes}</p>
+                          </div>
+                        )}
+
                         <div className="mb-8">
                           <div className="flex items-center gap-2 mb-2">
                             <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
