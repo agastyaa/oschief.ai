@@ -270,17 +270,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
             className="flex flex-1 items-center justify-between rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
           >
             <span className="text-sm text-muted-foreground">Ask anything</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => { e.stopPropagation(); handleQuickAction(quickActions[0].label); }}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
-              >
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
-                  <span className="text-[10px] text-accent-foreground font-bold">/</span>
-                </span>
-                {quickActions[0].label}
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -429,16 +418,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
 
             <div className="flex items-center gap-2">
 
-              {context === "home" && !showChat && (
-                <button
-                  onClick={() => setScope(scope === "this" ? "all" : "this")}
-                  className="flex flex-shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                >
-                  My notes
-                  <span className="text-muted-foreground ml-0.5">All meetings</span>
-                  <ChevronDown className="h-2.5 w-2.5 text-muted-foreground ml-0.5" />
-                </button>
-              )}
 
               {/* Input */}
               <div className="relative flex-1">
@@ -452,7 +431,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                       setTimeout(() => setExpanded(false), 200);
                     }
                   }}
-                  placeholder={showChat ? "Ask anything" : "Type / for recipes"}
+                  placeholder="Ask anything..."
                   className="w-full rounded-lg bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
               </div>
