@@ -428,16 +428,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
             )}
 
             <div className="flex items-center gap-2">
-              {/* Context / scope selector */}
-              {context === "meeting" && (
-                <button
-                  onClick={() => { setExpanded(false); setShowChat(false); }}
-                  className="flex flex-shrink-0 items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <ChevronUp className="h-3 w-3" />
-                </button>
-              )}
 
               {context === "home" && !showChat && (
                 <button
