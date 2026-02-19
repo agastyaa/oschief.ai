@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
 import AskGranola from "./pages/AskGranola";
 import MeetingPage from "./pages/MeetingPage";
+import NewNotePage from "./pages/NewNotePage";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/notes" element={<AllNotes />} />
           <Route path="/ask" element={<AskGranola />} />
           <Route path="/meeting/:id" element={<MeetingPage />} />
+          <Route path="/new-note" element={<NewNotePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />

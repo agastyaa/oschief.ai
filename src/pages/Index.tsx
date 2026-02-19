@@ -67,7 +67,10 @@ const Index = () => {
           <div className="mx-auto max-w-2xl px-6 py-8">
             {/* Quick Note top-right */}
             <div className="flex items-center justify-end mb-6">
-              <button className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-all hover:opacity-90">
+              <button
+                onClick={() => navigate("/new-note")}
+                className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-all hover:opacity-90"
+              >
                 <Plus className="h-3.5 w-3.5" />
                 Quick Note
               </button>
