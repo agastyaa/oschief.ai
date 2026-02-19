@@ -61,17 +61,11 @@ export default function CalendarPage() {
             <div className="mb-6 rounded-xl border border-border bg-card p-6 text-center">
               <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar linked</h2>
-              <p className="text-[13px] text-muted-foreground mb-4">Import an ICS file or paste a feed URL to see your events</p>
-              <div className="flex items-center justify-center gap-2">
-                <button onClick={() => setIcsOpen(true)} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors">
-                  <Link2 className="h-3.5 w-3.5" />
-                  Connect Google Calendar
-                </button>
-                <button onClick={() => setIcsOpen(true)} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors">
-                  <Link2 className="h-3.5 w-3.5" />
-                  Connect Outlook
-                </button>
-              </div>
+              <p className="text-[13px] text-muted-foreground mb-4">Import an .ics file or paste a feed URL to see your events</p>
+              <button onClick={() => setIcsOpen(true)} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors mx-auto">
+                <Link2 className="h-3.5 w-3.5" />
+                Import Calendar (.ics)
+              </button>
             </div>
           ) : (
             <div className="mb-6 flex items-center justify-between rounded-lg border border-border bg-card/50 px-4 py-2.5">
