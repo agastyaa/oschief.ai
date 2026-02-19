@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export default function NoteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { notes } = useNotes();
+  const { notes, updateNote } = useNotes();
   const { activeSession, startSession, updateSession, clearSession } = useRecording();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
@@ -19,7 +19,9 @@ export default function NoteDetailPage() {
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [recordingState, setRecordingState] = useState<"recording" | "paused" | "stopped">("stopped");
   const [elapsed, setElapsed] = useState(0);
+  const [newLines, setNewLines] = useState<{ speaker: string; time: string; text: string }[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Timer logic
   useEffect(() => {
@@ -30,6 +32,33 @@ export default function NoteDetailPage() {
       timerRef.current = null;
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [recordingState]);
+
+  // Simulate new transcript lines while recording
+  const simulatedLines = [
+    "Continuing from where we left off...",
+    "Let me add a few more thoughts on this topic.",
+    "We should also consider the timeline for next steps.",
+    "I think we can wrap up the remaining items quickly.",
+  ];
+
+  useEffect(() => {
+    if (recordingState === "recording") {
+      let lineIndex = 0;
+      lineTimerRef.current = setInterval(() => {
+        if (lineIndex >= simulatedLines.length) {
+          if (lineTimerRef.current) clearInterval(lineTimerRef.current);
+          return;
+        }
+        const time = formatElapsed(elapsed);
+        setNewLines((prev) => [...prev, { speaker: "You", time, text: simulatedLines[lineIndex] }]);
+        lineIndex++;
+      }, 4000);
+    } else if (lineTimerRef.current) {
+      clearInterval(lineTimerRef.current);
+      lineTimerRef.current = null;
+    }
+    return () => { if (lineTimerRef.current) clearInterval(lineTimerRef.current); };
   }, [recordingState]);
 
   const formatElapsed = (s: number) => {
@@ -57,7 +86,18 @@ export default function NoteDetailPage() {
   const handleStop = () => {
     setRecordingState("stopped");
     clearSession();
+    // Append new lines to the saved note
+    if (id && newLines.length > 0) {
+      const note = notes.find((n) => n.id === id);
+      if (note) {
+        updateNote(id, {
+          transcript: [...note.transcript, ...newLines],
+          duration: formatElapsed(elapsed),
+        });
+      }
+    }
   };
+
   const note = notes.find((n) => n.id === id);
 
   if (!note) {
@@ -224,7 +264,7 @@ export default function NoteDetailPage() {
           </div>
 
           {/* Transcript side panel */}
-          {transcriptVisible && note.transcript.length > 0 && (
+          {transcriptVisible && (note.transcript.length > 0 || newLines.length > 0) && (
             <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
@@ -252,10 +292,11 @@ export default function NoteDetailPage() {
                 </div>
               </div>
               <div className="p-4 space-y-3">
-                {note.transcript
+                {/* Existing transcript lines */}
+                {[...note.transcript, ...newLines]
                   .filter(line => !transcriptSearch || line.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
                   .map((line, i) => (
-                  <div key={i}>
+                  <div key={i} className={i >= note.transcript.length ? "animate-fade-in" : ""}>
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-[8px] font-medium text-foreground">
                         {line.speaker.charAt(0)}
@@ -274,7 +315,13 @@ export default function NoteDetailPage() {
                     </p>
                   </div>
                 ))}
-                {transcriptSearch && note.transcript.filter(l => l.text.toLowerCase().includes(transcriptSearch.toLowerCase())).length === 0 && (
+                {recordingState === "recording" && !transcriptSearch && (
+                  <div className="flex items-center gap-1.5 pt-1 animate-pulse">
+                    <div className="h-1 w-1 rounded-full bg-destructive" />
+                    <span className="text-[10px] text-muted-foreground">Listening...</span>
+                  </div>
+                )}
+                {transcriptSearch && [...note.transcript, ...newLines].filter(l => l.text.toLowerCase().includes(transcriptSearch.toLowerCase())).length === 0 && (
                   <p className="text-[11px] text-muted-foreground text-center py-4">No results found</p>
                 )}
               </div>

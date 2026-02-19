@@ -19,6 +19,7 @@ export interface SavedNote {
 interface NotesContextType {
   notes: SavedNote[];
   addNote: (note: SavedNote) => void;
+  updateNote: (id: string, updates: Partial<SavedNote>) => void;
   deleteNote: (id: string) => void;
   updateNoteFolder: (noteId: string, folderId: string | null) => void;
   getNotesInFolder: (folderId: string) => SavedNote[];
@@ -58,6 +59,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateNote = useCallback((id: string, updates: Partial<SavedNote>) => {
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+  }, []);
+
   const deleteNote = useCallback((id: string) => {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
@@ -74,7 +79,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <NotesContext.Provider value={{ notes, addNote, deleteNote, updateNoteFolder, getNotesInFolder }}>
+    <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, updateNoteFolder, getNotesInFolder }}>
       {children}
     </NotesContext.Provider>
   );

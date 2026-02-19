@@ -54,12 +54,13 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
   const handleSend = () => {
     if (!input.trim()) return;
     const q = input;
+    const modelLabel = getActiveAIModelLabel();
     setInput("");
     setShowChat(true);
     setMessages((prev) => [
       ...prev,
       { role: "user", text: q },
-      { role: "assistant", text: `Here's what I found${context === "meeting" ? ` from "${meetingTitle}"` : " across your notes"}: Simulated response to "${q}".` },
+      { role: "assistant", text: `[${modelLabel}] Here's what I found${context === "meeting" ? ` from "${meetingTitle}"` : " across your notes"}: Simulated response to "${q}".` },
     ]);
   };
 
