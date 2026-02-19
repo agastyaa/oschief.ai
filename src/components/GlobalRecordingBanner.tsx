@@ -15,9 +15,9 @@ export function GlobalRecordingBanner() {
         className="flex items-center gap-2.5"
       >
         <span className="flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse [animation-delay:150ms]" />
-          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse [animation-delay:300ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse [animation-delay:150ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse [animation-delay:300ms]" />
         </span>
         <span className="text-sm font-medium text-background">
           {activeSession.title || "Untitled"}
