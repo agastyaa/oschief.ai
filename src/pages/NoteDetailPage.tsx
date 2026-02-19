@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes } from "@/contexts/NotesContext";
-import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle } from "lucide-react";
+import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle, Hash, Calendar, Clock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function NoteDetailPage() {
@@ -65,32 +65,48 @@ export default function NoteDetailPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto pb-24">
-          <div className="mx-auto max-w-3xl px-6 py-4">
-            {/* Title & meta */}
-            <h1 className="font-display text-2xl text-foreground mb-1">{note.title}</h1>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-6">
-              <span>{note.date}</span>
-              <span>{note.time}</span>
-              <span>{note.duration}</span>
+          <div className="mx-auto max-w-3xl px-8 py-3">
+            {/* Title */}
+            <h1 className="mb-3 font-display text-2xl text-foreground leading-tight">{note.title}</h1>
+
+            {/* Meta chips */}
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                <Calendar className="h-3 w-3" />
+                {note.date}
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                <Clock className="h-3 w-3" />
+                {note.duration}
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                <Users className="h-3 w-3" />
+                Me
+              </span>
             </div>
 
             {viewMode === "ai-notes" ? (
               <>
-                {/* Summary */}
-                {note.summary && (
-                  <div className="space-y-5">
-                    <div>
-                      <h2 className="font-display text-sm font-medium text-foreground mb-2">Overview</h2>
-                      <p className="text-[13px] text-muted-foreground leading-relaxed">{note.summary.overview}</p>
+                {note.summary ? (
+                  <div className="animate-fade-in">
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                        <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
+                      </div>
+                      <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{note.summary.overview}</p>
                     </div>
 
                     {note.summary.keyPoints.length > 0 && (
-                      <div>
-                        <h2 className="font-display text-sm font-medium text-foreground mb-2">Key Points</h2>
-                        <ul className="space-y-1.5">
+                      <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
+                        </div>
+                        <ul className="space-y-2 pl-6">
                           {note.summary.keyPoints.map((point, i) => (
-                            <li key={i} className="flex items-start gap-2 text-[13px] text-muted-foreground">
-                              <span className="mt-1.5 h-1 w-1 rounded-full bg-accent flex-shrink-0" />
+                            <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
+                              <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
                               {point}
                             </li>
                           ))}
@@ -99,40 +115,46 @@ export default function NoteDetailPage() {
                     )}
 
                     {note.summary.nextSteps.length > 0 && (
-                      <div>
-                        <h2 className="font-display text-sm font-medium text-foreground mb-2">Action Items</h2>
-                        <ul className="space-y-1.5">
+                      <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
+                        </div>
+                        <div className="space-y-2 pl-6">
                           {note.summary.nextSteps.map((step, i) => (
-                            <li key={i} className="flex items-start gap-2 text-[13px]">
+                            <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
                               {step.done ? (
-                                <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
+                                <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
                               ) : (
-                                <Circle className="h-4 w-4 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+                                <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
                               )}
-                              <span className={cn("text-muted-foreground", step.done && "line-through")}>
-                                {step.text}
-                                {step.assignee && <span className="ml-1 text-[11px] text-muted-foreground/60">— {step.assignee}</span>}
-                              </span>
-                            </li>
+                              <div>
+                                <span className={cn(step.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
+                                  {step.text}
+                                </span>
+                                {step.assignee && <span className="text-xs text-muted-foreground ml-2">— {step.assignee}</span>}
+                              </div>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       </div>
                     )}
                   </div>
-                )}
-
-                {!note.summary && (
+                ) : (
                   <p className="text-sm text-muted-foreground">No AI summary available for this note.</p>
                 )}
               </>
             ) : (
               /* Personal notes */
               <div>
-                <h2 className="font-display text-sm font-medium text-foreground mb-2">My Notes</h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                  <h2 className="font-display text-base font-semibold text-foreground/70">My Notes</h2>
+                </div>
                 {note.personalNotes ? (
-                  <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">{note.personalNotes}</p>
+                  <p className="text-[15px] text-foreground/70 leading-relaxed whitespace-pre-line pl-6">{note.personalNotes}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No personal notes recorded.</p>
+                  <p className="text-sm text-muted-foreground pl-6">No personal notes recorded.</p>
                 )}
               </div>
             )}
