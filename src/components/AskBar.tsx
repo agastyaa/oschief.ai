@@ -267,16 +267,16 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
           )}
           <div
             onClick={handleExpand}
-            className="flex flex-1 items-center justify-between rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
+            className="flex flex-1 items-center justify-between rounded-full border border-border bg-card shadow-md px-3 py-1.5 cursor-text"
           >
-            <span className="text-sm text-muted-foreground">Ask anything</span>
-            <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Ask anything</span>
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={(e) => { e.stopPropagation(); handleQuickAction(quickActions[0].label); }}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
+                className="flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-foreground hover:bg-secondary transition-colors"
               >
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
-                  <span className="text-[10px] text-accent-foreground font-bold">/</span>
+                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent">
+                  <span className="text-[9px] text-accent-foreground font-bold">/</span>
                 </span>
                 {quickActions[0].label}
               </button>
