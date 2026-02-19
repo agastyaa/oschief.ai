@@ -88,6 +88,21 @@ function savePreferences(prefs: Preferences) {
   localStorage.setItem(PREFS_LS_KEY, JSON.stringify(prefs));
 }
 
+function applyAppearance(mode: Preferences["appearance"]) {
+  const root = document.documentElement;
+  if (mode === "dark") {
+    root.classList.add("dark");
+  } else if (mode === "light") {
+    root.classList.remove("dark");
+  } else {
+    // system
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", prefersDark);
+  }
+}
+
+export { applyAppearance };
+
 export { loadPreferences };
 
 function loadAccount() {
@@ -181,6 +196,7 @@ export default function SettingsPage() {
     setPrefs((prev) => {
       const next = { ...prev, [key]: value };
       savePreferences(next);
+      if (key === "appearance") applyAppearance(value as Preferences["appearance"]);
       return next;
     });
   };

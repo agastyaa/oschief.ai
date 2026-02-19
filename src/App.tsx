@@ -8,6 +8,7 @@ import { FolderProvider } from "@/contexts/FolderContext";
 import { NotesProvider } from "@/contexts/NotesContext";
 import { RecordingProvider } from "@/contexts/RecordingContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
+import { loadPreferences, applyAppearance } from "@/pages/SettingsPage";
 import { isOnboardingComplete } from "@/pages/OnboardingPage";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
@@ -22,6 +23,17 @@ import NotFound from "./pages/NotFound";
 import { TrayMenu } from "@/components/TrayMenu";
 
 const queryClient = new QueryClient();
+
+// Apply saved theme on load
+const initialPrefs = loadPreferences();
+applyAppearance(initialPrefs.appearance);
+
+// Listen for system theme changes when "system" mode is active
+if (initialPrefs.appearance === "system") {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (loadPreferences().appearance === "system") applyAppearance("system");
+  });
+}
 
 function AppContent() {
   const location = useLocation();
