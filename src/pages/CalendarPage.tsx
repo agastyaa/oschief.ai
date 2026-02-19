@@ -45,7 +45,7 @@ export default function CalendarPage() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
 
-        <div className="mx-auto max-w-4xl px-6 pb-8">
+        <div className="mx-auto max-w-4xl px-6 pt-4 pb-8">
           {/* Connect prompt */}
           <div className="mb-6 rounded-xl border border-border bg-card p-6 text-center">
             <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />

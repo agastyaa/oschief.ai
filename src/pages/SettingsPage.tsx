@@ -183,7 +183,7 @@ export default function SettingsPage() {
 
       <main className="flex-1 overflow-y-auto">
 
-        <div className="mx-auto max-w-3xl px-6 pb-12">
+        <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
           <div className="flex gap-8">
