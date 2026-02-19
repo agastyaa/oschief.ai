@@ -6,6 +6,7 @@ import {
 import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useModelSettings, localModels, enterpriseProviders } from "@/contexts/ModelSettingsContext";
 
 // ── Section nav ──────────────────────────────────────────────
 const sections = [
@@ -59,29 +60,10 @@ function SectionHeader({ title, description }: { title: string; description?: st
   );
 }
 
-// ── AI Models data ───────────────────────────────────────────
-const localModels = [
-  { id: "whisper-large-v3", name: "Whisper Large V3", size: "3.1 GB", type: "stt" as const, description: "Best accuracy, slower" },
-  { id: "whisper-medium", name: "Whisper Medium", size: "1.5 GB", type: "stt" as const, description: "Good balance of speed and accuracy" },
-  { id: "whisper-small", name: "Whisper Small", size: "488 MB", type: "stt" as const, description: "Fast, moderate accuracy" },
-  { id: "whisper-tiny", name: "Whisper Tiny", size: "77 MB", type: "stt" as const, description: "Fastest, basic accuracy" },
-  { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm" as const, description: "Compact local LLM" },
-  { id: "phi-3-mini", name: "Phi-3 Mini", size: "2.3 GB", type: "llm" as const, description: "Microsoft's efficient model" },
-  { id: "gemma-2-2b", name: "Gemma 2 2B", size: "1.6 GB", type: "llm" as const, description: "Google's lightweight model" },
-];
-
-const enterpriseProviders = [
-  { id: "openai", name: "OpenAI", models: ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1-preview"], icon: "🟢" },
-  { id: "anthropic", name: "Anthropic (Claude)", models: ["Claude 4 Sonnet", "Claude 4 Opus", "Claude 3.5 Haiku"], icon: "🟤" },
-  { id: "google", name: "Google (Gemini)", models: ["Gemini 2.5 Pro", "Gemini 2.5 Flash", "Gemini 2.0 Flash"], icon: "🔵" },
-  { id: "deepgram", name: "Deepgram", models: ["Nova-2", "Nova-2 Medical", "Nova-2 Meeting"], icon: "🟣", sttOnly: true },
-  { id: "assemblyai", name: "AssemblyAI", models: ["Universal-2", "Nano"], icon: "🔴", sttOnly: true },
-  { id: "groq", name: "Groq", models: ["Llama 3.3 70B", "Mixtral 8x7B", "Whisper Large V3"], icon: "🟠" },
-];
-
-type DownloadState = "idle" | "downloading" | "downloaded";
 
 export default function SettingsPage() {
+  const modelSettings = useModelSettings();
+  const { selectedAIModel, setSelectedAIModel, selectedSTTModel, setSelectedSTTModel, downloadStates, handleDownload, handleDeleteModel, connectedProviders, setConnectedProviders, useLocalModels, setUseLocalModels } = modelSettings;
   const [active, setActive] = useState("account");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -99,18 +81,10 @@ export default function SettingsPage() {
     speakerLabels: true,
     customVocab: false,
     autoLanguageDetect: true,
-    useLocalModels: true,
+    
   });
   const toggle = (key: string) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // AI Model state
-  const [selectedAIModel, setSelectedAIModel] = useState("local:phi-3-mini");
-  const [selectedSTTModel, setSelectedSTTModel] = useState("local:whisper-medium");
-  const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({
-    "whisper-medium": "downloaded",
-    "phi-3-mini": "downloaded",
-  });
-  const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>({});
   const [editingApiKey, setEditingApiKey] = useState<string | null>(null);
   const [tempApiKey, setTempApiKey] = useState("");
 
@@ -118,21 +92,6 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState("en");
   const [transcriptLang, setTranscriptLang] = useState("auto");
   const [customTerms, setCustomTerms] = useState("");
-
-  const handleDownload = (modelId: string) => {
-    setDownloadStates((prev) => ({ ...prev, [modelId]: "downloading" }));
-    setTimeout(() => {
-      setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
-    }, 3000);
-  };
-
-  const handleDeleteModel = (modelId: string) => {
-    setDownloadStates((prev) => {
-      const next = { ...prev };
-      delete next[modelId];
-      return next;
-    });
-  };
 
   const handleConnectProvider = (providerId: string) => {
     if (editingApiKey === providerId) {
@@ -309,7 +268,7 @@ export default function SettingsPage() {
                       <SettingRow label="" description="">
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                           <span>Use local by default</span>
-                          <Toggle enabled={toggles.useLocalModels} onToggle={() => toggle("useLocalModels")} />
+                          <Toggle enabled={useLocalModels} onToggle={() => setUseLocalModels(!useLocalModels)} />
                         </div>
                       </SettingRow>
                     </div>

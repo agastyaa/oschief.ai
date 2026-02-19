@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Paperclip, Mic, MicOff, ChevronDown, ListTodo, PenLine, FileText, LayoutGrid, Hash, Mail, BookOpen, Zap, ArrowUp, X } from "lucide-react";
+import { Sparkles, Paperclip, Mic, MicOff, ChevronDown, ChevronUp, ListTodo, PenLine, FileText, LayoutGrid, Hash, Mail, BookOpen, Zap, ArrowUp, X, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useModelSettings } from "@/contexts/ModelSettingsContext";
+import { useNavigate } from "react-router-dom";
 
 interface AskBarProps {
   context?: "home" | "meeting";
@@ -23,9 +25,10 @@ const recipes = [
   { icon: Zap, label: "Action plan", description: "Create an action plan with owners" },
 ];
 
-type ModelType = "Auto" | "GPT-4" | "Claude";
-
 export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
+  const navigate = useNavigate();
+  const { getActiveAIModelLabel, getAvailableAIModels, selectedAIModel, setSelectedAIModel } = useModelSettings();
+
   const [input, setInput] = useState("");
   const [scope, setScope] = useState<"this" | "all">(context === "meeting" ? "this" : "all");
   const [showChat, setShowChat] = useState(false);
@@ -34,13 +37,14 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const [recipeFilter, setRecipeFilter] = useState("");
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
   const [isListening, setIsListening] = useState(false);
-  const [model, setModel] = useState<ModelType>("Auto");
   const [showModelPicker, setShowModelPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const recipeMenuRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const hasInput = input.trim().length > 0;
+  const availableModels = getAvailableAIModels();
+  const activeLabel = getActiveAIModelLabel();
 
   const filteredRecipes = recipes.filter((r) =>
     r.label.toLowerCase().includes(recipeFilter.toLowerCase())
@@ -50,7 +54,6 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setSelectedRecipeIndex(0);
   }, [recipeFilter]);
 
-  // Close recipes menu on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (recipeMenuRef.current && !recipeMenuRef.current.contains(e.target as Node)) {
@@ -69,7 +72,6 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
-
     if (val === "/") {
       setShowRecipes(true);
       setRecipeFilter("");
@@ -90,17 +92,15 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: `/${label}` },
-      { role: "assistant", text: `Here are the results for "${label}"${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}. This is a simulated response — in a real app, this recipe would process your meeting data.` },
+      { role: "assistant", text: `[${activeLabel}] Here are the results for "${label}"${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}. This is a simulated response.` },
     ]);
   };
 
   const handleSend = () => {
     if (!input.trim()) return;
-    if (showRecipes) {
-      if (filteredRecipes.length > 0) {
-        handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
-        return;
-      }
+    if (showRecipes && filteredRecipes.length > 0) {
+      handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
+      return;
     }
     const q = input;
     setInput("");
@@ -109,7 +109,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: q },
-      { role: "assistant", text: `Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: This is a simulated response to "${q}".` },
+      { role: "assistant", text: `[${activeLabel}] Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: Simulated response to "${q}".` },
     ]);
   };
 
@@ -118,7 +118,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: label },
-      { role: "assistant", text: `Here are the results for "${label}". This is a simulated response — in a real app, this would process your meeting data.` },
+      { role: "assistant", text: `[${activeLabel}] Results for "${label}". Simulated response.` },
     ]);
   };
 
@@ -132,9 +132,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
         setSelectedRecipeIndex((prev) => Math.max(prev - 1, 0));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (filteredRecipes.length > 0) {
-          handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
-        }
+        if (filteredRecipes.length > 0) handleSelectRecipe(filteredRecipes[selectedRecipeIndex].label);
       } else if (e.key === "Escape") {
         setShowRecipes(false);
       }
@@ -147,7 +145,6 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const toggleVoice = () => {
     setIsListening(!isListening);
     if (!isListening) {
-      // Simulate voice input after 2s
       setTimeout(() => {
         setInput("What were the action items from today?");
         setIsListening(false);
@@ -155,10 +152,11 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     }
   };
 
-  const handleCloseChat = () => {
-    setShowChat(false);
-    setMessages([]);
-  };
+  // Group available models
+  const modelGroups = availableModels.reduce<Record<string, typeof availableModels>>((acc, m) => {
+    (acc[m.group] = acc[m.group] || []).push(m);
+    return acc;
+  }, {});
 
   return (
     <div className="border-t border-border bg-background">
@@ -167,7 +165,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
         <div className="max-h-64 overflow-y-auto px-6 py-3 space-y-3 border-b border-border bg-card/50">
           <div className="mx-auto max-w-2xl space-y-3">
             <div className="flex justify-end">
-              <button onClick={handleCloseChat} className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button onClick={() => { setShowChat(false); setMessages([]); }} className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <X className="h-3 w-3" />
               </button>
             </div>
@@ -180,9 +178,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
                 )}
                 <div className={cn(
                   "max-w-[85%] rounded-lg px-3 py-1.5 text-[13px] leading-relaxed",
-                  msg.role === "user"
-                    ? "bg-accent text-accent-foreground"
-                    : "bg-card border border-border text-foreground"
+                  msg.role === "user" ? "bg-accent text-accent-foreground" : "bg-card border border-border text-foreground"
                 )}>
                   {msg.text}
                 </div>
@@ -216,39 +212,30 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
         <div className="mx-auto flex max-w-2xl items-center gap-1.5 relative">
           {/* Recipes dropdown */}
           {showRecipes && (
-            <div
-              ref={recipeMenuRef}
-              className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden"
-            >
+            <div ref={recipeMenuRef} className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
               <div className="px-3 py-2 border-b border-border">
                 <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Recipes</span>
               </div>
               <div className="max-h-52 overflow-y-auto py-1">
-                {filteredRecipes.length > 0 ? (
-                  filteredRecipes.map((recipe, i) => (
-                    <button
-                      key={recipe.label}
-                      onClick={() => handleSelectRecipe(recipe.label)}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
-                        i === selectedRecipeIndex
-                          ? "bg-accent/10 text-foreground"
-                          : "text-foreground hover:bg-secondary"
-                      )}
-                    >
-                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent flex-shrink-0">
-                        <recipe.icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium truncate">{recipe.label}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{recipe.description}</div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-4 text-center text-[12px] text-muted-foreground">
-                    No recipes found
-                  </div>
+                {filteredRecipes.length > 0 ? filteredRecipes.map((recipe, i) => (
+                  <button
+                    key={recipe.label}
+                    onClick={() => handleSelectRecipe(recipe.label)}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
+                      i === selectedRecipeIndex ? "bg-accent/10 text-foreground" : "text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/10 text-accent flex-shrink-0">
+                      <recipe.icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium truncate">{recipe.label}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{recipe.description}</div>
+                    </div>
+                  </button>
+                )) : (
+                  <div className="px-3 py-4 text-center text-[12px] text-muted-foreground">No recipes found</div>
                 )}
               </div>
               <div className="px-3 py-2 border-t border-border">
@@ -262,22 +249,47 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
 
           {/* Model picker dropdown */}
           {showModelPicker && (
-            <div
-              ref={modelMenuRef}
-              className="absolute bottom-full right-0 mb-1 w-36 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden"
-            >
-              {(["Auto", "GPT-4", "Claude"] as ModelType[]).map((m) => (
+            <div ref={modelMenuRef} className="absolute bottom-full right-0 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+              <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">AI Model</span>
                 <button
-                  key={m}
-                  onClick={() => { setModel(m); setShowModelPicker(false); }}
-                  className={cn(
-                    "flex w-full items-center px-3 py-2 text-[12px] transition-colors",
-                    model === m ? "bg-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
+                  onClick={() => { setShowModelPicker(false); navigate("/settings"); }}
+                  className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  title="Model settings"
                 >
-                  {m}
+                  <Settings className="h-3 w-3" />
                 </button>
-              ))}
+              </div>
+              <div className="max-h-60 overflow-y-auto py-1">
+                {Object.entries(modelGroups).map(([group, models]) => (
+                  <div key={group}>
+                    <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{group}</div>
+                    {models.map((m) => (
+                      <button
+                        key={m.value}
+                        onClick={() => { setSelectedAIModel(m.value); setShowModelPicker(false); }}
+                        className={cn(
+                          "flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors",
+                          selectedAIModel === m.value
+                            ? "bg-accent/10 text-foreground font-medium"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        )}
+                      >
+                        <span>{m.label}</span>
+                        {selectedAIModel === m.value && <span className="text-accent">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+                {availableModels.length === 0 && (
+                  <div className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+                    No models available.<br />
+                    <button onClick={() => { setShowModelPicker(false); navigate("/settings"); }} className="text-accent hover:underline mt-1 inline-block">
+                      Configure in Settings →
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -300,12 +312,11 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
               placeholder="type / for recipes"
               className={cn(
                 "w-full rounded-md border border-border bg-card py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all",
-                hasInput ? "px-3 pr-10" : "px-3 pr-24"
+                hasInput ? "px-3 pr-10" : "px-3 pr-28"
               )}
             />
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
               {hasInput ? (
-                /* Submit button when typing */
                 <button
                   onClick={handleSend}
                   className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-accent-foreground transition-all hover:opacity-90"
@@ -313,16 +324,16 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>
               ) : (
-                /* Auto / Attach / Voice when idle */
                 <>
                   <button
                     onClick={() => setShowModelPicker(!showModelPicker)}
                     className={cn(
-                      "rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                      "rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors max-w-[80px] truncate",
                       showModelPicker ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground hover:text-foreground"
                     )}
+                    title={`Model: ${activeLabel}`}
                   >
-                    {model}
+                    {activeLabel.length > 12 ? activeLabel.slice(0, 12) + "…" : activeLabel}
                   </button>
                   <button
                     className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
@@ -334,9 +345,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
                     onClick={toggleVoice}
                     className={cn(
                       "rounded p-1 transition-colors",
-                      isListening
-                        ? "text-destructive animate-pulse"
-                        : "text-muted-foreground hover:text-foreground"
+                      isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"
                     )}
                     title={isListening ? "Stop listening" : "Voice input"}
                   >
