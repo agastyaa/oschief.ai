@@ -283,15 +283,6 @@ export default function NewNotePage() {
                   />
                 ) : (
                   <div className="animate-fade-in">
-                    <div className="mb-6">
-                      <textarea
-                        value={personalNotes}
-                        onChange={(e) => setPersonalNotes(e.target.value)}
-                        placeholder="Add your thoughts..."
-                        className="min-h-[80px] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
-                      />
-                    </div>
-
                     {viewMode === "ai-notes" && (
                       <>
                         <div className="mb-8">

@@ -133,17 +133,6 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
         </div>
       </div>
 
-      {/* Personal Notes - editable area at top (like Granola "Add your thoughts...") */}
-      <div className="mb-6">
-        <textarea
-          ref={textareaRef}
-          value={personalNotes}
-          onChange={(e) => setPersonalNotes(e.target.value)}
-          placeholder="Add your thoughts..."
-          className="min-h-[80px] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
-        />
-      </div>
-
       {/* AI Notes sections - shown in ai-notes mode */}
       {viewMode === "ai-notes" && (
         <>
