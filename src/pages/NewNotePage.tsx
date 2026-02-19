@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
@@ -56,6 +56,8 @@ function formatTime(seconds: number) {
 
 export default function NewNotePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const eventState = location.state as { eventTitle?: string; eventId?: string } | null;
   const { activeSession, startSession, updateSession, clearSession } = useRecording();
   
   // Check if returning to an existing session
@@ -68,7 +70,7 @@ export default function NewNotePage() {
   const [transcriptVisible, setTranscriptVisible] = useState(false);
   const [personalNotes, setPersonalNotes] = useState("");
   const [visibleLines, setVisibleLines] = useState(2);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(() => eventState?.eventTitle || "");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
