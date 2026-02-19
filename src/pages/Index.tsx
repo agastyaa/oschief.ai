@@ -8,6 +8,8 @@ import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
+import { EventDetailSheet } from "@/components/EventDetailSheet";
+import { CalendarEvent } from "@/lib/ics-parser";
 import { format, isToday as isTodayFn, isTomorrow, isAfter } from "date-fns";
 
 const Index = () => {
@@ -17,6 +19,7 @@ const Index = () => {
   const { notes, deleteNote, updateNoteFolder } = useNotes();
   const { events, icsSource } = useCalendar();
   const [icsOpen, setIcsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const now = new Date();
   const upcomingEvents = events.filter(e => isAfter(e.start, now)).slice(0, 5);
@@ -122,7 +125,11 @@ const Index = () => {
                   {upcomingEvents.map((evt) => {
                     const dayLabel = isTodayFn(evt.start) ? "Today" : isTomorrow(evt.start) ? "Tomorrow" : format(evt.start, "EEE, MMM d");
                     return (
-                      <div key={evt.id} className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        key={evt.id}
+                        onClick={() => setSelectedEvent(evt)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors cursor-pointer"
+                      >
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent flex-shrink-0">
                           <Calendar className="h-4 w-4" />
                         </div>
@@ -130,7 +137,7 @@ const Index = () => {
                           <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
                           <p className="text-[11px] text-muted-foreground">{dayLabel} · {format(evt.start, "h:mm a")}</p>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                   <div className="px-4 py-2">
@@ -217,6 +224,7 @@ const Index = () => {
         </div>
       </main>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
+      <EventDetailSheet event={selectedEvent} open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)} />
     </div>
   );
 };

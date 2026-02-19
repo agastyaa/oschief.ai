@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
+import { EventDetailSheet } from "@/components/EventDetailSheet";
+import { CalendarEvent } from "@/lib/ics-parser";
 import { format } from "date-fns";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -24,6 +26,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [icsOpen, setIcsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const { events, icsSource, clearCalendar } = useCalendar();
 
   const daysInMonth = getDaysInMonth(year, month);
@@ -118,9 +121,13 @@ export default function CalendarPage() {
                   </span>
                   <div className="mt-0.5 space-y-0.5">
                     {dayEvents.slice(0, 3).map((evt) => (
-                      <div key={evt.id} className="truncate rounded px-1 py-0.5 text-[10px] bg-accent/10 text-accent font-medium">
+                      <button
+                        key={evt.id}
+                        onClick={() => setSelectedEvent(evt)}
+                        className="w-full text-left truncate rounded px-1 py-0.5 text-[10px] bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors cursor-pointer"
+                      >
                         {format(new Date(evt.start), "h:mm")} {evt.title}
-                      </div>
+                      </button>
                     ))}
                     {dayEvents.length > 3 && (
                       <span className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - 3} more</span>
@@ -133,6 +140,7 @@ export default function CalendarPage() {
         </div>
       </main>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
+      <EventDetailSheet event={selectedEvent} open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)} />
     </div>
   );
 }
