@@ -45,12 +45,14 @@ export default function MeetingPage() {
             ← Back
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-3xl px-6 py-4">
             <MeetingDetail meeting={meeting} />
           </div>
         </div>
-        <AskBar context="meeting" meetingTitle={meeting.title} />
+        <div className="relative">
+          <AskBar context="meeting" meetingTitle={meeting.title} />
+        </div>
       </main>
     </div>
   );

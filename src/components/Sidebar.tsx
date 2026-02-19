@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, NotebookPen, X, Check } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, NotebookPen, X, Check, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
@@ -55,13 +55,13 @@ export function Sidebar() {
           onClick={() => navigate("/")}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/calendar") && !isActive("/settings")
+            isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder")
               ? "bg-secondary text-foreground font-medium"
               : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
           )}
         >
-          <FileText className="h-3.5 w-3.5" />
-          My notes
+          <Home className="h-3.5 w-3.5" />
+          Home
         </button>
       </nav>
 
@@ -82,7 +82,13 @@ export function Sidebar() {
             return (
               <button
                 key={f.id}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-sidebar-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+                onClick={() => navigate(`/?folder=${f.id}`)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+                  new URLSearchParams(location.search).get("folder") === f.id
+                    ? "bg-secondary text-foreground font-medium"
+                    : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+                )}
               >
                 <div className={cn("flex h-4 w-4 items-center justify-center rounded", f.color)}>
                   <Icon className="h-2.5 w-2.5" />

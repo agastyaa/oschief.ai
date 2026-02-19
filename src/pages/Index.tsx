@@ -3,16 +3,22 @@ import { Sidebar } from "@/components/Sidebar";
 import { MeetingCard } from "@/components/MeetingCard";
 import { MeetingDetail } from "@/components/MeetingDetail";
 import { meetings } from "@/data/meetings";
-import { Plus, PanelLeftClose, PanelLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, PanelLeftClose, PanelLeft, FolderOpen, ArrowLeft } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { cn } from "@/lib/utils";
+import { useFolders } from "@/contexts/FolderContext";
 
 const Index = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const selectedMeeting = selectedId ? meetings.find((m) => m.id === selectedId) : null;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { folders, noteFolders, getNotesInFolder } = useFolders();
+
+  const activeFolderId = searchParams.get("folder");
+  const activeFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
 
   // Group meetings by date
   const grouped = meetings.reduce<Record<string, typeof meetings>>((acc, m) => {
@@ -22,6 +28,10 @@ const Index = () => {
 
   // Upcoming meetings (first 3)
   const upcoming = meetings.slice(0, 3);
+
+  // Folder-filtered meetings
+  const folderNoteIds = activeFolderId ? getNotesInFolder(activeFolderId) : [];
+  const folderMeetings = activeFolderId ? meetings.filter((m) => folderNoteIds.includes(m.id)) : [];
 
   if (selectedMeeting) {
     return (
@@ -48,12 +58,65 @@ const Index = () => {
               ← Back to notes
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-24">
             <div className="mx-auto max-w-3xl px-8 py-4">
               <MeetingDetail meeting={selectedMeeting} />
             </div>
           </div>
-          <AskBar context="meeting" meetingTitle={selectedMeeting.title} />
+          <div className="relative">
+            <AskBar context="meeting" meetingTitle={selectedMeeting.title} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Folder view
+  if (activeFolder) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        <Sidebar />
+        <main className="flex flex-1 flex-col min-w-0 relative">
+          <div className="flex-1 overflow-y-auto pb-24">
+            <div className="mx-auto max-w-2xl px-6 py-8">
+              <div className="flex items-center gap-3 mb-6">
+                <button
+                  onClick={() => navigate("/")}
+                  className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5 text-accent" />
+                  <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
+                </div>
+                <span className="text-xs text-muted-foreground">{folderMeetings.length} notes</span>
+              </div>
+
+              {folderMeetings.length === 0 ? (
+                <div className="text-center py-16">
+                  <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No notes in this folder yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Open a note and use "Add to folder" to move it here</p>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {folderMeetings.map((m) => (
+                    <MeetingCard
+                      key={m.id}
+                      meeting={m}
+                      selected={false}
+                      onClick={() => setSelectedId(m.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0">
+            <AskBar context="home" />
+          </div>
         </main>
       </div>
     );
@@ -141,7 +204,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Bottom Ask bar - positioned within main content, not overlapping sidebar */}
         <div className="absolute bottom-0 left-0 right-0">
           <AskBar context="home" />
         </div>
