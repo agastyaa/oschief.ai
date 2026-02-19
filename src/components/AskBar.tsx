@@ -187,10 +187,22 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   if (!expanded && !showChat) {
     return (
       <div className="px-4 pb-4 pointer-events-none">
-        <div className="mx-auto max-w-2xl pointer-events-auto">
+        <div className="mx-auto max-w-2xl pointer-events-auto flex items-center gap-2">
+          {/* Equalizer / Resume button for meeting context */}
+          {context === "meeting" && (
+            <button className="flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3 py-2.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="6" width="2.5" height="7" rx="1" />
+                <rect x="5" y="3" width="2.5" height="10" rx="1" />
+                <rect x="9" y="5" width="2.5" height="8" rx="1" />
+                <rect x="13" y="4" width="2.5" height="9" rx="1" />
+              </svg>
+              <ChevronUp className="h-3 w-3" />
+            </button>
+          )}
           <div
             onClick={handleExpand}
-            className="flex items-center justify-between rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
+            className="flex flex-1 items-center justify-between rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
           >
             <span className="text-sm text-muted-foreground">Ask anything</span>
             <div className="flex items-center gap-2">
