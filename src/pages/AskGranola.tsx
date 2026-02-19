@@ -78,7 +78,7 @@ export default function AskGranola() {
         <div className="border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-accent" />
-            <h1 className="font-display text-lg text-foreground">Granola Chat</h1>
+            <h1 className="font-display text-lg text-foreground">Syag Chat</h1>
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">Ask anything across all your meetings</p>
         </div>

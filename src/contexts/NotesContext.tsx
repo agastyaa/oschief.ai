@@ -24,7 +24,7 @@ interface NotesContextType {
   getNotesInFolder: (folderId: string) => SavedNote[];
 }
 
-const STORAGE_KEY = "granola-notes";
+const STORAGE_KEY = "syag-notes";
 
 function loadNotes(): SavedNote[] {
   try {

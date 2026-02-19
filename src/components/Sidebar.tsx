@@ -37,7 +37,7 @@ export function Sidebar() {
         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent">
           <NotebookPen className="h-3.5 w-3.5 text-accent-foreground" />
         </div>
-        <span className="font-display text-lg text-foreground">granola</span>
+        <span className="font-display text-lg text-foreground">syag</span>
       </div>
 
       {/* Search */}
@@ -146,7 +146,7 @@ export function Sidebar() {
           )}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Granola Chat
+          Syag Chat
         </button>
         <button
           onClick={() => navigate("/calendar")}

@@ -18,7 +18,7 @@ interface FolderContextType {
   getNotesInFolder: (folderId: string) => string[];
 }
 
-const LS_KEY = "granola-folders";
+const LS_KEY = "syag-folders";
 
 const defaultFolders: Folder[] = [
   { id: "team-meetings", name: "Team meetings", color: "bg-accent/20 text-accent", icon: "users" },

@@ -429,7 +429,7 @@ export default function SettingsPage() {
               {/* ─── Transcription ─── */}
               {active === "transcription" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Transcription" description="Control how Granola listens and transcribes your meetings" />
+                  <SectionHeader title="Transcription" description="Control how Syag listens and transcribes your meetings" />
                   <div className="space-y-2">
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
                       <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />

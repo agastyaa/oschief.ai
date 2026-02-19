@@ -37,7 +37,7 @@ export const localModels: LocalModel[] = [
 
 type DownloadState = "idle" | "downloading" | "downloaded";
 
-const LS_KEY = "granola-model-settings";
+const LS_KEY = "syag-model-settings";
 
 function loadFromStorage() {
   try {
