@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, X, Check, Home } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
@@ -122,10 +122,6 @@ export function Sidebar() {
             </div>
           )}
 
-          <button className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground">
-            <ChevronRight className="h-3 w-3" />
-            Browse all folders...
-          </button>
         </div>
       </div>
 

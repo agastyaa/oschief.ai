@@ -233,22 +233,28 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                     <Pause className="h-3 w-3" />
                   </>
                 ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5" />
-                    <span className="text-[11px] font-medium">Resume</span>
-                  </>
+                  <Play className="h-3.5 w-3.5" />
                 )}
               </button>
             </div>
           )}
           {context === "meeting" && recordingState === "stopped" && (
-            <button
-              onClick={onResumeRecording}
-              className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 shadow-lg px-3 py-2.5 text-accent hover:bg-accent/20 transition-colors flex-shrink-0"
-            >
-              <Play className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-medium">Resume</span>
-            </button>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={onToggleTranscript}
+                className="flex items-center justify-center rounded-full border border-border bg-card shadow-lg w-10 h-10 text-muted-foreground hover:text-foreground transition-colors"
+                title={transcriptVisible ? "Hide transcript" : "Show transcript"}
+              >
+                {transcriptVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                onClick={onResumeRecording}
+                className="flex items-center justify-center rounded-full border border-accent/30 bg-accent/10 shadow-lg w-10 h-10 text-accent hover:bg-accent/20 transition-colors"
+                title="Resume recording"
+              >
+                <Play className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
           <div
             onClick={handleExpand}
@@ -260,8 +266,8 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                 onClick={(e) => { e.stopPropagation(); handleQuickAction(quickActions[0].label); }}
                 className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
               >
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(80,60%,55%)]">
-                  <span className="text-[10px] text-white font-bold">/</span>
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                  <span className="text-[10px] text-accent-foreground font-bold">/</span>
                 </span>
                 {quickActions[0].label}
               </button>
@@ -318,8 +324,8 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
               {messages.length > 0 && (
                 <div className="flex justify-end">
                   <div className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(80,60%,55%)]">
-                      <span className="text-[10px] text-white font-bold">/</span>
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                      <span className="text-[10px] text-accent-foreground font-bold">/</span>
                     </span>
                     {messages.find(m => m.role === "user")?.text.replace(/^\//, "")}
                     <span className="text-muted-foreground">›</span>
@@ -358,8 +364,8 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                   onClick={() => handleQuickAction(action.label)}
                   className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary"
                 >
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(80,60%,55%)]">
-                    <span className="text-[10px] text-white font-bold">/</span>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                    <span className="text-[10px] text-accent-foreground font-bold">/</span>
                   </span>
                   {action.label}
                 </button>

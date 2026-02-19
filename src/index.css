@@ -6,93 +6,93 @@
 
 @layer base {
   :root {
-    --background: 48 30% 96%;
-    --foreground: 36 14% 12%;
+    --background: 30 25% 96%;
+    --foreground: 20 14% 12%;
 
-    --card: 48 25% 99%;
-    --card-foreground: 36 14% 12%;
+    --card: 30 20% 99%;
+    --card-foreground: 20 14% 12%;
 
-    --popover: 48 25% 99%;
-    --popover-foreground: 36 14% 12%;
+    --popover: 30 20% 99%;
+    --popover-foreground: 20 14% 12%;
 
-    --primary: 72 30% 32%;
-    --primary-foreground: 48 30% 97%;
+    --primary: 24 45% 42%;
+    --primary-foreground: 30 25% 97%;
 
-    --secondary: 48 18% 92%;
-    --secondary-foreground: 36 14% 18%;
+    --secondary: 28 18% 92%;
+    --secondary-foreground: 20 14% 18%;
 
-    --muted: 48 12% 93%;
-    --muted-foreground: 36 8% 50%;
+    --muted: 28 12% 93%;
+    --muted-foreground: 20 8% 50%;
 
-    --accent: 72 30% 32%;
-    --accent-foreground: 48 30% 97%;
+    --accent: 24 45% 42%;
+    --accent-foreground: 30 25% 97%;
 
     --destructive: 0 60% 50%;
-    --destructive-foreground: 48 30% 97%;
+    --destructive-foreground: 30 25% 97%;
 
-    --border: 40 14% 90%;
-    --input: 40 14% 90%;
-    --ring: 72 30% 32%;
+    --border: 25 14% 89%;
+    --input: 25 14% 89%;
+    --ring: 24 45% 42%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 48 20% 95%;
-    --sidebar-foreground: 36 10% 35%;
-    --sidebar-primary: 72 30% 32%;
-    --sidebar-primary-foreground: 48 30% 97%;
-    --sidebar-accent: 72 30% 32%;
-    --sidebar-accent-foreground: 48 30% 97%;
-    --sidebar-border: 40 14% 90%;
-    --sidebar-ring: 72 30% 32%;
+    --sidebar-background: 30 18% 95%;
+    --sidebar-foreground: 20 10% 35%;
+    --sidebar-primary: 24 45% 42%;
+    --sidebar-primary-foreground: 30 25% 97%;
+    --sidebar-accent: 24 45% 42%;
+    --sidebar-accent-foreground: 30 25% 97%;
+    --sidebar-border: 25 14% 89%;
+    --sidebar-ring: 24 45% 42%;
 
-    --olive: 72 30% 32%;
-    --olive-light: 72 25% 90%;
-    --olive-muted: 72 15% 60%;
-    --sage: 72 30% 32%;
-    --sage-light: 72 25% 90%;
-    --espresso: 36 14% 12%;
-    --parchment: 48 30% 96%;
-    --cream: 48 25% 99%;
+    --olive: 24 45% 42%;
+    --olive-light: 24 30% 90%;
+    --olive-muted: 24 20% 60%;
+    --sage: 24 45% 42%;
+    --sage-light: 24 30% 90%;
+    --espresso: 20 14% 12%;
+    --parchment: 30 25% 96%;
+    --cream: 30 20% 99%;
 
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   .dark {
-    --background: 36 10% 7%;
-    --foreground: 48 15% 90%;
-    --card: 36 10% 10%;
-    --card-foreground: 48 15% 90%;
-    --popover: 36 10% 10%;
-    --popover-foreground: 48 15% 90%;
-    --primary: 72 25% 65%;
-    --primary-foreground: 36 10% 7%;
-    --secondary: 36 8% 15%;
-    --secondary-foreground: 48 15% 90%;
-    --muted: 36 8% 17%;
-    --muted-foreground: 48 8% 55%;
-    --accent: 72 25% 50%;
-    --accent-foreground: 48 30% 97%;
+    --background: 20 10% 7%;
+    --foreground: 30 15% 90%;
+    --card: 20 10% 10%;
+    --card-foreground: 30 15% 90%;
+    --popover: 20 10% 10%;
+    --popover-foreground: 30 15% 90%;
+    --primary: 24 40% 60%;
+    --primary-foreground: 20 10% 7%;
+    --secondary: 20 8% 15%;
+    --secondary-foreground: 30 15% 90%;
+    --muted: 20 8% 17%;
+    --muted-foreground: 30 8% 55%;
+    --accent: 24 40% 50%;
+    --accent-foreground: 30 25% 97%;
     --destructive: 0 60% 50%;
-    --destructive-foreground: 48 30% 97%;
-    --border: 36 8% 17%;
-    --input: 36 8% 17%;
-    --ring: 72 25% 65%;
-    --sidebar-background: 36 10% 5%;
-    --sidebar-foreground: 48 10% 65%;
-    --sidebar-primary: 72 25% 65%;
-    --sidebar-primary-foreground: 36 10% 7%;
-    --sidebar-accent: 72 25% 50%;
-    --sidebar-accent-foreground: 48 30% 97%;
-    --sidebar-border: 36 8% 17%;
-    --sidebar-ring: 72 25% 65%;
-    --olive: 72 25% 65%;
-    --olive-light: 72 10% 17%;
-    --olive-muted: 72 10% 40%;
-    --sage: 72 25% 50%;
-    --sage-light: 72 10% 17%;
-    --espresso: 48 15% 90%;
-    --parchment: 36 10% 7%;
-    --cream: 36 10% 10%;
+    --destructive-foreground: 30 25% 97%;
+    --border: 20 8% 17%;
+    --input: 20 8% 17%;
+    --ring: 24 40% 60%;
+    --sidebar-background: 20 10% 5%;
+    --sidebar-foreground: 30 10% 65%;
+    --sidebar-primary: 24 40% 60%;
+    --sidebar-primary-foreground: 20 10% 7%;
+    --sidebar-accent: 24 40% 50%;
+    --sidebar-accent-foreground: 30 25% 97%;
+    --sidebar-border: 20 8% 17%;
+    --sidebar-ring: 24 40% 60%;
+    --olive: 24 40% 60%;
+    --olive-light: 24 10% 17%;
+    --olive-muted: 24 10% 40%;
+    --sage: 24 40% 50%;
+    --sage-light: 24 10% 17%;
+    --espresso: 30 15% 90%;
+    --parchment: 20 10% 7%;
+    --cream: 20 10% 10%;
   }
 }
 
