@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes } from "@/contexts/NotesContext";
-import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle, Hash, Calendar, Clock, Users, EyeOff, Search, X } from "lucide-react";
+import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle, Hash, Calendar, Clock, Users, EyeOff, Eye, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function NoteDetailPage() {
@@ -168,7 +168,13 @@ export default function NoteDetailPage() {
 
             {/* Ask bar */}
             <div className="relative">
-              <AskBar context="meeting" meetingTitle={note.title} />
+              <AskBar
+                context="meeting"
+                meetingTitle={note.title}
+                recordingState="stopped"
+                transcriptVisible={transcriptVisible}
+                onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+              />
             </div>
           </div>
 
