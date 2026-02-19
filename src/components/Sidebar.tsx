@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, NotebookPen, X, Check, Home } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, ChevronRight, Plus, X, Check, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
@@ -34,9 +34,6 @@ export function Sidebar() {
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent">
-          <NotebookPen className="h-3.5 w-3.5 text-accent-foreground" />
-        </div>
         <span className="font-display text-lg text-foreground">syag</span>
       </div>
 

@@ -10,7 +10,7 @@ import { RecordingProvider } from "@/contexts/RecordingContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
-import AskGranola from "./pages/AskGranola";
+import AskSyag from "./pages/AskSyag";
 import MeetingPage from "./pages/MeetingPage";
 import NewNotePage from "./pages/NewNotePage";
 import CalendarPage from "./pages/CalendarPage";
@@ -29,7 +29,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/notes" element={<AllNotes />} />
-        <Route path="/ask" element={<AskGranola />} />
+        <Route path="/ask" element={<AskSyag />} />
         <Route path="/meeting/:id" element={<MeetingPage />} />
         <Route path="/new-note" element={<NewNotePage />} />
         <Route path="/calendar" element={<CalendarPage />} />

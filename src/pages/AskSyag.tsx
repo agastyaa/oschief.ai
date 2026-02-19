@@ -16,7 +16,7 @@ const suggestions = [
   "Any updates on hiring?",
 ];
 
-export default function AskGranola() {
+export default function AskSyag() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
