@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
+import { useRecording } from "@/contexts/RecordingContext";
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -77,17 +78,28 @@ export default function NewNotePage() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
   const { addNote, deleteNote } = useNotes();
+  const { startSession, updateSession, clearSession } = useRecording();
 
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
 
-  // Real-time timer
+  // Start recording session on mount
+  useEffect(() => {
+    startSession(noteId);
+    return () => {}; // Don't clear on unmount - banner should persist
+  }, [noteId, startSession]);
+
+  // Real-time timer + sync to recording context
   useEffect(() => {
     if (recordingState !== "recording") return;
     const timer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        updateSession({ elapsedSeconds: next, isRecording: true, title: title || "New note" });
+        return next;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [recordingState]);
+  }, [recordingState, title, updateSession]);
 
   // Simulate live transcription
   useEffect(() => {
@@ -109,6 +121,7 @@ export default function NewNotePage() {
 
   const handleStop = useCallback(() => {
     setRecordingState("stopped");
+    clearSession();
     setTranscriptVisible(true);
     const noteTitle = title || "Meeting notes";
     if (!title) setTitle(noteTitle);
@@ -134,7 +147,7 @@ export default function NewNotePage() {
         folderId: selectedFolderId,
       });
     }, 1500);
-  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote]);
+  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, clearSession]);
 
   const handleViewModeChange = useCallback((mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -398,12 +411,50 @@ export default function NewNotePage() {
                         autoFocus
                       />
                     ) : isSummarizing ? (
-                      <div className="flex flex-col items-center justify-center py-20 gap-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-accent" />
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-foreground/70">Generating summary...</p>
-                          <p className="text-xs text-muted-foreground mt-1">Analyzing your notes and transcript</p>
+                      <div className="space-y-8 py-4">
+                        {/* Shimmer: Overview */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
+                            <div className="h-4 w-36 rounded bg-muted-foreground/10 animate-pulse" />
+                          </div>
+                          <div className="space-y-2 pl-6">
+                            <div className="h-4 w-full rounded bg-muted-foreground/10 animate-pulse" />
+                            <div className="h-4 w-4/5 rounded bg-muted-foreground/10 animate-pulse" />
+                            <div className="h-4 w-3/5 rounded bg-muted-foreground/10 animate-pulse" />
+                          </div>
                         </div>
+                        {/* Shimmer: Key Points */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
+                            <div className="h-4 w-24 rounded bg-muted-foreground/10 animate-pulse" />
+                          </div>
+                          <div className="space-y-2.5 pl-6">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="flex items-center gap-2.5">
+                                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/10 animate-pulse" />
+                                <div className="h-4 rounded bg-muted-foreground/10 animate-pulse" style={{ width: `${70 - i * 10}%` }} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Shimmer: Next Steps */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
+                            <div className="h-4 w-28 rounded bg-muted-foreground/10 animate-pulse" />
+                          </div>
+                          <div className="space-y-2.5 pl-6">
+                            {[1, 2].map((i) => (
+                              <div key={i} className="flex items-center gap-2.5">
+                                <div className="h-4 w-4 rounded-full bg-muted-foreground/10 animate-pulse" />
+                                <div className="h-4 rounded bg-muted-foreground/10 animate-pulse" style={{ width: `${55 - i * 10}%` }} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center animate-pulse">Generating summary...</p>
                       </div>
                     ) : (
                       <>
@@ -470,6 +521,7 @@ export default function NewNotePage() {
                 onResumeRecording={() => {
                   setRecordingState("recording");
                   setTranscriptVisible(true);
+                  startSession(noteId);
                 }}
                 onPauseRecording={() => setRecordingState("paused")}
                 onStopRecording={handleStop}

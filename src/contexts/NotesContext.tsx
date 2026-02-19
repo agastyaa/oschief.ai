@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export interface SavedNote {
   id: string;
@@ -24,13 +24,38 @@ interface NotesContextType {
   getNotesInFolder: (folderId: string) => SavedNote[];
 }
 
+const STORAGE_KEY = "granola-notes";
+
+function loadNotes(): SavedNote[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNotes(notes: SavedNote[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  } catch {}
+}
+
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 export function NotesProvider({ children }: { children: ReactNode }) {
-  const [notes, setNotes] = useState<SavedNote[]>([]);
+  const [notes, setNotes] = useState<SavedNote[]>(loadNotes);
+
+  useEffect(() => {
+    saveNotes(notes);
+  }, [notes]);
 
   const addNote = useCallback((note: SavedNote) => {
-    setNotes((prev) => [note, ...prev]);
+    setNotes((prev) => {
+      // Avoid duplicate if already saved
+      if (prev.some((n) => n.id === note.id)) return prev;
+      return [note, ...prev];
+    });
   }, []);
 
   const deleteNote = useCallback((id: string) => {
