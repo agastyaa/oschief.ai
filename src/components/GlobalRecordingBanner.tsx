@@ -11,7 +11,7 @@ export function GlobalRecordingBanner() {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-full bg-foreground/90 pl-4 pr-2 py-2 shadow-lg backdrop-blur-sm">
       <button
-        onClick={() => navigate("/new-note")}
+        onClick={() => navigate(`/new-note?session=${activeSession.noteId}`)}
         className="flex items-center gap-2.5"
       >
         <span className="flex items-center gap-1">

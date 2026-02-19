@@ -55,6 +55,13 @@ function formatTime(seconds: number) {
 
 export default function NewNotePage() {
   const navigate = useNavigate();
+  const { activeSession, startSession, updateSession, clearSession } = useRecording();
+  
+  // Check if returning to an existing session
+  const searchParams = new URLSearchParams(window.location.search);
+  const existingSessionId = searchParams.get("session");
+  const isReturning = !!(existingSessionId && activeSession && activeSession.noteId === existingSessionId);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [recordingState, setRecordingState] = useState<RecordingState>("recording");
   const [transcriptVisible, setTranscriptVisible] = useState(true);
@@ -66,27 +73,30 @@ export default function NewNotePage() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => isReturning && activeSession ? activeSession.elapsedSeconds : 0);
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
   const [summary, setSummary] = useState<ReturnType<typeof generateSummary> | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [noteId] = useState(() => crypto.randomUUID());
+  const [noteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
   const { addNote, deleteNote } = useNotes();
-  const { startSession, updateSession, clearSession } = useRecording();
 
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
 
-  // Start recording session on mount
+  // Start recording session on mount (only if not returning to existing)
   useEffect(() => {
-    startSession(noteId);
-    return () => {}; // Don't clear on unmount - banner should persist
-  }, [noteId, startSession]);
+    if (!isReturning) {
+      startSession(noteId);
+    } else if (activeSession) {
+      setTitle(activeSession.title === "New note" ? "" : activeSession.title);
+    }
+    return () => {};
+  }, []);
 
   // Real-time timer + sync to recording context
   useEffect(() => {
