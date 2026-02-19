@@ -13,7 +13,7 @@ interface MeetingDetailProps {
 }
 
 export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailProps) {
-  const [personalNotes, setPersonalNotes] = useState("These are my personal notes from the meeting...");
+  const [personalNotes, setPersonalNotes] = useState("");
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -133,6 +133,17 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
         </div>
       </div>
 
+      {/* Personal Notes - editable area at top (like Granola "Add your thoughts...") */}
+      <div className="mb-6">
+        <textarea
+          ref={textareaRef}
+          value={personalNotes}
+          onChange={(e) => setPersonalNotes(e.target.value)}
+          placeholder="Add your thoughts..."
+          className="min-h-[80px] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
+        />
+      </div>
+
       {/* AI Notes sections - shown in ai-notes mode */}
       {viewMode === "ai-notes" && (
         <>
@@ -184,39 +195,6 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="border-t border-border/50 my-8" />
-        </>
-      )}
-
-      {/* Personal Notes - always shown */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <h2 className="font-display text-base font-semibold text-foreground/70">
-            {viewMode === "ai-notes" ? "Personal Notes" : "My Notes"}
-          </h2>
-        </div>
-        <textarea
-          ref={textareaRef}
-          value={personalNotes}
-          onChange={(e) => setPersonalNotes(e.target.value)}
-          placeholder="Write your notes..."
-          className="min-h-[200px] w-full resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none pl-6"
-        />
-      </div>
-
-      {/* Tags */}
-      {viewMode === "ai-notes" && (
-        <>
-          <div className="border-t border-border/50 my-8" />
-          <div className="flex flex-wrap gap-1.5 pb-20">
-            {meeting.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-sage-light px-2.5 py-0.5 text-[11px] font-medium text-accent">
-                {tag}
-              </span>
-            ))}
           </div>
         </>
       )}
