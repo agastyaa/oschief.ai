@@ -34,6 +34,7 @@ export function Sidebar() {
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+        <img src="/favicon.png" alt="Syag" className="h-6 w-6 rounded-md" />
         <span className="font-display text-lg text-foreground">syag</span>
       </div>
 
