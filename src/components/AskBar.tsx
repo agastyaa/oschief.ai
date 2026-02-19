@@ -14,6 +14,7 @@ interface AskBarProps {
   onToggleTranscript?: () => void;
   transcriptVisible?: boolean;
   recordingState?: "recording" | "paused" | "stopped";
+  elapsed?: string;
 }
 
 const homeQuickActions = [
@@ -38,7 +39,7 @@ const recipes = [
   { icon: Zap, label: "Action plan", description: "Create an action plan with owners" },
 ];
 
-export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecording, onPauseRecording, onStopRecording, onToggleTranscript, transcriptVisible, recordingState }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecording, onPauseRecording, onStopRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed }: AskBarProps) {
   const navigate = useNavigate();
   const { getActiveAIModelLabel, getAvailableAIModels, selectedAIModel, setSelectedAIModel } = useModelSettings();
 
@@ -258,6 +259,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                 className="flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3 py-2.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                 title="Recording options"
               >
+                {elapsed && <span className="text-xs font-medium">{elapsed}</span>}
                 <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
                   <rect x="1" y="6" width="2.5" height="7" rx="1" />
                   <rect x="5" y="3" width="2.5" height="10" rx="1" />

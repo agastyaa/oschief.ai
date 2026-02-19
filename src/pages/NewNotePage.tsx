@@ -96,7 +96,7 @@ export default function NewNotePage() {
 
   const handleStop = useCallback(() => {
     setRecordingState("stopped");
-    setTranscriptVisible(false);
+    setTranscriptVisible(true);
     if (!title) setTitle("Meeting notes");
   }, [title]);
 
@@ -378,21 +378,21 @@ export default function NewNotePage() {
                         </span>
                       )}
                       <Mic className="h-3 w-3" />
-                      <span>{elapsed}</span>
                     </div>
                   ) : undefined
                 }
+                elapsed={elapsed}
               />
             </div>
           </div>
 
-          {/* Live transcript side panel */}
-          {transcriptVisible && !isStopped && (
+          {/* Transcript side panel */}
+          {transcriptVisible && (
             <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Live Transcript
+                    {isStopped ? "Transcript" : "Live Transcript"}
                   </span>
                   <button
                     onClick={() => setTranscriptVisible(false)}
@@ -403,7 +403,7 @@ export default function NewNotePage() {
                 </div>
               </div>
               <div className="p-4 space-y-3">
-                {fakeTranscriptLines.slice(0, visibleLines).map((line, i) => (
+                {fakeTranscriptLines.slice(0, isStopped ? fakeTranscriptLines.length : visibleLines).map((line, i) => (
                   <div key={i} className="animate-fade-in">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-[8px] font-medium text-foreground">
