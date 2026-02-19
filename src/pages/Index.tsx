@@ -3,8 +3,9 @@ import { Sidebar } from "@/components/Sidebar";
 import { MeetingCard } from "@/components/MeetingCard";
 import { MeetingDetail } from "@/components/MeetingDetail";
 import { meetings } from "@/data/meetings";
-import { Sparkles, ListTodo, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AskBar } from "@/components/AskBar";
 
 const Index = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -24,16 +25,19 @@ const Index = () => {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-8 py-8">
-            <button
-              onClick={() => setSelectedId(null)}
-              className="mb-5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ← Back to notes
-            </button>
-            <MeetingDetail meeting={selectedMeeting} />
+        <main className="flex flex-1 flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-3xl px-8 py-8">
+              <button
+                onClick={() => setSelectedId(null)}
+                className="mb-5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                ← Back to notes
+              </button>
+              <MeetingDetail meeting={selectedMeeting} />
+            </div>
           </div>
+          <AskBar context="meeting" meetingTitle={selectedMeeting.title} />
         </main>
       </div>
     );
@@ -119,21 +123,7 @@ const Index = () => {
         </div>
 
         {/* Bottom Ask bar */}
-        <div className="border-t border-border px-6 py-2.5">
-          <div className="mx-auto flex max-w-2xl items-center gap-2">
-            <button
-              onClick={() => navigate("/ask")}
-              className="flex flex-1 items-center gap-2 rounded-md bg-card border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-ring/30"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-accent" />
-              Ask anything
-            </button>
-            <button className="flex items-center gap-1.5 rounded-md bg-card border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-ring/30">
-              <ListTodo className="h-3.5 w-3.5" />
-              List recent todos
-            </button>
-          </div>
-        </div>
+        <AskBar context="home" />
       </main>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Calendar, Clock, Users, CheckCircle2, Circle, Sparkles,
-  Share2, MoreHorizontal, Pause, Play, Mic, Send
+  Share2, MoreHorizontal, Pause, Play, Mic
 } from "lucide-react";
 import type { Meeting } from "@/data/meetings";
 import { cn } from "@/lib/utils";
@@ -16,28 +16,7 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
   const [activeTab, setActiveTab] = useState<NoteTab>("ai-notes");
   const [isRecording, setIsRecording] = useState(true);
   const [personalNotes, setPersonalNotes] = useState("");
-  const [askInput, setAskInput] = useState("");
-  const [askResults, setAskResults] = useState<{ q: string; a: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleAsk = () => {
-    if (!askInput.trim()) return;
-    setAskResults((prev) => [
-      ...prev,
-      {
-        q: askInput,
-        a: `Based on the meeting "${meeting.title}", here's what I found: ${meeting.keyPoints[0] || meeting.summary}`,
-      },
-    ]);
-    setAskInput("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleAsk();
-    }
-  };
 
   return (
     <div className="animate-fade-in">
@@ -211,35 +190,6 @@ export function MeetingDetail({ meeting }: MeetingDetailProps) {
           </p>
         </div>
       )}
-
-      {/* Ask bar */}
-      <div className="sticky bottom-0 mt-4 rounded-lg border border-border bg-card p-2.5 shadow-sm">
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-2 px-1">
-          <Sparkles className="h-2.5 w-2.5 text-accent" />
-          Ask anything about this meeting
-        </div>
-        {askResults.map((r, i) => (
-          <div key={i} className="mb-2 space-y-1 border-b border-border pb-2 last:border-0 px-1">
-            <p className="text-[13px] font-medium text-foreground">{r.q}</p>
-            <p className="text-[13px] text-muted-foreground leading-relaxed">{r.a}</p>
-          </div>
-        ))}
-        <div className="flex gap-1.5">
-          <input
-            value={askInput}
-            onChange={(e) => setAskInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask a question or type / for commands..."
-            className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-          />
-          <button
-            onClick={handleAsk}
-            className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-xs text-accent-foreground transition-all hover:opacity-90"
-          >
-            <Send className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
 
       {/* Tags */}
       <div className="mt-5 flex flex-wrap gap-1.5">

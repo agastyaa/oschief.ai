@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { MeetingDetail } from "@/components/MeetingDetail";
+import { AskBar } from "@/components/AskBar";
 import { meetings } from "@/data/meetings";
 
 export default function MeetingPage() {
@@ -19,16 +20,19 @@ export default function MeetingPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="mb-5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← Back
-          </button>
-          <MeetingDetail meeting={meeting} />
+      <main className="flex flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-6 py-8">
+            <button
+              onClick={() => navigate(-1)}
+              className="mb-5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              ← Back
+            </button>
+            <MeetingDetail meeting={meeting} />
+          </div>
         </div>
+        <AskBar context="meeting" meetingTitle={meeting.title} />
       </main>
     </div>
   );
