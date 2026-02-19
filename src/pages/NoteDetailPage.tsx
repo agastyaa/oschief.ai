@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes } from "@/contexts/NotesContext";
+import { useRecording } from "@/contexts/RecordingContext";
 import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle, Hash, Calendar, Clock, Users, EyeOff, Eye, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +12,42 @@ export default function NoteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { notes } = useNotes();
+  const { activeSession, startSession, updateSession, clearSession } = useRecording();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
   const [transcriptVisible, setTranscriptVisible] = useState(true);
   const [transcriptSearch, setTranscriptSearch] = useState("");
+  const [recordingState, setRecordingState] = useState<"recording" | "paused" | "stopped">("stopped");
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Timer logic
+  useEffect(() => {
+    if (recordingState === "recording") {
+      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [recordingState]);
+
+  const formatElapsed = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  const handleResume = () => {
+    setRecordingState("recording");
+    setTranscriptVisible(true);
+    if (id) startSession(id);
+  };
+
+  const handleStop = () => {
+    setRecordingState("stopped");
+    clearSession();
+  };
   const note = notes.find((n) => n.id === id);
 
   if (!note) {
@@ -171,9 +203,12 @@ export default function NoteDetailPage() {
               <AskBar
                 context="meeting"
                 meetingTitle={note.title}
-                recordingState="stopped"
+                recordingState={recordingState}
+                elapsed={recordingState !== "stopped" ? formatElapsed(elapsed) : undefined}
                 transcriptVisible={transcriptVisible}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+                onResumeRecording={handleResume}
+                onStopRecording={handleStop}
               />
             </div>
           </div>
