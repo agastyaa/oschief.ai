@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Link2, LayoutGrid, List, MapPin, Clock } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
 import { EventDetailSheet } from "@/components/EventDetailSheet";
 import { CalendarEvent } from "@/lib/ics-parser";
-import { format } from "date-fns";
+import { format, isToday as isTodayFn } from "date-fns";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -27,6 +27,7 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(today.getMonth());
   const [icsOpen, setIcsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [view, setView] = useState<"grid" | "list">("grid");
   const { events, icsSource, clearCalendar } = useCalendar();
 
   const daysInMonth = getDaysInMonth(year, month);
@@ -41,6 +42,20 @@ export default function CalendarPage() {
       const d = new Date(e.start);
       return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
     });
+
+  // Events for the current month, grouped by date
+  const monthEvents = events
+    .filter((e) => {
+      const d = new Date(e.start);
+      return d.getMonth() === month && d.getFullYear() === year;
+    })
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+  const groupedByDate = monthEvents.reduce<Record<string, CalendarEvent[]>>((acc, evt) => {
+    const key = format(new Date(evt.start), "yyyy-MM-dd");
+    (acc[key] = acc[key] || []).push(evt);
+    return acc;
+  }, {});
 
   const prevMonth = () => {
     if (month === 0) { setMonth(11); setYear(year - 1); }
@@ -83,60 +98,170 @@ export default function CalendarPage() {
           {/* Calendar header */}
           <div className="mb-6 flex items-center justify-between">
             <h1 className="font-display text-2xl text-foreground">{monthNames[month]} {year}</h1>
-            <div className="flex items-center gap-1.5">
-              <button onClick={prevMonth} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={goToday} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground">
-                Today
-              </button>
-              <button onClick={nextMonth} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+            <div className="flex items-center gap-3">
+              {/* View toggle */}
+              <div className="flex rounded-lg border border-border p-0.5">
+                <button
+                  onClick={() => setView("grid")}
+                  className={cn(
+                    "rounded-md p-1.5 transition-colors",
+                    view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setView("list")}
+                  className={cn(
+                    "rounded-md p-1.5 transition-colors",
+                    view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button onClick={prevMonth} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={goToday} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground">
+                  Today
+                </button>
+                <button onClick={nextMonth} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-border">
-            {daysOfWeek.map((d) => (
-              <div key={d} className="px-2 py-2 text-center text-[11px] font-medium text-muted-foreground">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7">
-            {Array.from({ length: startOffset }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-border p-1.5" />
-            ))}
-            {days.map((day) => {
-              const dayEvents = getEventsForDay(day);
-              return (
-                <div key={day} className="min-h-[100px] border-b border-r border-border p-1.5 transition-colors hover:bg-card/60">
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                    isToday(day) ? "bg-accent text-accent-foreground font-semibold" : "text-foreground"
-                  }`}>
-                    {day}
-                  </span>
-                  <div className="mt-0.5 space-y-0.5">
-                    {dayEvents.slice(0, 3).map((evt) => (
-                      <button
-                        key={evt.id}
-                        onClick={() => setSelectedEvent(evt)}
-                        className="w-full text-left truncate rounded px-1 py-0.5 text-[10px] bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors cursor-pointer"
-                      >
-                        {format(new Date(evt.start), "h:mm")} {evt.title}
-                      </button>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - 3} more</span>
-                    )}
+          {view === "grid" ? (
+            <>
+              {/* Day headers */}
+              <div className="grid grid-cols-7 border-b border-border">
+                {daysOfWeek.map((d) => (
+                  <div key={d} className="px-2 py-2 text-center text-[11px] font-medium text-muted-foreground">
+                    {d}
                   </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7">
+                {Array.from({ length: startOffset }).map((_, i) => (
+                  <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-border p-1.5" />
+                ))}
+                {days.map((day) => {
+                  const dayEvents = getEventsForDay(day);
+                  return (
+                    <div key={day} className="min-h-[100px] border-b border-r border-border p-1.5 transition-colors hover:bg-card/60">
+                      <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                        isToday(day) ? "bg-accent text-accent-foreground font-semibold" : "text-foreground"
+                      }`}>
+                        {day}
+                      </span>
+                      <div className="mt-0.5 space-y-0.5">
+                        {dayEvents.slice(0, 3).map((evt) => (
+                          <button
+                            key={evt.id}
+                            onClick={() => setSelectedEvent(evt)}
+                            className="w-full text-left truncate rounded px-1 py-0.5 text-[10px] bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors cursor-pointer"
+                          >
+                            {format(new Date(evt.start), "h:mm")} {evt.title}
+                          </button>
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - 3} more</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* Timeline / List view */
+            <div>
+              {Object.keys(groupedByDate).length === 0 ? (
+                <div className="text-center py-16">
+                  <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No events this month</p>
                 </div>
-              );
-            })}
-          </div>
+              ) : (
+                <div className="space-y-1">
+                  {Object.entries(groupedByDate).map(([dateKey, dayEvents]) => {
+                    const dateObj = new Date(dateKey + "T00:00:00");
+                    const dayIsToday = isTodayFn(dateObj);
+                    return (
+                      <div key={dateKey}>
+                        {/* Date header */}
+                        <div className={cn(
+                          "sticky top-0 z-10 flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5",
+                          dayIsToday ? "bg-accent/10" : "bg-secondary/50"
+                        )}>
+                          <div className={cn(
+                            "flex h-10 w-10 flex-col items-center justify-center rounded-lg text-center",
+                            dayIsToday ? "bg-accent text-accent-foreground" : "bg-card border border-border"
+                          )}>
+                            <span className="text-[10px] font-medium leading-none">{format(dateObj, "EEE")}</span>
+                            <span className="text-lg font-semibold leading-none mt-0.5">{format(dateObj, "d")}</span>
+                          </div>
+                          <div>
+                            <p className={cn("text-sm font-medium", dayIsToday ? "text-accent" : "text-foreground")}>
+                              {dayIsToday ? "Today" : format(dateObj, "EEEE")}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">{format(dateObj, "MMMM d, yyyy")}</p>
+                          </div>
+                          <span className="ml-auto text-[11px] text-muted-foreground">
+                            {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+
+                        {/* Events for this day */}
+                        <div className="ml-5 border-l-2 border-border pl-5 space-y-1 mb-4">
+                          {dayEvents.map((evt) => (
+                            <button
+                              key={evt.id}
+                              onClick={() => setSelectedEvent(evt)}
+                              className="w-full text-left rounded-lg border border-border bg-card p-3 hover:border-accent/40 hover:shadow-sm transition-all group"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="text-sm font-medium text-foreground truncate group-hover:text-accent transition-colors">
+                                    {evt.title}
+                                  </h4>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      {format(new Date(evt.start), "h:mm a")} — {format(new Date(evt.end), "h:mm a")}
+                                    </span>
+                                    {evt.location && (
+                                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                                        {evt.location}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {evt.description && (
+                                    <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">
+                                      {evt.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent/10 text-accent flex-shrink-0">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
