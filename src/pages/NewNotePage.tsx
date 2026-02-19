@@ -533,7 +533,7 @@ export default function NewNotePage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (
-            <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto">
+            <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
