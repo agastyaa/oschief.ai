@@ -193,11 +193,14 @@ export default function NoteDetailPage() {
                       <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
                       <h2 className="font-display text-base font-semibold text-foreground/70">My Notes</h2>
                     </div>
-                    {note.personalNotes ? (
-                      <p className="text-[15px] text-foreground/70 leading-relaxed whitespace-pre-line pl-6">{note.personalNotes}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground pl-6">No personal notes recorded.</p>
-                    )}
+                    <textarea
+                      value={note.personalNotes || ""}
+                      onChange={(e) => {
+                        if (id) updateNote(id, { personalNotes: e.target.value });
+                      }}
+                      placeholder="Write your personal notes here..."
+                      className="w-full min-h-[200px] resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed whitespace-pre-line pl-6 focus:outline-none placeholder:text-muted-foreground/50"
+                    />
                   </div>
                 )}
               </div>
