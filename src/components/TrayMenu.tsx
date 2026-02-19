@@ -132,7 +132,6 @@ export function TrayMenu() {
         isDark ? "border-[hsl(20,8%,17%)]" : "border-border"
       )}>
         <TrayMenuItem icon={FileText} label="Recent Notes" shortcut="⌘N" isDark={isDark} />
-        <TrayMenuItem icon={Settings} label="Preferences…" shortcut="⌘," isDark={isDark} />
       </div>
 
       {/* Footer */}
