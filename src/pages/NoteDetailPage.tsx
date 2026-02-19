@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
+import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
-import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, CheckCircle2, Circle, Hash, Calendar, Clock, Users, EyeOff, Eye, Search, X } from "lucide-react";
+import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, Users, EyeOff, Eye, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function NoteDetailPage() {
@@ -15,7 +16,7 @@ export default function NoteDetailPage() {
   const { activeSession, startSession, updateSession, clearSession } = useRecording();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
-  const [transcriptVisible, setTranscriptVisible] = useState(true);
+  const [transcriptVisible, setTranscriptVisible] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [recordingState, setRecordingState] = useState<"recording" | "paused" | "stopped">("stopped");
   const [elapsed, setElapsed] = useState(0);
@@ -176,58 +177,12 @@ export default function NoteDetailPage() {
                 {viewMode === "ai-notes" ? (
                   <>
                     {note.summary ? (
-                      <div className="animate-fade-in">
-                        <div className="mb-8">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
-                          </div>
-                          <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{note.summary.overview}</p>
-                        </div>
-
-                        {note.summary.keyPoints.length > 0 && (
-                          <div className="mb-8">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                              <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
-                            </div>
-                            <ul className="space-y-2 pl-6">
-                              {note.summary.keyPoints.map((point, i) => (
-                                <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
-                                  <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
-                                  {point}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {note.summary.nextSteps.length > 0 && (
-                          <div className="mb-8">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                              <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
-                            </div>
-                            <div className="space-y-2 pl-6">
-                              {note.summary.nextSteps.map((step, i) => (
-                                <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
-                                  {step.done ? (
-                                    <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
-                                  ) : (
-                                    <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
-                                  )}
-                                  <div>
-                                    <span className={cn(step.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
-                                      {step.text}
-                                    </span>
-                                    {step.assignee && <span className="text-xs text-muted-foreground ml-2">— {step.assignee}</span>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <EditableSummary
+                        summary={note.summary}
+                        onUpdate={(updated) => {
+                          if (id) updateNote(id, { summary: updated });
+                        }}
+                      />
                     ) : (
                       <p className="text-sm text-muted-foreground">No AI summary available for this note.</p>
                     )}
