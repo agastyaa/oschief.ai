@@ -32,7 +32,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const [input, setInput] = useState("");
   const [scope, setScope] = useState<"this" | "all">(context === "meeting" ? "this" : "all");
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; model?: string }[]>([]);
   const [showRecipes, setShowRecipes] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState("");
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
@@ -92,7 +92,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: `/${label}` },
-      { role: "assistant", text: `[${activeLabel}] Here are the results for "${label}"${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}. This is a simulated response.` },
+      { role: "assistant", text: `Here are the results for "${label}"${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}. This is a simulated response.`, model: activeLabel },
     ]);
   };
 
@@ -109,7 +109,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: q },
-      { role: "assistant", text: `[${activeLabel}] Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: Simulated response to "${q}".` },
+      { role: "assistant", text: `Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: Simulated response to "${q}".`, model: activeLabel },
     ]);
   };
 
@@ -118,7 +118,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: label },
-      { role: "assistant", text: `[${activeLabel}] Results for "${label}". Simulated response.` },
+      { role: "assistant", text: `Results for "${label}". Simulated response.`, model: activeLabel },
     ]);
   };
 
@@ -172,15 +172,24 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
             {messages.map((msg, i) => (
               <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
                 {msg.role === "assistant" && (
-                  <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded bg-accent/10 mt-0.5">
-                    <Sparkles className="h-2 w-2 text-accent" />
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0 mt-0.5">
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-accent/10">
+                      <Sparkles className="h-2 w-2 text-accent" />
+                    </div>
                   </div>
                 )}
-                <div className={cn(
-                  "max-w-[85%] rounded-lg px-3 py-1.5 text-[13px] leading-relaxed",
-                  msg.role === "user" ? "bg-accent text-accent-foreground" : "bg-card border border-border text-foreground"
-                )}>
-                  {msg.text}
+                <div className="max-w-[85%]">
+                  {msg.role === "assistant" && msg.model && (
+                    <span className="inline-block mb-1 rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      {msg.model}
+                    </span>
+                  )}
+                  <div className={cn(
+                    "rounded-lg px-3 py-1.5 text-[13px] leading-relaxed",
+                    msg.role === "user" ? "bg-accent text-accent-foreground" : "bg-card border border-border text-foreground"
+                  )}>
+                    {msg.text}
+                  </div>
                 </div>
               </div>
             ))}
