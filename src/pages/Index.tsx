@@ -96,7 +96,18 @@ const Index = () => {
           <div className="mx-auto max-w-2xl px-6 py-8">
             {/* Coming up section */}
             <div className="mb-8">
-              <h2 className="font-display text-lg text-foreground mb-3">Coming up</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display text-lg text-foreground">Coming up</h2>
+                {notes.length > 0 && (
+                  <button
+                    onClick={() => navigate("/new-note")}
+                    className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Quick Note
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => navigate("/settings")}
                 className="w-full rounded-xl border border-border bg-card/50 px-5 py-6 text-center transition-colors hover:bg-card hover:border-accent/40"
