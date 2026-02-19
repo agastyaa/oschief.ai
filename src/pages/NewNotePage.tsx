@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
+import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
@@ -64,7 +65,7 @@ export default function NewNotePage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [recordingState, setRecordingState] = useState<RecordingState>("recording");
-  const [transcriptVisible, setTranscriptVisible] = useState(true);
+  const [transcriptVisible, setTranscriptVisible] = useState(false);
   const [personalNotes, setPersonalNotes] = useState("");
   const [visibleLines, setVisibleLines] = useState(2);
   const [title, setTitle] = useState("");
@@ -467,54 +468,10 @@ export default function NewNotePage() {
                         <p className="text-xs text-muted-foreground text-center animate-pulse">Generating summary...</p>
                       </div>
                     ) : (
-                      <>
-                        <div className="mb-8">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
-                          </div>
-                          <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{summary?.overview}</p>
-                        </div>
-
-                        <div className="mb-8">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
-                          </div>
-                          <ul className="space-y-2 pl-6">
-                            {summary?.keyPoints.map((point, i) => (
-                              <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
-                                <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
-                                {point}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="mb-8">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
-                          </div>
-                          <div className="space-y-2 pl-6">
-                            {summary?.nextSteps.map((item, i) => (
-                              <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
-                                {item.done ? (
-                                  <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
-                                ) : (
-                                  <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
-                                )}
-                                <div>
-                                  <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
-                                    {item.text}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </>
+                      <EditableSummary
+                        summary={summary}
+                        onUpdate={(updated) => setSummary(updated)}
+                      />
                     )}
                   </div>
                 )}
