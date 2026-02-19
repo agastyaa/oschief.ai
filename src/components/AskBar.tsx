@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Paperclip, Mic, ChevronDown, ListTodo, PenLine, FileText, LayoutGrid, Hash, Mail, BookOpen, Zap } from "lucide-react";
+import { Sparkles, Paperclip, Mic, MicOff, ChevronDown, ListTodo, PenLine, FileText, LayoutGrid, Hash, Mail, BookOpen, Zap, ArrowUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AskBarProps {
@@ -23,6 +23,8 @@ const recipes = [
   { icon: Zap, label: "Action plan", description: "Create an action plan with owners" },
 ];
 
+type ModelType = "Auto" | "GPT-4" | "Claude";
+
 export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const [input, setInput] = useState("");
   const [scope, setScope] = useState<"this" | "all">(context === "meeting" ? "this" : "all");
@@ -31,8 +33,14 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
   const [showRecipes, setShowRecipes] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState("");
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [model, setModel] = useState<ModelType>("Auto");
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const recipeMenuRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
+
+  const hasInput = input.trim().length > 0;
 
   const filteredRecipes = recipes.filter((r) =>
     r.label.toLowerCase().includes(recipeFilter.toLowerCase())
@@ -48,12 +56,15 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
       if (recipeMenuRef.current && !recipeMenuRef.current.contains(e.target as Node)) {
         setShowRecipes(false);
       }
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
+        setShowModelPicker(false);
+      }
     };
-    if (showRecipes) {
+    if (showRecipes || showModelPicker) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showRecipes]);
+  }, [showRecipes, showModelPicker]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -98,7 +109,7 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: q },
-      { role: "assistant", text: `Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: This is a simulated response to "${q}". In a real app, this would query your meeting notes and transcripts.` },
+      { role: "assistant", text: `Here's what I found${meetingTitle ? ` from "${meetingTitle}"` : " across your meetings"}: This is a simulated response to "${q}".` },
     ]);
   };
 
@@ -133,12 +144,33 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
     }
   };
 
+  const toggleVoice = () => {
+    setIsListening(!isListening);
+    if (!isListening) {
+      // Simulate voice input after 2s
+      setTimeout(() => {
+        setInput("What were the action items from today?");
+        setIsListening(false);
+      }, 2000);
+    }
+  };
+
+  const handleCloseChat = () => {
+    setShowChat(false);
+    setMessages([]);
+  };
+
   return (
     <div className="border-t border-border bg-background">
       {/* Chat overlay */}
       {showChat && messages.length > 0 && (
         <div className="max-h-64 overflow-y-auto px-6 py-3 space-y-3 border-b border-border bg-card/50">
           <div className="mx-auto max-w-2xl space-y-3">
+            <div className="flex justify-end">
+              <button onClick={handleCloseChat} className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
             {messages.map((msg, i) => (
               <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
                 {msg.role === "assistant" && (
@@ -228,13 +260,33 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
             </div>
           )}
 
+          {/* Model picker dropdown */}
+          {showModelPicker && (
+            <div
+              ref={modelMenuRef}
+              className="absolute bottom-full right-0 mb-1 w-36 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden"
+            >
+              {(["Auto", "GPT-4", "Claude"] as ModelType[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setModel(m); setShowModelPicker(false); }}
+                  className={cn(
+                    "flex w-full items-center px-3 py-2 text-[12px] transition-colors",
+                    model === m ? "bg-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Context selector */}
           <button
             onClick={() => setScope(scope === "this" ? "all" : "this")}
             className="flex flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
           >
             {context === "meeting" && scope === "this" ? "This note" : "My notes"}
-            <span className="text-[10px] text-muted-foreground">{scope === "all" ? "all meetings" : ""}</span>
             <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
           </button>
 
@@ -246,16 +298,52 @@ export function AskBar({ context = "home", meetingTitle }: AskBarProps) {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="type / for recipes"
-              className="w-full rounded-md border border-border bg-card px-3 py-1.5 pr-20 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              className={cn(
+                "w-full rounded-md border border-border bg-card py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all",
+                hasInput ? "px-3 pr-10" : "px-3 pr-24"
+              )}
             />
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">Auto</span>
-              <button className="rounded p-1 text-muted-foreground hover:text-foreground">
-                <Paperclip className="h-3 w-3" />
-              </button>
-              <button className="rounded p-1 text-muted-foreground hover:text-foreground">
-                <Mic className="h-3 w-3" />
-              </button>
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+              {hasInput ? (
+                /* Submit button when typing */
+                <button
+                  onClick={handleSend}
+                  className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-accent-foreground transition-all hover:opacity-90"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                /* Auto / Attach / Voice when idle */
+                <>
+                  <button
+                    onClick={() => setShowModelPicker(!showModelPicker)}
+                    className={cn(
+                      "rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                      showModelPicker ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {model}
+                  </button>
+                  <button
+                    className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                    title="Attach file"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={toggleVoice}
+                    className={cn(
+                      "rounded p-1 transition-colors",
+                      isListening
+                        ? "text-destructive animate-pulse"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title={isListening ? "Stop listening" : "Voice input"}
+                  >
+                    {isListening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
