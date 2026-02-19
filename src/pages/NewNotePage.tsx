@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square,
-  PanelLeftClose, PanelLeft,
-  Calendar, Users, Plus, FolderOpen, Check, X, Hash
+  PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
+  Calendar, Clock, Users, Plus, FolderOpen, Check, X, Hash,
+  CheckCircle2, Circle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
@@ -23,6 +24,27 @@ const fakeTranscriptLines = [
   { speaker: "You", time: "0:45", text: "And we should schedule the demo recording for next Tuesday." },
 ];
 
+const fakeSummary = {
+  overview: "This was a planning session focused on the upcoming product launch timeline, covering feature prioritization, marketing materials status, and scheduling key deliverables.",
+  keyPoints: [
+    "Product launch timeline needs to be finalized by end of week",
+    "Marketing materials are nearly complete and in review",
+    "Landing page copy still requires a final review pass",
+    "Demo recording needs to be scheduled for next Tuesday",
+  ],
+  nextSteps: [
+    { text: "Finalize the feature list", assignee: "You", done: false },
+    { text: "Complete landing page copy review", assignee: "You", done: false },
+    { text: "Schedule demo recording for Tuesday", assignee: "You", done: false },
+  ],
+};
+
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function NewNotePage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,13 +58,23 @@ export default function NewNotePage() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
 
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
 
-  // Simulate live transcription
+  // Real-time timer
+  useEffect(() => {
+    if (recordingState !== "recording") return;
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [recordingState]);
+
+  // Simulate live transcription (add lines over time while recording)
   useEffect(() => {
     if (recordingState !== "recording") return;
     if (visibleLines >= fakeTranscriptLines.length) return;
@@ -60,10 +92,12 @@ export default function NewNotePage() {
     if (isEditingTitle) titleRef.current?.select();
   }, [isEditingTitle]);
 
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     setRecordingState("stopped");
     setTranscriptVisible(false);
-  };
+    // Auto-generate title if empty
+    if (!title) setTitle("Meeting notes");
+  }, [title]);
 
   const handleCreateAndAssign = () => {
     if (newFolderName.trim()) {
@@ -75,12 +109,83 @@ export default function NewNotePage() {
     }
   };
 
-  const elapsedSeconds = visibleLines * 6;
-  const elapsed = `${Math.floor(elapsedSeconds / 60)}:${String(elapsedSeconds % 60).padStart(2, "0")}`;
+  const elapsed = formatTime(elapsedSeconds);
+  const isStopped = recordingState === "stopped";
+
+  // Folder picker shared component
+  const folderChip = (
+    <>
+      {selectedFolder ? (
+        <button
+          onClick={() => setShowFolderPicker(!showFolderPicker)}
+          className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+        >
+          <FolderOpen className="h-3 w-3 text-accent" />
+          {selectedFolder.name}
+          <X
+            className="h-3 w-3 text-muted-foreground hover:text-foreground ml-0.5"
+            onClick={(e) => { e.stopPropagation(); setSelectedFolderId(null); }}
+          />
+        </button>
+      ) : (
+        <button
+          onClick={() => setShowFolderPicker(!showFolderPicker)}
+          className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          Add to folder
+        </button>
+      )}
+
+      {showFolderPicker && (
+        <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-border">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
+          </div>
+          <div className="max-h-40 overflow-y-auto py-1">
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}
+                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+              >
+                <FolderOpen className="h-3 w-3 text-accent" />
+                {f.name}
+                {selectedFolderId === f.id && <Check className="h-3 w-3 ml-auto text-accent" />}
+              </button>
+            ))}
+          </div>
+          <div className="px-3 py-2 border-t border-border">
+            {creatingFolder ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateAndAssign();
+                    if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                  }}
+                  placeholder="Folder name"
+                  className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                <button onClick={handleCreateAndAssign} className="text-accent"><Check className="h-3 w-3" /></button>
+                <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="text-muted-foreground"><X className="h-3 w-3" /></button>
+              </div>
+            ) : (
+              <button onClick={() => setCreatingFolder(true)} className="flex items-center gap-1.5 text-xs text-accent hover:underline">
+                <Plus className="h-3 w-3" />
+                New folder
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Collapsible sidebar */}
       <div className={cn(
         "transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0",
         sidebarOpen ? "w-56" : "w-0"
@@ -89,7 +194,7 @@ export default function NewNotePage() {
       </div>
 
       <main className="flex flex-1 flex-col min-w-0">
-        {/* Top bar - matches processed note style, no share/more for new notes */}
+        {/* Top bar */}
         <div className="flex items-center justify-between px-4 pt-3 pb-0">
           <div className="flex items-center gap-2">
             <button
@@ -105,11 +210,21 @@ export default function NewNotePage() {
               ← Back to notes
             </button>
           </div>
+          {/* Show share/more only after summary */}
+          {isStopped && (
+            <div className="flex items-center gap-1.5">
+              <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                <Share2 className="h-3.5 w-3.5" />
+              </button>
+              <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content area */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Main notes panel */}
           <div className="flex-1 overflow-y-auto pb-24">
             <div className="mx-auto max-w-3xl px-8 py-6">
               {/* Title */}
@@ -141,92 +256,100 @@ export default function NewNotePage() {
                   <Calendar className="h-3 w-3" />
                   Today
                 </span>
+                {isStopped && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                    <Clock className="h-3 w-3" />
+                    {elapsed}
+                  </span>
+                )}
                 <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
                   <Users className="h-3 w-3" />
                   Me
                 </span>
-
-                {selectedFolder ? (
-                  <button
-                    onClick={() => setShowFolderPicker(!showFolderPicker)}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
-                  >
-                    <FolderOpen className="h-3 w-3 text-accent" />
-                    {selectedFolder.name}
-                    <X
-                      className="h-3 w-3 text-muted-foreground hover:text-foreground ml-0.5"
-                      onClick={(e) => { e.stopPropagation(); setSelectedFolderId(null); }}
-                    />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowFolderPicker(!showFolderPicker)}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add to folder
-                  </button>
-                )}
-
-                {showFolderPicker && (
-                  <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                    <div className="px-3 py-2 border-b border-border">
-                      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
-                    </div>
-                    <div className="max-h-40 overflow-y-auto py-1">
-                      {folders.map((f) => (
-                        <button
-                          key={f.id}
-                          onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}
-                          className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
-                        >
-                          <FolderOpen className="h-3 w-3 text-accent" />
-                          {f.name}
-                          {selectedFolderId === f.id && <Check className="h-3 w-3 ml-auto text-accent" />}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="px-3 py-2 border-t border-border">
-                      {creatingFolder ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            autoFocus
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleCreateAndAssign();
-                              if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                            }}
-                            placeholder="Folder name"
-                            className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
-                          />
-                          <button onClick={handleCreateAndAssign} className="text-accent"><Check className="h-3 w-3" /></button>
-                          <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="text-muted-foreground"><X className="h-3 w-3" /></button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setCreatingFolder(true)} className="flex items-center gap-1.5 text-xs text-accent hover:underline">
-                          <Plus className="h-3 w-3" />
-                          New folder
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {folderChip}
               </div>
 
-              {/* Notes textarea */}
-              <textarea
-                value={personalNotes}
-                onChange={(e) => setPersonalNotes(e.target.value)}
-                placeholder="Write notes..."
-                className="min-h-[60vh] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none"
-                autoFocus
-              />
+              {/* Recording: notes textarea / Stopped: summary view */}
+              {!isStopped ? (
+                <textarea
+                  value={personalNotes}
+                  onChange={(e) => setPersonalNotes(e.target.value)}
+                  placeholder="Write notes..."
+                  className="min-h-[60vh] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none"
+                  autoFocus
+                />
+              ) : (
+                <div className="animate-fade-in">
+                  {/* Meeting Overview */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                      <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
+                    </div>
+                    <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{fakeSummary.overview}</p>
+                  </div>
+
+                  {/* Key Points */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                      <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
+                    </div>
+                    <ul className="space-y-2 pl-6">
+                      {fakeSummary.keyPoints.map((point, i) => (
+                        <li key={i} className="flex gap-2.5 text-[15px] text-foreground/70 leading-relaxed">
+                          <span className="mt-2.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-foreground/30" />
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Next Steps */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                      <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      {fakeSummary.nextSteps.map((item, i) => (
+                        <div key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed">
+                          {item.done ? (
+                            <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-accent" />
+                          ) : (
+                            <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-foreground/30" />
+                          )}
+                          <div>
+                            <span className={cn(item.done ? "text-muted-foreground line-through" : "text-foreground/70")}>
+                              {item.text}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-2">— {item.assignee}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Personal notes section if any were taken */}
+                  {personalNotes && (
+                    <>
+                      <div className="border-t border-border/50 my-8" />
+                      <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <h2 className="font-display text-base font-semibold text-foreground/70">Personal Notes</h2>
+                        </div>
+                        <p className="text-[15px] leading-relaxed text-foreground/70 pl-6 whitespace-pre-wrap">{personalNotes}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Live transcript side panel */}
-          {transcriptVisible && recordingState !== "stopped" && (
+          {transcriptVisible && !isStopped && (
             <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
@@ -262,19 +385,25 @@ export default function NewNotePage() {
                     <span className="text-[10px] text-muted-foreground">Listening...</span>
                   </div>
                 )}
+                {recordingState === "paused" && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <Pause className="h-2.5 w-2.5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Paused</span>
+                  </div>
+                )}
                 <div ref={transcriptEndRef} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Ask bar with recording controls as leftSlot */}
+        {/* Ask bar with recording controls */}
         <div className="relative">
           <AskBar
             context="meeting"
             meetingTitle={title || "New note"}
             leftSlot={
-              recordingState !== "stopped" ? (
+              !isStopped ? (
                 <div className="flex items-center gap-0 rounded-full border border-border bg-card shadow-lg overflow-hidden flex-shrink-0">
                   <div className={cn(
                     "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium",
@@ -323,12 +452,7 @@ export default function NewNotePage() {
                     Stop
                   </button>
                 </div>
-              ) : (
-                <div className="flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3 py-2.5 text-xs font-medium text-muted-foreground flex-shrink-0">
-                  <MicOff className="h-3 w-3" />
-                  Recording ended · {elapsed}
-                </div>
-              )
+              ) : undefined
             }
           />
         </div>
