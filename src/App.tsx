@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { ModelSettingsProvider } from "@/contexts/ModelSettingsContext";
 import { FolderProvider } from "@/contexts/FolderContext";
 import { NotesProvider } from "@/contexts/NotesContext";
 import { RecordingProvider } from "@/contexts/RecordingContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
+import { isOnboardingComplete } from "@/pages/OnboardingPage";
 import Index from "./pages/Index";
 import AllNotes from "./pages/AllNotes";
 import AskSyag from "./pages/AskSyag";
@@ -16,6 +17,7 @@ import NewNotePage from "./pages/NewNotePage";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import NoteDetailPage from "./pages/NoteDetailPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,11 +25,17 @@ const queryClient = new QueryClient();
 function AppContent() {
   const location = useLocation();
   const isOnRecordingPage = location.pathname === "/new-note";
+  const onboardingDone = isOnboardingComplete();
+
+  if (!onboardingDone && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   return (
     <>
       {!isOnRecordingPage && <GlobalRecordingBanner />}
       <Routes>
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/" element={<Index />} />
         <Route path="/notes" element={<AllNotes />} />
         <Route path="/ask" element={<AskSyag />} />

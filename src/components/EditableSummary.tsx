@@ -67,7 +67,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
               }
               if (e.key === "Escape") setEditingField(null);
             }}
-            className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-foreground/70 pl-6 focus:outline-none border-b border-accent/30"
+            className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-foreground/70 pl-6 focus:outline-none"
             rows={3}
           />
         ) : (
@@ -101,7 +101,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                       if (e.key === "Enter") handleKeyPointChange(i, (e.target as HTMLInputElement).value);
                       if (e.key === "Escape") setEditingField(null);
                     }}
-                    className="flex-1 bg-transparent text-[15px] leading-relaxed text-foreground/70 focus:outline-none border-b border-accent/30"
+                    className="flex-1 bg-transparent text-[15px] leading-relaxed text-foreground/70 focus:outline-none"
                   />
                 ) : (
                   <span
@@ -145,7 +145,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                         if (e.key === "Enter") handleNextStepTextChange(i, (e.target as HTMLInputElement).value);
                         if (e.key === "Escape") setEditingField(null);
                       }}
-                      className="w-full bg-transparent text-[15px] leading-relaxed text-foreground/70 focus:outline-none border-b border-accent/30"
+                      className="w-full bg-transparent text-[15px] leading-relaxed text-foreground/70 focus:outline-none"
                     />
                   ) : (
                     <span
