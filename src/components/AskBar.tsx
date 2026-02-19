@@ -364,35 +364,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
 
         {/* Expanded bar */}
         <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-          {/* Quick action chips row */}
-          <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/50">
-            <div className="flex items-center gap-1.5 overflow-x-auto flex-1">
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => handleQuickAction(action.label)}
-                  className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:bg-secondary"
-                >
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
-                    <span className="text-[10px] text-accent-foreground font-bold">/</span>
-                  </span>
-                  {action.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => setShowRecipes(true)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
-              >
-                <LayoutGrid className="h-3 w-3" />
-                All recipes
-              </button>
-              <button className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors">
-                <LayoutGrid className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
 
           {/* Input row */}
           <div className="px-4 py-2.5 relative">
