@@ -4,9 +4,9 @@ import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
-import { EventDetailSheet } from "@/components/EventDetailSheet";
 import { CalendarEvent } from "@/lib/ics-parser";
 import { format, isToday as isTodayFn } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -26,7 +26,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [icsOpen, setIcsOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
   const { events, icsSource, clearCalendar } = useCalendar();
 
@@ -164,7 +164,7 @@ export default function CalendarPage() {
                         {dayEvents.slice(0, 3).map((evt) => (
                           <button
                             key={evt.id}
-                            onClick={() => setSelectedEvent(evt)}
+                            onClick={() => navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } })}
                             className="w-full text-left truncate rounded px-1 py-0.5 text-[10px] bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors cursor-pointer"
                           >
                             {format(new Date(evt.start), "h:mm")} {evt.title}
@@ -222,7 +222,7 @@ export default function CalendarPage() {
                           {dayEvents.map((evt) => (
                             <button
                               key={evt.id}
-                              onClick={() => setSelectedEvent(evt)}
+                              onClick={() => navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } })}
                               className="w-full text-left rounded-lg border border-border bg-card p-3 hover:border-accent/40 hover:shadow-sm transition-all group"
                             >
                               <div className="flex items-start justify-between gap-2">
@@ -265,7 +265,7 @@ export default function CalendarPage() {
         </div>
       </main>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
-      <EventDetailSheet event={selectedEvent} open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)} />
+      
     </div>
   );
 }
