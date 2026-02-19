@@ -90,30 +90,39 @@ export default function AskSyag() {
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-secondary"
                   >
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-medium text-foreground">My notes</span>
-                    <span className="text-muted-foreground">All meetings</span>
+                    {useTranscripts ? (
+                      <>
+                        <span className="font-medium text-foreground">My transcripts</span>
+                        <span className="text-muted-foreground">Last {noteCount || 25} meetings</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-foreground">My notes</span>
+                        <span className="text-muted-foreground">All meetings</span>
+                      </>
+                    )}
                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </button>
                   {dropdownOpen && (
                     <div className="absolute top-full left-0 mt-1 rounded-lg border border-border bg-card shadow-lg py-1 z-50 min-w-[220px]">
-                      <div className="flex items-center justify-between px-4 py-2 hover:bg-secondary transition-colors">
-                        <span className="text-sm text-foreground">Use transcripts (max 25)</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUseTranscripts(!useTranscripts);
-                          }}
-                          className={cn(
-                            "relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors",
-                            useTranscripts ? "bg-accent" : "bg-muted-foreground/30"
-                          )}
-                        >
-                          <span
-                            className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform"
-                            style={{ transform: useTranscripts ? "translateX(18px)" : "translateX(3px)" }}
-                          />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => { setUseTranscripts(false); setDropdownOpen(false); }}
+                        className={cn(
+                          "block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-secondary",
+                          !useTranscripts ? "text-accent font-medium" : "text-foreground"
+                        )}
+                      >
+                        My notes · All meetings
+                      </button>
+                      <button
+                        onClick={() => { setUseTranscripts(true); setDropdownOpen(false); }}
+                        className={cn(
+                          "block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-secondary",
+                          useTranscripts ? "text-accent font-medium" : "text-foreground"
+                        )}
+                      >
+                        Use transcripts (max 25)
+                      </button>
                     </div>
                   )}
                 </div>
