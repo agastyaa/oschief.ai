@@ -94,25 +94,17 @@ const Index = () => {
       <main className="flex flex-1 flex-col min-w-0 relative">
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-8">
-            {/* Header with Quick Note */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-display text-lg text-foreground">Coming up</h2>
-              <button
-                onClick={() => navigate("/new-note")}
-                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" />
-                Quick Note
-              </button>
-            </div>
-
             {/* Coming up section */}
             <div className="mb-8">
-              <div className="rounded-xl border border-border bg-card/50 px-5 py-6 text-center">
+              <h2 className="font-display text-lg text-foreground mb-3">Coming up</h2>
+              <button
+                onClick={() => navigate("/settings")}
+                className="w-full rounded-xl border border-border bg-card/50 px-5 py-6 text-center transition-colors hover:bg-card hover:border-accent/40"
+              >
                 <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No calendar linked</p>
+                <p className="text-sm font-medium text-foreground">Link your calendar</p>
                 <p className="text-xs text-muted-foreground mt-1">Connect your calendar to see upcoming meetings</p>
-              </div>
+              </button>
             </div>
 
             {/* Notes list */}
