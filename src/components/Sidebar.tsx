@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
@@ -15,7 +15,7 @@ const iconMap = {
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { folders, createFolder } = useFolders();
+  const { folders, createFolder, deleteFolder } = useFolders();
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
@@ -78,21 +78,37 @@ export function Sidebar() {
           {folders.map((f) => {
             const Icon = iconMap[f.icon] || FolderOpen;
             return (
-              <button
+              <div
                 key={f.id}
-                onClick={() => navigate(`/?folder=${f.id}`)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+                  "group/folder flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
                   new URLSearchParams(location.search).get("folder") === f.id
                     ? "bg-secondary text-foreground font-medium"
                     : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
                 )}
               >
-                <div className={cn("flex h-4 w-4 items-center justify-center rounded", f.color)}>
-                  <Icon className="h-2.5 w-2.5" />
-                </div>
-                {f.name}
-              </button>
+                <button
+                  onClick={() => navigate(`/?folder=${f.id}`)}
+                  className="flex flex-1 items-center gap-2.5 min-w-0"
+                >
+                  <div className={cn("flex h-4 w-4 items-center justify-center rounded flex-shrink-0", f.color)}>
+                    <Icon className="h-2.5 w-2.5" />
+                  </div>
+                  <span className="truncate">{f.name}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteFolder(f.id);
+                    if (new URLSearchParams(location.search).get("folder") === f.id) {
+                      navigate("/");
+                    }
+                  }}
+                  className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
 
