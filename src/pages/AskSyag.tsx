@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, ArrowUp, ChevronDown, ChevronRight, LayoutGrid, FileText, Square } from "lucide-react";
+import { Sparkles, ArrowUp, ChevronRight, FileText, Square } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { useNotes } from "@/contexts/NotesContext";
@@ -25,8 +25,6 @@ export default function AskSyag() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [useTranscripts, setUseTranscripts] = useState(true);
-  const [scopeOpen, setScopeOpen] = useState(false);
-  const [scope, setScope] = useState<"My transcripts" | "All meetings">("My transcripts");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +43,7 @@ export default function AskSyag() {
     const userMsg: Message = {
       role: "user",
       text: question,
-      context: useTranscripts ? { label: scope, detail: `Last ${noteCount || 25} meetings` } : undefined,
+      context: { label: "My notes", detail: useTranscripts ? `+ Last ${noteCount || 25} transcripts` : "All notes" },
       recipe,
     };
 
@@ -84,8 +82,17 @@ export default function AskSyag() {
 
               {/* Input card */}
               <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-sm p-4 mb-5">
-                {/* Transcript scope row */}
-                <div className="flex items-center gap-2 mb-3">
+                {/* Context row */}
+                <div className="flex items-center gap-3 mb-3">
+                  {/* My notes label */}
+                  <div className="inline-flex items-center gap-1.5 text-sm text-foreground">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-medium">My notes</span>
+                  </div>
+
+                  <span className="text-muted-foreground text-xs">·</span>
+
+                  {/* Transcripts toggle */}
                   <button
                     onClick={() => setUseTranscripts(!useTranscripts)}
                     className={cn(
@@ -98,36 +105,9 @@ export default function AskSyag() {
                       style={{ transform: useTranscripts ? "translateX(18px)" : "translateX(3px)" }}
                     />
                   </button>
-                  <div className="relative">
-                    <button
-                      onClick={() => useTranscripts && setScopeOpen(!scopeOpen)}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 text-sm transition-colors",
-                        useTranscripts ? "text-foreground" : "text-muted-foreground"
-                      )}
-                    >
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className={useTranscripts ? "font-medium" : ""}>{scope}</span>
-                      <span className="text-muted-foreground">· Last {noteCount || 25} meetings</span>
-                      {useTranscripts && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
-                    </button>
-                    {scopeOpen && (
-                      <div className="absolute top-full left-0 mt-1 rounded-lg border border-border bg-card shadow-lg py-1 z-10 min-w-[180px]">
-                        {(["My transcripts", "All meetings"] as const).map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => { setScope(s); setScopeOpen(false); }}
-                            className={cn(
-                              "block w-full text-left px-4 py-1.5 text-sm transition-colors hover:bg-secondary",
-                              s === scope ? "text-accent font-medium" : "text-foreground"
-                            )}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <span className={cn("text-sm", useTranscripts ? "text-foreground" : "text-muted-foreground")}>
+                    Transcripts · Last {noteCount || 25}
+                  </span>
                 </div>
 
                 {/* Input row */}
