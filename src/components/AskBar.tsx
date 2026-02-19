@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Paperclip, Mic, MicOff, ChevronDown, ChevronUp, ListTodo, PenLine, FileText, LayoutGrid, Hash, Mail, BookOpen, Zap, ArrowUp, X, Settings, SlidersHorizontal, PenSquare, Home, Play, Pause, Square, Eye, EyeOff } from "lucide-react";
+import { ListTodo, PenLine, FileText, Hash, Mail, BookOpen, Zap, ArrowUp, X, Home, Play, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { useNavigate } from "react-router-dom";
+
 
 interface AskBarProps {
   context?: "home" | "meeting";
@@ -40,28 +40,22 @@ const recipes = [
 ];
 
 export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecording, onPauseRecording, onStopRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed }: AskBarProps) {
-  const navigate = useNavigate();
-  const { getActiveAIModelLabel, getAvailableAIModels, selectedAIModel, setSelectedAIModel } = useModelSettings();
+  const { getActiveAIModelLabel } = useModelSettings();
 
   const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const [scope, setScope] = useState<"this" | "all">(context === "meeting" ? "this" : "all");
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; model?: string }[]>([]);
   const [showRecipes, setShowRecipes] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState("");
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [showEqualizerExpanded, setShowEqualizerExpanded] = useState(false);
+  
   const [chatTitle, setChatTitle] = useState("New chat");
   const inputRef = useRef<HTMLInputElement>(null);
   const recipeMenuRef = useRef<HTMLDivElement>(null);
-  const modelMenuRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
   const hasInput = input.trim().length > 0;
-  const availableModels = getAvailableAIModels();
   const activeLabel = getActiveAIModelLabel();
   const quickActions = context === "meeting" ? meetingQuickActions : homeQuickActions;
 
@@ -73,20 +67,24 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
     setSelectedRecipeIndex(0);
   }, [recipeFilter]);
 
+  // Click outside to collapse expanded bar / close chat
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (recipeMenuRef.current && !recipeMenuRef.current.contains(e.target as Node)) {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
         setShowRecipes(false);
-      }
-      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
-        setShowModelPicker(false);
+        if (expanded || showChat) {
+          setExpanded(false);
+          setShowChat(false);
+          setMessages([]);
+          setChatTitle("New chat");
+        }
       }
     };
-    if (showRecipes || showModelPicker) {
+    if (expanded || showChat || showRecipes) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showRecipes, showModelPicker]);
+  }, [expanded, showChat, showRecipes]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -166,16 +164,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
     }
   };
 
-  const toggleVoice = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      setTimeout(() => {
-        setInput("What were the action items from today?");
-        setIsListening(false);
-      }, 2000);
-    }
-  };
-
   const handleNewChat = () => {
     setMessages([]);
     setShowChat(false);
@@ -186,11 +174,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
     setExpanded(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
-
-  const modelGroups = availableModels.reduce<Record<string, typeof availableModels>>((acc, m) => {
-    (acc[m.group] = acc[m.group] || []).push(m);
-    return acc;
-  }, {});
 
   // Collapsed state - simple single-line bar
   if (!expanded && !showChat) {
@@ -323,7 +306,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
 
               {/* Scroll indicator */}
               <div className="flex justify-center pt-1">
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ArrowUp className="h-4 w-4 text-muted-foreground rotate-180" />
               </div>
             </div>
           </div>
@@ -371,51 +354,6 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
               </div>
             )}
 
-            {/* Model picker dropdown */}
-            {showModelPicker && (
-              <div ref={modelMenuRef} className="absolute bottom-full right-4 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">AI Model</span>
-                  <button
-                    onClick={() => { setShowModelPicker(false); navigate("/settings"); }}
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <Settings className="h-3 w-3" />
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-y-auto py-1">
-                  {Object.entries(modelGroups).map(([group, models]) => (
-                    <div key={group}>
-                      <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{group}</div>
-                      {models.map((m) => (
-                        <button
-                          key={m.value}
-                          onClick={() => { setSelectedAIModel(m.value); setShowModelPicker(false); }}
-                          className={cn(
-                            "flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors",
-                            selectedAIModel === m.value
-                              ? "bg-accent/10 text-foreground font-medium"
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          )}
-                        >
-                          <span>{m.label}</span>
-                          {selectedAIModel === m.value && <span className="text-accent">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                  {availableModels.length === 0 && (
-                    <div className="px-3 py-3 text-center text-[11px] text-muted-foreground">
-                      No models available.<br />
-                      <button onClick={() => { setShowModelPicker(false); navigate("/settings"); }} className="text-accent hover:underline mt-1 inline-block">
-                        Configure in Settings →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             <div className="flex items-center gap-2">
 
 
@@ -427,7 +365,7 @@ export function AskBar({ context = "home", meetingTitle, leftSlot, onResumeRecor
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onBlur={() => {
-                    if (!input && !showChat && !showRecipes && !showModelPicker) {
+                    if (!input && !showChat && !showRecipes) {
                       setTimeout(() => setExpanded(false), 200);
                     }
                   }}
