@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, X, FileText, Play, Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
+import { ArrowUp, X, FileText, Play, Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { getElectronAPI, isElectron } from "@/lib/electron-api";
@@ -11,18 +11,13 @@ interface AskBarProps {
   leftSlot?: React.ReactNode;
   onResumeRecording?: () => void;
   onPauseRecording?: () => void;
-  onGenerateNotes?: () => void;
   onToggleTranscript?: () => void;
   transcriptVisible?: boolean;
   recordingState?: "recording" | "paused" | "stopped";
-  isSummarizing?: boolean;
-  hasSummary?: boolean;
-  /** When true and hasSummary: show Generate. When false and hasSummary: hide (no new transcript/notes since last generate). */
-  hasNewContentSinceGenerate?: boolean;
   elapsed?: string;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onGenerateNotes, onToggleTranscript, transcriptVisible, recordingState, isSummarizing, hasSummary, hasNewContentSinceGenerate = true, elapsed }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -130,10 +125,6 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
     setMessages([]);
   };
 
-  const isPausedOrStopped = recordingState === "paused" || recordingState === "stopped";
-  const showGenerateButton = isPausedOrStopped && !isSummarizing && (!hasSummary || hasNewContentSinceGenerate);
-  const showGeneratingState = isPausedOrStopped && isSummarizing;
-
   return (
     <div ref={barRef} className="px-4 pb-4 pointer-events-none relative">
       <div className="mx-auto max-w-md pointer-events-auto">
@@ -193,23 +184,6 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
               >
                 {transcriptVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
-
-              {showGenerateButton && (
-                <button
-                  onClick={onGenerateNotes}
-                  className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 shadow-lg px-3.5 py-2.5 text-accent hover:bg-accent/20 transition-colors"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Generate notes</span>
-                </button>
-              )}
-
-              {showGeneratingState && (
-                <div className="flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3.5 py-2.5 text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span className="text-xs font-medium">Generating...</span>
-                </div>
-              )}
 
               <button
                 onClick={recordingState === "recording" ? onPauseRecording : onResumeRecording}

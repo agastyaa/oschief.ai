@@ -6,7 +6,7 @@ import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
-  PanelLeftClose, PanelLeft, Share2, MoreHorizontal, ChevronDown,
+  PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
   Calendar, Clock, Users, Plus, FolderOpen, Check, X, Hash,
   CheckCircle2, Circle, Loader2, Copy, Trash2
 } from "lucide-react";
@@ -141,9 +141,7 @@ export default function NewNotePage() {
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [meetingTemplate, setMeetingTemplate] = useState("general");
   const meetingTemplateRef = useRef(meetingTemplate);
-  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showTopBarTemplateMenu, setShowTopBarTemplateMenu] = useState(false);
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
   const [noteId, setNoteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
@@ -153,10 +151,10 @@ export default function NewNotePage() {
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const topBarTemplateMenuRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef(transcriptLines);
   const lastGeneratedTranscriptLengthRef = useRef(-1);
   const lastGeneratedNotesRef = useRef("");
+  const userPausedRef = useRef(false);
   const { folders, createFolder } = useFolders();
   const { addNote, deleteNote } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
@@ -227,16 +225,17 @@ export default function NewNotePage() {
   }, [recordingState, title, updateSession]);
 
   // Sync recording state with auto-pause/resume from main process
-  // Auto-pause from silence detection auto-generates notes
+  // Auto-pause from silence detection auto-generates notes. Do not overwrite user-initiated pause when main state is delayed.
   useEffect(() => {
     if (recordingState === "stopped") return;
     if (activeSession && !activeSession.isRecording && recordingState === "recording") {
+      userPausedRef.current = false;
       setRecordingState("paused");
       // Auto-paused by main process (silence detection) -- auto-generate notes if enabled
-      if (autoGenerateNotes && !isSummarizing && transcriptRef.current.length > 0) {
+      if (autoGenerateNotes && !isSummarizing && (transcriptRef.current.length > 0 || (typeof personalNotes === 'string' && personalNotes.trim().length > 0))) {
         generateNotes();
       }
-    } else if (activeSession && activeSession.isRecording && recordingState === "paused") {
+    } else if (activeSession && activeSession.isRecording && recordingState === "paused" && !userPausedRef.current) {
       setRecordingState("recording");
     }
   }, [activeSession?.isRecording]);
@@ -290,10 +289,10 @@ export default function NewNotePage() {
       generatedSummary = generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel);
     }
 
-    setSummary(generatedSummary);
-    setIsSummarizing(false);
     lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
     lastGeneratedNotesRef.current = personalNotes;
+    setSummary(generatedSummary);
+    setIsSummarizing(false);
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
@@ -328,6 +327,7 @@ export default function NewNotePage() {
   }, [usingRealAudio, stopAudioCapture, generateNotes, clearSession]);
 
   const handleResume = useCallback(() => {
+    userPausedRef.current = false;
     setRecordingState("recording");
     setTranscriptVisible(true);
     if (recordingState === "stopped") {
@@ -393,16 +393,6 @@ export default function NewNotePage() {
     if (showMoreMenu) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showMoreMenu]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (topBarTemplateMenuRef.current && !topBarTemplateMenuRef.current.contains(e.target as Node)) {
-        setShowTopBarTemplateMenu(false);
-      }
-    };
-    if (showTopBarTemplateMenu) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showTopBarTemplateMenu]);
 
   const handleCopyText = () => {
     if (!summary) return;
@@ -534,48 +524,6 @@ export default function NewNotePage() {
           {showSummaryPanel && (
             <div className="flex items-center gap-1.5">
               <NotesViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-              <div className="relative" ref={topBarTemplateMenuRef}>
-                <button
-                  onClick={() => setShowTopBarTemplateMenu((prev) => !prev)}
-                  className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary"
-                  title="Switch template and regenerate summary"
-                >
-                  <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
-                  <span className="max-w-[100px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "Template"}</span>
-                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground", showTopBarTemplateMenu && "rotate-180")} />
-                </button>
-                {showTopBarTemplateMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-xl z-50 overflow-hidden">
-                    <div className="px-3 py-2 border-b border-border">
-                      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Summary template</span>
-                    </div>
-                    <div className="py-1 max-h-56 overflow-y-auto">
-                      {MEETING_TEMPLATES.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => {
-                            setMeetingTemplate(t.id);
-                            meetingTemplateRef.current = t.id;
-                            setShowTopBarTemplateMenu(false);
-                            if (!isSummarizing) generateNotes();
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left",
-                            meetingTemplate === t.id ? "bg-secondary text-foreground" : "text-foreground hover:bg-secondary"
-                          )}
-                        >
-                          <span>{t.icon}</span>
-                          <span className="flex-1 truncate">{t.name}</span>
-                          {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-accent" />}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="px-3 py-2 border-t border-border text-[10px] text-muted-foreground">
-                      Selecting a template regenerates the summary.
-                    </p>
-                  </div>
-                )}
-              </div>
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
@@ -669,49 +617,6 @@ export default function NewNotePage() {
                     <Users className="h-3 w-3" />
                     Me
                   </span>
-                  {/* Meeting template selector */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-                      className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <span>{MEETING_TEMPLATES.find(t => t.id === meetingTemplate)?.icon}</span>
-                      {MEETING_TEMPLATES.find(t => t.id === meetingTemplate)?.name}
-                    </button>
-                    {showTemplateMenu && (
-                      <div className="absolute top-full left-0 mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                        <div className="px-3 py-2 border-b border-border">
-                          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Meeting type</span>
-                        </div>
-                        <div className="py-1">
-                          {MEETING_TEMPLATES.map((t) => (
-                            <button
-                              key={t.id}
-                              onClick={() => {
-                                setMeetingTemplate(t.id);
-                                meetingTemplateRef.current = t.id;
-                                setShowTemplateMenu(false);
-                                if (summary && !isSummarizing) {
-                                  setTimeout(() => generateNotes(), 0);
-                                }
-                              }}
-                              className={cn(
-                                "flex w-full items-center gap-2.5 px-3 py-1.5 text-xs transition-colors",
-                                meetingTemplate === t.id ? "bg-secondary text-foreground" : "text-foreground hover:bg-secondary"
-                              )}
-                            >
-                              <span>{t.icon}</span>
-                              {t.name}
-                              {meetingTemplate === t.id && <Check className="h-3 w-3 ml-auto text-accent" />}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="px-3 py-2 pt-1 border-t border-border text-[10px] text-muted-foreground">
-                          Custom prompt for this template is used when generating notes.
-                        </p>
-                      </div>
-                    )}
-                  </div>
                   {folderChip}
                 </div>
 
@@ -794,23 +699,19 @@ export default function NewNotePage() {
                 meetingTitle={title || "New note"}
                 recordingState={recordingState}
                 transcriptVisible={transcriptVisible}
-                isSummarizing={isSummarizing}
-                hasSummary={!!summary}
                 onResumeRecording={handleResume}
                 onPauseRecording={() => {
+                  userPausedRef.current = true;
                   setRecordingState("paused");
                   if (usingRealAudio) {
                     pauseAudioCapture().catch(console.error);
                   }
+                  if (transcriptRef.current.length > 0 || personalNotes.trim().length > 0) {
+                    generateNotes();
+                  }
                 }}
-                onGenerateNotes={generateNotes}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 elapsed={elapsed}
-                hasNewContentSinceGenerate={
-                  !summary ||
-                  transcriptLines.length !== lastGeneratedTranscriptLengthRef.current ||
-                  personalNotes !== lastGeneratedNotesRef.current
-                }
               />
             </div>
           </div>

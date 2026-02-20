@@ -1,14 +1,8 @@
 import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Square } from "lucide-react";
+import { Square, FileText, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
-
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
 export function LiveMeetingIndicator() {
   const { activeSession, clearSession, stopAudioCapture } = useRecording();
@@ -16,6 +10,7 @@ export function LiveMeetingIndicator() {
   const location = useLocation();
   const [manuallyHidden, setManuallyHidden] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     setManuallyHidden(false);
@@ -29,14 +24,16 @@ export function LiveMeetingIndicator() {
     setVisible(false);
   }, [activeSession, location.pathname]);
 
-  const handleClick = useCallback(() => {
+  const handleGoToNote = useCallback(() => {
     navigate(`/new-note?session=${activeSession?.noteId}`);
   }, [activeSession?.noteId, navigate]);
 
   const handleStop = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsExiting(true);
     await stopAudioCapture();
     clearSession();
+    setTimeout(() => setIsExiting(false), 300);
   }, [stopAudioCapture, clearSession]);
 
   const prefs = loadPreferences();
@@ -50,9 +47,11 @@ export function LiveMeetingIndicator() {
     manuallyHidden
   ) return null;
 
+  const title = activeSession.title || "Recording";
+
   return (
     <div
-      className="fixed top-3 left-1/2 z-[9999]"
+      className="fixed top-4 left-1/2 z-[9999]"
       style={{
         transform: visible
           ? "translateX(-50%) translateY(0)"
@@ -62,38 +61,47 @@ export function LiveMeetingIndicator() {
       }}
     >
       <div
-        onClick={handleClick}
-        className="flex items-center gap-3 rounded-full px-4 py-2 cursor-pointer shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-transform"
-        style={{
-          background: "hsl(var(--foreground) / 0.92)",
-          backdropFilter: "blur(16px)",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.2), 0 1px 6px rgba(0,0,0,0.1)",
-        }}
+        className={`rounded-2xl border border-border/50 bg-card/95 shadow-[0_8px_40px_rgba(0,0,0,0.15),0_2px_12px_rgba(0,0,0,0.08)] ${
+          isExiting ? "animate-out slide-out-to-top-2 fade-out" : "animate-in slide-in-from-top-4 fade-in"
+        } duration-300`}
+        style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", minWidth: 340, maxWidth: 420 }}
       >
-        {/* Recording dot (indicator only shows when actively recording) */}
-        <div className="relative flex items-center justify-center">
-          <span className="absolute h-3 w-3 rounded-full bg-red-500 animate-ping opacity-50" />
-          <span className="relative h-2.5 w-2.5 rounded-full bg-red-500" />
+        <div className="flex items-start gap-3 px-4 py-3.5">
+          <div className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-destructive/10 flex-shrink-0 mt-0.5">
+            <span className="absolute h-2.5 w-2.5 rounded-full bg-red-500 animate-ping opacity-50" />
+            <span className="relative h-2 w-2 rounded-full bg-red-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[11px] font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">
+                Recording in progress
+              </span>
+            </div>
+            <h4 className="text-[14px] font-semibold text-foreground leading-tight truncate">
+              {title}
+            </h4>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              Live transcript is being captured
+            </p>
+          </div>
         </div>
-
-        {/* Title */}
-        <span className="text-[13px] font-medium text-background truncate max-w-[160px]">
-          {activeSession.title || "Recording"}
-        </span>
-
-        {/* Timer */}
-        <span className="text-[12px] font-mono text-background/60 tabular-nums">
-          {formatTime(activeSession.elapsedSeconds)}
-        </span>
-
-        {/* End meeting button */}
-        <button
-          onClick={handleStop}
-          className="flex items-center justify-center rounded-full h-6 w-6 bg-background/15 text-background/70 hover:bg-background/25 hover:text-background transition-colors flex-shrink-0"
-          title="End meeting"
-        >
-          <Square className="h-2.5 w-2.5 fill-current" />
-        </button>
+        <div className="flex items-center gap-2 px-4 pb-3.5 pt-0.5">
+          <button
+            onClick={handleGoToNote}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 active:scale-[0.98] transition-all"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Go to note
+            <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" />
+          </button>
+          <button
+            onClick={handleStop}
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] font-medium text-destructive hover:bg-destructive/20 transition-all flex items-center gap-1.5"
+          >
+            <Square className="h-3.5 w-3.5 fill-current" />
+            End meeting
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -117,9 +117,10 @@ async function checkForMeetings(): Promise<void> {
     }
 
     if (matchedApp && !notifiedForCurrentMeeting) {
-      // Tier 3: verify audio I/O is active (mic being used)
+      // Tier 3: notify when meeting app is running; optionally require mic active to reduce false positives
       const audioActive = await checkMicActive()
-      if (audioActive) {
+      // Notify if mic is active OR always on first match (so joining a meeting reliably triggers notification)
+      if (audioActive || !activeMeetingApp) {
         activeMeetingApp = matchedApp
         meetingStartTime = Date.now()
         notifiedForCurrentMeeting = true

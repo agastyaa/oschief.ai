@@ -20,9 +20,13 @@ async function main() {
   if (!fs.existsSync(trayIconSvg)) throw new Error('Missing public/tray-icon.svg')
 
   const appSvgBuf = fs.readFileSync(appIconSvg)
-  let traySvgBuf = fs.readFileSync(trayIconSvg)
-  // Use white strokes for menu bar (macOS standard); replace black with white in SVG
-  traySvgBuf = Buffer.from(traySvgBuf.toString('utf8').replace(/#111111/gi, '#ffffff'))
+  let traySvg = fs.readFileSync(trayIconSvg).toString('utf8')
+  // Use white strokes for menu bar (macOS standard); replace all dark colors with white
+  const darkColors = [/#111111/gi, /#000000/gi, /#333333/gi, /#222222/gi, /black/gi]
+  for (const re of darkColors) {
+    traySvg = traySvg.replace(re, '#ffffff')
+  }
+  const traySvgBuf = Buffer.from(traySvg)
 
   // ─── 1. Tray icon (22×22 = 1x menu bar size; macOS uses this, scaling up causes big/pixelated look) ───
   const TRAY_SIZE = 22

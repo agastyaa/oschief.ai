@@ -226,7 +226,6 @@ export default function NoteDetailPage() {
                 transcriptVisible={transcriptVisible}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 onResumeRecording={handleResume}
-                onGenerateNotes={handleStop}
               />
             </div>
           </div>

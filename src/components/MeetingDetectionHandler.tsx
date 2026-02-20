@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getElectronAPI, isElectron } from "@/lib/electron-api";
-import { useRecording } from "@/contexts/RecordingContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { X, Mic, Video, ArrowRight } from "lucide-react";
 
@@ -15,7 +14,6 @@ interface DetectionData {
 export function MeetingDetectionHandler() {
   const api = getElectronAPI();
   const navigate = useNavigate();
-  const { isActive, activeSession } = useRecording();
   const { events } = useCalendar();
   const [detection, setDetection] = useState<DetectionData | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -36,17 +34,15 @@ export function MeetingDetectionHandler() {
     api.app.setCalendarEvents?.(mapped);
   }, [events, api]);
 
-  // Listen for meeting detections
+  // Listen for meeting detections — always show in-app popup when detection fires (even if we have a session; user can start new note or dismiss)
   useEffect(() => {
     if (!api) return;
 
     const cleanupDetected = api.app.onMeetingDetected((data: DetectionData) => {
-      if (!activeSession) {
-        setDetection(data);
-        setDismissed(false);
-        setIsExiting(false);
-        setElapsedSec(0);
-      }
+      setDetection(data);
+      setDismissed(false);
+      setIsExiting(false);
+      setElapsedSec(0);
     });
 
     const cleanupEnded = api.app.onMeetingEnded(() => {
@@ -57,7 +53,7 @@ export function MeetingDetectionHandler() {
       cleanupDetected();
       cleanupEnded();
     };
-  }, [activeSession]);
+  }, [api]);
 
   // Tick elapsed time while notification is showing
   useEffect(() => {
@@ -89,7 +85,7 @@ export function MeetingDetectionHandler() {
     }, 300);
   }, []);
 
-  if (!isElectron || !detection || dismissed || activeSession) return null;
+  if (!isElectron || !detection || dismissed) return null;
 
   const meetingTitle =
     detection.calendarEvent?.title || detection.title || `${detection.app} Meeting`;
