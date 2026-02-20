@@ -1,4 +1,5 @@
 import { Tray, Menu, BrowserWindow, nativeImage, app, Notification } from 'electron'
+import { TRAY_ICON_BASE64, TRAY_ICON_RECORDING_BASE64 } from './tray-icons.generated'
 
 let tray: Tray | null = null
 let mainWindow: BrowserWindow | null = null
@@ -8,39 +9,13 @@ let currentMeeting: { title: string; startTime: number } | null = null
 let isRecording = false
 let titleUpdateInterval: ReturnType<typeof setInterval> | null = null
 
-// Colored tray icon (like Claude, Notion, ChatGPT) — visible in light and dark menu bar
-const TRAY_ICON_BG = '#9B7B4F'
-const TRAY_ICON_FG = '#FFFFFF'
-
+// Tray icons as PNG (Electron's nativeImage does not support SVG)
 function createTrayIcon(): Electron.NativeImage {
-  const size = 22
-  const scale = 2
-  const s = size * scale
-  const r = s * 0.22
-
-  const svg = `<svg width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${s}" height="${s}" rx="${r}" ry="${r}" fill="${TRAY_ICON_BG}"/>
-    <text x="${s / 2}" y="${s * 0.72}" font-family="SF Pro Display, -apple-system, sans-serif" font-size="${s * 0.58}" font-weight="700" text-anchor="middle" fill="${TRAY_ICON_FG}">S</text>
-  </svg>`
-
-  const img = nativeImage.createFromBuffer(Buffer.from(svg), { width: size, height: size, scaleFactor: scale })
-  return img
+  return nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
 }
 
 function createRecordingIcon(): Electron.NativeImage {
-  const size = 22
-  const scale = 2
-  const s = size * scale
-  const r = s * 0.22
-
-  const svg = `<svg width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${s}" height="${s}" rx="${r}" ry="${r}" fill="${TRAY_ICON_BG}"/>
-    <text x="${s * 0.42}" y="${s * 0.72}" font-family="SF Pro Display, -apple-system, sans-serif" font-size="${s * 0.5}" font-weight="700" text-anchor="middle" fill="${TRAY_ICON_FG}">S</text>
-    <circle cx="${s * 0.78}" cy="${s * 0.22}" r="${s * 0.14}" fill="#E53935"/>
-  </svg>`
-
-  const img = nativeImage.createFromBuffer(Buffer.from(svg), { width: size, height: size, scaleFactor: scale })
-  return img
+  return nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
 }
 
 function formatElapsed(startTime: number): string {

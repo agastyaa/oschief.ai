@@ -13,6 +13,7 @@ export type ModelProvider = {
 export const enterpriseProviders: ModelProvider[] = [
   { id: "openai", name: "OpenAI", models: ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1-preview"], icon: "🟢" },
   { id: "anthropic", name: "Anthropic (Claude)", models: ["Claude 4 Sonnet", "Claude 4 Opus", "Claude 3.5 Haiku"], icon: "🟤" },
+  { id: "copart", name: "Copart Genie", models: ["Opus Plan", "Claude Sonnet 4", "Claude Haiku 4", "Claude Opus 4"], icon: "🟡" },
   { id: "google", name: "Google (Gemini)", models: ["Gemini 2.5 Pro", "Gemini 2.5 Flash", "Gemini 2.0 Flash"], icon: "🔵" },
   { id: "deepgram", name: "Deepgram", models: ["Nova-2", "Nova-2 Medical", "Nova-2 Meeting"], icon: "🟣", sttOnly: true },
   { id: "assemblyai", name: "AssemblyAI", models: ["Universal-2", "Nano"], icon: "🔴", sttOnly: true },
@@ -58,6 +59,7 @@ function saveToStorage(data: {
   useLocalModels: boolean;
   downloadStates: Record<string, DownloadState>;
   connectedProviders: Record<string, { connected: boolean; apiKey: string }>;
+  hiddenLocalModels?: string[];
 }) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(data));
@@ -91,6 +93,7 @@ const defaults = {
   useLocalModels: false,
   downloadStates: {} as Record<string, DownloadState>,
   connectedProviders: {} as Record<string, { connected: boolean; apiKey: string }>,
+  hiddenLocalModels: [] as string[],
 };
 
 export function ModelSettingsProvider({ children }: { children: ReactNode }) {
@@ -104,6 +107,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>(init.downloadStates);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DownloadProgress>>({});
   const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>(init.connectedProviders);
+  const [hiddenLocalModels, setHiddenLocalModels] = useState<string[]>(init.hiddenLocalModels ?? []);
 
   // Sync download states from Electron main process on mount
   useEffect(() => {
@@ -179,36 +183,39 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         if (data.useLocalModels !== undefined) setUseLocalModels(data.useLocalModels);
         if (data.downloadStates) setDownloadStates((prev) => ({ ...prev, ...data.downloadStates }));
         if (data.connectedProviders) setConnectedProviders((prev) => ({ ...prev, ...data.connectedProviders }));
+        if (Array.isArray(data.hiddenLocalModels)) setHiddenLocalModels(data.hiddenLocalModels);
       } catch { /* ignore corrupt data */ }
     });
   }, []);
 
-  // Check if MLX Whisper is installed on mount
+  // Check if MLX Whisper is installed on mount; don't show as downloaded if user removed it
   useEffect(() => {
     if (!api) return;
     api.models.checkMLXWhisper().then((available: boolean) => {
-      if (available) {
+      if (available && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo')) {
         setDownloadStates((prev) => ({ ...prev, 'mlx-whisper-large-v3-turbo': 'downloaded' }));
       }
     }).catch(() => {});
-  }, []);
+  }, [hiddenLocalModels]);
 
+  // Only auto-select a local STT model when "Use local by default" is on.
+  // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
   useEffect(() => {
-    if (selectedSTTModel) return;
+    if (!useLocalModels || selectedSTTModel) return;
     const downloadedSTT = localModels.filter(m => m.type === 'stt' && downloadStates[m.id] === 'downloaded');
-    if (downloadedSTT.length > 0) {
-      setSelectedSTTModel(`local:${downloadedSTT[0].id}`);
-    }
-  }, [downloadStates, selectedSTTModel]);
+    if (downloadedSTT.length === 0) return;
+    const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo') ?? downloadedSTT[0];
+    setSelectedSTTModel(`local:${preferWhisperCpp.id}`);
+  }, [useLocalModels, downloadStates, selectedSTTModel]);
 
   // Persist to BOTH localStorage and DB so sync load always works
   useEffect(() => {
-    const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders };
+    const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels };
     saveToStorage(data);
     if (api) {
       api.db.settings.set('model-settings', JSON.stringify(data)).catch(console.error);
     }
-  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders]);
+  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels]);
 
   const handleDownload = useCallback(async (modelId: string) => {
     setDownloadStates((prev) => ({ ...prev, [modelId]: "downloading" }));
@@ -217,6 +224,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       try {
         const success = await api.models.installMLXWhisper();
         if (success) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
           setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
           toast.success("MLX Whisper ready");
         } else {
@@ -253,6 +261,13 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       delete next[modelId];
       return next;
     });
+    // If the deleted model was selected for STT or AI, clear selection so we don't keep using it
+    setSelectedSTTModel((prev) => (prev === `local:${modelId}` ? "" : prev));
+    setSelectedAIModel((prev) => (prev === `local:${modelId}` ? "" : prev));
+    // MLX is re-detected on load; hide it so it doesn't reappear until user downloads again
+    if (modelId === 'mlx-whisper-large-v3-turbo') {
+      setHiddenLocalModels((prev) => (prev.includes(modelId) ? prev : [...prev, modelId]));
+    }
     if (api) {
       api.models.delete(modelId).catch(console.error);
     }

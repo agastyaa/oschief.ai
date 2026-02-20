@@ -1,6 +1,7 @@
 import { getSetting } from '../storage/database'
 import { chatOpenAI, sttOpenAI } from './openai'
 import { chatAnthropic } from './anthropic'
+import { chatCopart } from './copart'
 import { chatGoogle } from './google'
 import { sttDeepgram } from './deepgram'
 import { sttAssemblyAI } from './assemblyai'
@@ -51,6 +52,8 @@ export async function routeLLM(
       return chatOpenAI(messages, modelName, apiKey, onChunk)
     case 'anthropic':
       return chatAnthropic(messages, modelName, apiKey, onChunk)
+    case 'copart':
+      return chatCopart(messages, modelName, apiKey, onChunk)
     case 'google':
       return chatGoogle(messages, modelName, apiKey, onChunk)
     case 'groq':

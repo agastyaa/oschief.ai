@@ -261,11 +261,14 @@ async function processBufferedAudio(): Promise<void> {
       console.error('STT processing error:', err)
       if (transcriptCallback) {
         const msg = err?.message || String(err)
-        const hint = currentSTTModel.startsWith('local:')
-          ? ' Check that the model is downloaded in Settings > AI Models.'
-          : msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')
-            ? ' Add your API key in Settings > AI Models and connect the provider.'
-            : ''
+        let hint = ''
+        if (currentSTTModel.startsWith('local:')) {
+          hint = msg.includes('MLX worker startup')
+            ? ' To use Deepgram or another cloud STT instead, select it in Settings > AI Models and start a new note.'
+            : ' Check that the model is downloaded in Settings > AI Models.'
+        } else if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')) {
+          hint = ' Add your API key in Settings > AI Models and connect the provider.'
+        }
         transcriptCallback({
           speaker: 'System',
           time: formatTimestamp(elapsedSec),
