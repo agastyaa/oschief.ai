@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Link2, LayoutGrid, List, MapPin, Clock } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
 import { CalendarEvent } from "@/lib/ics-parser";
-import { format, isToday as isTodayFn } from "date-fns";
+import { format, isToday as isTodayFn, startOfDay } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -28,6 +28,7 @@ export default function CalendarPage() {
   const [icsOpen, setIcsOpen] = useState(false);
   const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
+  const listViewScrollRef = useRef<HTMLDivElement>(null);
   const { events, icsSource, clearCalendar } = useCalendar();
 
   const daysInMonth = getDaysInMonth(year, month);
@@ -43,7 +44,7 @@ export default function CalendarPage() {
       return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
     });
 
-  // Events for the current month, grouped by date
+  // Events for the current month (grid view), grouped by date
   const monthEvents = events
     .filter((e) => {
       const d = new Date(e.start);
@@ -57,6 +58,18 @@ export default function CalendarPage() {
     return acc;
   }, {});
 
+  // List view: events from today onward, grouped by date (today first, scroll down for future)
+  const todayStart = startOfDay(today).getTime();
+  const upcomingEvents = events
+    .filter((e) => new Date(e.start).getTime() >= todayStart)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const listViewGrouped = upcomingEvents.reduce<Record<string, CalendarEvent[]>>((acc, evt) => {
+    const key = format(new Date(evt.start), "yyyy-MM-dd");
+    (acc[key] = acc[key] || []).push(evt);
+    return acc;
+  }, {});
+  const listViewDates = Object.keys(listViewGrouped).sort();
+
   const prevMonth = () => {
     if (month === 0) { setMonth(11); setYear(year - 1); }
     else setMonth(month - 1);
@@ -67,7 +80,14 @@ export default function CalendarPage() {
     else setMonth(month + 1);
   };
 
-  const goToday = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); };
+  const goToday = () => {
+    if (view === "list") {
+      listViewScrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      setYear(today.getFullYear());
+      setMonth(today.getMonth());
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -97,7 +117,9 @@ export default function CalendarPage() {
 
           {/* Calendar header */}
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="font-display text-2xl text-foreground">{monthNames[month]} {year}</h1>
+            <h1 className="font-display text-2xl text-foreground">
+              {view === "list" ? "From today" : `${monthNames[month]} ${year}`}
+            </h1>
             <div className="flex items-center gap-3">
               {/* View toggle */}
               <div className="flex rounded-lg border border-border p-0.5">
@@ -180,16 +202,17 @@ export default function CalendarPage() {
               </div>
             </>
           ) : (
-            /* Timeline / List view */
-            <div>
-              {Object.keys(groupedByDate).length === 0 ? (
+            /* List view: from today onward, scroll down for future days */
+            <div ref={listViewScrollRef}>
+              {listViewDates.length === 0 ? (
                 <div className="text-center py-16">
                   <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">No events this month</p>
+                  <p className="text-sm text-muted-foreground">No events from today onward</p>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {Object.entries(groupedByDate).map(([dateKey, dayEvents]) => {
+                  {listViewDates.map((dateKey) => {
+                    const dayEvents = listViewGrouped[dateKey];
                     const dateObj = new Date(dateKey + "T00:00:00");
                     const dayIsToday = isTodayFn(dateObj);
                     return (

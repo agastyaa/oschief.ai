@@ -193,30 +193,34 @@ export default function NewNotePage() {
   useEffect(() => { transcriptRef.current = transcriptLines; }, [transcriptLines]);
   useEffect(() => { meetingTemplateRef.current = meetingTemplate; }, [meetingTemplate]);
 
-  const selectedFolder = folders.find((f) => f.id === selectedFolderId);
+  const selectedFolder = (folders ?? []).find((f) => f.id === selectedFolderId);
 
   useEffect(() => {
-    // If we have an active session but no session in URL, preserve it so timer and state continue
-    if (!existingSessionId && activeSession?.noteId) {
-      navigate(`/new-note?session=${activeSession.noteId}`, { replace: true });
-      return;
-    }
-    if (!isReturning) {
-      // Stop any previous recording before starting a new one
-      if (activeSession?.isRecording && usingRealAudio) {
-        stopAudioCapture().catch(console.error);
+    try {
+      // If we have an active session but no session in URL, preserve it so timer and state continue
+      if (!existingSessionId && activeSession?.noteId) {
+        navigate(`/new-note?session=${activeSession.noteId}`, { replace: true });
+        return;
       }
-      startSession(noteId);
-      if (usingRealAudio) {
-        startAudioCapture(selectedSTTModel || '').catch((err) => {
-          console.error('Audio capture failed:', err);
-        });
+      if (!isReturning) {
+        // Stop any previous recording before starting a new one
+        if (activeSession?.isRecording && usingRealAudio) {
+          stopAudioCapture().catch(console.error);
+        }
+        startSession(noteId);
+        if (usingRealAudio) {
+          startAudioCapture(selectedSTTModel || '').catch((err) => {
+            console.error('Audio capture failed:', err);
+          });
+        }
+      } else if (activeSession) {
+        setTitle(activeSession.title === "New note" ? "" : activeSession.title);
+        if (activeSession.isRecording) {
+          setRecordingState("recording");
+        }
       }
-    } else if (activeSession) {
-      setTitle(activeSession.title === "New note" ? "" : activeSession.title);
-      if (activeSession.isRecording) {
-        setRecordingState("recording");
-      }
+    } catch (err) {
+      console.error('NewNotePage mount error:', err);
     }
     return () => {};
   }, []);
@@ -470,7 +474,7 @@ export default function NewNotePage() {
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
           </div>
           <div className="max-h-40 overflow-y-auto py-1">
-            {folders.map((f) => (
+            {(folders ?? []).map((f) => (
               <button
                 key={f.id}
                 onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}

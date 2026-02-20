@@ -26,6 +26,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
 import { TrayMenu } from "@/components/TrayMenu";
 import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -54,12 +55,17 @@ function TrayNavigationHandler() {
       }
     });
 
+    const cleanupStartRecording = api.app.onTrayStartRecording?.(() => {
+      navigate("/new-note");
+    });
+
     const cleanupPause = api.app.onTrayPauseRecording?.(() => {
       pauseAudioCapture();
     });
 
     return () => {
       cleanupNav?.();
+      cleanupStartRecording?.();
       cleanupPause?.();
     };
   }, [api, activeSession?.noteId, navigate, pauseAudioCapture]);
@@ -88,7 +94,11 @@ function AppContent() {
         <Route path="/ask" element={<AskSyag />} />
         
         <Route path="/note/:id" element={<NoteDetailPage />} />
-        <Route path="/new-note" element={<NewNotePage />} />
+        <Route path="/new-note" element={
+          <ErrorBoundary>
+            <NewNotePage />
+          </ErrorBoundary>
+        } />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/tray-preview" element={

@@ -34,15 +34,13 @@ export function MeetingDetectionHandler() {
     api.app.setCalendarEvents?.(mapped);
   }, [events, api]);
 
-  // Listen for meeting detections — always show in-app popup when detection fires (even if we have a session; user can start new note or dismiss)
+  // Listen for meeting detections — system notification only (main process shows native notification).
+  // No in-app popup; user clicks the system notification to open app and start note (tray:start-recording).
   useEffect(() => {
     if (!api) return;
 
-    const cleanupDetected = api.app.onMeetingDetected((data: DetectionData) => {
-      setDetection(data);
-      setDismissed(false);
-      setIsExiting(false);
-      setElapsedSec(0);
+    const cleanupDetected = api.app.onMeetingDetected((_data: DetectionData) => {
+      // No-op: system notification is shown by main process.
     });
 
     const cleanupEnded = api.app.onMeetingEnded(() => {

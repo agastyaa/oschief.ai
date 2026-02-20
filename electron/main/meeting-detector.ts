@@ -160,7 +160,11 @@ async function checkForMeetings(): Promise<void> {
       notifiedForCurrentMeeting = true
 
       const calEvent = findCurrentCalendarEvent()
-      const meetingTitle = calEvent?.title || `${matchedApp} Meeting`
+      const now = Date.now()
+      // Only use calendar event title when we're in a confident window (2 min before start to 5 min after end).
+      // Otherwise show generic "{App} Meeting" to avoid showing a wrong/unrelated event title (e.g. another meeting in the 15-min window).
+      const useCalendarTitle = calEvent && now >= calEvent.start - 2 * 60 * 1000 && now <= calEvent.end + 5 * 60 * 1000
+      const meetingTitle = useCalendarTitle && calEvent ? calEvent.title : `${matchedApp} Meeting`
 
       console.log(`[MeetingDetector] Meeting detected: ${meetingTitle}`)
 
