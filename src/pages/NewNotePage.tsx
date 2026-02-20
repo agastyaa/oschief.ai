@@ -146,12 +146,17 @@ export default function NewNotePage() {
   const [showTopBarTemplateMenu, setShowTopBarTemplateMenu] = useState(false);
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
-  const [noteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
+  const [noteId, setNoteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
+  useEffect(() => {
+    if (existingSessionId && noteId !== existingSessionId) setNoteId(existingSessionId);
+  }, [existingSessionId]);
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const topBarTemplateMenuRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef(transcriptLines);
+  const lastGeneratedTranscriptLengthRef = useRef(-1);
+  const lastGeneratedNotesRef = useRef("");
   const { folders, createFolder } = useFolders();
   const { addNote, deleteNote } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
@@ -190,6 +195,11 @@ export default function NewNotePage() {
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
 
   useEffect(() => {
+    // If we have an active session but no session in URL, preserve it so timer and state continue
+    if (!existingSessionId && activeSession?.noteId) {
+      navigate(`/new-note?session=${activeSession.noteId}`, { replace: true });
+      return;
+    }
     if (!isReturning) {
       // Stop any previous recording before starting a new one
       if (activeSession?.isRecording && usingRealAudio) {
@@ -282,6 +292,8 @@ export default function NewNotePage() {
 
     setSummary(generatedSummary);
     setIsSummarizing(false);
+    lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
+    lastGeneratedNotesRef.current = personalNotes;
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
@@ -794,6 +806,11 @@ export default function NewNotePage() {
                 onGenerateNotes={generateNotes}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 elapsed={elapsed}
+                hasNewContentSinceGenerate={
+                  !summary ||
+                  transcriptLines.length !== lastGeneratedTranscriptLengthRef.current ||
+                  personalNotes !== lastGeneratedNotesRef.current
+                }
               />
             </div>
           </div>

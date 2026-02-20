@@ -17,10 +17,12 @@ interface AskBarProps {
   recordingState?: "recording" | "paused" | "stopped";
   isSummarizing?: boolean;
   hasSummary?: boolean;
+  /** When true and hasSummary: show Generate. When false and hasSummary: hide (no new transcript/notes since last generate). */
+  hasNewContentSinceGenerate?: boolean;
   elapsed?: string;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onGenerateNotes, onToggleTranscript, transcriptVisible, recordingState, isSummarizing, hasSummary, elapsed }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onGenerateNotes, onToggleTranscript, transcriptVisible, recordingState, isSummarizing, hasSummary, hasNewContentSinceGenerate = true, elapsed }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -129,7 +131,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
   };
 
   const isPausedOrStopped = recordingState === "paused" || recordingState === "stopped";
-  const showGenerateButton = isPausedOrStopped && !hasSummary && !isSummarizing;
+  const showGenerateButton = isPausedOrStopped && !isSummarizing && (!hasSummary || hasNewContentSinceGenerate);
   const showGeneratingState = isPausedOrStopped && isSummarizing;
 
   return (

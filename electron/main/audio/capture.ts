@@ -231,6 +231,13 @@ async function processBufferedAudio(): Promise<void> {
         console.warn('VAD failed, processing full audio:', vadErr)
       }
 
+      // Skip STT on near-silence to avoid hallucinations (random transcript when not talking)
+      const speechEnergy = speechAudio.reduce((sum, v) => sum + v * v, 0) / speechAudio.length
+      if (speechEnergy < 0.0004) {
+        isProcessing = false
+        continue
+      }
+
       if (hasSpeech) {
         lastSpeechTime = Date.now()
         consecutiveSilentChunks = 0
