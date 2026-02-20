@@ -231,53 +231,6 @@ export default function NewNotePage() {
     updateSession({ isRecording: true, title: title || "New note" });
   }, [recordingState, title, updateSession]);
 
-  // Sync recording state with auto-pause/resume from main process
-  // Auto-pause from silence detection auto-generates notes. Do not overwrite user-initiated pause when main state is delayed.
-  useEffect(() => {
-    if (recordingState === "stopped") return;
-    if (activeSession && !activeSession.isRecording && recordingState === "recording") {
-      userPausedRef.current = false;
-      setRecordingState("paused");
-      // Auto-paused by main process (silence detection) -- auto-generate notes if enabled
-      if (autoGenerateNotes && !isSummarizing && (transcriptRef.current.length > 0 || (typeof personalNotes === 'string' && personalNotes.trim().length > 0))) {
-        generateNotes();
-      }
-    } else if (activeSession && activeSession.isRecording && recordingState === "paused" && !userPausedRef.current) {
-      setRecordingState("recording");
-    }
-  }, [activeSession?.isRecording]);
-
-  // Simulate live transcription for web mode only
-  useEffect(() => {
-    if (usingRealAudio) return;
-    if (recordingState !== "recording") return;
-    if (visibleLines >= fakeTranscriptLines.length) return;
-    const timer = setInterval(() => {
-      setVisibleLines((prev) => Math.min(prev + 1, fakeTranscriptLines.length));
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [recordingState, visibleLines, usingRealAudio]);
-
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [visibleLines, transcriptLines.length]);
-
-  useEffect(() => {
-    if (isEditingTitle) titleRef.current?.select();
-  }, [isEditingTitle]);
-
-  // Re-summarize when user edits personal notes and we already have a summary (debounced)
-  useEffect(() => {
-    const hasSummary = summary?.overview != null && summary.overview !== "" || (summary?.keyPoints?.length ?? 0) > 0;
-    if (!hasSummary || isSummarizing || personalNotes === lastGeneratedNotesRef.current) return;
-    const t = setTimeout(() => {
-      if (personalNotes.trim().length > 0 || transcriptRef.current.length > 0) {
-        generateNotes();
-      }
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [personalNotes, summary?.overview, summary?.keyPoints?.length, isSummarizing, generateNotes]);
-
   const generateNotes = useCallback(async () => {
     if (isSummarizing) return;
     setIsSummarizing(true);
@@ -334,6 +287,53 @@ export default function NewNotePage() {
       setTitle(generatedSummary.title);
     }
   }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing]);
+
+  // Sync recording state with auto-pause/resume from main process
+  // Auto-pause from silence detection auto-generates notes. Do not overwrite user-initiated pause when main state is delayed.
+  useEffect(() => {
+    if (recordingState === "stopped") return;
+    if (activeSession && !activeSession.isRecording && recordingState === "recording") {
+      userPausedRef.current = false;
+      setRecordingState("paused");
+      // Auto-paused by main process (silence detection) -- auto-generate notes if enabled
+      if (autoGenerateNotes && !isSummarizing && (transcriptRef.current.length > 0 || (typeof personalNotes === 'string' && personalNotes.trim().length > 0))) {
+        generateNotes();
+      }
+    } else if (activeSession && activeSession.isRecording && recordingState === "paused" && !userPausedRef.current) {
+      setRecordingState("recording");
+    }
+  }, [activeSession?.isRecording]);
+
+  // Simulate live transcription for web mode only
+  useEffect(() => {
+    if (usingRealAudio) return;
+    if (recordingState !== "recording") return;
+    if (visibleLines >= fakeTranscriptLines.length) return;
+    const timer = setInterval(() => {
+      setVisibleLines((prev) => Math.min(prev + 1, fakeTranscriptLines.length));
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [recordingState, visibleLines, usingRealAudio]);
+
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [visibleLines, transcriptLines.length]);
+
+  useEffect(() => {
+    if (isEditingTitle) titleRef.current?.select();
+  }, [isEditingTitle]);
+
+  // Re-summarize when user edits personal notes and we already have a summary (debounced)
+  useEffect(() => {
+    const hasSummary = summary?.overview != null && summary.overview !== "" || (summary?.keyPoints?.length ?? 0) > 0;
+    if (!hasSummary || isSummarizing || personalNotes === lastGeneratedNotesRef.current) return;
+    const t = setTimeout(() => {
+      if (personalNotes.trim().length > 0 || transcriptRef.current.length > 0) {
+        generateNotes();
+      }
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [personalNotes, summary?.overview, summary?.keyPoints?.length, isSummarizing, generateNotes]);
 
   const handleEndMeeting = useCallback(async () => {
     setRecordingState("stopped");

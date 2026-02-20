@@ -21,6 +21,27 @@ function getStartDayOffset(year: number, month: number) {
 
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+/** Derive a short label from calendar URL for display (e.g. "Outlook - Copart.com"). */
+function getSyncLabel(urlOrSource: string): string {
+  if (!urlOrSource) return "Calendar";
+  try {
+    const url = urlOrSource.startsWith("http") ? urlOrSource : `https://${urlOrSource}`;
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const pathAndHash = u.pathname + u.search;
+    if (host.includes("outlook.office365.com") || host.includes("outlook.office.com")) {
+      const emailMatch = pathAndHash.match(/@([a-zA-Z0-9.-]+)/);
+      const domain = emailMatch ? emailMatch[1] : "";
+      return domain ? `Outlook - ${domain}` : "Outlook";
+    }
+    if (host.includes("google") || host.includes("gmail")) return "Google Calendar";
+    if (host.includes("icloud")) return "iCloud";
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return urlOrSource.length > 40 ? urlOrSource.slice(0, 37) + "…" : urlOrSource;
+  }
+}
+
 export default function CalendarPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -106,11 +127,13 @@ export default function CalendarPage() {
               </button>
             </div>
           ) : (
-            <div className="mb-6 flex items-center justify-between rounded-lg border border-border bg-card/50 px-4 py-2.5">
-              <span className="text-xs text-muted-foreground truncate">Synced: {icsSource}</span>
-              <div className="flex gap-2">
-                <button onClick={() => setIcsOpen(true)} className="text-xs text-accent hover:underline">Re-sync</button>
-                <button onClick={clearCalendar} className="text-xs text-destructive hover:underline">Disconnect</button>
+            <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card/50 px-4 py-2.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap min-w-0 truncate">
+                Synced: {getSyncLabel(icsSource)}
+              </span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => setIcsOpen(true)} className="text-xs text-accent hover:underline whitespace-nowrap">Resync</button>
+                <button onClick={clearCalendar} className="text-xs text-destructive hover:underline whitespace-nowrap">Disconnect</button>
               </div>
             </div>
           )}
@@ -193,7 +216,13 @@ export default function CalendarPage() {
                           </button>
                         ))}
                         {dayEvents.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - 3} more</span>
+                          <button
+                            type="button"
+                            onClick={() => setView("list")}
+                            className="text-[10px] text-accent hover:underline px-1"
+                          >
+                            +{dayEvents.length - 3} more
+                          </button>
                         )}
                       </div>
                     </div>
@@ -216,32 +245,32 @@ export default function CalendarPage() {
                     const dateObj = new Date(dateKey + "T00:00:00");
                     const dayIsToday = isTodayFn(dateObj);
                     return (
-                      <div key={dateKey}>
-                        {/* Date header */}
+                      <div key={dateKey} className="mb-2">
+                        {/* Date header - solid background so event list doesn't overlap when scrolling */}
                         <div className={cn(
-                          "sticky top-0 z-10 flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5",
-                          dayIsToday ? "bg-accent/10" : "bg-secondary/50"
+                          "sticky top-0 z-10 flex items-center gap-3 px-3 py-2 rounded-lg mb-1 bg-background border-b border-border/50",
+                          dayIsToday ? "text-accent" : ""
                         )}>
                           <div className={cn(
-                            "flex h-10 w-10 flex-col items-center justify-center rounded-lg text-center",
+                            "flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-lg text-center",
                             dayIsToday ? "bg-accent text-accent-foreground" : "bg-card border border-border"
                           )}>
                             <span className="text-[10px] font-medium leading-none">{format(dateObj, "EEE")}</span>
                             <span className="text-lg font-semibold leading-none mt-0.5">{format(dateObj, "d")}</span>
                           </div>
-                          <div>
-                            <p className={cn("text-sm font-medium", dayIsToday ? "text-accent" : "text-foreground")}>
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-sm font-medium truncate", dayIsToday ? "text-accent" : "text-foreground")}>
                               {dayIsToday ? "Today" : format(dateObj, "EEEE")}
                             </p>
                             <p className="text-[11px] text-muted-foreground">{format(dateObj, "MMMM d, yyyy")}</p>
                           </div>
-                          <span className="ml-auto text-[11px] text-muted-foreground">
+                          <span className="flex-shrink-0 text-[11px] text-muted-foreground">
                             {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
                           </span>
                         </div>
 
-                        {/* Events for this day */}
-                        <div className="ml-5 border-l-2 border-border pl-5 space-y-1 mb-4">
+                        {/* Events for this day - clear separation below header */}
+                        <div className="ml-5 border-l-2 border-border pl-5 space-y-1 mt-1 mb-4">
                           {dayEvents.map((evt) => (
                             <button
                               key={evt.id}
