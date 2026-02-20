@@ -14,7 +14,7 @@ function getApiKey(providerId: string): string {
 
   const keychainPath = join(app.getPath('userData'), 'secure', 'keychain.enc')
   if (!existsSync(keychainPath)) {
-    throw new Error(`No API key configured for ${providerId}. Add it in Settings > AI Models.`)
+    throw new Error(`No API key for ${providerId}. Connect ${providerId} in Settings > AI Models and enter your API key.`)
   }
 
   try {
@@ -22,13 +22,13 @@ function getApiKey(providerId: string): string {
     const decrypted = safeStorage.decryptString(encrypted)
     const keys = JSON.parse(decrypted)
     const key = keys[providerId]
-    if (!key) {
-      throw new Error(`No API key configured for ${providerId}. Add it in Settings > AI Models.`)
+    if (!key || typeof key !== 'string' || !key.trim()) {
+      throw new Error(`No API key for ${providerId}. Connect ${providerId} in Settings > AI Models and enter your API key.`)
     }
-    return key
+    return key.trim()
   } catch (err: any) {
-    if (err.message?.includes('No API key')) throw err
-    throw new Error(`Failed to read API key for ${providerId}: ${err.message}`)
+    if (err.message?.includes('No API key') || err.message?.includes('Connect ')) throw err
+    throw new Error(`API key for ${providerId} could not be read. Re-enter your key in Settings > AI Models.`)
   }
 }
 
@@ -65,8 +65,14 @@ export async function routeLLM(
  * model format: "providerId:modelName" (e.g., "deepgram:Nova-2")
  */
 export async function routeSTT(wavBuffer: Buffer, model: string): Promise<string> {
+  if (!model?.trim()) {
+    throw new Error('No STT model selected. Choose one in Settings > AI Models.')
+  }
   const [providerId, ...rest] = model.split(':')
   const modelName = rest.join(':')
+  if (!providerId?.trim()) {
+    throw new Error('Invalid STT model. Choose a cloud provider (e.g. Deepgram) in Settings > AI Models.')
+  }
 
   const apiKey = getApiKey(providerId)
 

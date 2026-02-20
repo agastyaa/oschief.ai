@@ -26,6 +26,25 @@ export async function sttDeepgram(
       let data = ''
       res.on('data', (chunk) => { data += chunk.toString() })
       res.on('end', () => {
+        const code = res.statusCode ?? 0
+        if (code === 401) {
+          reject(new Error('Invalid Deepgram API key. Check your key in Settings > AI Models.'))
+          return
+        }
+        if (code === 403) {
+          reject(new Error('Deepgram access denied. Check your API key and plan in Settings > AI Models.'))
+          return
+        }
+        if (code >= 400) {
+          try {
+            const json = JSON.parse(data)
+            const msg = json.err_msg || json.message || data.slice(0, 200)
+            reject(new Error(`Deepgram error (${code}): ${msg}`))
+          } catch {
+            reject(new Error(`Deepgram request failed (HTTP ${code}). Check Settings > AI Models.`))
+          }
+          return
+        }
         try {
           const json = JSON.parse(data)
           if (json.results?.channels?.[0]?.alternatives?.[0]?.transcript) {

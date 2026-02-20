@@ -21,11 +21,12 @@ let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
 
-const CHUNK_INTERVAL_ACTIVE_MS = 30000
-const CHUNK_INTERVAL_IDLE_MS = 60000
+// Near real-time (Granola-style): process every 4s when active, 15s when idle
+const CHUNK_INTERVAL_ACTIVE_MS = 4000
+const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
 const AUTO_PAUSE_SILENCE_MS = 60000
-const MIN_SAMPLES_PER_CHANNEL = 16000 * 10 // 10s minimum for STT
+const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (near real-time, APIs support short audio)
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
 
 export let currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
@@ -114,14 +115,16 @@ export function stopRecording(): any {
     silenceTimer = null
   }
 
-  if (audioBuffer.length > 0 && !isProcessing) {
+  const hasData = (audioBuffers[0].length > 0 || audioBuffers[1].length > 0)
+  if (hasData && !isProcessing) {
     processBufferedAudio()
   }
 
   transcriptCallback = null
   statusCallback = null
   const duration = Date.now() - recordingStartTime
-  audioBuffer = []
+  audioBuffers[0].length = 0
+  audioBuffers[1].length = 0
 
   return { duration }
 }
@@ -155,6 +158,13 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
   if (isPaused) return false
 
   audioBuffers[ch].push(pcmData)
+
+  // Near real-time: schedule STT as soon as we have enough audio (don't wait for next timer)
+  const totalSamples = audioBuffers[ch].reduce((sum, c) => sum + c.length, 0)
+  if (!isProcessing && totalSamples >= MIN_SAMPLES_PER_CHANNEL) {
+    setImmediate(() => processBufferedAudio())
+  }
+
   return true
 }
 
@@ -250,10 +260,16 @@ async function processBufferedAudio(): Promise<void> {
     } catch (err: any) {
       console.error('STT processing error:', err)
       if (transcriptCallback) {
+        const msg = err?.message || String(err)
+        const hint = currentSTTModel.startsWith('local:')
+          ? ' Check that the model is downloaded in Settings > AI Models.'
+          : msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')
+            ? ' Add your API key in Settings > AI Models and connect the provider.'
+            : ''
         transcriptCallback({
           speaker: 'System',
           time: formatTimestamp(elapsedSec),
-          text: `[STT Error: ${err.message}]`,
+          text: `[STT Error: ${msg}${hint}]`,
         })
       }
     }

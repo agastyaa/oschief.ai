@@ -41,8 +41,11 @@ const fakeTranscriptLines = [
   { speaker: "You", time: "0:45", text: "And we should schedule the demo recording for next Tuesday." },
 ];
 
-const generateLocalSummary = (notes: string, transcript: { speaker: string; time: string; text: string }[]) => {
-  const transcriptText = transcript.map(l => `[${l.time}] ${l.speaker}: ${l.text}`).join("\n");
+const generateLocalSummary = (
+  notes: string,
+  transcript: { speaker: string; time: string; text: string }[],
+  hasSTTConfigured = false
+) => {
   const notesSentences = notes
     .split(/[.!?\n]+/)
     .map(s => s.trim())
@@ -52,11 +55,13 @@ const generateLocalSummary = (notes: string, transcript: { speaker: string; time
 
   if (allSentences.length === 0) {
     return {
-      overview: "No content was captured during this session. Try speaking closer to the microphone or selecting an STT model in Settings.",
+      overview: hasSTTConfigured
+        ? "No content was captured during this session. Try speaking or check that microphone (and system audio) access is allowed."
+        : "No content was captured during this session. Select an STT model in Settings > AI Models for live transcription, or speak and ensure mic access is allowed.",
       keyPoints: ["No transcript or notes were recorded"],
-      nextSteps: [
-        { text: "Configure an STT model in Settings for live transcription", assignee: "You", done: false },
-      ],
+      nextSteps: hasSTTConfigured
+        ? [{ text: "Speak or allow microphone access to capture transcript", assignee: "You", done: false }]
+        : [{ text: "Configure an STT model in Settings > AI Models for live transcription", assignee: "You", done: false }],
     };
   }
 
@@ -266,11 +271,11 @@ export default function NewNotePage() {
         });
       } catch (err) {
         console.error('LLM summarization failed, using local fallback:', err);
-        generatedSummary = generateLocalSummary(personalNotes, finalTranscript);
+        generatedSummary = generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel);
       }
     } else {
       await new Promise(r => setTimeout(r, 1500));
-      generatedSummary = generateLocalSummary(personalNotes, finalTranscript);
+      generatedSummary = generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel);
     }
 
     setSummary(generatedSummary);
@@ -335,11 +340,11 @@ export default function NewNotePage() {
           });
           setSummary(newSummary);
         } catch {
-          setSummary(generateLocalSummary(personalNotes, finalTranscript));
+          setSummary(generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel));
         }
       } else {
         await new Promise(r => setTimeout(r, 1200));
-        setSummary(generateLocalSummary(personalNotes, finalTranscript));
+        setSummary(generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel));
       }
       setIsSummarizing(false);
     }
