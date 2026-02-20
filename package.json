@@ -13,7 +13,7 @@
     "build:web": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "electron-vite preview",
-    "package": "electron-builder --mac",
+    "package": "electron-builder --mac --publish never",
     "package:dir": "electron-builder --mac --dir",
     "postinstall": "electron-rebuild -f -w better-sqlite3 || true",
     "rebuild": "electron-rebuild",
