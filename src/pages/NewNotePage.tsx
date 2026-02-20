@@ -6,7 +6,7 @@ import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
-  PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
+  PanelLeftClose, PanelLeft, Share2, MoreHorizontal, ChevronDown,
   Calendar, Clock, Users, Plus, FolderOpen, Check, X, Hash,
   CheckCircle2, Circle, Loader2, Copy, Trash2
 } from "lucide-react";
@@ -111,7 +111,7 @@ export default function NewNotePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const eventState = location.state as { eventTitle?: string; eventId?: string } | null;
-  const { activeSession, startSession, updateSession, clearSession, transcriptLines, isCapturing, usingWebSpeech, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture } = useRecording();
+  const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, isCapturing, usingWebSpeech, captureError, clearCaptureError, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture } = useRecording();
   const { selectedSTTModel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -143,12 +143,14 @@ export default function NewNotePage() {
   const meetingTemplateRef = useRef(meetingTemplate);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showTopBarTemplateMenu, setShowTopBarTemplateMenu] = useState(false);
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
   const [noteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const topBarTemplateMenuRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef(transcriptLines);
   const { folders, createFolder } = useFolders();
   const { addNote, deleteNote } = useNotes();
@@ -315,12 +317,21 @@ export default function NewNotePage() {
 
   const handleResume = useCallback(() => {
     setRecordingState("recording");
-    setSummary(null);
     setTranscriptVisible(true);
-    if (usingRealAudio) {
-      resumeAudioCapture(selectedSTTModel || '').catch(console.error);
+    if (recordingState === "stopped") {
+      // Restore session without clearing transcript, then restart capture so new chunks append
+      resumeSession(noteId, title || "New note", elapsedSeconds);
+      setSummary(null);
+      if (usingRealAudio) {
+        startAudioCapture(selectedSTTModel || '').catch(console.error);
+      }
+    } else {
+      setSummary(null);
+      if (usingRealAudio) {
+        resumeAudioCapture(selectedSTTModel || '').catch(console.error);
+      }
     }
-  }, [usingRealAudio, resumeAudioCapture, selectedSTTModel]);
+  }, [recordingState, resumeSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel]);
 
   const handleViewModeChange = useCallback(async (mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -370,6 +381,16 @@ export default function NewNotePage() {
     if (showMoreMenu) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showMoreMenu]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (topBarTemplateMenuRef.current && !topBarTemplateMenuRef.current.contains(e.target as Node)) {
+        setShowTopBarTemplateMenu(false);
+      }
+    };
+    if (showTopBarTemplateMenu) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showTopBarTemplateMenu]);
 
   const handleCopyText = () => {
     if (!summary) return;
@@ -501,6 +522,48 @@ export default function NewNotePage() {
           {showSummaryPanel && (
             <div className="flex items-center gap-1.5">
               <NotesViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+              <div className="relative" ref={topBarTemplateMenuRef}>
+                <button
+                  onClick={() => setShowTopBarTemplateMenu((prev) => !prev)}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary"
+                  title="Switch template and regenerate summary"
+                >
+                  <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
+                  <span className="max-w-[100px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "Template"}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground", showTopBarTemplateMenu && "rotate-180")} />
+                </button>
+                {showTopBarTemplateMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-xl z-50 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-border">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Summary template</span>
+                    </div>
+                    <div className="py-1 max-h-56 overflow-y-auto">
+                      {MEETING_TEMPLATES.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setMeetingTemplate(t.id);
+                            meetingTemplateRef.current = t.id;
+                            setShowTopBarTemplateMenu(false);
+                            if (!isSummarizing) generateNotes();
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left",
+                            meetingTemplate === t.id ? "bg-secondary text-foreground" : "text-foreground hover:bg-secondary"
+                          )}
+                        >
+                          <span>{t.icon}</span>
+                          <span className="flex-1 truncate">{t.name}</span>
+                          {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="px-3 py-2 border-t border-border text-[10px] text-muted-foreground">
+                      Selecting a template regenerates the summary.
+                    </p>
+                  </div>
+                )}
+              </div>
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
@@ -534,6 +597,21 @@ export default function NewNotePage() {
             </div>
           )}
         </div>
+
+        {/* Capture error banner — mic / system audio not allowed or worklet failed */}
+        {captureError && (
+          <div className="mx-4 mt-2 flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <p className="flex-1 min-w-0">{captureError}</p>
+            <button
+              type="button"
+              onClick={() => { clearCaptureError(); }}
+              className="flex-shrink-0 rounded p-1 text-amber-600 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* Content area */}
         <div className="flex flex-1 overflow-hidden">
@@ -616,6 +694,9 @@ export default function NewNotePage() {
                             </button>
                           ))}
                         </div>
+                        <p className="px-3 py-2 pt-1 border-t border-border text-[10px] text-muted-foreground">
+                          Custom prompt for this template is used when generating notes.
+                        </p>
                       </div>
                     )}
                   </div>

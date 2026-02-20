@@ -28,7 +28,8 @@ RULES:
 Valid JSON only.`
 
 function buildSynthesisSystemPrompt(template: MeetingTemplate, customPrompt?: string): string {
-  const templateInstructions = customPrompt || template.additionalPrompt || ''
+  // Industry-standard template prompt first; then user's custom prompt for this template (additive).
+  const templateInstructions = [template.additionalPrompt, customPrompt].filter(Boolean).join('\n\n')
   return `You are Syag, a concise meeting note writer. Output valid JSON only.
 
 {

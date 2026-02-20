@@ -20,18 +20,21 @@ async function main() {
   if (!fs.existsSync(trayIconSvg)) throw new Error('Missing public/tray-icon.svg')
 
   const appSvgBuf = fs.readFileSync(appIconSvg)
-  const traySvgBuf = fs.readFileSync(trayIconSvg)
+  let traySvgBuf = fs.readFileSync(trayIconSvg)
+  // Use white strokes for menu bar (macOS standard); replace black with white in SVG
+  traySvgBuf = Buffer.from(traySvgBuf.toString('utf8').replace(/#111111/gi, '#ffffff'))
 
-  // ─── 1. Tray icon (tray-icon.svg: black on transparent, 44×44 for 2x retina) ───
+  // ─── 1. Tray icon (22×22 = 1x menu bar size; macOS uses this, scaling up causes big/pixelated look) ───
+  const TRAY_SIZE = 22
   const trayPng = await sharp(traySvgBuf)
-    .resize(44, 44)
-    .png()
+    .resize(TRAY_SIZE, TRAY_SIZE)
+    .png({ compressionLevel: 6 })
     .toBuffer()
 
   const redDot = await sharp({
     create: {
-      width: 14,
-      height: 14,
+      width: 8,
+      height: 8,
       channels: 4,
       background: { r: 229, g: 57, b: 53, alpha: 1 },
     },
@@ -40,11 +43,11 @@ async function main() {
     .toBuffer()
 
   const trayRecording = await sharp(traySvgBuf)
-    .resize(44, 44)
-    .png()
+    .resize(TRAY_SIZE, TRAY_SIZE)
+    .png({ compressionLevel: 6 })
     .toBuffer()
     .then((buf) =>
-      sharp(buf).composite([{ input: redDot, left: 30, top: 0 }]).png().toBuffer()
+      sharp(buf).composite([{ input: redDot, left: 14, top: 0 }]).png().toBuffer()
     )
 
   const trayOutPath = path.join(root, 'electron', 'main', 'tray-icons.generated.ts')
@@ -56,10 +59,16 @@ export const TRAY_ICON_RECORDING_BASE64 = '${trayRecording.toString('base64')}'
   fs.writeFileSync(trayOutPath, trayContent, 'utf8')
   console.log('Wrote', trayOutPath)
 
-  // ─── 2. In-app icon (app-icon.svg at 96×96) ───────────────────────────────────
+  const previewDir = path.join(root, 'public', 'icon-previews')
+  fs.mkdirSync(previewDir, { recursive: true })
+  fs.writeFileSync(path.join(previewDir, 'preview-tray-22.png'), trayPng)
+  console.log('Wrote public/icon-previews/preview-tray-22.png (22×22 tray preview)')
+
+  // ─── 2. In-app icon (app-icon.svg at 96×96); bundle from src/assets in Electron ───
   const inAppPng = await sharp(appSvgBuf).resize(96, 96).png().toBuffer()
   fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppPng)
-  console.log('Wrote public/syag-logo-inapp.png')
+  fs.writeFileSync(path.join(root, 'src', 'assets', 'syag-logo-inapp.png'), inAppPng)
+  console.log('Wrote public/syag-logo-inapp.png and src/assets/syag-logo-inapp.png')
 
   const favicon = await sharp(appSvgBuf).resize(32, 32).png().toBuffer()
   fs.writeFileSync(path.join(root, 'public', 'favicon.png'), favicon)

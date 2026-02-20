@@ -40,23 +40,23 @@ export const MEETING_TEMPLATES: MeetingTemplate[] = [
     icon: '📋',
     description: 'Default balanced template for any meeting',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Organize notes by the actual topics discussed in the meeting. Each topic becomes a discussionTopic entry.
+    additionalPrompt: `PURPOSE: Produce clear, scannable notes: key discussion points, decisions, and action items. Be concise; no filler.
 
-For each topic, the "summary" field should contain concise bullet points (each line starts with "- "). Capture:
+STRUCTURE: One discussionTopic per actual subject discussed. Use SPECIFIC topic names (e.g. "Q3 Launch Timeline", not "Updates").
+
+For each topic "summary": 2–5 bullet points. Each bullet = one line, one idea, max 15 words. Include:
 - Key points raised
-- Decisions made (prefix with "Decision: ")
-- Who said what (only when attribution matters)
+- Decisions (prefix with "Decision: ")
+- Attribution only when it matters
 
-Example output structure:
+Example:
 discussionTopics: [
-  { "topic": "Q3 Launch Timeline", "summary": "- Team agreed on Sept 15 launch date\\n- Marketing assets need 2 more weeks\\n- Decision: delay beta by 1 week to align", "speakers": ["Speaker 1", "Speaker 2"] },
-  { "topic": "Hiring Update", "summary": "- 3 candidates in pipeline for senior role\\n- Interviews scheduled next week", "speakers": ["Speaker 1"] }
+  { "topic": "Q3 Launch Timeline", "summary": "- Sept 15 launch agreed\\n- Marketing assets need 2 more weeks\\n- Decision: delay beta 1 week to align", "speakers": ["Speaker 1", "Speaker 2"] },
+  { "topic": "Hiring Update", "summary": "- 3 candidates in pipeline\\n- Interviews next week", "speakers": ["Speaker 1"] }
 ]
 
-DO NOT use generic topic names like "Discussion" or "Updates". Use the ACTUAL subject discussed.
-The overview should be 1 sentence: what the meeting was about.
-Omit decisions array — fold decisions into the relevant topic bullets prefixed with "Decision: ".
-Omit keyQuotes, followUps unless truly necessary.`,
+Overview: exactly one sentence (what the meeting was about). Action items: "[Task] — [Person]", one per line.
+Do NOT use generic topic names ("Discussion", "Miscellaneous"). Omit keyQuotes and followUps unless essential.`,
   },
   {
     id: 'standup',
@@ -64,22 +64,20 @@ Omit keyQuotes, followUps unless truly necessary.`,
     icon: '🏃',
     description: 'Focus on blockers, progress, and plans',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Organize by PERSON. Each speaker becomes a discussionTopic.
+    additionalPrompt: `PURPOSE: Capture each person's progress, current work, and blockers. Blockers become action items.
 
-For each person's topic, the "summary" field should contain:
-- Done: what they completed (prefix each with "Done: ")
-- Doing: what they're working on (prefix each with "Doing: ")
-- Blocker: any blockers (prefix each with "Blocker: ")
+STRUCTURE: One discussionTopic per person (use speaker name as topic). Summary must include:
+- Done: (prefix "Done: ") what they completed
+- Doing: (prefix "Doing: ") what they're working on now
+- Blocker: (prefix "Blocker: ") any blocker; if none, say "No blockers"
 
 Example:
 discussionTopics: [
-  { "topic": "Speaker 1", "summary": "- Done: shipped auth flow\\n- Doing: working on payment integration\\n- Blocker: waiting on API keys from vendor", "speakers": ["Speaker 1"] },
-  { "topic": "Speaker 2", "summary": "- Done: fixed 3 bugs from QA\\n- Doing: performance optimization\\n- No blockers", "speakers": ["Speaker 2"] }
+  { "topic": "Alex", "summary": "- Done: shipped auth flow\\n- Doing: payment integration\\n- Blocker: waiting on API keys", "speakers": ["Alex"] },
+  { "topic": "Sam", "summary": "- Done: 3 QA bugs fixed\\n- Doing: performance work\\n- No blockers", "speakers": ["Sam"] }
 ]
 
-Turn every blocker into a high-priority action item.
-Overview: 1 sentence, e.g. "Daily standup covering sprint progress and blockers."
-Omit decisions, keyQuotes, followUps.`,
+Every blocker = high-priority action item with owner. Overview: one sentence (e.g. "Daily standup – sprint progress and blockers").`,
   },
   {
     id: 'one-on-one',
@@ -87,24 +85,16 @@ Omit decisions, keyQuotes, followUps.`,
     icon: '🤝',
     description: 'Focus on feedback, goals, and personal development',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Organize by conversation theme. Typical topics:
-- "Check-in" (how things are going, workload, morale)
-- "Project Updates" (status of current work)
-- "Feedback" (any feedback given or received)
-- "Growth & Development" (career goals, skills, learning)
-- "Team & Process" (team dynamics, process improvements)
+    additionalPrompt: `PURPOSE: Clear record of check-in, feedback, growth, and commitments. Implicit commitments become action items.
 
-Only include topics that were actually discussed. Each topic's "summary" should be bullet points:
-- What was discussed
-- Any commitments made (prefix with "Agreed: ")
-- Feedback given (prefix with "Feedback: ")
+STRUCTURE: One discussionTopic per theme actually discussed. Use themes like: Check-in, Project Updates, Feedback, Growth & Development, Team & Process.
+
+Each topic "summary": bullets with "Feedback: ", "Agreed: " where relevant. Be specific and concise.
 
 Example:
-{ "topic": "Feedback", "summary": "- Feedback: presentation skills have improved significantly\\n- Feedback: need to be more proactive in cross-team communication\\n- Agreed: will join design reviews going forward", "speakers": ["Speaker 1", "Speaker 2"] }
+{ "topic": "Feedback", "summary": "- Feedback: presentation skills improved\\n- Feedback: be more proactive cross-team\\n- Agreed: join design reviews", "speakers": ["Manager", "Report"] }
 
-Treat implicit commitments as action items ("I'll think about it" = action item).
-Overview: 1 sentence.
-Omit decisions, keyQuotes.`,
+Turn "I'll think about it" / "I'll follow up" into action items. Overview: one sentence.`,
   },
   {
     id: 'brainstorm',
@@ -112,20 +102,17 @@ Omit decisions, keyQuotes.`,
     icon: '💡',
     description: 'Focus on ideas generated, evaluations, and decisions',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Organize by idea or approach discussed.
+    additionalPrompt: `PURPOSE: Capture each idea or approach with pros, cons, and outcome (Decision / Parked). Selected ideas get action items.
 
-Each idea/approach becomes a topic. The "summary" should contain:
-- What the idea is (1 line)
-- Pros mentioned (prefix "Pro: ")
-- Cons mentioned (prefix "Con: ")
-- Verdict if any (prefix "Decision: " or "Parked: ")
+STRUCTURE: One discussionTopic per idea or approach. Summary format:
+- One line: what the idea is
+- Pro: / Con: for each point raised
+- Decision: or Parked: for verdict
 
 Example:
-{ "topic": "Microservices Migration", "summary": "- Break monolith into 3 services\\n- Pro: independent deployments\\n- Pro: team autonomy\\n- Con: operational complexity\\n- Decision: start with auth service as pilot", "speakers": ["Speaker 1", "Speaker 2"] }
+{ "topic": "Microservices Migration", "summary": "- Break monolith into 3 services\\n- Pro: independent deployments\\n- Con: ops complexity\\n- Decision: auth service as pilot", "speakers": ["Speaker 1", "Speaker 2"] }
 
-If an idea was selected, add next steps as action items.
-Overview: 1 sentence, what was being brainstormed.
-Omit keyQuotes, followUps.`,
+Overview: one sentence (what was brainstormed). Next steps for chosen ideas = action items.`,
   },
   {
     id: 'customer-call',
@@ -133,18 +120,13 @@ Omit keyQuotes, followUps.`,
     icon: '📞',
     description: 'Focus on pain points, requirements, and commitments',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Organize by conversation area. Typical topics:
-- "Customer Context" (who they are, what they need)
-- "Pain Points" (problems they're facing)
-- "Product Discussion" (features discussed, demo feedback)
-- "Pricing & Timeline" (if discussed)
-- "Commitments" (what we promised)
+    additionalPrompt: `PURPOSE: Record customer context, pain points, product discussion, and every commitment (high-priority action items).
 
-Each topic "summary" as bullet points. For Pain Points, be specific about the customer's exact frustration.
+STRUCTURE: Topics like Customer Context, Pain Points, Product Discussion, Pricing & Timeline, Commitments. Only include what was discussed.
 
-ANY promise made to the customer is a HIGH-PRIORITY action item.
-Capture customer quotes that reveal strong sentiment in keyQuotes (max 2).
-Overview: 1 sentence, who the customer is and purpose of call.`,
+Pain Points: be specific (customer's exact words/frustration). Commitments: every promise to the customer = high-priority action item with owner.
+
+Overview: one sentence (who they are + purpose of call). keyQuotes: max 2 only if they reveal strong sentiment.`,
   },
   {
     id: 'interview',
@@ -152,22 +134,13 @@ Overview: 1 sentence, who the customer is and purpose of call.`,
     icon: '🎯',
     description: 'Focus on candidate assessment and key answers',
     emphasisSections: ['discussionTopics', 'actionItems', 'keyQuotes'],
-    additionalPrompt: `STRUCTURE: Organize by assessment area. Typical topics:
-- "Background & Experience" (candidate's history)
-- "Technical Assessment" (technical questions and quality of answers)
-- "Problem Solving" (how they approach problems)
-- "Culture & Values" (team fit signals)
-- "Candidate Questions" (what they asked us)
-- "Overall Impression" (strengths, concerns, recommendation)
+    additionalPrompt: `PURPOSE: Structured assessment: background, technical, problem-solving, culture fit, and clear recommendation.
 
-Each topic "summary" as bullet points:
-- Key observations
-- Strong answers (prefix "Strength: ")
-- Concerns (prefix "Concern: ")
+STRUCTURE: Topics: Background & Experience, Technical Assessment, Problem Solving, Culture & Values, Candidate Questions, Overall Impression. Only include sections that were covered.
 
-Capture 2-3 notable candidate responses as keyQuotes.
-Action items: next steps in hiring process.
-Overview: 1 sentence, role and candidate name if mentioned.`,
+Per topic: bullets with "Strength: " / "Concern: " where relevant. keyQuotes: 2–3 standout candidate answers. Action items: next steps (e.g. schedule follow-up, send exercise).
+
+Overview: one sentence (role + candidate name if given).`,
   },
   {
     id: 'retrospective',
@@ -175,16 +148,14 @@ Overview: 1 sentence, role and candidate name if mentioned.`,
     icon: '🔄',
     description: 'Focus on what went well, what to improve, and actions',
     emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `STRUCTURE: Use exactly these three topics:
-1. "What Went Well" — things the team wants to keep doing
-2. "What Didn't Go Well" — problems, frustrations, failures
-3. "Improvements" — specific changes to try
+    additionalPrompt: `PURPOSE: Standard retro format with clear improvements and owned action items.
 
-Each topic "summary" as bullet points listing the items discussed.
+STRUCTURE: Exactly three discussionTopics:
+1. "What Went Well" — bullets of what to keep doing
+2. "What Didn't Go Well" — bullets of problems/frustrations
+3. "Improvements" — bullets of specific changes to try
 
-EVERY improvement suggestion MUST have a corresponding action item with an owner.
-Overview: 1 sentence, what sprint/period the retro covers.
-Omit keyQuotes, followUps.`,
+Every improvement = one action item with an owner. Overview: one sentence (sprint/period).`,
   },
 ]
 

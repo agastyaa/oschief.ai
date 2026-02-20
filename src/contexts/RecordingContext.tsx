@@ -11,15 +11,23 @@ interface RecordingSession {
 
 type TranscriptLine = { speaker: string; time: string; text: string };
 
+export const CAPTURE_ERROR_NO_SOURCE =
+  'No microphone or system audio. Allow microphone access in System Settings (Privacy & Security → Microphone) and optionally Screen Recording for system audio.';
+
 interface RecordingContextType {
   activeSession: RecordingSession | null;
   isActive: boolean;
   startSession: (noteId: string) => void;
+  /** Restore session after "stopped" so user can resume recording without clearing transcript. */
+  resumeSession: (noteId: string, title: string, elapsedSeconds: number) => void;
   updateSession: (updates: Partial<RecordingSession>) => void;
   clearSession: () => void;
   transcriptLines: TranscriptLine[];
   isCapturing: boolean;
   usingWebSpeech: boolean;
+  /** Set when capture failed (e.g. no mic, worklet load failed). Clear on retry or when user dismisses. */
+  captureError: string | null;
+  clearCaptureError: () => void;
   startAudioCapture: (sttModel: string) => Promise<void>;
   stopAudioCapture: () => Promise<void>;
   pauseAudioCapture: () => Promise<void>;
@@ -33,6 +41,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [usingWebSpeech, setUsingWebSpeech] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -82,6 +91,14 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     // Inform tray about meeting info
     if (api) {
       api.app.updateTrayMeetingInfo?.({ title: "New note", startTime: now });
+    }
+  }, [api]);
+
+  const resumeSession = useCallback((noteId: string, title: string, elapsedSeconds: number) => {
+    const startTime = Date.now() - elapsedSeconds * 1000;
+    setActiveSession({ noteId, title: title || "New note", elapsedSeconds, isRecording: true, startTime });
+    if (api) {
+      api.app.updateTrayMeetingInfo?.({ title: title || "New note", startTime });
     }
   }, [api]);
 
@@ -173,8 +190,11 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   }, [stopSpeechRecognition]);
 
+  const clearCaptureError = useCallback(() => setCaptureError(null), []);
+
   const startAudioCapture = useCallback(async (sttModel: string) => {
     if (!api) return;
+    setCaptureError(null);
 
     // Read the user-selected audio device from DB
     let preferredDeviceId: string | undefined;
@@ -189,10 +209,29 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
 
-      const workletUrl = isElectron
-        ? new URL('./audio-processor.js', window.location.href).href
-        : '/audio-processor.js';
-      await audioCtx.audioWorklet.addModule(workletUrl);
+      const workletCandidates = isElectron
+        ? [
+            new URL('./audio-processor.js', window.location.href).href,
+            '/audio-processor.js',
+            new URL('audio-processor.js', window.location.origin + '/').href,
+          ]
+        : ['/audio-processor.js'];
+      let workletLoaded = false;
+      for (const workletUrl of workletCandidates) {
+        try {
+          await audioCtx.audioWorklet.addModule(workletUrl);
+          workletLoaded = true;
+          break;
+        } catch (e) {
+          console.warn('Worklet load failed for', workletUrl, e);
+        }
+      }
+      if (!workletLoaded) {
+        const msg = 'Could not load audio capture. Try restarting the app.';
+        setCaptureError(msg);
+        setIsCapturing(false);
+        throw new Error(msg);
+      }
 
       const merger = audioCtx.createChannelMerger(2);
       const worklet = new AudioWorkletNode(audioCtx, 'syag-audio-processor');
@@ -252,6 +291,10 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         console.warn('System audio capture not available (screen recording permission may be needed):', sysErr);
       }
 
+      if (!micStreamRef.current && !systemStreamRef.current) {
+        setCaptureError(CAPTURE_ERROR_NO_SOURCE);
+      }
+
       merger.connect(worklet);
       worklet.connect(audioCtx.destination);
       setIsCapturing(true);
@@ -263,6 +306,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Failed to start audio capture:', err);
       setIsCapturing(false);
+      setCaptureError(err instanceof Error ? err.message : 'Failed to start audio capture.');
       // Even if full audio capture failed, try Web Speech API for basic transcription
       if (!sttModel) {
         startSpeechRecognition();
@@ -328,8 +372,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   return (
     <RecordingContext.Provider value={{
-      activeSession, isActive, startSession, updateSession, clearSession,
-      transcriptLines, isCapturing, usingWebSpeech,
+      activeSession, isActive, startSession, resumeSession, updateSession, clearSession,
+      transcriptLines, isCapturing, usingWebSpeech, captureError, clearCaptureError,
       startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture
     }}>
       {children}

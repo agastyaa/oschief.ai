@@ -1,9 +1,7 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { mkdirSync, existsSync, unlinkSync, readdirSync, statSync } from 'fs'
-import { createWriteStream } from 'fs'
-import https from 'https'
-import http from 'http'
+import { mkdirSync, existsSync, unlinkSync, readdirSync, statSync, renameSync } from 'fs'
+import { netFetchStream } from '../cloud/net-request'
 
 const MODEL_URLS: Record<string, { url: string; filename: string }> = {
   'whisper-large-v3-turbo': {
@@ -48,7 +46,7 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
   },
 }
 
-const activeDownloads = new Map<string, { abort: () => void }>()
+const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()
 
 export function getModelsDir(): string {
   const dir = join(app.getPath('home'), '.syag', 'models')
@@ -91,91 +89,49 @@ type ProgressCallback = (progress: {
 }) => void
 
 export function downloadModel(modelId: string, onProgress: ProgressCallback): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const info = MODEL_URLS[modelId]
-    if (!info) {
-      reject(new Error(`Unknown model: ${modelId}`))
-      return
-    }
+  const info = MODEL_URLS[modelId]
+  if (!info) return Promise.reject(new Error(`Unknown model: ${modelId}`))
 
-    ensureModelsDir()
-    const destPath = join(getModelsDir(), info.filename)
-    const tempPath = destPath + '.tmp'
+  ensureModelsDir()
+  const destPath = join(getModelsDir(), info.filename)
+  const tempPath = destPath + '.tmp'
+  const controller = new AbortController()
 
-    const makeRequest = (url: string, redirectCount = 0): void => {
-      if (redirectCount > 5) {
-        reject(new Error('Too many redirects'))
-        return
-      }
+  const cleanup = () => {
+    try { unlinkSync(tempPath) } catch {}
+    activeDownloads.delete(modelId)
+  }
 
-      const client = url.startsWith('https') ? https : http
-      const req = client.get(url, { headers: { 'User-Agent': 'Syag/1.0' } }, (res) => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          makeRequest(res.headers.location, redirectCount + 1)
-          return
-        }
-
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode} downloading ${modelId}`))
-          return
-        }
-
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10)
-        let bytesDownloaded = 0
-        const file = createWriteStream(tempPath)
-
-        res.on('data', (chunk: Buffer) => {
-          bytesDownloaded += chunk.length
-          onProgress({
-            modelId,
-            bytesDownloaded,
-            totalBytes,
-            percent: totalBytes > 0 ? Math.round((bytesDownloaded / totalBytes) * 100) : 0,
-          })
-        })
-
-        res.pipe(file)
-
-        file.on('finish', () => {
-          file.close(() => {
-            try {
-              const { renameSync } = require('fs')
-              renameSync(tempPath, destPath)
-              activeDownloads.delete(modelId)
-              resolve()
-            } catch (err) {
-              activeDownloads.delete(modelId)
-              reject(err)
-            }
-          })
-        })
-
-        file.on('error', (err) => {
-          file.close()
-          try { unlinkSync(tempPath) } catch {}
-          activeDownloads.delete(modelId)
-          reject(err)
-        })
-      })
-
-      req.on('error', (err) => {
-        try { unlinkSync(tempPath) } catch {}
-        activeDownloads.delete(modelId)
-        reject(err)
-      })
-
-      activeDownloads.set(modelId, {
-        abort: () => {
-          req.destroy()
-          try { unlinkSync(tempPath) } catch {}
-          activeDownloads.delete(modelId)
-          reject(new Error('Download cancelled'))
-        }
-      })
-    }
-
-    makeRequest(info.url)
+  activeDownloads.set(modelId, {
+    controller,
+    abort: () => {
+      controller.abort()
+      cleanup()
+    },
   })
+
+  return netFetchStream(
+    info.url,
+    tempPath,
+    (bytesDownloaded, totalBytes) => {
+      onProgress({
+        modelId,
+        bytesDownloaded,
+        totalBytes,
+        percent: totalBytes > 0 ? Math.round((bytesDownloaded / totalBytes) * 100) : 0,
+      })
+    },
+    controller.signal
+  )
+    .then(() => {
+      renameSync(tempPath, destPath)
+      activeDownloads.delete(modelId)
+    })
+    .catch((err) => {
+      cleanup()
+      if (err?.name === 'AbortError') throw new Error('Download cancelled')
+      throw err
+    })
 }
 
 export function cancelDownload(modelId: string): void {

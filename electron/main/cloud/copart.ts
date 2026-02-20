@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const COPART_BASE_URL = 'https://genie.copart.com/api'
 
+// Map UI labels to Copart Genie model IDs (from env: ANTHROPIC_*)
 const MODEL_MAP: Record<string, string> = {
   'Opus Plan': 'opusplan',
   'Claude Sonnet 4': 'anthropic/claude-sonnet-4-6',
@@ -15,8 +16,9 @@ export async function chatCopart(
   apiKey: string,
   onChunk?: (chunk: { text: string; done: boolean }) => void
 ): Promise<string> {
+  // Copart Genie expects Authorization: Bearer (ANTHROPIC_AUTH_TOKEN); SDK authToken sends that
   const client = new Anthropic({
-    apiKey,
+    authToken: apiKey,
     baseURL: COPART_BASE_URL,
   })
   const model = MODEL_MAP[modelName] || modelName
