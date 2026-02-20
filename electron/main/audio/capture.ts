@@ -268,6 +268,8 @@ async function processBufferedAudio(): Promise<void> {
             : ' Check that the model is downloaded in Settings > AI Models.'
         } else if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')) {
           hint = ' Add your API key in Settings > AI Models and connect the provider.'
+        } else if (/certificate|issuer certificate|SSL|TLS|ECONNREFUSED|ETIMEDOUT|network/i.test(msg)) {
+          hint = ' If you\'re on a corporate network or VPN, try another network or check proxy/certificate settings.'
         }
         transcriptCallback({
           speaker: 'System',

@@ -1,4 +1,5 @@
 import https from 'https'
+import { netFetch } from './net-request'
 
 const LLM_MODEL_MAP: Record<string, string> = {
   'Llama 3.3 70B': 'llama-3.3-70b-versatile',
@@ -138,31 +139,19 @@ export async function sttGroq(wavBuffer: Buffer, apiKey: string): Promise<string
 
   const body = Buffer.concat(parts)
 
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'api.groq.com',
-      path: '/openai/v1/audio/transcriptions',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': body.length,
-      },
-    }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk.toString() })
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data)
-          resolve(json.text || '')
-        } catch {
-          resolve(data.trim())
-        }
-      })
-    })
-
-    req.on('error', reject)
-    req.write(body)
-    req.end()
+  const { statusCode, data } = await netFetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
   })
+  if (statusCode >= 400) throw new Error(`Groq STT error (${statusCode}): ${data.slice(0, 200)}`)
+  try {
+    const json = JSON.parse(data)
+    return json.text || ''
+  } catch {
+    return data.trim()
+  }
 }

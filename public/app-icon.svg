@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1e1428"/>
+      <stop offset="100%" stop-color="#08080f"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <!-- Tray-style mono design, scaled to fit, white strokes for dark bg -->
+  <path d="M256 60C196 60 152 92 144 132C120 135 96 155 96 183C96 205 109 224 128 234C127 239 126 244 126 250C126 280 150 306 180 313L180 358C180 362.4 183.6 366 188 366L324 366C328.4 366 332 362.4 332 358L332 313C362 306 386 280 386 250C386 244 385 239 384 234C403 224 416 205 416 183C416 155 392 135 368 132C360 92 316 60 256 60Z" stroke="white" stroke-width="14" fill="none" stroke-linejoin="round"/>
+  <line x1="256" y1="80" x2="256" y2="346" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
+  <path d="M256 130 C234 130 202 144 196 172" stroke="white" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 210 C228 204 196 218 192 242" stroke="white" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 130 C278 130 310 144 316 172" stroke="white" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 210 C284 204 316 218 320 242" stroke="white" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M228 362 L256 434 L284 362" stroke="white" stroke-width="12" stroke-linejoin="round" fill="none"/>
+  <line x1="256" y1="394" x2="256" y2="434" stroke="white" stroke-width="7" stroke-linecap="round" opacity="0.6"/>
+</svg>

@@ -1,4 +1,4 @@
-import https from 'https'
+import { netFetch } from './net-request'
 
 const MODEL_MAP: Record<string, string> = {
   'Nova-2': 'nova-2',
@@ -12,56 +12,42 @@ export async function sttDeepgram(
   apiKey: string
 ): Promise<string> {
   const model = MODEL_MAP[modelName] || 'nova-2'
+  const url = `https://api.deepgram.com/v1/listen?model=${model}&language=en&smart_format=true`
 
-  return new Promise((resolve, reject) => {
-    const url = `https://api.deepgram.com/v1/listen?model=${model}&language=en&smart_format=true`
-
-    const req = https.request(url, {
+  try {
+    const { statusCode, data } = await netFetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,
         'Content-Type': 'audio/wav',
       },
-    }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk.toString() })
-      res.on('end', () => {
-        const code = res.statusCode ?? 0
-        if (code === 401) {
-          reject(new Error('Invalid Deepgram API key. Check your key in Settings > AI Models.'))
-          return
-        }
-        if (code === 403) {
-          reject(new Error('Deepgram access denied. Check your API key and plan in Settings > AI Models.'))
-          return
-        }
-        if (code >= 400) {
-          try {
-            const json = JSON.parse(data)
-            const msg = json.err_msg || json.message || data.slice(0, 200)
-            reject(new Error(`Deepgram error (${code}): ${msg}`))
-          } catch {
-            reject(new Error(`Deepgram request failed (HTTP ${code}). Check Settings > AI Models.`))
-          }
-          return
-        }
-        try {
-          const json = JSON.parse(data)
-          if (json.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
-            resolve(json.results.channels[0].alternatives[0].transcript)
-          } else if (json.err_msg) {
-            reject(new Error(`Deepgram error: ${json.err_msg}`))
-          } else {
-            resolve('')
-          }
-        } catch (err) {
-          reject(new Error(`Failed to parse Deepgram response: ${data.slice(0, 200)}`))
-        }
-      })
+      body: wavBuffer,
     })
 
-    req.on('error', reject)
-    req.write(wavBuffer)
-    req.end()
-  })
+    if (statusCode === 401) {
+      throw new Error('Invalid Deepgram API key. Check your key in Settings > AI Models.')
+    }
+    if (statusCode === 403) {
+      throw new Error('Deepgram access denied. Check your API key and plan in Settings > AI Models.')
+    }
+    if (statusCode >= 400) {
+      try {
+        const json = JSON.parse(data)
+        const msg = json.err_msg || json.message || data.slice(0, 200)
+        throw new Error(`Deepgram error (${statusCode}): ${msg}`)
+      } catch (err: any) {
+        if (err.message?.startsWith('Deepgram error')) throw err
+        throw new Error(`Deepgram request failed (HTTP ${statusCode}). Check Settings > AI Models.`)
+      }
+    }
+    const json = JSON.parse(data)
+    if (json.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
+      return json.results.channels[0].alternatives[0].transcript
+    }
+    if (json.err_msg) throw new Error(`Deepgram error: ${json.err_msg}`)
+    return ''
+  } catch (err: any) {
+    if (err.message?.includes('Deepgram') || err.message?.includes('API key')) throw err
+    throw err
+  }
 }
