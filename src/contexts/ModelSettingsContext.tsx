@@ -8,12 +8,14 @@ export type ModelProvider = {
   models: string[];
   icon: string;
   sttOnly?: boolean;
+  /** Same API key can be used for STT (e.g. Copart Genie). */
+  supportsStt?: boolean;
 };
 
 export const enterpriseProviders: ModelProvider[] = [
   { id: "openai", name: "OpenAI", models: ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1-preview"], icon: "🟢" },
   { id: "anthropic", name: "Anthropic (Claude)", models: ["Claude 4 Sonnet", "Claude 4 Opus", "Claude 3.5 Haiku"], icon: "🟤" },
-  { id: "copart", name: "Copart Genie", models: ["Opus Plan", "Claude Sonnet 4", "Claude Haiku 4", "Claude Opus 4"], icon: "🟡" },
+  { id: "copart", name: "Copart Genie", models: ["Opus Plan", "Claude Sonnet 4", "Claude Haiku 4", "Claude Opus 4"], icon: "🟡", supportsStt: true },
   { id: "google", name: "Google (Gemini)", models: ["Gemini 2.5 Pro", "Gemini 2.5 Flash", "Gemini 2.0 Flash"], icon: "🔵" },
   { id: "deepgram", name: "Deepgram", models: ["Nova-2", "Nova-2 Medical", "Nova-2 Meeting"], icon: "🟣", sttOnly: true },
   { id: "assemblyai", name: "AssemblyAI", models: ["Universal-2", "Nano"], icon: "🔴", sttOnly: true },

@@ -1,5 +1,6 @@
 import { processWithLocalSTT, resetContext, type STTResult } from '../models/stt-engine'
 import { routeSTT } from '../cloud/router'
+import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
 import { getSetting } from '../storage/database'
 
@@ -27,7 +28,12 @@ const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
 const AUTO_PAUSE_SILENCE_MS = 60000
 const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (near real-time, APIs support short audio)
+// Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
+// When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
+const MIN_ENERGY_BY_CHANNEL = [0.0004, 0.0001] as const   // You: stricter so muted mic doesn't produce segments
+const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0012, 0.0004] as const
+const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.8, 0.5] as const  // You: require clearer/longer speech
 
 export let currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
 
@@ -202,7 +208,8 @@ async function processBufferedAudio(): Promise<void> {
       }
 
       const energy = merged.reduce((sum, v) => sum + v * v, 0) / merged.length
-      if (energy < 0.0001) {
+      const minEnergy = MIN_ENERGY_BY_CHANNEL[channel]
+      if (energy < minEnergy) {
         consecutiveSilentChunks++
         if (consecutiveSilentChunks >= 2 && currentChunkIntervalMs < CHUNK_INTERVAL_IDLE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_IDLE_MS
@@ -222,7 +229,8 @@ async function processBufferedAudio(): Promise<void> {
           continue
         }
         const totalSpeechDuration = vadSegments.reduce((sum, s) => sum + (s.end - s.start), 0)
-        if (totalSpeechDuration < 0.5) {
+        const minSpeechSec = MIN_SPEECH_DURATION_SEC_BY_CHANNEL[channel]
+        if (totalSpeechDuration < minSpeechSec) {
           isProcessing = false
           continue
         }
@@ -231,9 +239,10 @@ async function processBufferedAudio(): Promise<void> {
         console.warn('VAD failed, processing full audio:', vadErr)
       }
 
-      // Skip STT on near-silence to avoid hallucinations (random transcript when not talking)
+      // Skip STT on near-silence to avoid hallucinations (stricter for "You" when muted)
       const speechEnergy = speechAudio.reduce((sum, v) => sum + v * v, 0) / speechAudio.length
-      if (speechEnergy < 0.0004) {
+      const minSpeechEnergy = MIN_SPEECH_ENERGY_BY_CHANNEL[channel]
+      if (speechEnergy < minSpeechEnergy) {
         isProcessing = false
         continue
       }
@@ -251,6 +260,9 @@ async function processBufferedAudio(): Promise<void> {
       let sttResult: STTResult
       if (currentSTTModel.startsWith('local:')) {
         sttResult = await processWithLocalSTT(wavBuffer, currentSTTModel.replace('local:', ''), customVocabulary)
+      } else if (currentSTTModel.startsWith('system:')) {
+        const text = await sttSystemDarwin(wavBuffer)
+        sttResult = { text, words: [] }
       } else {
         const text = await routeSTT(wavBuffer, currentSTTModel)
         sttResult = { text, words: [] }
@@ -273,6 +285,8 @@ async function processBufferedAudio(): Promise<void> {
           hint = msg.includes('MLX worker startup')
             ? ' To use Deepgram or another cloud STT instead, select it in Settings > AI Models and start a new note.'
             : ' Check that the model is downloaded in Settings > AI Models.'
+        } else if (currentSTTModel.startsWith('system:')) {
+          hint = ' Grant Speech Recognition in System Settings > Privacy & Security, or try another STT model.'
         } else if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')) {
           hint = ' Add your API key in Settings > AI Models and connect the provider.'
         } else if (/certificate|issuer certificate|SSL|TLS|ECONNREFUSED|ETIMEDOUT|network/i.test(msg)) {
@@ -286,6 +300,13 @@ async function processBufferedAudio(): Promise<void> {
       }
     }
     isProcessing = false
+  }
+
+  // Low-latency: if either channel still has enough samples, process again immediately
+  const hasMore0 = audioBuffers[0].reduce((s, c) => s + c.length, 0) >= MIN_SAMPLES_PER_CHANNEL
+  const hasMore1 = audioBuffers[1].reduce((s, c) => s + c.length, 0) >= MIN_SAMPLES_PER_CHANNEL
+  if ((hasMore0 || hasMore1) && transcriptCallback) {
+    setImmediate(() => processBufferedAudio())
   }
 }
 

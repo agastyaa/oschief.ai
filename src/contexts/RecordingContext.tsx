@@ -23,6 +23,8 @@ interface RecordingContextType {
   updateSession: (updates: Partial<RecordingSession>) => void;
   clearSession: () => void;
   transcriptLines: TranscriptLine[];
+  /** Remove a transcript line by index (e.g. for delete-chunk in transcript panel). */
+  removeTranscriptLineAt: (index: number) => void;
   isCapturing: boolean;
   usingWebSpeech: boolean;
   /** Set when capture failed (e.g. no mic, worklet load failed). Clear on retry or when user dismisses. */
@@ -70,6 +72,13 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     cleanupRef.current = cleanupTranscript;
 
     return () => { cleanupTranscript(); cleanupStatus(); };
+  }, []);
+
+  const removeTranscriptLineAt = useCallback((index: number) => {
+    setTranscriptLines((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
   }, []);
 
   // Global elapsed timer -- ticks regardless of which page is mounted
@@ -373,7 +382,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   return (
     <RecordingContext.Provider value={{
       activeSession, isActive, startSession, resumeSession, updateSession, clearSession,
-      transcriptLines, isCapturing, usingWebSpeech, captureError, clearCaptureError,
+      transcriptLines, removeTranscriptLineAt, isCapturing, usingWebSpeech, captureError, clearCaptureError,
       startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture
     }}>
       {children}

@@ -8,7 +8,7 @@ import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
   PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
   Calendar, Clock, Users, Plus, FolderOpen, Check, X, Hash,
-  CheckCircle2, Circle, Loader2, Copy, Trash2
+  CheckCircle2, Circle, Loader2, Copy, Trash2, ChevronDown, RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
@@ -27,6 +27,7 @@ const BUILTIN_TEMPLATES = [
   { id: "interview", name: "Interview", icon: "🎯" },
   { id: "retrospective", name: "Retro", icon: "🔄" },
 ];
+const BUILTIN_TEMPLATE_IDS = new Set(BUILTIN_TEMPLATES.map((t) => t.id));
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -111,7 +112,7 @@ export default function NewNotePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const eventState = location.state as { eventTitle?: string; eventId?: string } | null;
-  const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, isCapturing, usingWebSpeech, captureError, clearCaptureError, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture } = useRecording();
+  const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture } = useRecording();
   const { selectedSTTModel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -142,6 +143,8 @@ export default function NewNotePage() {
   const [meetingTemplate, setMeetingTemplate] = useState("general");
   const meetingTemplateRef = useRef(meetingTemplate);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const templateMenuRef = useRef<HTMLDivElement>(null);
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
   const [noteId, setNoteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
@@ -259,6 +262,18 @@ export default function NewNotePage() {
     if (isEditingTitle) titleRef.current?.select();
   }, [isEditingTitle]);
 
+  // Re-summarize when user edits personal notes and we already have a summary (debounced)
+  useEffect(() => {
+    const hasSummary = summary?.overview != null && summary.overview !== "" || (summary?.keyPoints?.length ?? 0) > 0;
+    if (!hasSummary || isSummarizing || personalNotes === lastGeneratedNotesRef.current) return;
+    const t = setTimeout(() => {
+      if (personalNotes.trim().length > 0 || transcriptRef.current.length > 0) {
+        generateNotes();
+      }
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [personalNotes, summary?.overview, summary?.keyPoints?.length, isSummarizing, generateNotes]);
+
   const generateNotes = useCallback(async () => {
     if (isSummarizing) return;
     setIsSummarizing(true);
@@ -272,13 +287,15 @@ export default function NewNotePage() {
     if (api && selectedAIModel) {
       try {
         const templateId = meetingTemplateRef.current;
-        const customPrompt = await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null);
+        const customPrompt = BUILTIN_TEMPLATE_IDS.has(templateId)
+          ? undefined
+          : (await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null)) || undefined;
         generatedSummary = await api.llm.summarize({
           transcript: finalTranscript,
           personalNotes,
           model: selectedAIModel,
           meetingTemplateId: templateId,
-          customPrompt: customPrompt || undefined,
+          customPrompt,
         });
       } catch (err) {
         console.error('LLM summarization failed, using local fallback:', err);
@@ -353,13 +370,15 @@ export default function NewNotePage() {
       if (api && selectedAIModel) {
         try {
           const tid = meetingTemplateRef.current;
-          const cp = await api.db.settings.get(`template-prompt-${tid}`).catch(() => null);
+          const customPrompt = BUILTIN_TEMPLATE_IDS.has(tid)
+            ? undefined
+            : (await api.db.settings.get(`template-prompt-${tid}`).catch(() => null)) || undefined;
           const newSummary = await api.llm.summarize({
             transcript: finalTranscript,
             personalNotes,
             model: selectedAIModel,
             meetingTemplateId: tid,
-            customPrompt: cp || undefined,
+            customPrompt,
           });
           setSummary(newSummary);
         } catch {
@@ -386,13 +405,13 @@ export default function NewNotePage() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setShowMoreMenu(false);
-      }
+      const target = e.target as Node;
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) setShowMoreMenu(false);
+      if (templateMenuRef.current && !templateMenuRef.current.contains(target)) setShowTemplateMenu(false);
     };
-    if (showMoreMenu) document.addEventListener("mousedown", handler);
+    if (showMoreMenu || showTemplateMenu) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [showMoreMenu]);
+  }, [showMoreMenu, showTemplateMenu]);
 
   const handleCopyText = () => {
     if (!summary) return;
@@ -524,6 +543,47 @@ export default function NewNotePage() {
           {showSummaryPanel && (
             <div className="flex items-center gap-1.5">
               <NotesViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+              <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
+                <button
+                  onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                  className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+                  title="Switch template"
+                >
+                  <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
+                  <span className="max-w-[100px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
+                </button>
+                {showTemplateMenu && (
+                  <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                    {MEETING_TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setMeetingTemplate(t.id);
+                          meetingTemplateRef.current = t.id;
+                          setShowTemplateMenu(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{t.icon}</span>
+                          <span>{t.name}</span>
+                        </span>
+                        {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
+                      </button>
+                    ))}
+                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Selecting a template then click rerun to regenerate summary.</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => { setShowTemplateMenu(false); generateNotes(); }}
+                  disabled={isSummarizing}
+                  className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
+                  title="Regenerate summary with selected template"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", isSummarizing && "animate-spin")} />
+                </button>
+              </div>
               <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
@@ -626,7 +686,7 @@ export default function NewNotePage() {
                     value={personalNotes}
                     onChange={(e) => setPersonalNotes(e.target.value)}
                     placeholder="Write notes..."
-                    className="min-h-[60vh] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none"
+                    className="min-h-[60vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
                     autoFocus
                   />
                 ) : (
@@ -636,7 +696,7 @@ export default function NewNotePage() {
                         value={personalNotes}
                         onChange={(e) => setPersonalNotes(e.target.value)}
                         placeholder="Add your personal notes..."
-                        className="min-h-[40vh] w-full resize-none bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none"
+                        className="min-h-[40vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
                         autoFocus
                       />
                     ) : isSummarizing ? (
@@ -718,18 +778,32 @@ export default function NewNotePage() {
 
           {/* Transcript side panel — hidden during active recording if real-time transcription is off */}
           {transcriptVisible && (showRealTimeTranscript || recordingState !== "recording") && (
-            <div className="w-72 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
+            <div className="w-96 flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
               <div className="px-4 py-3 border-b border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[12px] font-medium uppercase tracking-wider text-foreground/80">
                     {recordingState === "recording" ? "Live Transcript" : "Transcript"}
                   </span>
-                  <button
-                    onClick={() => setTranscriptVisible(false)}
-                    className="rounded p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <EyeOff className="h-3 w-3" />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    {currentTranscript.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const text = currentTranscript.map((l) => `[${l.time}] ${l.speaker}: ${l.text}`).join("\n");
+                          void (navigator.clipboard?.writeText(text) ?? Promise.resolve());
+                        }}
+                        className="rounded p-1 text-muted-foreground hover:text-foreground"
+                        title="Copy all"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setTranscriptVisible(false)}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <EyeOff className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-2 flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5">
                   <Search className="h-3 w-3 text-muted-foreground flex-shrink-0" />
@@ -737,7 +811,7 @@ export default function NewNotePage() {
                     value={transcriptSearch}
                     onChange={(e) => setTranscriptSearch(e.target.value)}
                     placeholder="Search transcript..."
-                    className="flex-1 min-w-0 bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    className="flex-1 min-w-0 bg-transparent text-[13px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
                   />
                   {transcriptSearch && (
                     <button onClick={() => setTranscriptSearch("")} className="text-muted-foreground hover:text-foreground">
@@ -746,29 +820,70 @@ export default function NewNotePage() {
                   )}
                 </div>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-3 space-y-2">
                 {currentTranscript
-                  .filter(line => !transcriptSearch || line.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
-                  .map((line, i) => (
-                  <div key={i} className="animate-fade-in">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-[8px] font-medium text-foreground">
-                        {line.speaker.charAt(0)}
+                  .map((line, idx) => ({ line, idx }))
+                  .filter(({ line }) => !transcriptSearch || line.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
+                  .map(({ line, idx }) => {
+                    const isMe = line.speaker === "You";
+                    const displayLabel = isMe ? "Me" : "Them";
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "animate-fade-in group flex flex-col items-end gap-0.5",
+                          !isMe && "items-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[92%] rounded-2xl px-3 py-2 text-[14px] font-medium leading-relaxed",
+                            isMe
+                              ? "bg-green-500/15 text-green-900 dark:text-green-100 rounded-br-md"
+                              : "bg-muted/80 text-foreground/90 rounded-bl-md"
+                          )}
+                        >
+                          <p className="text-[12px] font-medium text-foreground/70 mb-0.5">
+                            {displayLabel} · {line.time}
+                          </p>
+                          <p>
+                            {transcriptSearch ? (
+                              line.text.split(new RegExp(`(${transcriptSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")).map((part, j) =>
+                                part.toLowerCase() === transcriptSearch.toLowerCase() ? (
+                                  <mark key={j} className="bg-accent/20 text-foreground rounded-sm px-0.5">{part}</mark>
+                                ) : (
+                                  part
+                                )
+                              )
+                            ) : (
+                              line.text
+                            )}
+                          </p>
+                        </div>
+                        {usingRealAudio && (
+                          <div className={cn("flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity", !isMe && "self-start")}>
+                            <button
+                              onClick={() => {
+                                const t = `[${line.time}] ${line.speaker}: ${line.text}`;
+                                void (navigator.clipboard?.writeText(t) ?? Promise.resolve());
+                              }}
+                              className="rounded p-1 text-muted-foreground hover:text-foreground"
+                              title="Copy"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => removeTranscriptLineAt(idx)}
+                              className="rounded p-1 text-muted-foreground hover:text-destructive"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] font-medium text-foreground">{line.speaker}</span>
-                      <span className="text-[10px] text-muted-foreground">{line.time}</span>
-                    </div>
-                    <p className="text-[12px] text-muted-foreground leading-relaxed pl-6">
-                      {transcriptSearch ? (
-                        line.text.split(new RegExp(`(${transcriptSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')).map((part, j) =>
-                          part.toLowerCase() === transcriptSearch.toLowerCase()
-                            ? <mark key={j} className="bg-accent/20 text-foreground rounded-sm px-0.5">{part}</mark>
-                            : part
-                        )
-                      ) : line.text}
-                    </p>
-                  </div>
-                ))}
+                    );
+                  })}
                 {!transcriptSearch && recordingState === "recording" && usingRealAudio && !selectedSTTModel && (
                   <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 mb-2">
                     <p className="text-[11px] text-blue-600 dark:text-blue-400 leading-relaxed">

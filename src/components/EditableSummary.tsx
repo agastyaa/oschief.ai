@@ -89,7 +89,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users className="h-3 w-3 text-muted-foreground/40" />
           {attendees.map((a, i) => (
-            <span key={i} className="text-[11px] text-foreground/50">{a}{i < attendees.length - 1 ? "," : ""}</span>
+            <span key={i} className="text-[13px] font-medium text-foreground/80">{a}{i < attendees.length - 1 ? "," : ""}</span>
           ))}
         </div>
       )}
@@ -108,13 +108,13 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                 }
                 if (e.key === "Escape") setEditingField(null);
               }}
-              className="w-full resize-none bg-transparent text-[13px] leading-relaxed text-foreground/45 focus:outline-none"
+              className="w-full resize-none bg-transparent text-[15px] leading-relaxed font-medium text-foreground focus:outline-none"
               rows={2}
             />
           ) : (
             <p
               onClick={() => setEditingField("overview")}
-              className="text-[13px] leading-relaxed text-foreground/45 cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
+              className="text-[15px] leading-relaxed font-medium text-foreground cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
             >
               {localSummary.overview}
               <Pencil className="inline-block ml-1 h-2.5 w-2.5 text-muted-foreground/0 group-hover/section:text-muted-foreground/30 transition-colors" />
@@ -128,7 +128,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
         if (bullets.length === 0) return null;
         return (
           <div key={i}>
-            <h3 className="text-[13px] font-semibold text-foreground/75 mb-1">
+            <h3 className="text-[15px] font-semibold text-foreground mb-1">
               {topic.topic}
             </h3>
             <ul className="space-y-0.5">
@@ -136,16 +136,16 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                 const isDecision = /^Decision:\s*/i.test(bullet);
                 const displayText = bullet.replace(/^Decision:\s*/i, "");
                 return (
-                  <li key={j} className="flex gap-1.5 text-[13px] leading-snug">
+                  <li key={j} className="flex gap-1.5 text-[15px] leading-snug">
                     <span className={cn(
                       "mt-[7px] h-1 w-1 flex-shrink-0 rounded-full",
                       isDecision ? "bg-accent" : "bg-foreground/15"
                     )} />
                     <span className={cn(
-                      "text-foreground/60",
-                      isDecision && "font-medium text-foreground/75"
+                      "font-medium text-foreground/90",
+                      isDecision && "font-semibold text-foreground"
                     )}>
-                      {isDecision && <span className="text-accent text-[11px] font-semibold mr-1">DECISION</span>}
+                      {isDecision && <span className="text-accent text-[12px] font-semibold mr-1">DECISION</span>}
                       {displayText}
                     </span>
                   </li>
@@ -158,10 +158,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {keyPoints.length > 0 && topics.length === 0 && (
         <div>
-          <h3 className="text-[13px] font-semibold text-foreground/75 mb-1">Key Points</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1">Key Points</h3>
           <ul className="space-y-0.5">
             {keyPoints.map((point, i) => (
-              <li key={i} className="flex gap-1.5 text-[13px] text-foreground/60 leading-snug">
+              <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
                 <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-foreground/15" />
                 <span>{point}</span>
               </li>
@@ -172,10 +172,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {actions.length > 0 && (
         <div>
-          <h3 className="text-[13px] font-semibold text-foreground/75 mb-1.5">Action Items</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1.5">Action Items</h3>
           <div className="space-y-1">
             {actions.map((item, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-[13px] leading-snug">
+              <div key={i} className="flex items-start gap-1.5 text-[15px] font-medium leading-snug">
                 <button onClick={() => handleToggleActionDone(i)} className="mt-0.5 flex-shrink-0">
                   {item.done ? (
                     <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
@@ -184,12 +184,12 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                   )}
                 </button>
                 <span className={cn(
-                  item.done ? "text-muted-foreground/50 line-through" : "text-foreground/60"
+                  item.done ? "text-muted-foreground/60 line-through" : "text-foreground/90"
                 )}>
                   {item.text}
                 </span>
                 {item.assignee && item.assignee !== "You" && (
-                  <span className="text-[11px] text-muted-foreground/50 flex-shrink-0">— {item.assignee}</span>
+                  <span className="text-[12px] text-muted-foreground/70 flex-shrink-0">— {item.assignee}</span>
                 )}
               </div>
             ))}
@@ -199,10 +199,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {questions.length > 0 && (
         <div>
-          <h3 className="text-[13px] font-semibold text-foreground/75 mb-1">Open Questions</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1">Open Questions</h3>
           <ul className="space-y-0.5">
             {questions.map((q, i) => (
-              <li key={i} className="flex gap-1.5 text-[13px] text-foreground/55 leading-snug">
+              <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
                 <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0 text-amber-500/60" />
                 <span>{q}</span>
               </li>
@@ -215,8 +215,8 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
         <div className="pt-1">
           {quotes.map((q, i) => (
             <blockquote key={i} className="border-l-2 border-accent/20 pl-2.5 py-0.5">
-              <p className="text-[12px] italic text-foreground/40">"{q.text}"</p>
-              <p className="text-[11px] text-muted-foreground/50">— {q.speaker}</p>
+              <p className="text-[14px] italic font-medium text-foreground/80">"{q.text}"</p>
+              <p className="text-[12px] text-muted-foreground/70">— {q.speaker}</p>
             </blockquote>
           ))}
         </div>

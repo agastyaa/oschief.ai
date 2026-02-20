@@ -1,7 +1,7 @@
 import { getSetting } from '../storage/database'
 import { chatOpenAI, sttOpenAI } from './openai'
 import { chatAnthropic } from './anthropic'
-import { chatCopart } from './copart'
+import { chatCopart, sttCopart } from './copart'
 import { chatGoogle } from './google'
 import { sttDeepgram } from './deepgram'
 import { sttAssemblyAI } from './assemblyai'
@@ -88,6 +88,8 @@ export async function routeSTT(wavBuffer: Buffer, model: string): Promise<string
       return sttAssemblyAI(wavBuffer, apiKey)
     case 'groq':
       return sttGroq(wavBuffer, apiKey)
+    case 'copart':
+      return sttCopart(wavBuffer, modelName, apiKey)
     default:
       throw new Error(`Unknown STT provider: ${providerId}`)
   }

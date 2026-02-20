@@ -1,8 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { netFetch } from './net-request'
 
 const COPART_BASE_URL = 'https://genie.copart.com/api'
 
-// Map UI labels to Copart Genie model IDs (from env: ANTHROPIC_*)
+// Optional mapping for display names → API model IDs; any unknown name is passed through as-is
 const MODEL_MAP: Record<string, string> = {
   'Opus Plan': 'opusplan',
   'Claude Sonnet 4': 'anthropic/claude-sonnet-4-6',
@@ -16,12 +17,12 @@ export async function chatCopart(
   apiKey: string,
   onChunk?: (chunk: { text: string; done: boolean }) => void
 ): Promise<string> {
-  // Copart Genie expects Authorization: Bearer (ANTHROPIC_AUTH_TOKEN); SDK authToken sends that
   const client = new Anthropic({
     authToken: apiKey,
     baseURL: COPART_BASE_URL,
   })
-  const model = MODEL_MAP[modelName] || modelName
+  // Pass through any model name; only normalize known display names
+  const model = (MODEL_MAP[modelName] ?? modelName).trim() || 'opusplan'
 
   const systemMessage = messages.find(m => m.role === 'system')
   const chatMessages = messages
@@ -59,4 +60,44 @@ export async function chatCopart(
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map(b => b.text)
     .join('')
+}
+
+/** STT via same Copart Genie API key; uses OpenAI-compatible /v1/audio/transcriptions if available. */
+export async function sttCopart(wavBuffer: Buffer, modelName: string, apiKey: string): Promise<string> {
+  const boundary = `----FormBoundary${Date.now()}`
+  const parts: Buffer[] = []
+  parts.push(Buffer.from(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n` +
+    `Content-Type: audio/wav\r\n\r\n`
+  ))
+  parts.push(wavBuffer)
+  const model = (MODEL_MAP[modelName] ?? modelName).trim() || 'whisper-1'
+  parts.push(Buffer.from(
+    `\r\n--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="model"\r\n\r\n` +
+    `${model}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="language"\r\n\r\n` +
+    `en\r\n` +
+    `--${boundary}--\r\n`
+  ))
+  const body = Buffer.concat(parts)
+  const url = `${COPART_BASE_URL.replace(/\/$/, '')}/v1/audio/transcriptions`
+  const { statusCode, data } = await netFetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
+  })
+  if (statusCode === 401) throw new Error('Invalid Copart Genie API key. Check Settings > AI Models.')
+  if (statusCode >= 400) throw new Error(`Copart Genie STT error (${statusCode}): ${data.slice(0, 200)}`)
+  try {
+    const json = JSON.parse(data)
+    return (json.text ?? json.transcript ?? '').trim()
+  } catch {
+    return data.trim()
+  }
 }

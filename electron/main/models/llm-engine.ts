@@ -67,7 +67,131 @@ ${templateInstructions ? '\n' + templateInstructions : ''}
 Valid JSON only.`
 }
 
-const CHAT_SYSTEM_PROMPT = `You are Syag, an AI assistant that helps users understand and query their meeting notes. You have access to the user's notes and transcripts. Be concise, helpful, and reference specific meetings when relevant.`
+const CHAT_SYSTEM_PROMPT = `You are Syag, an AI assistant that helps users understand and query their meeting notes. You have access to the user's notes and transcripts. Be concise, helpful, and reference specific meetings when relevant.
+
+Formatting: Use concise bullets when listing points. Do not use timestamps (e.g. 0:21 or 1:08) in your responses. Do not use bold markdown (**). Prefer plain bullets (e.g. "- Item") or short numbered lists.`
+
+// ─── General template (single-pass markdown) ────────────────────────────────
+
+function buildGeneralUserInput(transcriptText: string, personalNotes: string): string {
+  const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+  return `MEETING CONTEXT:
+Title: This meeting
+Date: ${dateStr}
+Attendees: —
+Duration: —
+
+USER'S RAW NOTES:
+${personalNotes || '(none)'}
+
+TRANSCRIPT:
+${transcriptText}`
+}
+
+function parseGeneralMarkdownSummary(response: string, template: MeetingTemplate): MeetingSummary {
+  const lines = response.split(/\r?\n/)
+  let title = 'Meeting Notes'
+  let overview = ''
+  const discussionTopics: MeetingSummary['discussionTopics'] = []
+  const decisions: string[] = []
+  const actionItems: MeetingSummary['actionItems'] = []
+
+  // First line: "[Meeting Title] — [Date]"
+  const firstLine = lines[0]?.trim() || ''
+  const titleMatch = firstLine.match(/^(.+?)\s*[—\-]\s*.+$/)
+  if (titleMatch) title = titleMatch[1].trim()
+
+  // TL;DR
+  const tldrIdx = lines.findIndex(l => /^TL;DR\s*:?\s*/i.test(l))
+  if (tldrIdx >= 0) {
+    overview = lines[tldrIdx].replace(/^TL;DR\s*:?\s*/i, '').trim()
+  }
+
+  // Key Decisions section
+  const keyDecisionsIdx = lines.findIndex(l => /^Key\s+Decisions\s*$/i.test(l.trim()))
+  if (keyDecisionsIdx >= 0) {
+    for (let i = keyDecisionsIdx + 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+      if (/^Action\s+Items\s*$/i.test(line)) break
+      if (/^\[.+\]$/.test(line) || line.startsWith('-')) {
+        decisions.push(line.replace(/^-\s*/, '').trim())
+      } else {
+        decisions.push(line)
+      }
+    }
+  }
+
+  // Action Items section
+  const actionItemsIdx = lines.findIndex(l => /^Action\s+Items\s*$/i.test(l.trim()))
+  if (actionItemsIdx >= 0) {
+    let currentAssignee = 'Unassigned'
+    for (let i = actionItemsIdx + 1; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      // "Name:" on its own → next lines are their tasks
+      if (/^[A-Za-z][^:]*:\s*$/.test(trimmed)) {
+        currentAssignee = trimmed.replace(/:$/, '').trim()
+        continue
+      }
+      // "Task — by date" or "Task"
+      const byMatch = trimmed.match(/^(.+?)\s*[—\-]\s*by\s+(.+)$/i)
+      const task = byMatch ? byMatch[1].trim() : trimmed.replace(/^-\s*/, '')
+      const dueDate = byMatch ? byMatch[2].trim() : undefined
+      actionItems.push({
+        text: task,
+        assignee: currentAssignee,
+        dueDate: dueDate || undefined,
+        priority: 'medium',
+        done: false,
+      })
+    }
+  }
+
+  // Topic sections: blocks between TL;DR and Key Decisions / Action Items, with a heading and bullets
+  const topicEndIdx = Math.min(
+    keyDecisionsIdx >= 0 ? keyDecisionsIdx : lines.length,
+    actionItemsIdx >= 0 ? actionItemsIdx : lines.length
+  )
+  let topicStart = tldrIdx >= 0 ? tldrIdx + 1 : 0
+  const topicBlock: string[] = []
+  for (let i = topicStart; i < topicEndIdx; i++) {
+    const line = lines[i]
+    if (line.trim() === '') {
+      if (topicBlock.length > 0) {
+        const topicName = topicBlock[0].replace(/^#+\s*/, '').trim()
+        const summary = topicBlock.slice(1).filter(Boolean).map(l => (l.startsWith('-') || l.startsWith('→') ? l : `- ${l}`)).join('\n')
+        if (topicName && !/^Key\s+Decisions$/i.test(topicName) && !/^Action\s+Items$/i.test(topicName)) {
+          discussionTopics.push({ topic: topicName, summary: summary || '-', speakers: [] })
+        }
+        topicBlock.length = 0
+      }
+    } else {
+      topicBlock.push(line)
+    }
+  }
+  if (topicBlock.length > 0) {
+    const topicName = topicBlock[0].replace(/^#+\s*/, '').trim()
+    const summary = topicBlock.slice(1).filter(Boolean).map(l => (l.startsWith('-') || l.startsWith('→') ? l : `- ${l}`)).join('\n')
+    if (topicName && !/^Key\s+Decisions$/i.test(topicName) && !/^Action\s+Items$/i.test(topicName)) {
+      discussionTopics.push({ topic: topicName, summary: summary || '-', speakers: [] })
+    }
+  }
+
+  return {
+    title,
+    meetingType: template.id,
+    attendees: [],
+    overview: overview || response.slice(0, 300),
+    decisions,
+    discussionTopics,
+    actionItems,
+    questionsAndOpenItems: [],
+    followUps: [],
+    keyQuotes: [],
+  }
+}
 
 // ─── Summarize ──────────────────────────────────────────────────────────────
 
@@ -83,8 +207,24 @@ export async function summarize(
   const templateId = meetingTemplateId || detectMeetingType(transcriptText, personalNotes)
   const template = getTemplate(templateId)
 
+  if (template.id === 'general') {
+    const userInput = buildGeneralUserInput(transcriptText, personalNotes)
+    const systemPrompt = customPrompt ? `${template.additionalPrompt}\n\n${customPrompt}` : template.additionalPrompt
+    if (model.startsWith('local:')) {
+      return summarizeWithLocal(transcriptText, personalNotes, model.replace('local:', ''), template, customPrompt, true)
+    }
+    const response = await routeLLM(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userInput },
+      ],
+      model
+    )
+    return parseGeneralMarkdownSummary(response, template)
+  }
+
   if (model.startsWith('local:')) {
-    return summarizeWithLocal(transcriptText, personalNotes, model.replace('local:', ''), template, customPrompt)
+    return summarizeWithLocal(transcriptText, personalNotes, model.replace('local:', ''), template, customPrompt, false)
   }
 
   const extractionInput = `## Transcript\n${transcriptText}\n\n## Personal Notes\n${personalNotes || '(none)'}`
@@ -141,7 +281,8 @@ async function summarizeWithLocal(
   personalNotes: string,
   modelId: string,
   template: MeetingTemplate,
-  customPrompt?: string
+  customPrompt?: string,
+  useGeneralPass?: boolean
 ): Promise<MeetingSummary> {
   const modelPath = getModelPath(modelId)
   if (!modelPath) {
@@ -156,8 +297,12 @@ async function summarizeWithLocal(
     const ctx = await model.createContext()
     const session = new LlamaChatSession({ contextSequence: ctx.getSequence() })
 
-    // Single pass for local models (smaller context window)
-    const prompt = `${buildSynthesisSystemPrompt(template, customPrompt)}
+    let prompt: string
+    if (useGeneralPass && template.id === 'general') {
+      const systemPrompt = customPrompt ? `${template.additionalPrompt}\n\n${customPrompt}` : template.additionalPrompt
+      prompt = `${systemPrompt}\n\n${buildGeneralUserInput(transcriptText, personalNotes)}`
+    } else {
+      prompt = `${buildSynthesisSystemPrompt(template, customPrompt)}
 
 ## Meeting Transcript
 ${transcriptText}
@@ -166,6 +311,7 @@ ${transcriptText}
 ${personalNotes || '(none)'}
 
 Generate a structured meeting summary as JSON.`
+    }
 
     const response = await session.prompt(prompt, {
       maxTokens: 2048,
@@ -173,6 +319,9 @@ Generate a structured meeting summary as JSON.`
     })
 
     await model.dispose()
+    if (useGeneralPass && template.id === 'general') {
+      return parseGeneralMarkdownSummary(response, template)
+    }
     return parseMeetingSummary(response, template)
   } catch (err: any) {
     if (err.code === 'MODULE_NOT_FOUND' || err.message?.includes('Cannot find module')) {

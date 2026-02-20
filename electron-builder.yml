@@ -16,6 +16,11 @@ asarUnpack:
   - "node_modules/onnxruntime-node/**"
 mac:
   category: public.app-category.productivity
+  extendInfo:
+    NSSpeechRecognitionUsageDescription: "Syag uses speech recognition to transcribe your meetings when you choose Apple Speech. Audio is processed on your device or by Apple's service."
+  extraResources:
+    - from: electron/resources/darwin
+      to: darwin
   target:
     - target: dmg
       arch:

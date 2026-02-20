@@ -33,6 +33,14 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
   const hasInput = input.trim().length > 0;
   const contextLabel = context === "meeting" ? meetingTitle || "This note" : "All notes";
 
+  const SLASH_PROMPTS = [
+    { label: "TL;DR", prompt: "Give me a brief TL;DR of these notes." },
+    { label: "What is being discussed", prompt: "What are the main topics being discussed?" },
+    { label: "What did I miss", prompt: "What did I miss? Summarize the key points I should know." },
+    { label: "How can I look smart", prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?" },
+  ];
+  const showSlashMenu = isActive && input === "/";
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
@@ -53,9 +61,9 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim()) return;
-    const q = input;
+  const handleSend = useCallback(async (override?: string) => {
+    const q = (override ?? input).trim();
+    if (!q) return;
     setInput("");
     setShowChat(true);
 
@@ -108,11 +116,20 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
       e.preventDefault();
       handleSend();
     } else if (e.key === "Escape") {
-      setIsActive(false);
-      setShowChat(false);
-      setMessages([]);
-      setInput("");
+      if (showSlashMenu) {
+        setInput("");
+      } else {
+        setIsActive(false);
+        setShowChat(false);
+        setMessages([]);
+        setInput("");
+      }
     }
+  };
+
+  const handleSlashSelect = (prompt: string) => {
+    setInput("");
+    handleSend(prompt);
   };
 
   const handleBarClick = () => {
@@ -127,14 +144,14 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
 
   return (
     <div ref={barRef} className="px-4 pb-4 pointer-events-none relative">
-      <div className="mx-auto max-w-md pointer-events-auto">
+      <div className="mx-auto max-w-xl pointer-events-auto">
         {showChat && messages.length > 0 && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-md">
+          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-xl w-full">
             <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
                 <div className="flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     Context: <span className="text-foreground font-medium">{contextLabel}</span>
                   </span>
                 </div>
@@ -145,12 +162,12 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div ref={scrollRef} className="h-64 overflow-y-auto px-4 py-3 space-y-3">
+              <div ref={scrollRef} className="h-96 max-h-[70vh] overflow-y-auto px-4 py-3 space-y-3">
                 {messages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed",
+                        "max-w-[85%] rounded-xl px-3 py-2.5 text-[15px] font-medium leading-relaxed",
                         msg.role === "user"
                           ? "bg-accent text-accent-foreground"
                           : "bg-secondary text-foreground"
@@ -224,8 +241,22 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
 
           <div
             onClick={handleBarClick}
-            className="flex flex-1 items-center rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text"
+            className="flex flex-1 items-center rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text relative"
           >
+            {showSlashMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden z-50">
+                {SLASH_PROMPTS.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleSlashSelect(item.prompt); }}
+                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {isActive ? (
               <>
                 <input
@@ -233,10 +264,10 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask anything..."
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
+                  placeholder="Ask anything... (type / for quick prompts)"
+                  className="flex-1 bg-transparent text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
                 />
-                {hasInput && (
+                {hasInput && !showSlashMenu && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSend(); }}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90 ml-2 flex-shrink-0"
@@ -246,7 +277,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                 )}
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">Ask anything</span>
+              <span className="text-base font-medium text-muted-foreground">Ask anything</span>
             )}
           </div>
         </div>
