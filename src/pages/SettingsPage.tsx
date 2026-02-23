@@ -1009,10 +1009,10 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <SectionHeader title="Notifications" description="Choose what you'd like to be notified about" />
                   <div className="space-y-2">
-                    <SettingRow label="Meeting summary ready" description="Get notified when AI finishes generating a summary">
+                    <SettingRow label="Meeting summary ready" description="In-app when the app is open; system notification when the app is minimized">
                       <Toggle enabled={toggles.summaryReady} onToggle={() => toggle("summaryReady")} />
                     </SettingRow>
-                    <SettingRow label="Action item reminders" description="Reminders about pending action items from meetings">
+                    <SettingRow label="Action item reminders" description="System notification the day before an action item’s deadline">
                       <Toggle enabled={toggles.actionReminder} onToggle={() => toggle("actionReminder")} />
                     </SettingRow>
                     <SettingRow label="Weekly digest" description="Weekly summary of all your meetings and action items">

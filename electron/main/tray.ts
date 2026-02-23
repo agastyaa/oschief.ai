@@ -235,3 +235,20 @@ export function showMeetingStartingSoonNotification(
 
   notification.show()
 }
+
+export function showSummaryReadyNotification(noteTitle: string): void {
+  if (!Notification.isSupported()) return
+
+  const notification = new Notification({
+    title: 'Summary ready',
+    body: noteTitle ? `"${noteTitle}" — AI summary is ready` : 'Meeting summary is ready',
+    silent: false,
+  })
+
+  notification.on('click', () => {
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
+
+  notification.show()
+}

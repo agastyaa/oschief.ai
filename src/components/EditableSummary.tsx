@@ -32,7 +32,7 @@ export interface SummaryData {
   discussionTopics?: DiscussionTopic[];
   keyPoints?: string[];
   actionItems?: ActionItem[];
-  nextSteps?: { text: string; assignee: string; done: boolean }[];
+  nextSteps?: { text: string; assignee: string; done: boolean; dueDate?: string }[];
   questionsAndOpenItems?: string[];
   followUps?: string[];
   keyQuotes?: KeyQuote[];
@@ -75,7 +75,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
   };
 
   const actions = localSummary.actionItems || localSummary.nextSteps?.map(s => ({
-    ...s, priority: "medium" as const, dueDate: undefined,
+    ...s, priority: "medium" as const, dueDate: s.dueDate,
   })) || [];
   const topics = localSummary.discussionTopics || [];
   const keyPoints = localSummary.keyPoints || [];
@@ -190,6 +190,9 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                 </span>
                 {item.assignee && item.assignee !== "You" && (
                   <span className="text-[12px] text-muted-foreground/70 flex-shrink-0">— {item.assignee}</span>
+                )}
+                {item.dueDate && (
+                  <span className="text-[12px] text-muted-foreground/70 flex-shrink-0">Due {item.dueDate}</span>
                 )}
               </div>
             ))}

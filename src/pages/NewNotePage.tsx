@@ -301,6 +301,14 @@ export default function NewNotePage() {
           summary: generatedSummary,
           folderId: isSavedNoteView ? (savedNote?.folderId ?? selectedFolderId) : selectedFolderId,
         });
+        const finalTitle = generatedSummary.title || noteTitle;
+        api?.db?.settings?.get?.('summary-ready-notification').then((val: string | null) => {
+          if (val === 'false') return;
+          if (typeof document !== 'undefined' && document.hasFocus()) {
+            toast.success('Summary ready');
+          }
+          api?.app?.notifySummaryReady?.(finalTitle);
+        }).catch(() => {});
       } catch (err) {
         console.error('Failed to save note:', err);
         toast.error("Note could not be saved. Check console.");

@@ -75,11 +75,16 @@ function TrayNavigationHandler() {
       }
     });
 
+    const cleanupActionReminder = api.app.onActionReminderOpenNote?.(({ noteId }) => {
+      navigate(`/note/${noteId}`);
+    });
+
     return () => {
       cleanupNav?.();
       cleanupStartRecording?.();
       cleanupPause?.();
       cleanupMeetingEnded?.();
+      cleanupActionReminder?.();
     };
   }, [api, navigate, pauseAudioCapture]);
 

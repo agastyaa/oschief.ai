@@ -1,25 +1,33 @@
 import { useState, useMemo } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, Link2 } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, PanelRight, PanelRightClose } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
-import { EventDetailSheet } from "@/components/EventDetailSheet";
+import { HomeShelf, getShelfOpenDefault, setShelfOpenPersist } from "@/components/HomeShelf";
+import { ActionItemsThisWeek } from "@/components/ActionItemsThisWeek";
 import { CalendarEvent } from "@/lib/ics-parser";
-import { format, isToday as isTodayFn, isTomorrow, isAfter } from "date-fns";
+import { isAfter } from "date-fns";
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { folders } = useFolders();
-  const { notes, deleteNote, updateNoteFolder } = useNotes();
+  const { notes, deleteNote, updateNoteFolder, updateNote } = useNotes();
   const { events, icsSource } = useCalendar();
   const [icsOpen, setIcsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [shelfOpen, setShelfOpenState] = useState(getShelfOpenDefault);
+
+  const setShelfOpen = (open: boolean) => {
+    setShelfOpenState(open);
+    setShelfOpenPersist(open);
+    if (!open) setSelectedEvent(null);
+  };
 
   const now = new Date();
   const upcomingEvents = events.filter(e => isAfter(e.start, now)).slice(0, 5);
@@ -111,67 +119,19 @@ const Index = () => {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <main className="flex flex-1 flex-col min-w-0 relative">
+        <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-0">
+          <button
+            onClick={() => setShelfOpen(!shelfOpen)}
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title={shelfOpen ? "Hide Coming up" : "Show Coming up"}
+          >
+            {shelfOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto pb-24">
-          <div className="mx-auto max-w-2xl px-6 py-8">
-            {/* Coming up section */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display text-lg text-foreground">Coming up</h2>
-                {notes.length > 0 && (
-                  <button
-                    onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                    className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Quick Note
-                  </button>
-                )}
-              </div>
-
-              {icsSource && upcomingEvents.length > 0 ? (
-                <div className="rounded-xl border border-border bg-card/50 divide-y divide-border">
-                  {upcomingEvents.map((evt) => {
-                    const dayLabel = isTodayFn(evt.start) ? "Today" : isTomorrow(evt.start) ? "Tomorrow" : format(evt.start, "EEE, MMM d");
-                    return (
-                      <button
-                        key={evt.id}
-                        onClick={() => setSelectedEvent(evt)}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent flex-shrink-0">
-                          <Calendar className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
-                          <p className="text-[11px] text-muted-foreground">{dayLabel} · {format(evt.start, "h:mm a")}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  <div className="px-4 py-2">
-                    <button onClick={() => setIcsOpen(true)} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                      Re-sync calendar
-                    </button>
-                  </div>
-                </div>
-              ) : icsSource ? (
-                <div className="w-full rounded-xl border border-border bg-card/50 px-5 py-6 text-center">
-                  <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-foreground mb-1">No upcoming events</p>
-                  <p className="text-xs text-muted-foreground">Your calendar is connected but no future events found</p>
-                </div>
-              ) : (
-                <div className="w-full rounded-xl border border-border bg-card/50 px-5 py-6 text-center">
-                  <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-foreground mb-1">Link your calendar</p>
-                  <p className="text-xs text-muted-foreground mb-4">Import an .ics feed to see upcoming meetings</p>
-                  <button onClick={() => setIcsOpen(true)} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors mx-auto">
-                    <Link2 className="h-3.5 w-3.5" />
-                    Import Calendar (.ics)
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="mx-auto max-w-2xl px-6 py-4">
+            {/* Action items (this week) - takes Coming up's place */}
+            <ActionItemsThisWeek notes={notes} updateNote={updateNote} />
 
             {/* Notes list */}
             {notes.length === 0 ? (
@@ -231,8 +191,24 @@ const Index = () => {
           <AskBar context="home" noteContext={homeNoteContext} />
         </div>
       </main>
+      {shelfOpen && (
+        <div className="w-80 flex-shrink-0 flex flex-col h-full">
+          <HomeShelf
+            upcomingEvents={upcomingEvents}
+            icsSource={icsSource}
+            selectedEvent={selectedEvent}
+            onSelectEvent={(evt) => setSelectedEvent(evt)}
+            onQuickNote={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+            onStartNotesForEvent={(evt) => {
+              setSelectedEvent(null);
+              navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } });
+            }}
+            onOpenCalendar={() => setIcsOpen(true)}
+            hasNotes={notes.length > 0}
+          />
+        </div>
+      )}
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
-      <EventDetailSheet event={selectedEvent} open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)} />
     </div>
   );
 };

@@ -78,9 +78,11 @@ type ElectronAPI = {
     getPlatform: () => string
     appleFoundationAvailable?: () => Promise<boolean>
     setLoginItem?: (enabled: boolean) => Promise<boolean>
+    notifySummaryReady?: (title: string) => Promise<void>
     onTrayStartRecording: (callback: (data?: { title?: string }) => void) => () => void
     onTrayStopRecording?: (callback: () => void) => () => void
     onTrayNavigateToMeeting?: (callback: () => void) => () => void
+    onActionReminderOpenNote?: (callback: (data: { noteId: string }) => void) => () => void
     onTrayPauseRecording?: (callback: () => void) => () => void
     onMeetingDetected: (callback: (data: { app: string; title?: string; startTime?: number; calendarEvent?: any }) => void) => () => void
     onMeetingEnded: (callback: (data: { app: string }) => void) => () => void

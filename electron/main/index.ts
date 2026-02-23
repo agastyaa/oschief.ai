@@ -7,6 +7,7 @@ import { syncAllSummarizedNotesToDocuments } from './storage/documents-sync'
 import { ensureModelsDir } from './models/manager'
 import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
 import { setupPowerMonitor } from './power-manager'
+import { scheduleActionItemReminders } from './action-reminders'
 
 app.setName('Syag')
 
@@ -28,6 +29,9 @@ app.whenReady().then(async () => {
   setupTray(mainWindow)
   startMeetingDetection(mainWindow)
   setupPowerMonitor(mainWindow)
+
+  // Action item reminders: one timer for 2pm (day before), one for 9am (deadline day); each reschedules for the next day
+  scheduleActionItemReminders()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

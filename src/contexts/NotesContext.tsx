@@ -12,7 +12,7 @@ export interface SavedNote {
   summary: {
     overview: string;
     keyPoints: string[];
-    nextSteps: { text: string; assignee: string; done: boolean }[];
+    nextSteps: { text: string; assignee: string; done: boolean; dueDate?: string }[];
   } | null;
   folderId: string | null;
 }

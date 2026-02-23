@@ -115,6 +115,7 @@ const electronAPI = {
     getPlatform: () => process.platform,
     appleFoundationAvailable: () => ipcRenderer.invoke('app:apple-foundation-available') as Promise<boolean>,
     setLoginItem: (enabled: boolean) => ipcRenderer.invoke('app:set-login-item', enabled),
+    notifySummaryReady: (title: string) => ipcRenderer.invoke('app:notify-summary-ready', { title }),
     onTrayStartRecording: (callback: (data?: { title?: string }) => void) => {
       const handler = (_e: unknown, data?: { title?: string }) => callback(data)
       ipcRenderer.on('tray:start-recording', handler)
@@ -142,6 +143,11 @@ const electronAPI = {
     onTrayNavigateToMeeting: (callback: () => void) => {
       ipcRenderer.on('tray:navigate-to-meeting', callback)
       return () => ipcRenderer.removeListener('tray:navigate-to-meeting', callback)
+    },
+    onActionReminderOpenNote: (callback: (data: { noteId: string }) => void) => {
+      const handler = (_e: unknown, data: { noteId: string }) => callback(data)
+      ipcRenderer.on('action-reminder:open-note', handler)
+      return () => ipcRenderer.removeListener('action-reminder:open-note', handler)
     },
     onTrayPauseRecording: (callback: () => void) => {
       ipcRenderer.on('tray:pause-recording', callback)

@@ -1,5 +1,6 @@
 import { ipcMain, systemPreferences, desktopCapturer, app, safeStorage, BrowserWindow } from 'electron'
-import { updateTrayRecordingState, updateTrayMeetingInfo } from './tray'
+import { updateTrayRecordingState, updateTrayMeetingInfo, showSummaryReadyNotification } from './tray'
+import { getMainWindow } from './windows'
 import { setCalendarEvents } from './meeting-detector'
 import {
   getAllNotes, getNote, addNote, updateNote, deleteNote, updateNoteFolder,
@@ -246,5 +247,11 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
     return true
+  })
+  ipcMain.handle('app:notify-summary-ready', (_e, { title }: { title: string }) => {
+    if (getSetting('summary-ready-notification') === 'false') return
+    const win = getMainWindow()
+    if (win?.isFocused()) return // renderer shows in-app toast when focused
+    showSummaryReadyNotification(title || 'Meeting notes')
   })
 }
