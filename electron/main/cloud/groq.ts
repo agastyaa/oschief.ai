@@ -95,7 +95,7 @@ export async function chatGroq(
                 fullResponse += text
                 onChunk({ text, done: false })
               }
-            } catch {}
+            } catch { /* ignore chunk parse */ }
           }
         })
 

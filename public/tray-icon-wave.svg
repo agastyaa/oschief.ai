@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Wave only: curved lines from center. Black stroke so generate script negates to white. -->
+  <path d="M256 130 C234 130 202 144 196 172" stroke="#111111" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 210 C228 204 196 218 192 242" stroke="#111111" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 130 C278 130 310 144 316 172" stroke="#111111" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M256 210 C284 204 316 218 320 242" stroke="#111111" stroke-width="10" stroke-linecap="round" fill="none"/>
+</svg>

@@ -33,7 +33,7 @@ export type CalendarEventForMain = { id: string; title: string; start: number; e
 let calendarEvents: CalendarEventForMain[] = []
 let startingSoonInterval: ReturnType<typeof setInterval> | null = null
 const notifiedStartingSoonIds = new Set<string>()
-const STARTING_SOON_WINDOW_MS = 70 * 1000   // notify when 70s before start (~1 min, Granola-style)
+const STARTING_SOON_WINDOW_MS = 70 * 1000   // notify when 70s before start (~1 min)
 const STARTING_SOON_END_MS = 50 * 1000     // until 50s before start
 
 // Poll every 5s so joining a call triggers notification quickly
@@ -59,7 +59,7 @@ export function setCalendarEvents(events: CalendarEventForMain[]): void {
   calendarEvents = events
 }
 
-/** Match if now is within 15 min before start or 5 min after end (Granola-style). */
+/** Match if now is within 15 min before start or 5 min after end. */
 function findCurrentCalendarEvent(): CalendarEventForMain | null {
   const now = Date.now()
   const beforeStartMs = 15 * 60 * 1000
@@ -157,8 +157,8 @@ async function checkForMeetings(): Promise<void> {
     // Notify whenever meeting app transitions from absent to present (scheduled or ad-hoc). Calendar used only for title.
     const calEvent = findCurrentCalendarEvent()
     if (matchedApp && !lastPollHadMeetingApp) {
-      // Optional: require mic/audio in use (Granola-style) to reduce false positives when app is open but not in a call
-      const requireMic = getSetting('meeting-detection-require-mic') === 'true'
+      // Default: require mic in use so we only notify when likely on a call (avoids "Meeting detected" when app is open but not in call)
+      const requireMic = getSetting('meeting-detection-require-mic') !== 'false'
       if (requireMic) {
         const micActive = await checkMicActive()
         if (!micActive) {

@@ -95,7 +95,7 @@ export default function OnboardingPage() {
         const account = existing ? JSON.parse(existing) : {};
         account.name = name.trim();
         localStorage.setItem("syag-account", JSON.stringify(account));
-      } catch {}
+      } catch { /* ignore */ }
     }
     completeOnboarding();
     navigate("/");
@@ -131,7 +131,7 @@ export default function OnboardingPage() {
                 return <Icon className="h-7 w-7" />;
               })()}
             </div>
-            <h1 className="font-display text-2xl text-foreground mb-3">
+            <h1 className="text-2xl font-medium font-body text-foreground mb-3">
               {featureSteps[currentStep].title}
             </h1>
             <p className="text-[15px] text-muted-foreground leading-relaxed max-w-sm mx-auto mb-10">
@@ -163,7 +163,7 @@ export default function OnboardingPage() {
                 <Mic className="h-7 w-7" />
               )}
             </div>
-            <h1 className="font-display text-2xl text-foreground mb-2">
+            <h1 className="text-2xl font-medium font-body text-foreground mb-2">
               {micStatus === "granted" ? "Microphone enabled!" :
                micStatus === "denied" ? "Microphone access denied" :
                "Enable your microphone"}
@@ -219,7 +219,7 @@ export default function OnboardingPage() {
                 <Monitor className="h-7 w-7" />
               )}
             </div>
-            <h1 className="font-display text-2xl text-foreground mb-2">
+            <h1 className="text-2xl font-medium font-body text-foreground mb-2">
               {screenStatus === "granted" ? "Screen recording enabled!" :
                screenStatus === "denied" ? "Screen recording access needed" :
                "Enable screen audio capture"}
@@ -264,7 +264,7 @@ export default function OnboardingPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
               <Check className="h-7 w-7" />
             </div>
-            <h1 className="font-display text-2xl text-foreground mb-2">
+            <h1 className="text-2xl font-medium font-body text-foreground mb-2">
               What should we call you?
             </h1>
             <p className="text-[15px] text-muted-foreground mb-8">

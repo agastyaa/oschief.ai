@@ -17,9 +17,13 @@ interface Message {
 }
 
 const recipes = [
-  { label: "TL;DR", color: "bg-blue-400/70" },
-  { label: "Action items", color: "bg-emerald-400/70" },
-  { label: "Weekly recap", color: "bg-orange-400/70" },
+  { label: "TL;DR", color: "bg-blue-400/70", prompt: "Give me a brief TL;DR of these notes." },
+  { label: "Action items", color: "bg-emerald-400/70", prompt: "List all action items with owners. Format: **Name** — task." },
+  { label: "My action items", color: "bg-emerald-400/70", prompt: "Only things I need to do from these notes/meetings. Include enough context so I remember what it's about in 3 days. Ignore everyone else's tasks." },
+  { label: "Follow-up email", color: "bg-violet-400/70", prompt: "Draft a follow-up email: One line thanks (not effusive), 2-3 key decisions/takeaways as bullets, action items with owners, next meeting if scheduled. Under 150 words. Professional, direct." },
+  { label: "Slack update", color: "bg-amber-400/70", prompt: "Slack message for people who weren't there. 3-5 bullets. Casual but informative. No emoji. No fluff." },
+  { label: "Decisions only", color: "bg-sky-400/70", prompt: "List only the decisions made. For each: what was decided, who decided it, and any caveats." },
+  { label: "Weekly recap", color: "bg-orange-400/70", prompt: "Weekly recap of key outcomes and action items across these notes." },
 ];
 
 export default function AskSyag() {
@@ -179,7 +183,7 @@ export default function AskSyag() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
             <div className="flex h-full flex-col items-center justify-center px-6">
-              <h1 className="font-display text-2xl text-foreground mb-6">Ask anything about your notes</h1>
+              <h1 className="text-lg text-foreground font-medium font-body mb-6">Ask anything about your notes</h1>
 
               {/* Input card */}
               <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-sm p-4 mb-5">
@@ -253,7 +257,7 @@ export default function AskSyag() {
                 {recipes.map((r) => (
                   <button
                     key={r.label}
-                    onClick={() => handleSend(r.label, r)}
+                    onClick={() => handleSend(r.prompt ?? r.label, r)}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-all hover:shadow-sm hover:border-ring/20"
                   >
                     <span className={cn("h-2.5 w-1 rounded-full", r.color)} />

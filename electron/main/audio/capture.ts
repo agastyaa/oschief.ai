@@ -22,11 +22,11 @@ let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
 
-// Near real-time (Granola-style): process every 4s when active, 15s when idle
+// Near real-time: process every 4s when active, 15s when idle
 const CHUNK_INTERVAL_ACTIVE_MS = 4000
 const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
-// Auto-pause only when both mic and system audio have had no detected speech for 5 min (Granola-style)
+// Auto-pause only when both mic and system audio have had no detected speech for 5 min
 const AUTO_PAUSE_SILENCE_MS = 300000
 const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (near real-time, APIs support short audio)
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
@@ -269,12 +269,14 @@ async function processBufferedAudio(): Promise<void> {
         sttResult = { text, words: [] }
       }
 
-      if (sttResult.text.trim()) {
+      const trimmed = sttResult.text.trim()
+      const isFillerOnly = /^(uh|um|uhm|hmm|mm|eh|ah)\s*\.?$/i.test(trimmed) || trimmed.length < 2
+      if (trimmed && !isFillerOnly) {
         lastSpeechTime = Date.now()
         transcriptCallback({
           speaker,
           time: formatTimestamp(chunkStartSec),
-          text: sttResult.text.trim(),
+          text: trimmed,
         })
       }
     } catch (err: any) {

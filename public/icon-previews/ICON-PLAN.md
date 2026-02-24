@@ -12,10 +12,10 @@
 | **Mac Dock / Finder (app icon)** | app-icon.svg | Rendered at 1024→iconset→icon.icns. Same dark rounded icon in the Dock. |
 | **In-app (beside “syag” in sidebar)** | app-icon.svg | Rendered at 96×96 → syag-logo-inapp.png. Shows next to “syag” text. |
 | **Favicon** | app-icon.svg | 32×32 PNG. |
-| **Menu bar (tray)** | tray-icon.svg | Rendered at 44×44 (2x). Black-on-transparent, macOS standard like Claude/Granola/Cursor. |
+| **Menu bar (tray)** | tray-icon.svg | Rendered at 44×44 (2x). Black-on-transparent, macOS standard like Claude/Syag/Cursor. |
 | **Tray when recording** | tray-icon.svg + red dot | Same icon with small red dot overlay. |
 
-## macOS tray standard (Claude, Granola, Cursor)
+## macOS tray standard (Claude, Syag, Cursor)
 
 - Single color (black/dark) on transparent so the system can tint for light/dark menu bar.
 - Size: 22pt @1x, 44pt @2x → we use 44×44 px.

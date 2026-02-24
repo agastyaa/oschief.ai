@@ -53,7 +53,7 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   weeklyDigest: false,
   calendarSync: true,
   showUpcoming: true,
-  meetingDetectionRequireMic: false,
+  meetingDetectionRequireMic: true,
 };
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
@@ -88,7 +88,7 @@ function SettingRow({ label, description, children }: { label: string; descripti
 function SectionHeader({ title, description }: { title: string; description?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="font-display text-lg text-foreground">{title}</h2>
+      <h2 className="text-lg text-foreground font-medium font-body">{title}</h2>
       {description && <p className="text-[12px] text-muted-foreground mt-1">{description}</p>}
     </div>
   );
@@ -115,7 +115,7 @@ function loadPreferences(): Preferences {
   try {
     const raw = localStorage.getItem(PREFS_LS_KEY);
     if (raw) return { ...defaultPrefs, ...JSON.parse(raw) };
-  } catch {}
+  } catch { /* ignore */ }
   return defaultPrefs;
 }
 
@@ -142,7 +142,7 @@ function loadAccount() {
   try {
     const raw = localStorage.getItem(ACCOUNT_LS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { /* ignore */ }
   return { name: "", email: "", role: "", company: "" };
 }
 
@@ -229,7 +229,7 @@ function TemplatesSection() {
     if (!api) return;
     api.db.settings.get("custom-templates").then((val: string | null) => {
       if (val) {
-        try { setCustomTemplates(JSON.parse(val)); } catch {}
+        try { setCustomTemplates(JSON.parse(val)); } catch { /* ignore */ }
       }
     });
   }, []);
@@ -376,7 +376,7 @@ export default function SettingsPage() {
           if (val !== null) {
             loaded[uiKey] = JSON.parse(val);
           }
-        } catch {}
+        } catch { /* ignore */ }
       }
       setToggles(loaded);
       setTogglesLoaded(true);
@@ -424,8 +424,12 @@ export default function SettingsPage() {
     localModels
       .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
       .forEach((m) => out.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local Models" }));
-    if (appleFoundationAvailable) {
-      out.push({ value: "apple:default", label: "Apple Intelligence (On-Device)", group: "Apple" });
+    if (api?.app?.getPlatform?.() === "darwin") {
+      out.push({
+        value: "apple:default",
+        label: appleFoundationAvailable ? "Apple Intelligence (On-Device)" : "Apple Intelligence (On-Device) — macOS 26+ (Tahoe)",
+        group: "Apple",
+      });
     }
     Object.entries(connectedProviders)
       .filter(([_, v]) => v.connected)
@@ -440,7 +444,7 @@ export default function SettingsPage() {
         );
       });
     return out;
-  }, [connectedProviders, downloadStates, appleFoundationAvailable]);
+  }, [api, connectedProviders, downloadStates, appleFoundationAvailable]);
 
   // Build STT model options: local + system (darwin) + connected providers (sttOnly all, supportsStt whisper-only)
   const sttOptions = useMemo(() => {
@@ -556,7 +560,7 @@ export default function SettingsPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
-          <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
+          <h1 className="text-2xl text-foreground font-medium font-body mb-6">Settings</h1>
 
           <div className="flex gap-8">
             <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 sticky top-4 self-start">

@@ -19,7 +19,7 @@ export function MeetingCard({ meeting, selected, onClick }: MeetingCardProps) {
           : "bg-transparent hover:bg-card/60 border border-transparent"
       )}
     >
-      <h3 className="font-display text-[15px] font-normal text-foreground leading-snug">
+      <h3 className="text-[15px] font-normal text-foreground font-body leading-snug">
         {meeting.title}
       </h3>
       <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">

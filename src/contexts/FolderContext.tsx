@@ -34,7 +34,7 @@ function loadFoldersFromLS(): { folders: Folder[]; noteFolders: Record<string, s
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { /* ignore */ }
   return { folders: [], noteFolders: {} };
 }
 
@@ -56,7 +56,7 @@ export function FolderProvider({ children }: { children: ReactNode }) {
     if (!api) {
       try {
         localStorage.setItem(LS_KEY, JSON.stringify({ folders, noteFolders }));
-      } catch {}
+      } catch { /* ignore */ }
     }
   }, [folders, noteFolders]);
 

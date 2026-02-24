@@ -150,7 +150,7 @@ export function ActionItemsThisWeek({
 
   return (
     <div className="mb-8">
-      <h2 className="font-display text-lg text-foreground mb-3">Action items</h2>
+      <h2 className="text-sm font-medium text-foreground mb-3">Action items</h2>
       <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
         {emptyState ? (
           <div className="px-4 py-6 text-center">
@@ -170,8 +170,8 @@ export function ActionItemsThisWeek({
         ) : (
           <>
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 px-4 py-2 bg-muted/30 border-b border-border text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-              <span className="w-8">Status</span>
-              <span>Who — What</span>
+              <span className="w-8" aria-hidden />
+              <span>Tasks</span>
               <span className="min-w-[6rem]">Deadline</span>
               <span className="w-8" aria-hidden />
               <span className="w-8" aria-hidden />
@@ -207,9 +207,6 @@ export function ActionItemsThisWeek({
                       )}
                     </button>
                     <div className="min-w-0 flex flex-col gap-0.5">
-                      {assignee && (
-                        <span className="text-[11px] text-muted-foreground">Who: {assignee}</span>
-                      )}
                       {isEditing ? (
                         <input
                           autoFocus
@@ -258,7 +255,7 @@ export function ActionItemsThisWeek({
                       <button
                         type="button"
                         onClick={() => onRemoveManual(manualItem!.id)}
-                        className="flex-shrink-0 p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        className="flex-shrink-0 p-1 rounded text-muted-foreground hover:text-destructive transition-colors"
                         aria-label="Remove"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

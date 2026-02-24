@@ -29,7 +29,7 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md">
         <SheetHeader className="text-left pb-4">
-          <SheetTitle className="font-display text-xl leading-snug pr-6">
+          <SheetTitle className="text-xl font-medium font-body leading-snug pr-6">
             {event.title}
           </SheetTitle>
         </SheetHeader>

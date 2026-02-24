@@ -1,8 +1,7 @@
 /**
- * Generates tray, app (Dock), and in-app icons from assets.
- * - public/app-icon.png (or .svg) → in-app logo, favicon only (not Dock)
- * - public/dock-icon.png → Mac app / Dock icon (.icns) only; if missing, app-icon is used for .icns
- * - public/tray-icon.png (or .svg) → menu bar tray (22px, white for dark menu bar)
+ * Generates tray, app (Dock), and in-app icons from a single brand source.
+ * In-app, favicon, Dock: app-icon.png or app-icon.svg (dock-icon.png overrides Dock only if present).
+ * Tray: public/tray-icon-template-2x.png (44×44, black on transparent, macOS template) takes precedence; else tray-icon-menubar.png; else tray-icon-wave; else app icon.
  * Run: node scripts/generate-all-icons.js
  * Requires: sharp (devDependency). For .icns: macOS with iconutil.
  */
@@ -16,69 +15,130 @@ const root = path.join(__dirname, '..')
 const appIconPng = path.join(root, 'public', 'app-icon.png')
 const appIconSvg = path.join(root, 'public', 'app-icon.svg')
 const dockIconPng = path.join(root, 'public', 'dock-icon.png')
-const trayIconPng = path.join(root, 'public', 'tray-icon.png')
-const trayIconSvg = path.join(root, 'public', 'tray-icon.svg')
+const trayWaveSvg = path.join(root, 'public', 'tray-icon-wave.svg')
+const trayWavePng = path.join(root, 'public', 'tray-icon-wave.png')
+const trayMenubarPng = path.join(root, 'public', 'tray-icon-menubar.png')
+// macOS template (black on transparent, 44×44); use as-is, no processing — takes precedence
+const trayTemplate2xPng = path.join(root, 'public', 'tray-icon-template-2x.png')
+// In-app and dock: use as-is (no resize/processing) when these exist
+const inAppIconAsIs = path.join(root, 'public', 'in-app-icon.png')
+const dockIcon1024 = path.join(root, 'public', 'dock-icon-1024.png')
 
-// macOS menu bar tray standard: 22×22 (1x); ChatGPT, Claude, Cursor use this size
-const TRAY_SIZE = 22
+// macOS menu bar: 22pt; use 44×44 for Retina (2x) so icon stays sharp and strokes intact
+const TRAY_SIZE = 44
+// Pixels darker than this become transparent (removes dark background from tray asset)
+const DARK_BG_THRESHOLD = 80
+// macOS app icon: content inset so graphic doesn't touch edges (HIG)
+const DOCK_ICON_INSET = 0.12
+
+function luminance(r, g, b) {
+  return (0.299 * r + 0.587 * g + 0.114 * b) | 0
+}
+
+/** Strip dark background: set alpha to 0 for pixels with luminance <= threshold. */
+async function stripDarkBackground(inputBuf) {
+  const { data, info } = await sharp(inputBuf)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const { width, height, channels } = info
+  for (let i = 0; i < data.length; i += channels) {
+    const lum = luminance(data[i], data[i + 1], data[i + 2])
+    if (lum <= DARK_BG_THRESHOLD) data[i + 3] = 0
+  }
+  return sharp(Buffer.from(data), { raw: { width, height, channels: 4 } })
+    .png({ compressionLevel: 6 })
+    .toBuffer()
+}
+
+/** For white-on-black tray asset: remove black (transparent), make all strokes full white. */
+async function trayWhiteOnBlack(inputBuf) {
+  const { data, info } = await sharp(inputBuf)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const { width, height, channels } = info
+  for (let i = 0; i < data.length; i += channels) {
+    const lum = luminance(data[i], data[i + 1], data[i + 2])
+    if (lum <= DARK_BG_THRESHOLD) {
+      data[i + 3] = 0
+    } else {
+      data[i] = 255
+      data[i + 1] = 255
+      data[i + 2] = 255
+      data[i + 3] = 255
+    }
+  }
+  return sharp(Buffer.from(data), { raw: { width, height, channels: 4 } })
+    .png({ compressionLevel: 6 })
+    .toBuffer()
+}
 
 async function main() {
   const usePngForApp = fs.existsSync(appIconPng)
   if (!usePngForApp && !fs.existsSync(appIconSvg)) throw new Error('Missing public/app-icon.png or public/app-icon.svg')
-  const usePngForTray = fs.existsSync(trayIconPng)
-  if (!usePngForTray && !fs.existsSync(trayIconSvg)) throw new Error('Missing public/tray-icon.png or public/tray-icon.svg')
 
   const appIconBuf = usePngForApp ? fs.readFileSync(appIconPng) : fs.readFileSync(appIconSvg)
 
-  // ─── 1. Tray icon (22×22; white on transparent for dark menu bar) ───
-  let trayPng
-  if (usePngForTray) {
-    const buf = fs.readFileSync(trayIconPng)
-    trayPng = await sharp(buf)
-      .ensureAlpha()
-      .negate({ alpha: false })  // black → white for menu bar visibility
-      .resize(TRAY_SIZE, TRAY_SIZE)
-      .png({ compressionLevel: 6 })
+  // ─── 1. Tray icon ───
+  // When tray template @2x exists in resources, app uses file as-is (no regeneration, dark/light handled separately)
+  const trayTemplateInResources = path.join(root, 'electron', 'resources', 'tray-icon-template-2x.png')
+  if (!fs.existsSync(trayTemplate2xPng) && !fs.existsSync(trayTemplateInResources)) {
+    let traySourceBuf = appIconBuf
+    let trayUseNegate = true
+    let trayStripDarkBg = false
+    if (fs.existsSync(trayMenubarPng)) {
+      traySourceBuf = fs.readFileSync(trayMenubarPng)
+      trayUseNegate = false
+      trayStripDarkBg = true
+    } else if (fs.existsSync(trayWavePng)) {
+      traySourceBuf = fs.readFileSync(trayWavePng)
+    } else if (fs.existsSync(trayWaveSvg)) {
+      traySourceBuf = fs.readFileSync(trayWaveSvg)
+    }
+    let pipeline = sharp(traySourceBuf).ensureAlpha()
+    if (trayUseNegate) pipeline = pipeline.negate({ alpha: false })
+    let resized = await pipeline
+      .resize(TRAY_SIZE, TRAY_SIZE, { kernel: sharp.kernel.lanczos3 })
+      .png()
       .toBuffer()
-  } else {
-    let traySvg = fs.readFileSync(trayIconSvg).toString('utf8')
-    const darkColors = [/#111111/gi, /#000000/gi, /#333333/gi, /#222222/gi, /black/gi]
-    for (const re of darkColors) traySvg = traySvg.replace(re, '#ffffff')
-    trayPng = await sharp(Buffer.from(traySvg))
-      .resize(TRAY_SIZE, TRAY_SIZE)
-      .png({ compressionLevel: 6 })
-      .toBuffer()
-  }
-
-  // Same icon for idle and recording (timer in app is enough; no red dot on tray)
-  const trayOutPath = path.join(root, 'electron', 'main', 'tray-icons.generated.ts')
-  const trayContent = `// Generated by scripts/generate-all-icons.js - do not edit by hand
+    if (trayStripDarkBg) resized = await trayWhiteOnBlack(resized)
+    const trayPng = resized
+    const trayOutPath = path.join(root, 'electron', 'main', 'tray-icons.generated.ts')
+    const trayContent = `// Generated by scripts/generate-all-icons.js - do not edit by hand
 export const TRAY_ICON_BASE64 = '${trayPng.toString('base64')}'
 export const TRAY_ICON_RECORDING_BASE64 = '${trayPng.toString('base64')}'
 `
-  fs.mkdirSync(path.dirname(trayOutPath), { recursive: true })
-  fs.writeFileSync(trayOutPath, trayContent, 'utf8')
-  console.log('Wrote', trayOutPath)
+    fs.mkdirSync(path.dirname(trayOutPath), { recursive: true })
+    fs.writeFileSync(trayOutPath, trayContent, 'utf8')
+    console.log('Wrote', trayOutPath)
+    const previewDir = path.join(root, 'public', 'icon-previews')
+    fs.mkdirSync(previewDir, { recursive: true })
+    fs.writeFileSync(path.join(previewDir, 'preview-tray-22.png'), trayPng)
+    console.log('Wrote public/icon-previews/preview-tray-22.png')
+  } else {
+    console.log('Tray: using file as-is (electron/resources/tray-icon-template-2x.png or public); skipping tray regeneration')
+  }
 
-  const previewDir = path.join(root, 'public', 'icon-previews')
-  fs.mkdirSync(previewDir, { recursive: true })
-  fs.writeFileSync(path.join(previewDir, 'preview-tray-22.png'), trayPng)
-  console.log('Wrote public/icon-previews/preview-tray-22.png (22×22 tray preview)')
-
-  // ─── 2. In-app icon (96×96); bundle from src/assets in Electron ───
-  const inAppPng = await sharp(appIconBuf).resize(96, 96).png().toBuffer()
-  fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppPng)
-  fs.writeFileSync(path.join(root, 'src', 'assets', 'syag-logo-inapp.png'), inAppPng)
-  console.log('Wrote public/syag-logo-inapp.png and src/assets/syag-logo-inapp.png')
+  // ─── 2. In-app icon ─── use in-app-icon.png when present; strip black background only (design as-is, no black)
+  if (fs.existsSync(inAppIconAsIs)) {
+    let inAppBuf = fs.readFileSync(inAppIconAsIs)
+    inAppBuf = await stripDarkBackground(inAppBuf)
+    fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppBuf)
+    fs.writeFileSync(path.join(root, 'src', 'assets', 'syag-logo-inapp.png'), inAppBuf)
+    console.log('Wrote public/syag-logo-inapp.png and src/assets/syag-logo-inapp.png (in-app icon, black stripped)')
+  } else {
+    const inAppPng = await sharp(appIconBuf).resize(96, 96).png().toBuffer()
+    fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppPng)
+    fs.writeFileSync(path.join(root, 'src', 'assets', 'syag-logo-inapp.png'), inAppPng)
+    console.log('Wrote public/syag-logo-inapp.png and src/assets/syag-logo-inapp.png')
+  }
 
   const favicon = await sharp(appIconBuf).resize(32, 32).png().toBuffer()
   fs.writeFileSync(path.join(root, 'public', 'favicon.png'), favicon)
   console.log('Wrote public/favicon.png')
 
-  // ─── 3. Mac app icon / Dock (.icns) ─── uses dock-icon.png if present, else app icon
-  const dockIconBuf = fs.existsSync(dockIconPng) ? fs.readFileSync(dockIconPng) : appIconBuf
-  const app1024 = await sharp(dockIconBuf).resize(1024, 1024).png().toBuffer()
-
+  // ─── 3. Mac app icon / Dock (.icns) ─── use dock-icon-1024.png as-is (no processing) when present; else app/dock-icon with strip/inset
   const resourcesDir = path.join(root, 'electron', 'resources')
   const iconsetDir = path.join(resourcesDir, 'icon.iconset')
   fs.mkdirSync(iconsetDir, { recursive: true })
@@ -95,10 +155,42 @@ export const TRAY_ICON_RECORDING_BASE64 = '${trayPng.toString('base64')}'
     [512, 'icon_512x512.png'],
     [1024, 'icon_512x512@2x.png'],
   ]
-  const base = sharp(app1024)
-  for (const [size, name] of entries) {
-    const buf = await base.clone().resize(size, size).png().toBuffer()
-    fs.writeFileSync(path.join(iconsetDir, name), buf)
+
+  if (fs.existsSync(dockIcon1024)) {
+    const raw1024 = fs.readFileSync(dockIcon1024)
+    fs.writeFileSync(path.join(iconsetDir, 'icon_512x512@2x.png'), raw1024)
+    const base = sharp(raw1024)
+    for (const [size, name] of entries) {
+      if (name === 'icon_512x512@2x.png') continue
+      const buf = await base.clone().resize(size, size).png().toBuffer()
+      fs.writeFileSync(path.join(iconsetDir, name), buf)
+    }
+    console.log('Dock: using dock-icon-1024.png as-is (file copied for 1024; only smaller sizes scaled)')
+  } else {
+    let dockIconBuf = fs.existsSync(dockIconPng) ? fs.readFileSync(dockIconPng) : appIconBuf
+    if (fs.existsSync(dockIconPng)) dockIconBuf = await stripDarkBackground(dockIconBuf)
+    const size1024 = 1024
+    const contentSize = Math.round(size1024 * (1 - 2 * DOCK_ICON_INSET))
+    const padded = await sharp(dockIconBuf)
+      .resize(contentSize, contentSize)
+      .png()
+      .toBuffer()
+    const app1024 = await sharp({
+      create: {
+        width: size1024,
+        height: size1024,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([{ input: padded, left: Math.round(size1024 * DOCK_ICON_INSET), top: Math.round(size1024 * DOCK_ICON_INSET) }])
+      .png()
+      .toBuffer()
+    const base = sharp(app1024)
+    for (const [size, name] of entries) {
+      const buf = await base.clone().resize(size, size).png().toBuffer()
+      fs.writeFileSync(path.join(iconsetDir, name), buf)
+    }
   }
 
   try {

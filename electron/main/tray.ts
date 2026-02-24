@@ -1,4 +1,6 @@
 import { Tray, Menu, BrowserWindow, nativeImage, app, Notification } from 'electron'
+import { join } from 'path'
+import { existsSync } from 'fs'
 import { TRAY_ICON_BASE64, TRAY_ICON_RECORDING_BASE64 } from './tray-icons.generated'
 
 let tray: Tray | null = null
@@ -9,13 +11,39 @@ let currentMeeting: { title: string; startTime: number; elapsedSeconds?: number 
 let isRecording = false
 let titleUpdateInterval: ReturnType<typeof setInterval> | null = null
 
-// Tray icons as PNG (Electron's nativeImage does not support SVG)
+const TRAY_ICON_NAME = 'tray-icon-template-2x.png'
+
+/** Path to tray icon file (44×44 template); used as-is when present, no regeneration. */
+function getTrayIconPath(): string | null {
+  const p = app.isPackaged
+    ? join(app.getPath('resourcesPath'), TRAY_ICON_NAME)
+    : join(app.getAppPath(), 'electron', 'resources', TRAY_ICON_NAME)
+  return existsSync(p) ? p : null
+}
+
+// Tray icons: load from file when present (dark/light handled by your assets); else fall back to generated base64.
 function createTrayIcon(): Electron.NativeImage {
-  return nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
+  const path = getTrayIconPath()
+  if (path) {
+    const image = nativeImage.createFromPath(path)
+    if (process.platform === 'darwin') image.setTemplateImage(true)
+    return image
+  }
+  const image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
+  if (process.platform === 'darwin') image.setTemplateImage(true)
+  return image
 }
 
 function createRecordingIcon(): Electron.NativeImage {
-  return nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
+  const path = getTrayIconPath()
+  if (path) {
+    const image = nativeImage.createFromPath(path)
+    if (process.platform === 'darwin') image.setTemplateImage(true)
+    return image
+  }
+  const image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
+  if (process.platform === 'darwin') image.setTemplateImage(true)
+  return image
 }
 
 function formatElapsed(startTime: number): string {

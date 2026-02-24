@@ -152,7 +152,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const stopSpeechRecognition = useCallback(() => {
     if (speechRecRef.current) {
-      try { speechRecRef.current.abort(); } catch {}
+      try { speechRecRef.current.abort(); } catch { /* ignore */ }
       speechRecRef.current = null;
     }
     setUsingWebSpeech(false);
@@ -201,7 +201,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
     recognition.onend = () => {
       if (speechRecRef.current === recognition) {
-        try { recognition.start(); } catch {}
+        try { recognition.start(); } catch { /* ignore */ }
       }
     };
 
@@ -225,7 +225,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     try {
       const storedDevice = await api.db.settings.get('audio-input-device');
       if (storedDevice) preferredDeviceId = storedDevice;
-    } catch {}
+    } catch { /* ignore */ }
 
     try {
       await api.recording.start({ sttModel: sttModel || '' });
@@ -344,7 +344,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       await api.recording.pause();
     }
     if (speechRecRef.current) {
-      try { speechRecRef.current.abort(); } catch {}
+      try { speechRecRef.current.abort(); } catch { /* ignore */ }
       speechRecRef.current = null;
       setUsingWebSpeech(false);
     }

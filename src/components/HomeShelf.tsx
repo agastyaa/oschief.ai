@@ -17,7 +17,7 @@ export function getShelfOpenDefault(): boolean {
 export function setShelfOpenPersist(open: boolean): void {
   try {
     localStorage.setItem(SHELF_STORAGE_KEY, String(open));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 interface HomeShelfProps {
@@ -29,6 +29,8 @@ interface HomeShelfProps {
   onStartNotesForEvent: (evt: CalendarEvent) => void;
   onOpenCalendar: () => void;
   hasNotes: boolean;
+  /** When true, do not take full height (e.g. when used above Action items in sidebar) */
+  compact?: boolean;
 }
 
 export function HomeShelf({
@@ -40,14 +42,15 @@ export function HomeShelf({
   onStartNotesForEvent,
   onOpenCalendar,
   hasNotes,
+  compact,
 }: HomeShelfProps) {
   return (
-    <div className="flex flex-col h-full overflow-hidden border-l border-border bg-card/30">
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+    <div className={compact ? "flex flex-col min-h-0" : "flex flex-col h-full overflow-hidden border-l border-border bg-card/30"}>
+      <div className={compact ? "space-y-6" : "flex-1 overflow-y-auto p-4 space-y-6"}>
         {/* Coming up */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-lg text-foreground">Coming up</h2>
+            <h2 className="text-sm font-medium text-foreground">Coming up</h2>
             {hasNotes && (
               <button
                 onClick={onQuickNote}
@@ -108,7 +111,7 @@ export function HomeShelf({
         {/* Event detail inline */}
         {selectedEvent && (
           <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-            <h3 className="font-display text-sm font-medium text-foreground pr-2">{selectedEvent.title}</h3>
+            <h3 className="text-sm font-medium text-foreground pr-2">{selectedEvent.title}</h3>
             <div className="flex items-start gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <div className="min-w-0">

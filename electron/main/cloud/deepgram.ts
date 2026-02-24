@@ -12,7 +12,7 @@ export async function sttDeepgram(
   apiKey: string
 ): Promise<string> {
   const model = MODEL_MAP[modelName] || 'nova-2'
-  const url = `https://api.deepgram.com/v1/listen?model=${model}&language=en&smart_format=true`
+  const url = `https://api.deepgram.com/v1/listen?model=${model}&language=en&smart_format=true&punctuate=true&utterances=false`
 
   try {
     const { statusCode, data } = await netFetch(url, {

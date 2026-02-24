@@ -3,7 +3,7 @@ import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Sta
 import { SyagLogo } from "@/components/SyagLogo";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
 
 const iconMap = {
@@ -17,7 +17,9 @@ const iconMap = {
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { folders, createFolder, deleteFolder, renameFolder } = useFolders();
+  const searchQuery = searchParams.get("q") ?? "";
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -45,21 +47,31 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
-      {/* Logo */}
-      <div className={cn("flex items-center gap-2 px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
-        <SyagLogo size={24} showText />
+      {/* Logo — single image, large enough to be visible */}
+      <div className={cn("flex items-center px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
+        <SyagLogo size={140} className="max-w-[180px]" />
       </div>
 
-      {/* Search — navigates to home and focuses search input */}
+      {/* Search notes — drives home list filter via ?q= */}
       <div className="px-3 py-2">
-        <button
-          onClick={() => navigate("/?focusSearch=1")}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span>Search</span>
-          <kbd className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-        </button>
+        <div className="flex items-center gap-2 rounded-md border border-border bg-background/50 px-2 py-1.5">
+          <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => {
+              const q = e.target.value;
+              const next = new URLSearchParams(location.search);
+              if (q.trim()) next.set("q", q); else next.delete("q");
+              setSearchParams(next, { replace: true });
+            }}
+            onFocus={() => location.pathname !== "/" && navigate("/")}
+            placeholder="Search notes..."
+            id="sidebar-search-input"
+            className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            aria-label="Search notes"
+          />
+        </div>
       </div>
 
       {/* Nav */}

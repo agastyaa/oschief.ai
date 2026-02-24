@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, PanelRight, PanelRightClose, Search } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, PanelRight, PanelRightClose } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -27,7 +27,7 @@ function loadManualActionItems(): ManualActionItem[] {
 function saveManualActionItems(items: ManualActionItem[]) {
   try {
     localStorage.setItem(MANUAL_ACTION_ITEMS_KEY, JSON.stringify(items));
-  } catch {}
+  } catch { /* localStorage not available */ }
 }
 
 const Index = () => {
@@ -39,9 +39,9 @@ const Index = () => {
   const [icsOpen, setIcsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [shelfOpen, setShelfOpenState] = useState(getShelfOpenDefault);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("q") ?? "";
   const [manualActionItems, setManualActionItems] = useState<ManualActionItem[]>(() => loadManualActionItems());
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const setShelfOpen = (open: boolean) => {
     setShelfOpenState(open);
@@ -81,11 +81,11 @@ const Index = () => {
     setManualActionItems((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  // Focus search when Sidebar "Search" is clicked (navigate with ?focusSearch=1)
+  // Focus sidebar search when ?focusSearch=1
   const focusSearch = searchParams.get("focusSearch") === "1";
   useEffect(() => {
-    if (focusSearch && searchInputRef.current) {
-      searchInputRef.current.focus();
+    if (focusSearch) {
+      document.getElementById("sidebar-search-input")?.focus();
       navigate("/", { replace: true });
     }
   }, [focusSearch, navigate]);
@@ -136,7 +136,7 @@ const Index = () => {
                 </button>
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-5 w-5 text-accent" />
-                  <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
+                  <h1 className="text-xl text-foreground font-medium font-body">{activeFolder.name}</h1>
                 </div>
                 <span className="text-xs text-muted-foreground">{folderNotes.length} notes</span>
               </div>
@@ -157,7 +157,7 @@ const Index = () => {
                       >
                         <FileText className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-display text-[15px] text-foreground truncate">{n.title}</h3>
+                          <h3 className="text-[15px] text-foreground font-normal truncate font-body">{n.title}</h3>
                           <span className="text-[11px] text-muted-foreground">Me</span>
                         </div>
                       </button>
@@ -203,31 +203,6 @@ const Index = () => {
         </div>
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-4">
-            {/* Search on home */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search notes..."
-                  className="w-full rounded-lg border border-border bg-card/50 pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                  aria-label="Search notes"
-                />
-              </div>
-            </div>
-
-            <ActionItemsThisWeek
-              notes={notes}
-              updateNote={updateNote}
-              manualItems={manualActionItems}
-              onAddManual={addManualActionItem}
-              onUpdateManual={updateManualActionItem}
-              onRemoveManual={removeManualActionItem}
-            />
-
             {/* Notes list */}
             {notesForList.length === 0 ? (
               <div className="text-center py-12">
@@ -236,7 +211,7 @@ const Index = () => {
                     <p className="text-sm text-muted-foreground">No notes match your search.</p>
                     <button
                       type="button"
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => setSearchParams((p) => { const next = new URLSearchParams(p); next.delete("q"); return next; }, { replace: true })}
                       className="mt-3 text-sm text-accent hover:underline"
                     >
                       Clear search
@@ -247,7 +222,7 @@ const Index = () => {
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent mx-auto mb-4">
                       <Plus className="h-6 w-6" />
                     </div>
-                    <h2 className="font-display text-lg text-foreground mb-2">No notes yet</h2>
+                    <h2 className="text-lg text-foreground font-medium mb-2 font-body">No notes yet</h2>
                     <p className="text-sm text-muted-foreground max-w-xs mx-auto">
                       Start a quick recording to capture your first meeting notes.
                     </p>
@@ -276,7 +251,7 @@ const Index = () => {
                           >
                             <FileText className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-display text-[15px] text-foreground truncate">{n.title}</h3>
+                              <h3 className="text-[15px] text-foreground font-normal truncate font-body">{n.title}</h3>
                               <span className="text-[11px] text-muted-foreground">Me</span>
                             </div>
                           </button>
@@ -308,7 +283,8 @@ const Index = () => {
         </div>
       </main>
       {shelfOpen && (
-        <div className="w-80 flex-shrink-0 flex flex-col h-full">
+        <div className="w-80 flex-shrink-0 flex flex-col h-full overflow-y-auto border-l border-border bg-card/30">
+          <div className="p-4 space-y-6 flex flex-col">
           <HomeShelf
             upcomingEvents={upcomingEvents}
             icsSource={icsSource}
@@ -321,7 +297,17 @@ const Index = () => {
             }}
             onOpenCalendar={() => setIcsOpen(true)}
             hasNotes={notes.length > 0}
+            compact
           />
+          <ActionItemsThisWeek
+            notes={notes}
+            updateNote={updateNote}
+            manualItems={manualActionItems}
+            onAddManual={addManualActionItem}
+            onUpdateManual={updateManualActionItem}
+            onRemoveManual={removeManualActionItem}
+          />
+          </div>
         </div>
       )}
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />

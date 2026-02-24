@@ -41,7 +41,7 @@ function loadNotesFromLS(): SavedNote[] {
 function saveNotesToLS(notes: SavedNote[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);

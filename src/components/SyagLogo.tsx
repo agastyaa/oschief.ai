@@ -2,29 +2,26 @@ import { cn } from "@/lib/utils";
 import logoSrc from "@/assets/syag-logo-inapp.png";
 
 interface SyagLogoProps {
+  /** Width in pixels; height is auto to preserve aspect ratio. Use larger value (e.g. 140) for sidebar. */
   size?: number;
   className?: string;
+  /** No longer used — logo image includes SYAG AI text. Kept for API compatibility. */
   showText?: boolean;
 }
 
 /**
- * Syag logo — in-app mark. Uses bundled asset so it loads in Electron.
- * Transparent background blends with app; dark mode uses invert so logo stays visible.
- * Sizing: 24px sidebar, 20px tray menu per macOS/HIG.
+ * Syag logo — single in-app image (graphic + SYAG AI text). No separate text label.
  */
-export function SyagLogo({ size = 24, className, showText = false }: SyagLogoProps) {
+export function SyagLogo({ size = 24, className, showText: _showText }: SyagLogoProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2 bg-transparent", className)}>
+    <span className={cn("inline-flex items-center bg-transparent", className)}>
       <img
         src={logoSrc}
-        alt="Syag"
+        alt="SYAG AI"
         width={size}
-        height={size}
-        className="flex-shrink-0 object-contain dark:invert"
+        className="flex-shrink-0 object-contain object-left"
+        style={{ width: size, height: "auto" }}
       />
-      {showText && (
-        <span className="font-display text-lg text-foreground tracking-tight">syag</span>
-      )}
     </span>
   );
 }
