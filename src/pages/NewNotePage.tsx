@@ -533,10 +533,10 @@ export default function NewNotePage() {
       summary.overview,
       "",
       "## Key Points",
-      ...summary.keyPoints.map((p) => `• ${p}`),
+      ...(summary.keyPoints ?? []).map((p) => `• ${p}`),
       "",
       "## Next Steps",
-      ...summary.nextSteps.map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
+      ...(summary.nextSteps ?? summary.actionItems ?? []).map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
     ].join("\n");
     navigator.clipboard.writeText(text);
     setShowMoreMenu(false);

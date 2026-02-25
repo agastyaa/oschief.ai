@@ -36,7 +36,7 @@ function getActionsThisWeek(notes: SavedNote[]): ActionItemWithSource[] {
   for (const note of notes) {
     const d = parseNoteDate(note.date);
     if (!d || !isWithinInterval(d, { start, end })) continue;
-    const steps = note.summary?.nextSteps ?? [];
+    const steps = note.summary?.nextSteps ?? note.summary?.actionItems ?? [];
     steps.forEach((s, i) => {
       out.push({ noteId: note.id, index: i, text: s.text, assignee: s.assignee, done: s.done, dueDate: s.dueDate });
     });
@@ -82,10 +82,13 @@ export function ActionItemsThisWeek({
   const handleToggle = (item: ActionItemWithSource) => {
     const note = notes.find((n) => n.id === item.noteId);
     if (!note?.summary) return;
-    const nextSteps = [...(note.summary.nextSteps ?? [])];
-    if (nextSteps[item.index] == null) return;
-    nextSteps[item.index] = { ...nextSteps[item.index], done: !nextSteps[item.index].done };
-    updateNote(note.id, { summary: { ...note.summary, nextSteps } });
+    const steps = note.summary.nextSteps ?? note.summary.actionItems ?? [];
+    const updated = [...steps];
+    if (updated[item.index] == null) return;
+    updated[item.index] = { ...updated[item.index], done: !updated[item.index].done };
+    const patch: Record<string, unknown> = { nextSteps: updated };
+    if (note.summary.actionItems) patch.actionItems = updated.map(s => ({ ...s, priority: "medium" as const }));
+    updateNote(note.id, { summary: { ...note.summary, ...patch } });
   };
 
   const handleStartEdit = (item: ActionItemWithSource) => {
@@ -99,23 +102,29 @@ export function ActionItemsThisWeek({
       setEditingKey(null);
       return;
     }
-    const nextSteps = [...(note.summary.nextSteps ?? [])];
-    if (nextSteps[item.index] == null) {
+    const steps = note.summary.nextSteps ?? note.summary.actionItems ?? [];
+    const updated = [...steps];
+    if (updated[item.index] == null) {
       setEditingKey(null);
       return;
     }
-    nextSteps[item.index] = { ...nextSteps[item.index], text: editText.trim() };
-    updateNote(note.id, { summary: { ...note.summary, nextSteps } });
+    updated[item.index] = { ...updated[item.index], text: editText.trim() };
+    const patch: Record<string, unknown> = { nextSteps: updated };
+    if (note.summary.actionItems) patch.actionItems = updated.map(s => ({ ...s, priority: "medium" as const }));
+    updateNote(note.id, { summary: { ...note.summary, ...patch } });
     setEditingKey(null);
   };
 
   const handleDueDateChange = (item: ActionItemWithSource, value: string) => {
     const note = notes.find((n) => n.id === item.noteId);
     if (!note?.summary) return;
-    const nextSteps = [...(note.summary.nextSteps ?? [])];
-    if (nextSteps[item.index] == null) return;
-    nextSteps[item.index] = { ...nextSteps[item.index], dueDate: value || undefined };
-    updateNote(note.id, { summary: { ...note.summary, nextSteps } });
+    const steps = note.summary.nextSteps ?? note.summary.actionItems ?? [];
+    const updated = [...steps];
+    if (updated[item.index] == null) return;
+    updated[item.index] = { ...updated[item.index], dueDate: value || undefined };
+    const patch: Record<string, unknown> = { nextSteps: updated };
+    if (note.summary.actionItems) patch.actionItems = updated.map(s => ({ ...s, priority: "medium" as const }));
+    updateNote(note.id, { summary: { ...note.summary, ...patch } });
   };
 
   const handleToggleManual = (item: ManualActionItem) => {

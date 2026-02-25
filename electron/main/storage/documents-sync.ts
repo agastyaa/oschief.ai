@@ -30,7 +30,7 @@ function noteToMarkdown(note: {
   time: string
   duration: string
   personalNotes?: string
-  summary?: { overview: string; keyPoints: string[]; nextSteps: { text: string; assignee: string; done: boolean }[] } | null
+  summary?: { overview: string; keyPoints?: string[]; nextSteps?: { text: string; assignee: string; done: boolean }[]; actionItems?: { text: string; assignee: string; done: boolean }[] } | null
 }): string {
   const lines: string[] = [
     `# ${(note.title || 'Meeting notes').trim()}`,
@@ -48,9 +48,10 @@ function noteToMarkdown(note: {
       note.summary.keyPoints.forEach((p) => lines.push(`- ${p}`))
       lines.push('')
     }
-    if (note.summary.nextSteps?.length) {
+    const steps = note.summary.nextSteps ?? note.summary.actionItems ?? []
+    if (steps.length) {
       lines.push('## Next steps', '')
-      note.summary.nextSteps.forEach((s) => {
+      steps.forEach((s: { text: string; assignee: string; done: boolean }) => {
         const mark = s.done ? '✓' : '○'
         lines.push(`- ${mark} ${s.text} — ${s.assignee}`)
       })

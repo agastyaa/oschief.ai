@@ -666,6 +666,10 @@ export interface MeetingSummary {
     priority: 'high' | 'medium' | 'low'
     done: boolean
   }>
+  /** Alias for actionItems — ActionItemsThisWeek and clipboard expect nextSteps */
+  nextSteps: Array<{ text: string; assignee: string; done: boolean; dueDate?: string }>
+  /** Derived from topic bullets for clipboard/display */
+  keyPoints: string[]
   questionsAndOpenItems: string[]
   followUps: string[]
   keyQuotes: Array<{ speaker: string; text: string }>
@@ -677,6 +681,21 @@ export function parsedToMeetingSummary(
   title = 'Meeting Notes',
   meetingType = 'general',
 ): MeetingSummary {
+  const actionItems = parsed.actionItems.map(a => ({
+    text: a.text,
+    assignee: a.assignee,
+    dueDate: a.dueDate ?? undefined,
+    priority: 'medium' as const,
+    done: a.done,
+  }))
+  const nextSteps = parsed.actionItems.map(a => ({
+    text: a.text,
+    assignee: a.assignee,
+    done: a.done,
+    dueDate: a.dueDate ?? undefined,
+  }))
+  const keyPoints = parsed.topics.flatMap(t => t.bullets.slice(0, 2)).filter(Boolean)
+
   return {
     title,
     meetingType,
@@ -688,13 +707,9 @@ export function parsedToMeetingSummary(
       summary: t.bullets.map(b => (b.startsWith('-') ? b : `- ${b}`)).join('\n') || '-',
       speakers: [],
     })),
-    actionItems: parsed.actionItems.map(a => ({
-      text: a.text,
-      assignee: a.assignee,
-      dueDate: a.dueDate ?? undefined,
-      priority: 'medium' as const,
-      done: a.done,
-    })),
+    actionItems,
+    nextSteps,
+    keyPoints,
     questionsAndOpenItems: parsed.openQuestions,
     followUps: [],
     keyQuotes: [],

@@ -87,7 +87,7 @@ function runForDueDate(
   const toSend: { noteId: string; index: number; text: string; title: string; dueDate: string }[] = []
 
   for (const note of notes) {
-    const steps = note?.summary?.nextSteps ?? []
+    const steps = note?.summary?.nextSteps ?? note?.summary?.actionItems ?? []
     const noteTitle = note?.title ?? ''
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i]

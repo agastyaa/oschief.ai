@@ -13,8 +13,12 @@ export interface SavedNote {
   transcript: { speaker: string; time: string; text: string }[];
   summary: {
     overview: string;
-    keyPoints: string[];
-    nextSteps: { text: string; assignee: string; done: boolean }[];
+    keyPoints?: string[];
+    nextSteps?: { text: string; assignee: string; done: boolean; dueDate?: string }[];
+    actionItems?: { text: string; assignee: string; done: boolean; dueDate?: string; priority?: string }[];
+    discussionTopics?: { topic: string; summary: string; speakers: string[] }[];
+    decisions?: string[];
+    questionsAndOpenItems?: string[];
   } | null;
   folderId: string | null;
 }
