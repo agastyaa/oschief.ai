@@ -28,7 +28,7 @@ export function initDatabase(): void {
 
 export function getAllNotes(): any[] {
   const rows = getDb().prepare(`
-    SELECT id, title, date, time, duration, personal_notes, transcript, summary, folder_id
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id
     FROM notes ORDER BY created_at DESC
   `).all() as any[]
   return rows.map(deserializeNote)
@@ -36,7 +36,7 @@ export function getAllNotes(): any[] {
 
 export function getNote(id: string): any | null {
   const row = getDb().prepare(`
-    SELECT id, title, date, time, duration, personal_notes, transcript, summary, folder_id
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id
     FROM notes WHERE id = ?
   `).get(id) as any
   return row ? deserializeNote(row) : null
@@ -44,14 +44,15 @@ export function getNote(id: string): any | null {
 
 export function addNote(note: any): void {
   getDb().prepare(`
-    INSERT OR REPLACE INTO notes (id, title, date, time, duration, personal_notes, transcript, summary, folder_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO notes (id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     note.id,
     note.title,
     note.date,
     note.time,
     note.duration,
+    note.timeRange ?? null,
     note.personalNotes || '',
     JSON.stringify(note.transcript || []),
     note.summary ? JSON.stringify(note.summary) : null,
@@ -67,6 +68,7 @@ export function updateNote(id: string, data: any): void {
   if (data.date !== undefined) { fields.push('date = ?'); values.push(data.date) }
   if (data.time !== undefined) { fields.push('time = ?'); values.push(data.time) }
   if (data.duration !== undefined) { fields.push('duration = ?'); values.push(data.duration) }
+  if (data.timeRange !== undefined) { fields.push('time_range = ?'); values.push(data.timeRange) }
   if (data.personalNotes !== undefined) { fields.push('personal_notes = ?'); values.push(data.personalNotes) }
   if (data.transcript !== undefined) { fields.push('transcript = ?'); values.push(JSON.stringify(data.transcript)) }
   if (data.summary !== undefined) { fields.push('summary = ?'); values.push(data.summary ? JSON.stringify(data.summary) : null) }
@@ -150,6 +152,7 @@ function deserializeNote(row: any): any {
     date: row.date,
     time: row.time,
     duration: row.duration,
+    timeRange: row.time_range ?? undefined,
     personalNotes: row.personal_notes,
     transcript: JSON.parse(row.transcript || '[]'),
     summary: row.summary ? JSON.parse(row.summary) : null,

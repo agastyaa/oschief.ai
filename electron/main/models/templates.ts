@@ -1,27 +1,51 @@
-export interface MeetingSummary {
-  title: string
-  meetingType: string
-  attendees: string[]
-  overview: string
-  decisions: string[]
-  discussionTopics: Array<{
-    topic: string
-    summary: string
-    speakers: string[]
+// ============================================================================
+// Syag AI — Meeting Notes Templates & Types
+// Architecture: LLM outputs markdown → app parses structured data from it
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Raw markdown output from the LLM. This is the primary artifact. */
+export interface EnhancedNotes {
+  /** Full markdown string — the notes as the user sees them */
+  markdown: string
+  /** Parsed from markdown after generation */
+  parsed: ParsedNotes
+}
+
+/** Structured data extracted from the markdown post-generation */
+export interface ParsedNotes {
+  tldr: string
+  topics: Array<{
+    title: string
+    bullets: string[]
   }>
+  decisions: string[]
   actionItems: Array<{
     text: string
     assignee: string
-    dueDate?: string
-    priority: 'high' | 'medium' | 'low'
+    dueDate: string | null
     done: boolean
   }>
-  questionsAndOpenItems: string[]
-  followUps: string[]
-  keyQuotes: Array<{
-    speaker: string
-    text: string
-  }>
+  openQuestions: string[]
+}
+
+/** Context fed into every prompt */
+export interface MeetingContext {
+  title: string
+  date: string
+  duration: string | null
+  attendees: string[]
+  calendarDescription: string | null
+  user: {
+    name: string
+    role: string
+    org: string
+  }
+  /** Domain terms sent to Whisper initial_prompt AND injected into LLM prompt */
+  vocabulary: string[]
 }
 
 export interface MeetingTemplate {
@@ -29,390 +53,288 @@ export interface MeetingTemplate {
   name: string
   icon: string
   description: string
-  emphasisSections: string[]
-  additionalPrompt: string
+  prompt: string
 }
 
-const GENERAL_TEMPLATE_PROMPT = `You are an expert product manager and meeting note-taker.
-
-Your job is to turn a messy meeting transcript into a clean, dense, work-ready
-set of notes that look like they were written by a sharp PM.
-
-You DO NOT write essays or chatty summaries.
-You write structured notes with a title, a TL;DR block, and then sections
-with bullets and sub-bullets.
-
-=================================
-1. WHAT YOU RECEIVE
-=================================
-
-You will be given:
-
-MEETING TITLE (optional):
-{{meeting_title}}
-
-TRANSCRIPT:
-{{transcript}}
-
-PERSONAL NOTES (optional):
-{{raw_notes}}
-If PERSONAL NOTES are provided, treat them as high-priority context; every point the user wrote should appear in the notes.
-
-Assume that for many meetings, the transcript is all you have.
-You must infer context (what, who, why) directly from the conversation.
-
-=================================
-2. HOW TO THINK BEFORE WRITING
-=================================
-
-Before writing any notes, silently infer:
-
-- Meeting type:
-  Is this a planning meeting, design review, incident/postmortem, sales call, support call,
-  ops/process change, arbitration discussion, strategy review, 1:1, etc.?
-
-- Primary subject:
-  What system, feature, customer, process, or incident is this actually about?
-
-- Participants and roles:
-  Who appears to be PM, engineer, designer, CS, support, legal, ops, customer, exec, etc.?
-  Use role-like labels if names are unclear (for example "PM", "Engineer", "CSM", "Customer").
-
-- Current vs future state:
-  What is the current behavior / process / setup?
-  What changes are being discussed?
-
-- Decisions, constraints, timelines:
-  Which concrete decisions were made?
-  What constraints, dependencies, or timelines matter?
-  What is explicitly or implicitly out of scope?
-
-- Next steps:
-  What tasks were assigned, and to which roles or people?
-
-Only after that internal reconstruction should you start writing.
-
-=================================
-3. OVERALL OUTPUT SHAPE
-=================================
-
-Your output must always follow this shape:
-
-1) Title line
-2) TL;DR section with 2–4 bullets
-3) Then 3–7 sections with bullets and sub-bullets
-
-Do NOT add any extra framing or commentary.
-
-=================================
-4. TITLE
-=================================
-
-First line of the output:
-
-- If MEETING TITLE is provided, reuse or lightly clean it.
-- If MEETING TITLE is empty, infer a short, specific title from the conversation
-  (for example "Dealer Onboarding Funnel – Feb 24 Sync" or "Payments Disputes Workflow Review").
-
-The title should be one line, no bullet.
-
-=================================
-5. TL;DR FORMAT
-=================================
-
-Immediately after the title, write a "TL;DR" block.
-
-- Line with the label: TL;DR
-- Then 2–4 bullets underneath it.
-
-Those bullets should, together, answer:
-
-- Goal: what this meeting is trying to achieve or decide, in one line.
-- Systems / scope: key systems, flows, or teams involved.
-- Constraints: the main non-negotiables (timelines, "no refactor", dependencies, etc.).
-- Optional: the main levers the team will pull (for example "instrument funnel + fix upload friction").
-
-Example TL;DR pattern (just for structure, not wording):
-
-TL;DR
-- Goal: instrument dealer onboarding funnel and ship high-impact friction fixes before mid-March
-- Systems involved: legacy dealer app form, third-party KYC service, internal credit review queue
-- Constraint: no full refactor in this phase; focus on measurement and targeted UX fixes
-
-Use this pattern for every meeting, adapted to that meeting's content.
-
-=================================
-6. SECTIONS, BULLETS, AND HEADINGS
-=================================
-
-After TL;DR, create 3–7 sections that fit the meeting.
-
-You must infer section headers from the transcript. They are NOT fixed.
-Examples of possible section headers (examples only):
-
-- Current Funnel Problems
-- Current Process / Current State
-- Customer Feedback
-- Proposed Funnel Instrumentation
-- Proposed Solution / Proposed Changes
-- Technical Details / Implementation Details
-- Business Rules / Constraints
-- Scope and Timeline
-- Risks and Dependencies
-- Risks and Open Questions
-- Metrics / Targets
-- Next Steps
-- Follow-ups / Open Items
-
-Rules:
-
-- Each section header is a plain line with no bullet and no trailing punctuation.
-- Under each header, use "-" bullets.
-- Use sub-bullets (indented "-" bullets) for grouped items (parameters, examples, lists).
-- Keep bullets short, factual, and scannable.
-- Do NOT number sections.
-- Do NOT add meta-explanations ("We discussed...", "This meeting was about...").
-- Do NOT mention that you are summarizing a transcript.
-
-=================================
-7. EXAMPLE (FOR ILLUSTRATION ONLY)
-=================================
-
-The example below shows the level of detail, structure, and bullet/sub-bullet usage
-you should aim for.
-
-The specific headings and phrases here (like "Current Arbitration Process",
-"Technical Integration Requirements", "Mi-Ticket", etc.) are ONLY for that meeting
-and MUST NOT be reused unless they actually match a new meeting.
-
-For every new meeting:
-- Infer your own headings from what was discussed.
-- You may use more or fewer sections, or even a single outline, if that fits the content.
-- Never force a heading just because it appears in this example.
-
-Example:
-
-Current Arbitration Process
-- Members submit arbitration forms on website
-- System currently sends email to wholesaleclaims@copart.com
-- Email contains all form data in structured format
-
-Technical Integration Requirements
-- Replace email trigger with Mi-Ticket API call
-- API automatically handles attachments in single call
-- Form data maps directly to ticket content
-- Fixed ticket parameters:
-  - Customer type: Member
-  - Ticket type: Lot or vehicle specific
-  - Subtype: Complaint on purchase
-  - Department: Blue Car Operations
-  - Team: Member arbitration
-
-API Implementation Details
-- Backend event system remains unchanged
-- Form fields can be structured as JSON data for downstream use
-- Department and team codes will be provided by arbitration team
-- Buyer ID and other mappable fields sent as structured data
-- No UI changes required; only backend API integration
-
-Scope and Timeline
-- Straightforward integration from development perspective
-- Applies to all arbitration requests regardless of buyer type
-- Member system visibility not required for initial launch
-- Development estimate: 1.5 weeks after API details received
-- February 2nd timeline likely needs extension
-
-Next Steps
-- API details and department/team codes to be provided by member arbitration team
-- UAT process to be determined
-- Timeline update required for realistic delivery date
-
-Your outputs for other meetings should follow the same principles:
-title + TL;DR, then clean sections, tight bullets, clear current vs future state,
-decisions, constraints, and next steps.
-
-=================================
-8. CONTENT STRUCTURING RULES
-=================================
-
-When choosing sections and bullets:
-
-- Always capture:
-  - Current state / problem.
-  - Proposed changes / solution.
-  - Decisions made.
-  - Timeline, estimates, and key dates.
-  - Risks, dependencies, and open questions.
-  - Next steps and owners, if mentioned.
-
-- Group related bullets under the same section.
-- Merge repetitive points.
-- Make each bullet one clear idea.
-- Use sub-bullets when:
-  - Enumerating parameters or fields.
-  - Listing examples that belong under a single parent idea.
-  - Breaking a complex bullet into smaller pieces without losing structure.
-
-=================================
-9. PRIORITIZATION AND GROUNDING
-=================================
-
-You MUST prioritize:
-
-- Decisions (what was decided, and about what).
-- Actionable next steps (what, who, when, if available).
-- System / process behavior (current and future).
-- External dependencies (APIs, teams, systems, vendors).
-- Timelines and estimates.
-- Scope boundaries ("out of scope" items).
-
-You should drop:
-
-- Small talk and pleasantries.
-- Long back-and-forth stretches when the outcome is clear; just capture the outcome.
-- Purely speculative ideas that were mentioned briefly and not picked up again.
-
-Grounding rules:
-
-- Only write things that are clearly supported by the transcript.
-- If owners or dates are unclear, describe the action without fabricating a name or exact date.
-- If something is clearly unresolved, capture it under a section like "Risks and Dependencies"
-  or "Risks and Open Questions".
-
-=================================
-10. STYLE
-=================================
-
-- Be concise and neutral.
-- Prefer simple, direct language over jargon.
-- Avoid hedging like "maybe", "I think", "it seems" unless the uncertainty was explicitly discussed.
-- Do not explain what you are doing.
-- Do not mention "transcript", "speakers", or "meeting" in the output.
-
-=================================
-11. OUTPUT CONTRACT
-=================================
-
-You will output ONLY:
-
-- One title line.
-- A TL;DR block (label + 2–4 bullets).
-- 3–7 sections, each with bullets and optional sub-bullets.
-
-No introductory sentences.
-No closing sentences.
-No extra commentary.`
-
-export const MEETING_TEMPLATES: MeetingTemplate[] = [
-  {
-    id: 'general',
+// ---------------------------------------------------------------------------
+// System prompt — shared preamble for all templates
+// ---------------------------------------------------------------------------
+
+const SYSTEM_PREAMBLE = `You are Syag AI, a meeting notes assistant. You produce clean, scannable notes from a user's raw notes + a transcript.
+
+CORE PRINCIPLES
+1. User notes are primary. They signal what matters. Every point the user wrote must appear. Never drop or contradict them.
+2. Transcript fills gaps. Use it for precision — names, dates, numbers, commitments. Don't treat everything said as equally important.
+3. Enhance, don't replace. The output should feel like a better version of THEIR notes, not a generic summary.
+4. First person. Write from {{USER_NAME}}'s perspective. "I agreed to..." not "The team agreed to..." Use attendee names naturally.
+5. Terse. No long sentences. No filler. No "It was discussed that..." — just substance. Active voice.
+
+FORMATTING RULES
+- TL;DR is always one line, max 15 words, always first after the title
+- Topic headers are bold with **
+- Everything under a topic is bullets (- ) and sub-bullets (  - )
+- No numbered lists
+- No paragraphs or narrative prose
+- Direct quotes only when exact wording matters (commitments, strong reactions) — use > blockquote
+- Action items format: → **Name** to [task] (by [date] if mentioned)
+- Use **Me** when {{USER_NAME}} is the owner
+
+LENGTH
+- <15 min meeting → 5-10 bullets total
+- 15-30 min → 10-20 bullets
+- 30-60 min → 20-40 bullets
+- 60+ min → 40-60 bullets
+- Match density to user's notes: sparse notes = stay tight, detailed notes = go deeper
+
+NEVER
+- Hallucinate content not in the transcript or user notes
+- Fabricate action items — only include real commitments
+- Add decisions that weren't explicitly made
+- Include greetings, small talk, filler, or tangents
+
+EDGE CASES
+- Transcript very short or missing → generate only from user notes, don't fabricate
+- Both empty → return only the title line and "No notes captured."
+- Action items with no owner → mark as **[Unassigned]**
+- Action items with no deadline → omit the "(by …)" part, don't write "[No deadline]"
+
+OUTPUT FORMAT (follow exactly)
+
+**[Meeting Title]** — [Date]
+
+**TL;DR:** [One line. Max 15 words. What happened + most important outcome.]
+
+**[Topic 1 — specific name, not "Discussion"]**
+- [Key point]
+- [Key point]
+  - [Supporting detail]
+→ **Name** to [action] (by [date])
+
+**[Topic 2]**
+- [Key point]
+- [Key point]
+
+**Decisions**
+- [Decision — only if explicit. Skip section entirely if none.]
+
+**Action Items**
+- → **Name** to [task] (by [date])
+- → **Name** to [task]
+
+**Open Questions**
+- [Anything unresolved — skip section entirely if none.]`
+
+// ---------------------------------------------------------------------------
+// Template prompts — each extends the system preamble
+// ---------------------------------------------------------------------------
+
+const TEMPLATES: Record<string, Omit<MeetingTemplate, 'id'>> = {
+
+  general: {
     name: 'General Meeting',
     icon: '📋',
-    description: 'Default balanced template for any meeting',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: GENERAL_TEMPLATE_PROMPT,
+    description: 'Default template — works for any meeting',
+    prompt: `Auto-detect the meeting type from context and apply the most natural structure.
+Group by topic, not chronologically. Merge user notes into the relevant topic.
+If a clear structure emerges (standup-like, retro-like), lean into it. Otherwise, default to: topics → decisions → action items → open questions.`,
   },
-  {
-    id: 'standup',
+
+  standup: {
     name: 'Standup / Daily',
     icon: '🏃',
-    description: 'Focus on blockers, progress, and plans',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `PURPOSE: Capture each person's progress, current work, and blockers. Blockers become action items.
+    description: 'Per-person updates, blockers, and plans',
+    prompt: `This is a standup. Structure by person, not by topic.
 
-GROUNDING: Include only what is clearly stated in the transcript. Infer participant roles (e.g. Engineer, PM) if names are unclear. No filler or speculation.
+**[Person Name]**
+- Done: [what they completed]
+- Doing: [what they're working on]
+- Blocker: [what's stuck — or "No blockers"]
 
-STRUCTURE: One discussionTopic per person (use speaker name as topic). Summary must include:
-- Done: (prefix "Done: ") what they completed
-- Doing: (prefix "Doing: ") what they're working on now
-- Blocker: (prefix "Blocker: ") any blocker; if none, say "No blockers"
-
-Every blocker = high-priority action item with owner. Overview: one sentence (e.g. "Daily standup – sprint progress and blockers"). Use specific topic names and bullet-style content only.`,
+Every blocker → action item with owner.
+TL;DR: one line covering team status (e.g. "Sprint on track, 2 blockers on auth and deploy").
+Keep it tight. No narrative. Just status.`,
   },
-  {
-    id: 'one-on-one',
+
+  'one-on-one': {
     name: '1:1 Meeting',
     icon: '🤝',
-    description: 'Focus on feedback, goals, and personal development',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `PURPOSE: Clear record of check-in, feedback, growth, and commitments. Implicit commitments become action items.
+    description: 'Check-ins, feedback, goals, and growth',
+    prompt: `This is a 1:1. Use topic themes, not speaker-per-section.
 
-GROUNDING: Only include what is supported by the transcript. Capture decisions and next steps with owners; avoid generic or speculative content.
+Typical topics (use only what was discussed):
+- **Check-in** — how they're doing, energy, workload
+- **Project Updates** — status of current work
+- **Feedback** — given or received, be specific
+- **Growth & Career** — goals, skills, development
+- **Team & Process** — anything about team dynamics
 
-STRUCTURE: One discussionTopic per theme actually discussed. Use themes like: Check-in, Project Updates, Feedback, Growth & Development, Team & Process.
-
-Each topic "summary": bullets with "Feedback: ", "Agreed: " where relevant. Be specific and concise. Turn "I'll think about it" / "I'll follow up" into action items. Overview: one sentence.`,
+Turn vague commitments into action items: "I'll think about it" → action item.
+Include personal/non-work topics if discussed — don't filter them out.`,
   },
-  {
-    id: 'brainstorm',
+
+  brainstorm: {
     name: 'Brainstorm',
     icon: '💡',
-    description: 'Focus on ideas generated, evaluations, and decisions',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `PURPOSE: Capture each idea or approach with pros, cons, and outcome (Decision / Parked). Selected ideas get action items.
+    description: 'Ideas, evaluation, and next steps',
+    prompt: `This is a brainstorming session. One topic per idea or approach.
 
-GROUNDING: Only include ideas and outcomes clearly stated or agreed in the transcript. No speculative content. Capture decisions and next steps with owners.
-
-STRUCTURE: One discussionTopic per idea or approach. Summary format:
+For each idea:
 - One line: what the idea is
-- Pro: / Con: for each point raised
-- Decision: or Parked: for verdict
+- Pro: [advantage raised]
+- Con: [concern raised]
+- Verdict: **Selected** / **Parked** / **Needs research**
 
-Overview: one sentence (what was brainstormed). Next steps for chosen ideas = action items. Use specific topic names and bullet-style content only.`,
+Selected ideas → action items with owner and next step.
+TL;DR: what was brainstormed + which idea(s) won.`,
   },
-  {
-    id: 'customer-call',
+
+  'customer-call': {
     name: 'Customer Call',
     icon: '📞',
-    description: 'Focus on pain points, requirements, and commitments',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `PURPOSE: Record customer context, pain points, product discussion, and every commitment (high-priority action items).
+    description: 'Pain points, requirements, and commitments',
+    prompt: `This is a customer/prospect call. Capture their world.
 
-GROUNDING: Only include what was said in the transcript. Pain points: use customer's exact words where possible. Every promise to the customer = high-priority action item with owner.
+Topics (use only what was discussed):
+- **Customer Context** — who they are, role, company, current solution
+- **Pain Points** — their exact frustrations, use their words via > blockquote
+- **Product Discussion** — what we showed/explained, what resonated
+- **Objections** — what they pushed back on (pricing, timeline, features, competition)
+- **Competition** — any competitors mentioned
+- **Timeline & Process** — who decides, when, what's next
 
-STRUCTURE: Topics like Customer Context, Pain Points, Product Discussion, Pricing & Timeline, Commitments. Only include what was discussed.
-
-Overview: one sentence (who they are + purpose of call). keyQuotes: max 2 only if they reveal strong sentiment. Concise, structured, scannable.`,
+Every promise we made to them → action item, high urgency.
+TL;DR: who they are + temperature (hot/warm/cold) + key outcome.`,
   },
-  {
-    id: 'interview',
+
+  interview: {
     name: 'Interview',
     icon: '🎯',
-    description: 'Focus on candidate assessment and key answers',
-    emphasisSections: ['discussionTopics', 'actionItems', 'keyQuotes'],
-    additionalPrompt: `PURPOSE: Structured assessment: background, technical, problem-solving, culture fit, and clear recommendation.
+    description: 'Candidate assessment and recommendation',
+    prompt: `This is a hiring interview. Structured assessment.
 
-GROUNDING: Only include what was discussed in the interview. Do not fabricate strengths or concerns. Capture next steps (e.g. schedule follow-up, send exercise) as action items with owners.
+Topics (use only what was covered):
+- **Background** — relevant experience, career arc
+- **Technical** — skills demonstrated, depth of knowledge
+- **Problem Solving** — how they approached questions
+- **Culture & Values** — team fit, communication style
+- **Candidate Questions** — what they asked us (reveals priorities)
+- **Overall** — 1-2 line assessment with strengths and concerns
 
-STRUCTURE: Topics: Background & Experience, Technical Assessment, Problem Solving, Culture & Values, Candidate Questions, Overall Impression. Only include sections that were covered.
+Mark strengths and concerns explicitly:
+- ✓ Strength: [specific observation]
+- ✗ Concern: [specific observation]
 
-Per topic: bullets with "Strength: " / "Concern: " where relevant. keyQuotes: 2–3 standout candidate answers. Overview: one sentence (role + candidate name if given).`,
+Use > blockquotes for 2-3 standout candidate answers.
+Action items: next steps (schedule follow-up, send exercise, make decision by X).`,
   },
-  {
-    id: 'retrospective',
+
+  retrospective: {
     name: 'Retrospective',
     icon: '🔄',
-    description: 'Focus on what went well, what to improve, and actions',
-    emphasisSections: ['discussionTopics', 'actionItems'],
-    additionalPrompt: `PURPOSE: Standard retro format with clear improvements and owned action items.
+    description: 'What went well, what to improve, and commitments',
+    prompt: `This is a retrospective. Use exactly three topic sections:
 
-GROUNDING: Only include what was actually said in the retro. Capture current state (what went well / didn't) and proposed changes with owners. No generic or speculative content.
+**What Went Well**
+- [things to keep doing]
 
-STRUCTURE: Exactly three discussionTopics:
-1. "What Went Well" — bullets of what to keep doing
-2. "What Didn't Go Well" — bullets of problems/frustrations
-3. "Improvements" — bullets of specific changes to try
+**What Didn't Go Well**
+- [problems and frustrations]
 
-Every improvement = one action item with an owner. Overview: one sentence (sprint/period). Concise, structured, scannable.`,
+**Improvements**
+- [specific changes to try]
+
+Every improvement → action item with an owner.
+TL;DR: one line covering sprint/period health + top improvement.`,
   },
-]
+}
+
+// ---------------------------------------------------------------------------
+// Exported template list + helpers
+// ---------------------------------------------------------------------------
+
+export const MEETING_TEMPLATES: MeetingTemplate[] = Object.entries(TEMPLATES).map(
+  ([id, t]) => ({ id, ...t })
+)
 
 export function getTemplate(templateId: string): MeetingTemplate {
   return MEETING_TEMPLATES.find(t => t.id === templateId) ?? MEETING_TEMPLATES[0]
 }
 
-export function detectMeetingType(transcript: string, personalNotes: string): string {
-  const text = (transcript + ' ' + personalNotes).toLowerCase()
+// ---------------------------------------------------------------------------
+// Prompt builder — assembles the full prompt sent to the LLM
+// ---------------------------------------------------------------------------
+
+export function buildPrompt(
+  template: MeetingTemplate,
+  context: MeetingContext,
+  userNotes: string,
+  transcript: string,
+): string {
+  const preamble = SYSTEM_PREAMBLE
+    .replaceAll('{{USER_NAME}}', context.user.name)
+
+  const vocabLine = context.vocabulary.length > 0
+    ? `\nVOCABULARY (spell these correctly): ${context.vocabulary.join(', ')}`
+    : ''
+
+  return `${preamble}
+
+TEMPLATE-SPECIFIC INSTRUCTIONS
+${template.prompt}
+
+---
+
+MEETING CONTEXT
+Title: ${context.title}
+Date: ${context.date}
+${context.duration ? `Duration: ${context.duration}` : ''}
+Attendees: ${context.attendees.length > 0 ? context.attendees.join(', ') : 'Unknown'}
+${context.calendarDescription ? `Calendar description: ${context.calendarDescription}` : ''}
+User: ${context.user.name}, ${context.user.role} at ${context.user.org}
+${vocabLine}
+
+USER'S RAW NOTES
+${userNotes.trim() || '(none)'}
+
+TRANSCRIPT
+${transcript.trim() || '(none)'}
+
+---
+Generate the enhanced notes now. Output markdown only. No preamble, no explanation, no code fences.`
+}
+
+// ---------------------------------------------------------------------------
+// Meeting type detection — calendar first, then transcript fallback
+// ---------------------------------------------------------------------------
+
+export function detectMeetingType(
+  calendarTitle: string,
+  calendarDescription: string | null,
+  attendeeCount: number,
+  transcript: string,
+  personalNotes: string,
+): string {
+  const title = calendarTitle.toLowerCase()
+  const desc = (calendarDescription ?? '').toLowerCase()
+
+  // ── Pass 1: Calendar title (highest confidence) ──────────────────────
+  if (/standup|stand-up|daily scrum|daily sync/.test(title)) return 'standup'
+  if (/1[:\-]1|one[\s-]on[\s-]one|1on1/.test(title)) return 'one-on-one'
+  if (/retro|retrospective|post[\s-]?mortem/.test(title)) return 'retrospective'
+  if (/interview|candidate/.test(title)) return 'interview'
+  if (/brainstorm|ideation/.test(title)) return 'brainstorm'
+  if (/customer|client|prospect|demo|discovery/.test(title)) return 'customer-call'
+
+  // ── Pass 2: Calendar description ─────────────────────────────────────
+  if (/retro|retrospective/.test(desc)) return 'retrospective'
+  if (/interview|candidate/.test(desc)) return 'interview'
+  if (/customer|prospect|demo/.test(desc)) return 'customer-call'
+
+  // ── Pass 3: Attendee count heuristic ─────────────────────────────────
+  if (attendeeCount === 2) return 'one-on-one'
+
+  // ── Pass 4: Transcript + notes content (lowest confidence) ───────────
+  const text = `${transcript} ${personalNotes}`.toLowerCase()
 
   const signals: Record<string, number> = {
     standup: 0,
@@ -421,77 +343,50 @@ export function detectMeetingType(transcript: string, personalNotes: string): st
     'customer-call': 0,
     interview: 0,
     retrospective: 0,
-    'sprint-planning': 0,
-    'user-interview': 0,
-    'board-investor': 0,
   }
 
-  const patterns: Record<string, RegExp[]> = {
+  const patterns: Record<string, [RegExp, number][]> = {
     standup: [
-      /\b(standup|stand-up|daily|sync|scrum)\b/,
-      /\b(blocker|blocked|blocking|impediment)\b/,
-      /\b(yesterday|today|tomorrow)\b/,
-      /\bwhat (did you|are you|will you)\b/,
+      [/\b(blocker|blocked|blocking|impediment)\b/gi, 3],
+      [/\b(yesterday|today|tomorrow)\b/gi, 1],
+      [/\bwhat (did you|are you|will you)\b/gi, 2],
     ],
     'one-on-one': [
-      /\b(1[:-]1|one[ -]on[ -]one|1on1)\b/,
-      /\b(career|growth|development|feedback|mentoring)\b/,
-      /\bhow are you (doing|feeling)\b/,
-      /\b(goals|performance|review)\b/,
+      [/\b(career|growth|development|mentoring)\b/gi, 2],
+      [/\bhow are you (doing|feeling)\b/gi, 3],
+      [/\b(goals|performance|review)\b/gi, 1],
     ],
     brainstorm: [
-      /\b(brainstorm|ideation|ideas|creative)\b/,
-      /\bwhat if\b/,
-      /\b(how about|we could|what about|another idea)\b/,
-      /\b(pros|cons|tradeoff|trade-off)\b/,
+      [/\bwhat if\b/gi, 2],
+      [/\b(how about|we could|what about|another idea)\b/gi, 2],
+      [/\b(pros?|cons?|tradeoff|trade-off)\b/gi, 2],
     ],
     'customer-call': [
-      /\b(customer|client|user|prospect|demo)\b/,
-      /\b(pain point|feature request|requirement|pricing)\b/,
-      /\b(contract|deal|proposal|quote|subscription)\b/,
-      /\b(competitor|alternative|compared to)\b/,
+      [/\b(pain point|feature request|requirement)\b/gi, 3],
+      [/\b(pricing|contract|deal|proposal|subscription)\b/gi, 3],
+      [/\b(competitor|alternative|compared to)\b/gi, 2],
     ],
     interview: [
-      /\b(interview|candidate|resume|cv|hiring)\b/,
-      /\btell me about\b/,
-      /\b(experience with|worked on|background)\b/,
-      /\b(salary|compensation|offer|position)\b/,
+      [/\btell me about\b/gi, 3],
+      [/\b(resume|cv|hiring|candidate)\b/gi, 3],
+      [/\b(salary|compensation|offer)\b/gi, 2],
     ],
     retrospective: [
-      /\b(retro|retrospective|post-mortem|postmortem)\b/,
-      /\bwhat went (well|wrong)\b/,
-      /\b(improve|improvement|better|worse)\b/,
-      /\b(keep doing|stop doing|start doing)\b/,
-    ],
-    'sprint-planning': [
-      /\b(sprint planning|sprint plan|planning meeting)\b/,
-      /\b(assignments|assignee|parking lot)\b/,
-      /\b(velocity|capacity|story points)\b/,
-      /\b(backlog|sprint goal)\b/,
-    ],
-    'user-interview': [
-      /\b(user interview|user research|participant)\b/,
-      /\b(pain points|usability|feedback session)\b/,
-      /\b(how do you use|what would you)\b/,
-    ],
-    'board-investor': [
-      /\b(board meeting|investor|board update)\b/,
-      /\b(metrics|kpi|revenue|runway)\b/,
-      /\b(commitments|quarterly|guidance)\b/,
+      [/\bwhat went (well|wrong)\b/gi, 4],
+      [/\b(keep doing|stop doing|start doing)\b/gi, 3],
+      [/\b(improve|improvement)\b/gi, 1],
     ],
   }
 
-  for (const [type, regexes] of Object.entries(patterns)) {
-    for (const regex of regexes) {
-      const matches = text.match(new RegExp(regex, 'gi'))
-      if (matches) {
-        signals[type] += matches.length
-      }
+  for (const [type, rules] of Object.entries(patterns)) {
+    for (const [regex, weight] of rules) {
+      const matches = text.match(regex)
+      if (matches) signals[type] += matches.length * weight
     }
   }
 
   let bestType = 'general'
-  let bestScore = 2
+  let bestScore = 4
 
   for (const [type, score] of Object.entries(signals)) {
     if (score > bestScore) {
@@ -501,4 +396,312 @@ export function detectMeetingType(transcript: string, personalNotes: string): st
   }
 
   return bestType
+}
+
+// ---------------------------------------------------------------------------
+// Markdown parser — extract structured data from LLM output
+// ---------------------------------------------------------------------------
+
+export function parseEnhancedNotes(markdown: string): ParsedNotes {
+  const lines = markdown.split('\n')
+
+  let tldr = ''
+  const topics: ParsedNotes['topics'] = []
+  const decisions: string[] = []
+  const actionItems: ParsedNotes['actionItems'] = []
+  const openQuestions: string[] = []
+
+  let currentSection: 'topics' | 'decisions' | 'actions' | 'questions' | null = null
+  let currentTopic: { title: string; bullets: string[] } | null = null
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    // TL;DR line
+    if (/^\*?\*?TL;DR:?\*?\*?\s*/i.test(trimmed)) {
+      tldr = trimmed.replace(/^\*?\*?TL;DR:?\*?\*?\s*/i, '').trim()
+      continue
+    }
+
+    // Section headers
+    if (/^\*\*Action Items\*\*/i.test(trimmed)) {
+      flushTopic()
+      currentSection = 'actions'
+      continue
+    }
+    if (/^\*\*Decisions?\*\*/i.test(trimmed)) {
+      flushTopic()
+      currentSection = 'decisions'
+      continue
+    }
+    if (/^\*\*Open Questions?\*\*/i.test(trimmed)) {
+      flushTopic()
+      currentSection = 'questions'
+      continue
+    }
+
+    // Topic header (bold text that isn't a known section)
+    if (/^\*\*[^*]+\*\*/.test(trimmed) && !trimmed.startsWith('**TL;DR')) {
+      flushTopic()
+      const title = trimmed.replace(/^\*\*/, '').replace(/\*\*.*$/, '').trim()
+
+      // Skip the title line (first bold line with date)
+      if (/—\s*\d/.test(trimmed) || /\d{4}/.test(trimmed)) continue
+
+      currentSection = 'topics'
+      currentTopic = { title, bullets: [] }
+      continue
+    }
+
+    // Action items (→ or - → prefix)
+    if (/^[-→⟶]\s*→?\s*\*\*/.test(trimmed) || /^→\s*\*\*/.test(trimmed)) {
+      const parsed = parseActionItem(trimmed)
+      if (parsed) {
+        actionItems.push(parsed)
+        if (currentTopic) currentTopic.bullets.push(trimmed)
+      }
+      continue
+    }
+
+    // Bullets
+    if (/^[-•]\s+/.test(trimmed) || /^\s+-\s+/.test(line)) {
+      const bullet = trimmed.replace(/^[-•]\s+/, '').trim()
+      if (!bullet) continue
+
+      switch (currentSection) {
+        case 'decisions':
+          decisions.push(bullet)
+          break
+        case 'actions':
+          const item = parseActionItem(trimmed)
+          if (item) actionItems.push(item)
+          else actionItems.push({ text: bullet, assignee: '[Unassigned]', dueDate: null, done: false })
+          break
+        case 'questions':
+          openQuestions.push(bullet)
+          break
+        case 'topics':
+        default:
+          if (currentTopic) currentTopic.bullets.push(trimmed.replace(/^[-•]\s+/, ''))
+          break
+      }
+    }
+  }
+
+  flushTopic()
+
+  return { tldr, topics, decisions, actionItems, openQuestions }
+
+  function flushTopic() {
+    if (currentTopic && currentTopic.bullets.length > 0) {
+      topics.push(currentTopic)
+    }
+    currentTopic = null
+  }
+}
+
+function parseActionItem(line: string): ParsedNotes['actionItems'][0] | null {
+  const patterns = [
+    /→\s*\*\*(?<assignee>[^*]+)\*\*\s*(?:to\s+)?(?<text>.+?)(?:\(by\s+(?<due>[^)]+)\))?\s*$/i,
+    /\*\*(?<assignee>[^*]+)\*\*[:\s]+(?<text>.+?)(?:\s*—\s*by\s+(?<due>.+))?\s*$/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = line.match(pattern)
+    if (match?.groups) {
+      return {
+        assignee: match.groups.assignee.trim(),
+        text: match.groups.text.trim().replace(/\s*\(by\s+[^)]+\)\s*$/, ''),
+        dueDate: match.groups.due?.trim() ?? null,
+        done: false,
+      }
+    }
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Slash command recipes (Ask Anything suggestions)
+// ---------------------------------------------------------------------------
+
+export interface Recipe {
+  id: string
+  command: string
+  label: string
+  icon: string
+  prompt: string
+  context: 'live' | 'post' | 'both'
+}
+
+export const RECIPES: Recipe[] = [
+  {
+    id: 'catch-me-up',
+    command: '/catch-me-up',
+    label: 'Catch me up',
+    icon: '⏪',
+    context: 'live',
+    prompt: `Summarize the last 5 minutes of discussion in 3-4 bullets.
+Only: decisions, action items, topic shifts. No preamble. Under 50 words.`,
+  },
+  {
+    id: 'sound-smart',
+    command: '/sound-smart',
+    label: 'Sound smart',
+    icon: '🧠',
+    context: 'live',
+    prompt: `Based on the current discussion, suggest 1-2 specific questions or points I could raise right now. Make them relevant to what's actually being said. No generic questions.`,
+  },
+  {
+    id: 'actions-so-far',
+    command: '/actions-so-far',
+    label: 'Action items so far',
+    icon: '✅',
+    context: 'live',
+    prompt: `List every action item committed to so far.
+Format: → **Name** to [task]
+Only real commitments. Skip vague intentions like "we should probably..."`,
+  },
+  {
+    id: 'summarize-topic',
+    command: '/summarize-this',
+    label: 'Summarize current topic',
+    icon: '📌',
+    context: 'live',
+    prompt: `What's been said about the current topic in 3-5 bullets. Include any decisions or disagreements.`,
+  },
+  {
+    id: 'follow-up-email',
+    command: '/follow-up-email',
+    label: 'Draft follow-up email',
+    icon: '✉️',
+    context: 'post',
+    prompt: `Draft a follow-up email to attendees:
+- One line thanks (not effusive)
+- 2-3 key decisions or takeaways as bullets
+- Action items with owners
+- Next meeting if scheduled
+Professional, direct. Under 150 words. No fluff.`,
+  },
+  {
+    id: 'my-actions',
+    command: '/my-actions',
+    label: 'My action items',
+    icon: '🎯',
+    context: 'post',
+    prompt: `List only things I ({{USER_NAME}}) need to do from this meeting. Include enough context so I remember what each is about in 3 days. Ignore everyone else's tasks.`,
+  },
+  {
+    id: 'slack-update',
+    command: '/slack-update',
+    label: 'Slack update',
+    icon: '💬',
+    context: 'post',
+    prompt: `Write a Slack message for people who weren't in this meeting. 3-5 bullets. Casual but informative. No emoji. No fluff.`,
+  },
+  {
+    id: 'decisions-only',
+    command: '/decisions',
+    label: 'Decisions only',
+    icon: '⚖️',
+    context: 'post',
+    prompt: `List only the decisions made. For each: what was decided, who decided, and any caveats or conditions.`,
+  },
+  {
+    id: 'open-questions',
+    command: '/open-questions',
+    label: 'Open questions',
+    icon: '❓',
+    context: 'post',
+    prompt: `What's still unresolved? List questions or topics that need follow-up but weren't closed in this meeting.`,
+  },
+  {
+    id: 'draft-ticket',
+    command: '/draft-ticket',
+    label: 'Draft a ticket',
+    icon: '🎫',
+    context: 'post',
+    prompt: `Turn the most discussed feature/bug/task into a formatted ticket:
+**Title**: [concise title]
+**Description**: 2-3 sentences of context
+**Acceptance Criteria**:
+- [bullet]
+- [bullet]
+**Priority**: [based on meeting urgency signals]`,
+  },
+  {
+    id: 'prep-next',
+    command: '/prep-next',
+    label: 'Prep next meeting',
+    icon: '📅',
+    context: 'post',
+    prompt: `Based on open questions, parked topics, and action items, draft a suggested agenda for the next meeting with these attendees. Keep it to 3-5 items.`,
+  },
+]
+
+export function getRecipes(context: 'live' | 'post'): Recipe[] {
+  return RECIPES.filter(r => r.context === context || r.context === 'both')
+}
+
+export function getRecipeByCommand(command: string): Recipe | undefined {
+  const normalized = command.startsWith('/') ? command : `/${command}`
+  return RECIPES.find(r => r.command === normalized)
+}
+
+// ---------------------------------------------------------------------------
+// Backward compatibility — adapt ParsedNotes to legacy MeetingSummary shape
+// ---------------------------------------------------------------------------
+
+/** Legacy shape used by EditableSummary, ActionItemsThisWeek, etc. */
+export interface MeetingSummary {
+  title: string
+  meetingType: string
+  attendees: string[]
+  overview: string
+  decisions: string[]
+  discussionTopics: Array<{ topic: string; summary: string; speakers: string[] }>
+  actionItems: Array<{
+    text: string
+    assignee: string
+    dueDate?: string
+    priority: 'high' | 'medium' | 'low'
+    done: boolean
+  }>
+  questionsAndOpenItems: string[]
+  followUps: string[]
+  keyQuotes: Array<{ speaker: string; text: string }>
+}
+
+/** Convert ParsedNotes to MeetingSummary for backward compat with UI consumers. */
+export function parsedToMeetingSummary(
+  parsed: ParsedNotes,
+  title = 'Meeting Notes',
+  meetingType = 'general',
+): MeetingSummary {
+  return {
+    title,
+    meetingType,
+    attendees: [],
+    overview: parsed.tldr,
+    decisions: parsed.decisions,
+    discussionTopics: parsed.topics.map(t => ({
+      topic: t.title,
+      summary: t.bullets.map(b => (b.startsWith('-') ? b : `- ${b}`)).join('\n') || '-',
+      speakers: [],
+    })),
+    actionItems: parsed.actionItems.map(a => ({
+      text: a.text,
+      assignee: a.assignee,
+      dueDate: a.dueDate ?? undefined,
+      priority: 'medium' as const,
+      done: a.done,
+    })),
+    questionsAndOpenItems: parsed.openQuestions,
+    followUps: [],
+    keyQuotes: [],
+  }
+}
+
+/** Backward compat: detect meeting type from transcript/notes when calendar context unavailable. */
+export function detectMeetingTypeFromContent(transcript: string, personalNotes: string): string {
+  return detectMeetingType('', null, 0, transcript, personalNotes)
 }

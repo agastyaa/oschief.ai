@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { getElectronAPI, isElectron } from "@/lib/electron-api";
 import { ChatMessageContent } from "@/components/ChatMessageContent";
-import { normalizeChatResponse } from "@/lib/utils";
 
 interface AskBarProps {
   context?: "home" | "meeting";
@@ -17,11 +16,9 @@ interface AskBarProps {
   transcriptVisible?: boolean;
   recordingState?: "recording" | "paused" | "stopped";
   elapsed?: string;
-  /** When set and context is "home", on response navigate to Ask Syag with question + response instead of showing popup */
-  onNavigateToAskWithExchange?: (question: string, response: string) => void;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed, onNavigateToAskWithExchange }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, recordingState, elapsed }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -37,32 +34,12 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
   const hasInput = input.trim().length > 0;
   const contextLabel = context === "meeting" ? meetingTitle || "This note" : "All notes";
 
-  const SLASH_MID_MEETING: { label: string; prompt: string }[] = [
-    { label: "Catch me up", prompt: "Summarize the last 5 minutes in 3-4 bullets. Decisions, action items, topic shifts only. No preamble. Under 50 words." },
-    { label: "Sound smart", prompt: "Based on current discussion, give me 1-2 specific questions or points I could raise right now. Make them relevant to what's actually being said." },
-    { label: "Action items so far", prompt: "List every action item committed to so far. Format: **Name** — task. Only real commitments. Skip vague intentions." },
-    { label: "Summarize this topic", prompt: "Summarize what's been said about the current topic in 3-5 bullets. Include any decisions or disagreements." },
-    { label: "What did they say", prompt: "What did the last speaker (or each speaker) say or commit to in this meeting so far? Bullets only." },
-  ];
-  const SLASH_POST_MEETING: { label: string; prompt: string }[] = [
-    { label: "Follow-up email", prompt: "Draft a follow-up email: One line thanks (not effusive), 2-3 key decisions/takeaways as bullets, action items with owners, next meeting if scheduled. Under 150 words. Professional, direct." },
-    { label: "My action items", prompt: "Only things I need to do from this meeting. Include enough context so I remember what it's about in 3 days. Ignore everyone else's tasks." },
-    { label: "Slack update", prompt: "Slack message for people who weren't there. 3-5 bullets. Casual but informative. No emoji. No fluff." },
-    { label: "Decisions only", prompt: "List only the decisions made in this meeting. For each: what was decided, who decided it, and any caveats." },
-    { label: "Open questions", prompt: "What's still unresolved? List questions or topics that need follow-up but weren't closed in this meeting." },
-    { label: "Draft ticket", prompt: "Turn the main discussion point into a formatted ticket: Title, Description (2-3 sentences), Acceptance criteria (bullets), Priority (based on meeting context)." },
-    { label: "Prep next meeting", prompt: "Based on open questions and action items, draft a suggested agenda for the next meeting with these attendees." },
-  ];
-  const SLASH_HOME: { label: string; prompt: string }[] = [
+  const SLASH_PROMPTS = [
     { label: "TL;DR", prompt: "Give me a brief TL;DR of these notes." },
+    { label: "What is being discussed", prompt: "What are the main topics being discussed?" },
     { label: "What did I miss", prompt: "What did I miss? Summarize the key points I should know." },
-    { label: "Action items", prompt: "List all action items with owners. Format: **Name** — task." },
-    { label: "Key takeaways", prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?" },
+    { label: "How can I look smart", prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?" },
   ];
-
-  const isMidMeeting = context === "meeting" && (recordingState === "recording" || recordingState === "paused");
-  const isPostMeeting = context === "meeting" && (recordingState === "stopped" || recordingState === undefined);
-  const SLASH_PROMPTS = isMidMeeting ? SLASH_MID_MEETING : isPostMeeting ? SLASH_POST_MEETING : SLASH_HOME;
   const showSlashMenu = isActive && input === "/";
 
   useEffect(() => {
@@ -85,19 +62,15 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const redirectToAsk = context === "home" && onNavigateToAskWithExchange;
-
   const handleSend = useCallback(async (override?: string) => {
     const q = (override ?? input).trim();
     if (!q) return;
     setInput("");
-    if (!redirectToAsk) setShowChat(true);
+    setShowChat(true);
 
     const userMsg = { role: "user" as const, text: q };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
-
-    let responseText: string;
 
     if (api && selectedAIModel) {
       try {
@@ -116,33 +89,28 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
           model: selectedAIModel,
         });
 
-        responseText = response ? normalizeChatResponse(response) : "";
-        if (!redirectToAsk) {
-          if (responseText) {
-            setMessages((prev) => [...prev, { role: "assistant", text: responseText }]);
-          }
+        if (response) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", text: response },
+          ]);
         }
       } catch (err: any) {
-        responseText = `Error: ${err.message || 'Failed to get response. Check your AI model in Settings.'}`;
-        if (!redirectToAsk) {
-          setMessages((prev) => [...prev, { role: "assistant", text: responseText }]);
-        }
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: `Error: ${err.message || 'Failed to get response. Check your AI model in Settings.'}` },
+        ]);
       }
     } else {
       const modelLabel = getActiveAIModelLabel();
       await new Promise(r => setTimeout(r, 500));
-      responseText = `[${modelLabel || 'No model'}] Connect an AI model in Settings to ask questions about your notes.`;
-      if (!redirectToAsk) {
-        setMessages((prev) => [...prev, { role: "assistant", text: responseText }]);
-      }
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: `[${modelLabel || 'No model'}] Connect an AI model in Settings to ask questions about your notes.` },
+      ]);
     }
-
     setIsLoading(false);
-
-    if (redirectToAsk && responseText !== undefined) {
-      onNavigateToAskWithExchange(q, responseText);
-    }
-  }, [input, messages, api, selectedAIModel, noteContext, getActiveAIModelLabel, redirectToAsk, onNavigateToAskWithExchange]);
+  }, [input, messages, api, selectedAIModel, noteContext, getActiveAIModelLabel]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -298,7 +266,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask anything... (type / for quick prompts)"
-                  className="flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0 font-sans"
+                  className="flex-1 bg-transparent text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
                 />
                 {hasInput && !showSlashMenu && (
                   <button
@@ -310,7 +278,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                 )}
               </>
             ) : (
-              <span className="text-sm font-medium text-muted-foreground font-sans">Ask anything</span>
+              <span className="text-base font-medium text-muted-foreground">Ask anything</span>
             )}
           </div>
         </div>

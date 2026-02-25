@@ -42,7 +42,7 @@ export function ICSDialog({ open, onOpenChange }: ICSDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-medium font-body">Import Calendar</DialogTitle>
+          <DialogTitle className="font-display">Import Calendar</DialogTitle>
           <DialogDescription>Upload an .ics file or paste an ICS feed URL from Google Calendar, Outlook, or Apple Calendar.</DialogDescription>
         </DialogHeader>
 

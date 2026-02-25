@@ -16,7 +16,6 @@
     "package": "electron-builder --mac --publish never",
     "package:dir": "electron-builder --mac --dir",
     "generate-icons": "node scripts/generate-all-icons.js",
-    "clean-tray-icon": "node scripts/clean-tray-icon.js",
     "postinstall": "electron-rebuild -f -w better-sqlite3 || true",
     "rebuild": "electron-rebuild",
     "lint": "eslint .",

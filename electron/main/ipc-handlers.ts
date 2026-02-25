@@ -1,22 +1,15 @@
 import { ipcMain, systemPreferences, desktopCapturer, app, safeStorage, BrowserWindow } from 'electron'
-import { updateTrayRecordingState, updateTrayMeetingInfo, showSummaryReadyNotification } from './tray'
-import { getMainWindow } from './windows'
+import { updateTrayRecordingState, updateTrayMeetingInfo } from './tray'
 import { setCalendarEvents } from './meeting-detector'
 import {
   getAllNotes, getNote, addNote, updateNote, deleteNote, updateNoteFolder,
   getAllFolders, addFolder, updateFolder, deleteFolder,
   getSetting, setSetting, getAllSettings,
 } from './storage/database'
-import {
-  upsertNoteToDocuments,
-  moveNoteInDocuments,
-  removeNoteFromDocuments,
-} from './storage/documents-sync'
 import { downloadModel, cancelDownload, deleteModel, listDownloadedModels } from './models/manager'
 import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk } from './audio/capture'
 import { summarize } from './models/llm-engine'
-import { chat, testCopartConnection } from './cloud/router'
-import { checkAppleFoundationAvailable } from './cloud/apple-llm'
+import { chat, testCopartConnection, listCopartGenieModels } from './cloud/router'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
@@ -47,43 +40,11 @@ export function registerIPCHandlers(): void {
   // --- Notes ---
   ipcMain.handle('db:notes-get-all', () => getAllNotes())
   ipcMain.handle('db:notes-get', (_e, id: string) => getNote(id))
-  ipcMain.handle('db:notes-add', (_e, note: any) => {
-    addNote(note)
-    if (note?.summary) {
-      try { upsertNoteToDocuments(note, getAllFolders()) } catch (e) { console.error('Documents sync add:', e) }
-    }
-    return true
-  })
-  ipcMain.handle('db:notes-update', (_e, id: string, data: any) => {
-    const hadFolderChange = data.folderId !== undefined
-    const noteBefore = hadFolderChange ? getNote(id) : null
-    updateNote(id, data)
-    if (hadFolderChange && noteBefore) {
-      try { moveNoteInDocuments(id, noteBefore.folderId ?? null, data.folderId ?? null, getAllFolders()) } catch (e) { console.error('Documents sync move:', e) }
-    } else {
-      const note = getNote(id)
-      if (note?.summary) {
-        try { upsertNoteToDocuments(note, getAllFolders()) } catch (e) { console.error('Documents sync update:', e) }
-      }
-    }
-    return true
-  })
-  ipcMain.handle('db:notes-delete', (_e, id: string) => {
-    const note = getNote(id)
-    deleteNote(id)
-    if (note) {
-      try { removeNoteFromDocuments(id, note.folderId ?? null, getAllFolders()) } catch (e) { console.error('Documents sync delete:', e) }
-    }
-    return true
-  })
+  ipcMain.handle('db:notes-add', (_e, note: any) => { addNote(note); return true })
+  ipcMain.handle('db:notes-update', (_e, id: string, data: any) => { updateNote(id, data); return true })
+  ipcMain.handle('db:notes-delete', (_e, id: string) => { deleteNote(id); return true })
   ipcMain.handle('db:notes-update-folder', (_e, noteId: string, folderId: string | null) => {
-    const note = getNote(noteId)
-    const oldFolderId = note?.folderId ?? null
-    updateNoteFolder(noteId, folderId)
-    if (note?.summary) {
-      try { moveNoteInDocuments(noteId, oldFolderId, folderId, getAllFolders()) } catch (e) { console.error('Documents sync update-folder:', e) }
-    }
-    return true
+    updateNoteFolder(noteId, folderId); return true
   })
 
   // --- Folders ---
@@ -133,7 +94,7 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('tray:update-recording', (_e, isRecording: boolean) => {
     updateTrayRecordingState(isRecording)
   })
-  ipcMain.handle('tray:update-meeting-info', (_e, info: { title: string; startTime: number; elapsedSeconds?: number } | null) => {
+  ipcMain.handle('tray:update-meeting-info', (_e, info: { title: string; startTime: number } | null) => {
     updateTrayMeetingInfo(info)
   })
   ipcMain.handle('meeting:set-calendar-events', (_e, events: Array<{ id: string; title: string; start: number; end: number; joinLink?: string }>) => {
@@ -171,7 +132,7 @@ export function registerIPCHandlers(): void {
 
   // --- LLM ---
   ipcMain.handle('llm:summarize', async (_e, data: any) => {
-    return summarize(data.transcript, data.personalNotes, data.model, data.meetingTemplateId, data.customPrompt, data.metadata)
+    return summarize(data.transcript, data.personalNotes, data.model, data.meetingTemplateId, data.customPrompt)
   })
   ipcMain.handle('llm:chat', async (_e, data: any) => {
     const sender = _e.sender
@@ -240,18 +201,12 @@ export function registerIPCHandlers(): void {
 
   // --- Copart Genie test ---
   ipcMain.handle('copart:test', () => testCopartConnection())
+  ipcMain.handle('copart:listModels', () => listCopartGenieModels())
 
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())
-  ipcMain.handle('app:apple-foundation-available', () => checkAppleFoundationAvailable())
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
     return true
-  })
-  ipcMain.handle('app:notify-summary-ready', (_e, { title }: { title: string }) => {
-    if (getSetting('summary-ready-notification') === 'false') return
-    const win = getMainWindow()
-    if (win?.isFocused()) return // renderer shows in-app toast when focused
-    showSummaryReadyNotification(title || 'Meeting notes')
   })
 }

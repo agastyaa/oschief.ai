@@ -72,24 +72,22 @@ type ElectronAPI = {
   }
   copart: {
     test: () => Promise<{ ok: boolean; error?: string }>
+    listModels?: () => Promise<{ models: { id: string }[]; sttModels: { id: string }[] }>
   }
   app: {
     getVersion: () => Promise<string>
     getPlatform: () => string
-    appleFoundationAvailable?: () => Promise<boolean>
     setLoginItem?: (enabled: boolean) => Promise<boolean>
-    notifySummaryReady?: (title: string) => Promise<void>
-    onTrayStartRecording: (callback: (data?: { title?: string }) => void) => () => void
+    onTrayStartRecording: (callback: () => void) => () => void
     onTrayStopRecording?: (callback: () => void) => () => void
     onTrayNavigateToMeeting?: (callback: () => void) => () => void
-    onActionReminderOpenNote?: (callback: (data: { noteId: string }) => void) => () => void
     onTrayPauseRecording?: (callback: () => void) => () => void
     onMeetingDetected: (callback: (data: { app: string; title?: string; startTime?: number; calendarEvent?: any }) => void) => () => void
     onMeetingEnded: (callback: (data: { app: string }) => void) => () => void
     onMeetingStartingSoon?: (callback: (data: { eventId?: string; title?: string; start?: number; end?: number; joinLink?: string }) => void) => () => void
     onPowerModeChanged?: (callback: (data: { onBattery: boolean }) => void) => () => void
     setCalendarEvents?: (events: Array<{ id: string; title: string; start: number; end: number; joinLink?: string }>) => Promise<boolean>
-    updateTrayMeetingInfo?: (info: { title: string; startTime: number; elapsedSeconds?: number } | null) => Promise<void>
+    updateTrayMeetingInfo?: (info: { title: string; startTime: number } | null) => Promise<void>
   }
 }
 

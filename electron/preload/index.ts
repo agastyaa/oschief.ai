@@ -77,7 +77,7 @@ const electronAPI = {
   },
 
   llm: {
-    summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string; customPrompt?: string; metadata?: { title?: string; date?: string; duration?: string; attendees?: string[]; calendarDescription?: string; userName?: string; userRole?: string; userFocusAreas?: string; userOrg?: string } }) =>
+    summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string }) =>
       ipcRenderer.invoke('llm:summarize', data),
     chat: (data: { messages: any[]; context: any; model: string }) =>
       ipcRenderer.invoke('llm:chat', data),
@@ -108,18 +108,17 @@ const electronAPI = {
 
   copart: {
     test: () => ipcRenderer.invoke('copart:test') as Promise<{ ok: boolean; error?: string }>,
+    listModels: () =>
+      ipcRenderer.invoke('copart:listModels') as Promise<{ models: { id: string }[]; sttModels: { id: string }[] }>,
   },
 
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getPlatform: () => process.platform,
-    appleFoundationAvailable: () => ipcRenderer.invoke('app:apple-foundation-available') as Promise<boolean>,
     setLoginItem: (enabled: boolean) => ipcRenderer.invoke('app:set-login-item', enabled),
-    notifySummaryReady: (title: string) => ipcRenderer.invoke('app:notify-summary-ready', { title }),
-    onTrayStartRecording: (callback: (data?: { title?: string }) => void) => {
-      const handler = (_e: unknown, data?: { title?: string }) => callback(data)
-      ipcRenderer.on('tray:start-recording', handler)
-      return () => ipcRenderer.removeListener('tray:start-recording', handler)
+    onTrayStartRecording: (callback: () => void) => {
+      ipcRenderer.on('tray:start-recording', callback)
+      return () => ipcRenderer.removeListener('tray:start-recording', callback)
     },
     onTrayStopRecording: (callback: () => void) => {
       ipcRenderer.on('tray:stop-recording', callback)
@@ -143,11 +142,6 @@ const electronAPI = {
     onTrayNavigateToMeeting: (callback: () => void) => {
       ipcRenderer.on('tray:navigate-to-meeting', callback)
       return () => ipcRenderer.removeListener('tray:navigate-to-meeting', callback)
-    },
-    onActionReminderOpenNote: (callback: (data: { noteId: string }) => void) => {
-      const handler = (_e: unknown, data: { noteId: string }) => callback(data)
-      ipcRenderer.on('action-reminder:open-note', handler)
-      return () => ipcRenderer.removeListener('action-reminder:open-note', handler)
     },
     onTrayPauseRecording: (callback: () => void) => {
       ipcRenderer.on('tray:pause-recording', callback)

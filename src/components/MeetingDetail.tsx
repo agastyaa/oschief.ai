@@ -37,7 +37,7 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
     <div className="animate-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl text-foreground font-medium font-body leading-tight mb-3">{meeting.title}</h1>
+        <h1 className="font-display text-2xl text-foreground leading-tight mb-3">{meeting.title}</h1>
 
         {/* Meta chips row */}
         <div className="flex items-center gap-2 flex-wrap relative">
@@ -140,7 +140,7 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-2">
               <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-              <h2 className="text-base font-medium text-foreground/80 font-body">Meeting Overview</h2>
+              <h2 className="font-display text-base font-semibold text-foreground/70">Meeting Overview</h2>
             </div>
             <p className="text-[15px] leading-relaxed text-foreground/70 pl-6">{meeting.summary}</p>
           </div>
@@ -149,7 +149,7 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-              <h2 className="text-base font-medium text-foreground/80 font-body">Key Points</h2>
+              <h2 className="font-display text-base font-semibold text-foreground/70">Key Points</h2>
             </div>
             <ul className="space-y-2 pl-6">
               {meeting.keyPoints.map((point, i) => (
@@ -165,7 +165,7 @@ export function MeetingDetail({ meeting, viewMode = "ai-notes" }: MeetingDetailP
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-              <h2 className="text-base font-medium text-foreground/80 font-body">Next Steps</h2>
+              <h2 className="font-display text-base font-semibold text-foreground/70">Next Steps</h2>
             </div>
             <div className="space-y-2 pl-6">
               {meeting.actionItems.map((item, i) => (

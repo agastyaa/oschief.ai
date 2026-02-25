@@ -3,6 +3,34 @@ import { netFetch } from './net-request'
 
 const COPART_BASE_URL = 'https://genie.copart.com/api'
 
+export type CopartModel = { id: string }
+
+/** Fetch available models from Copart Genie API (OpenAI-compatible /v1/models). */
+export async function listCopartModels(apiKey: string): Promise<CopartModel[]> {
+  const url = `${COPART_BASE_URL.replace(/\/$/, '')}/v1/models`
+  const { statusCode, data } = await netFetch(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+  if (statusCode === 401) throw new Error('Invalid Copart Genie API key.')
+  if (statusCode >= 400) throw new Error(`Copart Genie models error (${statusCode})`)
+  try {
+    const json = JSON.parse(data)
+    const items = json?.data ?? []
+    if (!Array.isArray(items)) return []
+    return items
+      .filter((m: any) => m?.id && typeof m.id === 'string')
+      .map((m: any) => ({ id: String(m.id).trim() }))
+  } catch {
+    return []
+  }
+}
+
+/** Returns true if model ID is STT-only (whisper). */
+export function isCopartSttModel(id: string): boolean {
+  return /whisper/i.test(id)
+}
+
 // Optional mapping for display names → API model IDs; any unknown name is passed through as-is
 const MODEL_MAP: Record<string, string> = {
   // OpenAI

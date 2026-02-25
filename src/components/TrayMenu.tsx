@@ -40,7 +40,7 @@ export function TrayMenu() {
         isDark ? "border-[hsl(20,8%,17%)]" : "border-border"
       )}>
         <SyagLogo size={20} />
-        <span className="text-sm font-medium font-body">Syag</span>
+        <span className="font-display text-sm">Syag</span>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setIsDark(!isDark)}

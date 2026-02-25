@@ -117,6 +117,12 @@ export const TRAY_ICON_RECORDING_BASE64 = '${trayPng.toString('base64')}'
     fs.writeFileSync(path.join(previewDir, 'preview-tray-22.png'), trayPng)
     console.log('Wrote public/icon-previews/preview-tray-22.png')
   } else {
+    // Ensure electron/resources has the tray template for packaging (extraResources in electron-builder)
+    if (fs.existsSync(trayTemplate2xPng)) {
+      fs.mkdirSync(path.dirname(trayTemplateInResources), { recursive: true })
+      fs.copyFileSync(trayTemplate2xPng, trayTemplateInResources)
+      console.log('Copied public/tray-icon-template-2x.png → electron/resources/ for packaging')
+    }
     console.log('Tray: using file as-is (electron/resources/tray-icon-template-2x.png or public); skipping tray regeneration')
   }
 

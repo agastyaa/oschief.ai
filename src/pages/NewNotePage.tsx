@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
+import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
   PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
@@ -108,36 +109,16 @@ function formatTime(seconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/** Parse duration string "m:ss" or "mm:ss" to seconds */
-function parseDurationToSeconds(duration: string): number {
-  const parts = duration.trim().split(":");
-  if (parts.length < 2) return 0;
-  const m = parseInt(parts[0], 10) || 0;
-  const s = parseInt(parts[1], 10) || 0;
-  return m * 60 + s;
-}
-
-/** Format note time as "start – end" in device locale (e.g. "11:05 AM – 11:12 AM") */
-function formatStartEndTime(dateStr: string, timeStr: string, durationStr: string): string {
-  try {
-    const startDate = new Date(`${dateStr} ${timeStr}`);
-    if (Number.isNaN(startDate.getTime())) return `${timeStr} · ${durationStr}`;
-    const secs = parseDurationToSeconds(durationStr);
-    const endDate = new Date(startDate.getTime() + secs * 1000);
-    const opts: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit", hour12: true };
-    const start = startDate.toLocaleTimeString(undefined, opts);
-    const end = endDate.toLocaleTimeString(undefined, opts);
-    return `${start} – ${end}`;
-  } catch {
-    return `${timeStr} · ${durationStr}`;
-  }
+function formatTimeRange(startTimeMs: number, durationSeconds: number): string {
+  const start = new Date(startTimeMs);
+  const end = new Date(startTimeMs + durationSeconds * 1000);
+  const fmt = { hour: "numeric" as const, minute: "2-digit" as const, hour12: true };
+  return `${start.toLocaleTimeString("en-US", fmt)} – ${end.toLocaleTimeString("en-US", fmt)}`;
 }
 
 export default function NewNotePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ id?: string }>();
-  const noteIdFromRoute = params.id ?? null;
   const eventState = location.state as { eventTitle?: string; eventId?: string; joinLink?: string; startFresh?: boolean; triggerPauseAndSummarize?: boolean } | null;
   const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture, setSessionScratch, getSessionScratch } = useRecording();
   const { selectedSTTModel, selectedAIModel } = useModelSettings();
@@ -148,11 +129,9 @@ export default function NewNotePage() {
   const isReturning = !!(existingSessionId && activeSession && activeSession.noteId === existingSessionId);
   const startFreshFromUrl = searchParams.get("startFresh") === "1";
   const startFresh = eventState?.startFresh === true || startFreshFromUrl;
-  const isSavedNoteView = Boolean(noteIdFromRoute);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [recordingState, setRecordingState] = useState<RecordingState>(() => {
-    if (noteIdFromRoute) return "stopped";
     if (isReturning && activeSession) {
       return activeSession.isRecording ? "recording" : "paused";
     }
@@ -178,11 +157,10 @@ export default function NewNotePage() {
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
-  const [noteId, setNoteId] = useState(() => noteIdFromRoute ?? (isReturning ? existingSessionId! : crypto.randomUUID()));
+  const [noteId, setNoteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
   useEffect(() => {
-    if (noteIdFromRoute) setNoteId(noteIdFromRoute);
-    else if (existingSessionId && noteId !== existingSessionId) setNoteId(existingSessionId);
-  }, [noteIdFromRoute, existingSessionId]);
+    if (existingSessionId && noteId !== existingSessionId) setNoteId(existingSessionId);
+  }, [existingSessionId]);
   const titleRef = useRef<HTMLInputElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -193,8 +171,7 @@ export default function NewNotePage() {
   const triggeredPauseAndSummarizeRef = useRef(false);
   const lastStartFreshKeyRef = useRef<string | null>(null);
   const { folders, createFolder } = useFolders();
-  const { notes, addNote, updateNote, deleteNote } = useNotes();
-  const savedNote = notes.find((n) => n.id === noteId) ?? null;
+  const { addNote, deleteNote } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
 
   const MEETING_TEMPLATES = useMemo(() => {
@@ -206,7 +183,7 @@ export default function NewNotePage() {
     if (!api) return;
     api.db.settings.get('custom-templates').then((val: string | null) => {
       if (val) {
-        try { setCustomTemplates(JSON.parse(val)); } catch { /* ignore invalid JSON */ }
+        try { setCustomTemplates(JSON.parse(val)); } catch {}
       }
     });
   }, []);
@@ -221,85 +198,12 @@ export default function NewNotePage() {
     }).catch(() => {});
   }, []);
 
-  const usingRealAudio = isElectron && !isSavedNoteView;
+  const usingRealAudio = isElectron;
   const elapsedSeconds = activeSession?.elapsedSeconds ?? 0;
-  const currentTranscript = isSavedNoteView && savedNote?.transcript?.length
-    ? savedNote.transcript
-    : (usingRealAudio ? transcriptLines : fakeTranscriptLines.slice(0, visibleLines));
-
-  const meetingNoteContext = useMemo(() => {
-    const parts: string[] = [];
-    parts.push(`Meeting: ${title || "New note"}`);
-    if (currentTranscript.length > 0) {
-      parts.push("Transcript:\n" + currentTranscript.map((l) => `[${l.time}] ${l.speaker}: ${l.text}`).join("\n"));
-    }
-    if (personalNotes.trim()) {
-      parts.push("My notes:\n" + personalNotes.trim());
-    }
-    if (summary?.overview || (summary?.keyPoints?.length ?? 0) > 0 || (summary?.nextSteps?.length ?? 0) > 0) {
-      const sumParts: string[] = [];
-      if (summary?.overview) sumParts.push("Overview: " + summary.overview);
-      if (summary?.keyPoints?.length) sumParts.push("Key points: " + summary.keyPoints.join("; "));
-      if (summary?.nextSteps?.length) sumParts.push("Next steps: " + summary.nextSteps.map((s) => `${s.assignee}: ${s.text}`).join("; "));
-      parts.push(sumParts.join("\n"));
-    }
-    return parts.join("\n\n");
-  }, [title, currentTranscript, personalNotes, summary?.overview, summary?.keyPoints, summary?.nextSteps]);
+  const currentTranscript = usingRealAudio ? transcriptLines : fakeTranscriptLines.slice(0, visibleLines);
 
   useEffect(() => { transcriptRef.current = transcriptLines; }, [transcriptLines]);
-  useEffect(() => {
-    if (isSavedNoteView && savedNote?.transcript?.length) transcriptRef.current = savedNote.transcript;
-  }, [isSavedNoteView, savedNote?.transcript]);
-
-  // If we're viewing a saved note by id but it doesn't exist (e.g. deleted), go home
-  useEffect(() => {
-    if (!isSavedNoteView || !noteId) return;
-    if (notes.length === 0) return;
-    if (!savedNote) navigate("/", { replace: true });
-  }, [isSavedNoteView, noteId, notes.length, savedNote, navigate]);
   useEffect(() => { meetingTemplateRef.current = meetingTemplate; }, [meetingTemplate]);
-
-  // When navigating to this note page (e.g. "Go to note" from indicator or opening /note/:id), hydrate from saved note
-  // Keep summary/title/personalNotes in sync with the current note (avoids showing old summary when note updates)
-  useEffect(() => {
-    if (!noteId || !notes.length) return;
-    const note = notes.find((n) => n.id === noteId);
-    if (!note) return;
-    if (isSavedNoteView) {
-      const s = note.summary;
-      const steps = s?.nextSteps ?? (s && "actionItems" in s ? (s as { actionItems: { text: string; assignee: string; done: boolean; dueDate?: string }[] }).actionItems : []);
-      setSummary(s ? {
-        overview: s.overview ?? "",
-        keyPoints: s.keyPoints ?? [],
-        nextSteps: steps,
-        discussionTopics: (s as SummaryData).discussionTopics,
-        decisions: (s as SummaryData).decisions,
-        actionItems: (s as SummaryData).actionItems,
-        questionsAndOpenItems: (s as SummaryData).questionsAndOpenItems,
-        keyQuotes: (s as SummaryData).keyQuotes,
-      } : null);
-      setTitle(note.title ?? "");
-      setPersonalNotes(note.personalNotes ?? "");
-      setSelectedFolderId(note.folderId ?? null);
-      return;
-    }
-    if (summary != null) return;
-    if (!note.summary) return;
-    const s = note.summary;
-    const steps = s.nextSteps ?? (s && "actionItems" in s ? (s as { actionItems: { text: string; assignee: string; done: boolean; dueDate?: string }[] }).actionItems : []);
-    setSummary({
-      overview: s.overview ?? "",
-      keyPoints: s.keyPoints ?? [],
-      nextSteps: steps,
-      discussionTopics: (s as SummaryData).discussionTopics,
-      decisions: (s as SummaryData).decisions,
-      actionItems: (s as SummaryData).actionItems,
-      questionsAndOpenItems: (s as SummaryData).questionsAndOpenItems,
-      keyQuotes: (s as SummaryData).keyQuotes,
-    });
-    if (note.title) setTitle(note.title);
-    if (note.personalNotes) setPersonalNotes(note.personalNotes);
-  }, [noteId, notes, isSavedNoteView, summary]);
 
   // Sync personalNotes and title to session scratch so indicator pause-and-summarize can restore when navigating back
   useEffect(() => {
@@ -337,10 +241,6 @@ export default function NewNotePage() {
             model: selectedAIModel,
             meetingTemplateId: templateId,
             customPrompt,
-            metadata: {
-              title: noteTitle || undefined,
-              date: new Date().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
-            },
           });
         } catch (err) {
           console.error('LLM summarization failed, using local fallback:', err);
@@ -358,27 +258,22 @@ export default function NewNotePage() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
       const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const startTimeMs = activeSession?.startTime ?? now.getTime() - elapsedSeconds * 1000;
+      const timeRange = formatTimeRange(startTimeMs, elapsedSeconds);
 
       try {
         addNote({
           id: noteId,
           title: generatedSummary.title || noteTitle,
-          date: savedNote?.date ?? dateStr,
-          time: savedNote?.time ?? timeStr,
-          duration: savedNote?.duration ?? formatTime(elapsedSeconds),
+          date: dateStr,
+          time: timeStr,
+          duration: formatTime(elapsedSeconds),
+          timeRange,
           personalNotes: useNotes,
           transcript: finalTranscript,
           summary: generatedSummary,
-          folderId: isSavedNoteView ? (savedNote?.folderId ?? selectedFolderId) : selectedFolderId,
+          folderId: selectedFolderId,
         });
-        const finalTitle = generatedSummary.title || noteTitle;
-        api?.db?.settings?.get?.('summary-ready-notification').then((val: string | null) => {
-          if (val === 'false') return;
-          if (typeof document !== 'undefined' && document.hasFocus()) {
-            toast.success('Summary ready');
-          }
-          api?.app?.notifySummaryReady?.(finalTitle);
-        }).catch(() => {});
       } catch (err) {
         console.error('Failed to save note:', err);
         toast.error("Note could not be saved. Check console.");
@@ -389,7 +284,7 @@ export default function NewNotePage() {
     } finally {
       setIsSummarizing(false);
     }
-  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing, isSavedNoteView, savedNote]);
+  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing, activeSession?.startTime]);
 
   // When indicator triggered "pause and summarize", we land here with state; run generateNotes with scratch and clear state
   useEffect(() => {
@@ -414,7 +309,6 @@ export default function NewNotePage() {
   const selectedFolder = (folders ?? []).find((f) => f.id === selectedFolderId);
 
   useEffect(() => {
-    if (noteIdFromRoute) return;
     try {
       // User explicitly chose "New note" / "Quick Note": stop previous session, run summary for it, then start fresh
       if (startFresh) {
@@ -484,7 +378,7 @@ export default function NewNotePage() {
       console.error("NewNotePage mount error:", err);
     }
     return () => {};
-  }, [location.key, startFresh, noteIdFromRoute]);
+  }, [location.key, startFresh]);
 
   // Keep the session title synced with local title state
   useEffect(() => {
@@ -582,7 +476,7 @@ export default function NewNotePage() {
   const handleViewModeChange = useCallback(async (mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
       setIsSummarizing(true);
-      const finalTranscript = isSavedNoteView ? transcriptRef.current : (usingRealAudio ? transcriptLines : fakeTranscriptLines);
+      const finalTranscript = usingRealAudio ? transcriptLines : fakeTranscriptLines;
 
       if (api && selectedAIModel) {
         try {
@@ -596,20 +490,8 @@ export default function NewNotePage() {
             model: selectedAIModel,
             meetingTemplateId: tid,
             customPrompt,
-            metadata: {
-              title: title || undefined,
-              date: savedNote?.date ?? new Date().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
-              duration: savedNote?.duration,
-              attendees: savedNote?.summary?.attendees,
-            },
           });
           setSummary(newSummary);
-          if (newSummary.title) {
-            setTitle(newSummary.title);
-            if (isSavedNoteView && noteId) {
-              updateNote(noteId, { title: newSummary.title });
-            }
-          }
         } catch {
           setSummary(generateLocalSummary(personalNotes, finalTranscript, !!selectedSTTModel));
         }
@@ -620,7 +502,7 @@ export default function NewNotePage() {
       setIsSummarizing(false);
     }
     setViewMode(mode);
-  }, [viewMode, personalNotes, api, selectedAIModel, usingRealAudio, transcriptLines, meetingTemplate, isSavedNoteView, title, savedNote, noteId, updateNote]);
+  }, [viewMode, personalNotes, api, selectedAIModel, usingRealAudio, transcriptLines, meetingTemplate]);
 
   const handleCreateAndAssign = () => {
     if (newFolderName.trim()) {
@@ -629,7 +511,6 @@ export default function NewNotePage() {
       setNewFolderName("");
       setCreatingFolder(false);
       setShowFolderPicker(false);
-      if (noteId) updateNote(noteId, { folderId: folder.id });
     }
   };
 
@@ -643,10 +524,8 @@ export default function NewNotePage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showMoreMenu, showTemplateMenu]);
 
-  const handleCopyText = async () => {
+  const handleCopyText = () => {
     if (!summary) return;
-    const keyPoints = summary.keyPoints ?? [];
-    const nextSteps = summary.nextSteps ?? summary.actionItems ?? [];
     const text = [
       `# ${title}`,
       "",
@@ -654,33 +533,28 @@ export default function NewNotePage() {
       summary.overview,
       "",
       "## Key Points",
-      ...keyPoints.map((p) => `• ${p}`),
+      ...summary.keyPoints.map((p) => `• ${p}`),
       "",
       "## Next Steps",
-      ...nextSteps.map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
+      ...summary.nextSteps.map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
     ].join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Copy failed");
-    }
+    navigator.clipboard.writeText(text);
     setShowMoreMenu(false);
-  };
-
-  const handleShare = () => {
-    handleCopyText();
   };
 
   const handleDeleteNote = () => {
-    setShowMoreMenu(false);
     deleteNote(noteId);
     navigate("/");
   };
 
   const elapsed = formatTime(elapsedSeconds);
+  const displayTimeRange =
+    activeSession?.startTime != null
+      ? formatTimeRange(activeSession.startTime, elapsedSeconds)
+      : elapsed;
   const isStopped = recordingState === "stopped";
-  const showSummaryPanel = ((recordingState === "paused" || recordingState === "stopped") && (summary || isSummarizing)) || (isSavedNoteView && !!savedNote);
+  const showSummaryPanel = (recordingState === "paused" || recordingState === "stopped") && (summary || isSummarizing);
+  const showTemplateSelector = currentTranscript.length > 0 || showSummaryPanel;
 
   const folderChip = (
     <>
@@ -693,11 +567,7 @@ export default function NewNotePage() {
           {selectedFolder.name}
           <X
             className="h-3 w-3 text-muted-foreground hover:text-foreground ml-0.5"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedFolderId(null);
-              if (noteId) updateNote(noteId, { folderId: null });
-            }}
+            onClick={(e) => { e.stopPropagation(); setSelectedFolderId(null); }}
           />
         </button>
       ) : (
@@ -719,11 +589,7 @@ export default function NewNotePage() {
             {(folders ?? []).map((f) => (
               <button
                 key={f.id}
-                onClick={() => {
-                  setSelectedFolderId(f.id);
-                  setShowFolderPicker(false);
-                  if (noteId) updateNote(noteId, { folderId: f.id });
-                }}
+                onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}
                 className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
               >
                 <FolderOpen className="h-3 w-3 text-accent" />
@@ -790,9 +656,55 @@ export default function NewNotePage() {
               ← Back to notes
             </button>
           </div>
-          {showSummaryPanel && (
+          {(showSummaryPanel || showTemplateSelector) && (
             <div className="flex items-center gap-1.5">
-              <button onClick={handleShare} className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Copy summary">
+              {showSummaryPanel && (
+                <NotesViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+              )}
+              <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
+                <button
+                  onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                  className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+                  title="Switch template"
+                >
+                  <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
+                  <span className="max-w-[100px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
+                </button>
+                {showTemplateMenu && (
+                  <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                    {MEETING_TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setMeetingTemplate(t.id);
+                          meetingTemplateRef.current = t.id;
+                          setShowTemplateMenu(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{t.icon}</span>
+                          <span>{t.name}</span>
+                        </span>
+                        {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
+                      </button>
+                    ))}
+                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Select a template, then click the refresh button to generate or regenerate the summary.</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => { setShowTemplateMenu(false); generateNotes(); }}
+                  disabled={isSummarizing}
+                  className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
+                  title={showSummaryPanel ? "Regenerate summary with selected template" : "Generate summary with selected template"}
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", isSummarizing && "animate-spin")} />
+                </button>
+              </div>
+              {showSummaryPanel && (
+                <>
+              <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 <Share2 className="h-3.5 w-3.5" />
               </button>
               <div ref={moreMenuRef} className="relative">
@@ -822,6 +734,8 @@ export default function NewNotePage() {
                   </div>
                 )}
               </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -852,19 +766,16 @@ export default function NewNotePage() {
                     ref={titleRef}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    onBlur={() => {
-                      setIsEditingTitle(false);
-                      if (isSavedNoteView && noteId) updateNote(noteId, { title: (title || "").trim() || "New note" });
-                    }}
+                    onBlur={() => setIsEditingTitle(false)}
                     onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
-                    className="mb-3 w-full text-2xl text-foreground font-normal bg-transparent border-none outline-none focus:ring-0 font-body"
+                    className="mb-3 w-full font-display text-2xl text-foreground bg-transparent border-none outline-none focus:ring-0"
                     placeholder="New note"
                   />
                 ) : (
                   <h1
                     onClick={() => setIsEditingTitle(true)}
                     className={cn(
-                      "mb-3 text-2xl font-normal cursor-text transition-colors leading-tight font-body",
+                      "mb-3 font-display text-2xl cursor-text transition-colors leading-tight",
                       title ? "text-foreground hover:text-foreground/80" : "text-foreground/40 hover:text-foreground/60"
                     )}
                   >
@@ -872,117 +783,19 @@ export default function NewNotePage() {
                   </h1>
                 )}
 
-                {/* Meta chips: date, time, folder, then view toggle + template dropdown */}
+                {/* Meta chips */}
                 <div className="flex items-center gap-2 mb-6 flex-wrap relative">
                   <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
                     <Calendar className="h-3 w-3" />
-                    {isSavedNoteView && savedNote?.date ? savedNote.date : "Today"}
+                    Today
                   </span>
                   {showSummaryPanel && (
                     <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
                       <Clock className="h-3 w-3" />
-                      {isSavedNoteView && savedNote?.date && savedNote?.time && savedNote?.duration
-                        ? formatStartEndTime(savedNote.date, savedNote.time, savedNote.duration)
-                        : isSavedNoteView && savedNote?.time
-                          ? savedNote.time
-                          : !isSavedNoteView
-                            ? elapsed
-                            : "—"}
+                      {displayTimeRange}
                     </span>
                   )}
                   {folderChip}
-                  {showSummaryPanel && (
-                    <div className="flex items-center gap-2">
-                      {/* Single extended bar: hamburger | sparkles | template dropdown */}
-                      <div className="flex items-center rounded-full border border-border bg-card overflow-hidden">
-                        <button
-                          onClick={() => handleViewModeChange("my-notes")}
-                          className={cn(
-                            "flex items-center justify-center p-2 transition-colors",
-                            viewMode === "my-notes"
-                              ? "bg-secondary text-foreground"
-                              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                          )}
-                          title="My notes only"
-                        >
-                          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-                            <rect x="2" y="3" width="12" height="1.5" rx="0.75" />
-                            <rect x="2" y="7.25" width="12" height="1.5" rx="0.75" />
-                            <rect x="2" y="11.5" width="12" height="1.5" rx="0.75" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleViewModeChange("ai-notes")}
-                          className={cn(
-                            "flex items-center justify-center p-2 transition-colors border-l border-border",
-                            viewMode === "ai-notes"
-                              ? "bg-secondary text-foreground"
-                              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                          )}
-                          title="AI notes + my notes"
-                        >
-                          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8 1l1.3 3.7L13 6l-3.7 1.3L8 11l-1.3-3.7L3 6l3.7-1.3L8 1z" />
-                            <path d="M12 9l.7 2L15 12l-2.3.7-.7 2-.7-2L9 12l2.3-.7.7-2z" />
-                          </svg>
-                        </button>
-                        <div ref={templateMenuRef} className={cn(
-                          "relative flex border-l border-border",
-                          viewMode === "ai-notes" ? "bg-secondary" : "bg-transparent"
-                        )}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowTemplateMenu(!showTemplateMenu); handleViewModeChange("ai-notes"); }}
-                            className={cn(
-                              "flex items-center gap-1 pl-2 pr-2.5 py-1.5 text-[12px] transition-colors rounded-r-full",
-                              viewMode === "ai-notes"
-                                ? "bg-secondary text-foreground hover:bg-secondary/80"
-                                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                            )}
-                            title="Template"
-                          >
-                            <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
-                            <span className="max-w-[88px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
-                            <ChevronDown className={cn("h-3 w-3 transition-transform flex-shrink-0", showTemplateMenu && "rotate-180")} />
-                          </button>
-                          {showTemplateMenu && (
-                            <div className="absolute left-0 right-0 top-full mt-1 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1 min-w-[10rem]">
-                              {MEETING_TEMPLATES.map((t) => (
-                                <button
-                                  key={t.id}
-                                  onClick={() => {
-                                    setMeetingTemplate(t.id);
-                                    meetingTemplateRef.current = t.id;
-                                    setShowTemplateMenu(false);
-                                    handleViewModeChange("ai-notes");
-                                  }}
-                                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <span>{t.icon}</span>
-                                    <span>{t.name}</span>
-                                  </span>
-                                  {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Sync: run summary with selected template when not General */}
-                      {meetingTemplate !== "general" && viewMode === "ai-notes" && (
-                        <button
-                          type="button"
-                          onClick={() => generateNotes()}
-                          disabled={isSummarizing}
-                          className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
-                          title="Run summary with this template"
-                        >
-                          {isSummarizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          Sync
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {/* Content: recording vs paused/stopped with notes */}
@@ -990,43 +803,20 @@ export default function NewNotePage() {
                   <textarea
                     value={personalNotes}
                     onChange={(e) => setPersonalNotes(e.target.value)}
-                    onBlur={() => { if (isSavedNoteView && noteId) updateNote(noteId, { personalNotes }); }}
                     placeholder="Write notes..."
-                    className="min-h-[60vh] w-full resize-none bg-transparent text-[17px] font-normal text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none select-text"
+                    className="min-h-[60vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
                     autoFocus
                   />
                 ) : (
                   <div className="animate-fade-in">
                     {viewMode === "my-notes" ? (
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[13px] font-medium text-muted-foreground">Personal notes</span>
-                          {personalNotes.trim().length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPersonalNotes("");
-                                if (noteId) updateNote(noteId, { personalNotes: "" });
-                                generateNotes({ personalNotes: "" }).catch((err) => {
-                                  console.error("Summary failed:", err);
-                                  toast.error("Summary failed. Try again.");
-                                });
-                              }}
-                              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              Clear & re-run summary
-                            </button>
-                          )}
-                        </div>
-                        <textarea
-                          value={personalNotes}
-                          onChange={(e) => setPersonalNotes(e.target.value)}
-                          onBlur={() => { if (isSavedNoteView && noteId) updateNote(noteId, { personalNotes }); }}
-                          placeholder="Add your personal notes..."
-                          className="min-h-[40vh] w-full resize-none bg-transparent text-[17px] font-normal text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none select-text"
-                          autoFocus
-                        />
-                      </div>
+                      <textarea
+                        value={personalNotes}
+                        onChange={(e) => setPersonalNotes(e.target.value)}
+                        placeholder="Add your personal notes..."
+                        className="min-h-[40vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+                        autoFocus
+                      />
                     ) : isSummarizing ? (
                       <div className="space-y-8 py-4">
                         <div>
@@ -1070,18 +860,11 @@ export default function NewNotePage() {
                         </div>
                         <p className="text-xs text-muted-foreground text-center animate-pulse">Generating summary...</p>
                       </div>
-                    ) : summary != null ? (
-                      <div className="select-text">
-                        <EditableSummary
-                          summary={summary}
-                          onUpdate={(updated) => {
-                            setSummary(updated);
-                            if (isSavedNoteView && noteId) updateNote(noteId, { summary: updated });
-                          }}
-                        />
-                      </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground py-8 text-center">No summary for this note. Switch to My notes to add content, or generate a summary from a recording.</p>
+                      <EditableSummary
+                        summary={summary}
+                        onUpdate={(updated) => setSummary(updated)}
+                      />
                     )}
                   </div>
                 )}
@@ -1092,7 +875,6 @@ export default function NewNotePage() {
               <AskBar
                 context="meeting"
                 meetingTitle={title || "New note"}
-                noteContext={meetingNoteContext}
                 recordingState={recordingState}
                 transcriptVisible={transcriptVisible}
                 onResumeRecording={handleResume}

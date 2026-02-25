@@ -91,21 +91,17 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Global elapsed timer -- ticks regardless of which page is mounted; sync elapsed to tray so tray matches in-app
+  // Global elapsed timer -- ticks regardless of which page is mounted
   useEffect(() => {
     if (!activeSession?.isRecording) return;
     const id = setInterval(() => {
-      setActiveSession((prev) => {
-        if (!prev || !prev.isRecording) return prev;
-        const next = { ...prev, elapsedSeconds: prev.elapsedSeconds + 1 };
-        if (api) {
-          api.app.updateTrayMeetingInfo?.({ title: next.title, startTime: next.startTime, elapsedSeconds: next.elapsedSeconds });
-        }
-        return next;
-      });
+      setActiveSession((prev) => prev && prev.isRecording
+        ? { ...prev, elapsedSeconds: prev.elapsedSeconds + 1 }
+        : prev
+      );
     }, 1000);
     return () => clearInterval(id);
-  }, [activeSession?.isRecording, api]);
+  }, [activeSession?.isRecording]);
 
   const startSession = useCallback((noteId: string) => {
     const now = Date.now();
@@ -113,7 +109,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setTranscriptLines([]);
     // Inform tray about meeting info
     if (api) {
-      api.app.updateTrayMeetingInfo?.({ title: "New note", startTime: now, elapsedSeconds: 0 });
+      api.app.updateTrayMeetingInfo?.({ title: "New note", startTime: now });
     }
   }, [api]);
 
@@ -121,7 +117,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     const startTime = Date.now() - elapsedSeconds * 1000;
     setActiveSession({ noteId, title: title || "New note", elapsedSeconds, isRecording: true, startTime });
     if (api) {
-      api.app.updateTrayMeetingInfo?.({ title: title || "New note", startTime, elapsedSeconds });
+      api.app.updateTrayMeetingInfo?.({ title: title || "New note", startTime });
     }
   }, [api]);
 
@@ -129,9 +125,9 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setActiveSession((prev) => {
       if (!prev) return null;
       const next = { ...prev, ...updates };
-      // Sync title and elapsed to tray
-      if ((updates.title != null || updates.elapsedSeconds != null) && api) {
-        api.app.updateTrayMeetingInfo?.({ title: next.title, startTime: next.startTime, elapsedSeconds: next.elapsedSeconds });
+      // Sync title changes to tray
+      if (updates.title && api) {
+        api.app.updateTrayMeetingInfo?.({ title: next.title, startTime: next.startTime });
       }
       return next;
     });
@@ -152,7 +148,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const stopSpeechRecognition = useCallback(() => {
     if (speechRecRef.current) {
-      try { speechRecRef.current.abort(); } catch { /* ignore */ }
+      try { speechRecRef.current.abort(); } catch {}
       speechRecRef.current = null;
     }
     setUsingWebSpeech(false);
@@ -201,7 +197,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
     recognition.onend = () => {
       if (speechRecRef.current === recognition) {
-        try { recognition.start(); } catch { /* ignore */ }
+        try { recognition.start(); } catch {}
       }
     };
 
@@ -225,7 +221,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     try {
       const storedDevice = await api.db.settings.get('audio-input-device');
       if (storedDevice) preferredDeviceId = storedDevice;
-    } catch { /* ignore */ }
+    } catch {}
 
     try {
       await api.recording.start({ sttModel: sttModel || '' });
@@ -344,7 +340,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       await api.recording.pause();
     }
     if (speechRecRef.current) {
-      try { speechRecRef.current.abort(); } catch { /* ignore */ }
+      try { speechRecRef.current.abort(); } catch {}
       speechRecRef.current = null;
       setUsingWebSpeech(false);
     }

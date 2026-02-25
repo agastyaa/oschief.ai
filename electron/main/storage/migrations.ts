@@ -35,6 +35,12 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC)`,
     ]
   },
+  {
+    version: 2,
+    up: [
+      `ALTER TABLE notes ADD COLUMN time_range TEXT`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

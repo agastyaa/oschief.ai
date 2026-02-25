@@ -7,12 +7,14 @@ export interface SavedNote {
   date: string;
   time: string;
   duration: string;
+  /** Optional start-to-end time range (e.g. "7:00 PM – 7:34 PM") */
+  timeRange?: string;
   personalNotes: string;
   transcript: { speaker: string; time: string; text: string }[];
   summary: {
     overview: string;
     keyPoints: string[];
-    nextSteps: { text: string; assignee: string; done: boolean; dueDate?: string }[];
+    nextSteps: { text: string; assignee: string; done: boolean }[];
   } | null;
   folderId: string | null;
 }
@@ -41,7 +43,7 @@ function loadNotesFromLS(): SavedNote[] {
 function saveNotesToLS(notes: SavedNote[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  } catch { /* ignore */ }
+  } catch {}
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);

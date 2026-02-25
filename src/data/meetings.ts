@@ -7,7 +7,7 @@ export interface Meeting {
   participants: string[];
   summary: string;
   keyPoints: string[];
-  actionItems: { text: string; assignee: string; done: boolean; dueDate?: string }[];
+  actionItems: { text: string; assignee: string; done: boolean }[];
   transcript?: string;
   tags: string[];
 }

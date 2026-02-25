@@ -6,43 +6,53 @@ import { TRAY_ICON_BASE64, TRAY_ICON_RECORDING_BASE64 } from './tray-icons.gener
 let tray: Tray | null = null
 let mainWindow: BrowserWindow | null = null
 
-// Meeting state for tray (elapsedSeconds from renderer when provided, so tray matches in-app timer)
-let currentMeeting: { title: string; startTime: number; elapsedSeconds?: number } | null = null
+// Meeting state for tray
+let currentMeeting: { title: string; startTime: number } | null = null
 let isRecording = false
 let titleUpdateInterval: ReturnType<typeof setInterval> | null = null
 
 const TRAY_ICON_NAME = 'tray-icon-template-2x.png'
 
-/** Path to tray icon file (44×44 template); used as-is when present, no regeneration. */
+/** Path to tray icon file (44×44 template); used as-is when present. */
 function getTrayIconPath(): string | null {
-  const p = app.isPackaged
-    ? join(app.getPath('resourcesPath'), TRAY_ICON_NAME)
-    : join(app.getAppPath(), 'electron', 'resources', TRAY_ICON_NAME)
-  return existsSync(p) ? p : null
+  try {
+    const p = app.isPackaged
+      ? join(app.getPath('resourcesPath'), TRAY_ICON_NAME)
+      : join(app.getAppPath(), 'electron', 'resources', TRAY_ICON_NAME)
+    return existsSync(p) ? p : null
+  } catch {
+    return null
+  }
 }
 
-// Tray icons: load from file when present (dark/light handled by your assets); else fall back to generated base64.
+// Tray icons: load from file when present; else fall back to generated base64.
 function createTrayIcon(): Electron.NativeImage {
   const path = getTrayIconPath()
+  let image: Electron.NativeImage
   if (path) {
-    const image = nativeImage.createFromPath(path)
-    if (process.platform === 'darwin') image.setTemplateImage(true)
-    return image
+    image = nativeImage.createFromPath(path)
+  } else {
+    image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
   }
-  const image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
-  if (process.platform === 'darwin') image.setTemplateImage(true)
+  if (process.platform === 'darwin') {
+    image.setTemplateImage(true)
+    image = image.resize({ width: 22, height: 22 })
+  }
   return image
 }
 
 function createRecordingIcon(): Electron.NativeImage {
   const path = getTrayIconPath()
+  let image: Electron.NativeImage
   if (path) {
-    const image = nativeImage.createFromPath(path)
-    if (process.platform === 'darwin') image.setTemplateImage(true)
-    return image
+    image = nativeImage.createFromPath(path)
+  } else {
+    image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
   }
-  const image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
-  if (process.platform === 'darwin') image.setTemplateImage(true)
+  if (process.platform === 'darwin') {
+    image.setTemplateImage(true)
+    image = image.resize({ width: 22, height: 22 })
+  }
   return image
 }
 
@@ -50,12 +60,6 @@ function formatElapsed(startTime: number): string {
   const sec = Math.floor((Date.now() - startTime) / 1000)
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function formatElapsedFromSeconds(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
@@ -76,11 +80,8 @@ function updateTrayTitle(): void {
   if (!tray) return
 
   if (isRecording && currentMeeting) {
-    // Use renderer-provided elapsed when present so tray matches in-app timer; else wall-clock from startTime
-    const elapsed =
-      currentMeeting.elapsedSeconds != null
-        ? formatElapsedFromSeconds(currentMeeting.elapsedSeconds)
-        : formatElapsed(currentMeeting.startTime)
+    // Show: "Meeting Name  00:42" next to the tray icon (like Apple Music shows song title)
+    const elapsed = formatElapsed(currentMeeting.startTime)
     const shortTitle = currentMeeting.title.length > 20
       ? currentMeeting.title.slice(0, 18) + '…'
       : currentMeeting.title
@@ -129,7 +130,7 @@ function rebuildMenu(): void {
       enabled: false,
     })
     template.push({
-      label: `  ${currentMeeting.elapsedSeconds != null ? formatElapsedFromSeconds(currentMeeting.elapsedSeconds) : formatElapsed(currentMeeting.startTime)} elapsed`,
+      label: `  ${formatElapsed(currentMeeting.startTime)} elapsed`,
       enabled: false,
     })
     template.push({ type: 'separator' })
@@ -211,7 +212,7 @@ export function updateTrayRecordingState(recording: boolean): void {
   rebuildMenu()
 }
 
-export function updateTrayMeetingInfo(info: { title: string; startTime: number; elapsedSeconds?: number } | null): void {
+export function updateTrayMeetingInfo(info: { title: string; startTime: number } | null): void {
   currentMeeting = info
   if (info && isRecording) {
     startTitleUpdater()
@@ -231,7 +232,7 @@ export function showMeetingDetectedNotification(meetingTitle: string, appName: s
   notification.on('click', () => {
     mainWindow?.show()
     mainWindow?.focus()
-    mainWindow?.webContents.send('tray:start-recording', { title: meetingTitle })
+    mainWindow?.webContents.send('tray:start-recording')
   })
 
   notification.show()
@@ -259,23 +260,6 @@ export function showMeetingStartingSoonNotification(
       title,
       joinLink,
     })
-  })
-
-  notification.show()
-}
-
-export function showSummaryReadyNotification(noteTitle: string): void {
-  if (!Notification.isSupported()) return
-
-  const notification = new Notification({
-    title: 'Summary ready',
-    body: noteTitle ? `"${noteTitle}" — AI summary is ready` : 'Meeting summary is ready',
-    silent: false,
-  })
-
-  notification.on('click', () => {
-    mainWindow?.show()
-    mainWindow?.focus()
   })
 
   notification.show()

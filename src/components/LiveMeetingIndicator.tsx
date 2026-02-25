@@ -60,7 +60,6 @@ export function LiveMeetingIndicator() {
 
   if (
     !activeSession ||
-    !activeSession.isRecording ||
     location.pathname === "/new-note" ||
     !prefs.showRecordingIndicator ||
     manuallyHidden
@@ -70,14 +69,6 @@ export function LiveMeetingIndicator() {
   const title = activeSession.title || "Recording";
   const isRecording = activeSession.isRecording;
   const elapsed = formatTime(activeSession.elapsedSeconds ?? 0);
-
-  const handleDiscard = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setManuallyHidden(true);
-    },
-    []
-  );
 
   return (
     <div
@@ -89,21 +80,12 @@ export function LiveMeetingIndicator() {
       }}
     >
       <div
-        className="relative flex items-center gap-2 rounded-full border border-border/50 bg-card/95 shadow-lg pl-6 pr-3 py-2 min-w-[200px] max-w-[280px] animate-in fade-in duration-200"
+        className="flex items-center gap-2 rounded-full border border-border/50 bg-card/95 shadow-lg px-3 py-2 min-w-[200px] max-w-[280px] animate-in fade-in duration-200"
         style={{
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
         }}
       >
-        <button
-          type="button"
-          onClick={handleDiscard}
-          className="absolute top-1 left-1.5 p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-black/5 transition-colors"
-          title="Dismiss indicator"
-          aria-label="Dismiss"
-        >
-          <X className="h-3 w-3" />
-        </button>
         {isRecording && (
           <span className="relative flex h-2 w-2 flex-shrink-0">
             <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
@@ -200,6 +182,13 @@ export function LiveMeetingIndicator() {
           ) : (
             <Play className="h-3.5 w-3.5" />
           )}
+        </button>
+        <button
+          onClick={() => setManuallyHidden(true)}
+          className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title="Dismiss"
+        >
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

@@ -33,11 +33,15 @@ export type CalendarEventForMain = { id: string; title: string; start: number; e
 let calendarEvents: CalendarEventForMain[] = []
 let startingSoonInterval: ReturnType<typeof setInterval> | null = null
 const notifiedStartingSoonIds = new Set<string>()
-const STARTING_SOON_WINDOW_MS = 70 * 1000   // notify when 70s before start (~1 min)
+const STARTING_SOON_WINDOW_MS = 70 * 1000   // notify when 70s before start (~1 min, Granola-style)
 const STARTING_SOON_END_MS = 50 * 1000     // until 50s before start
 
 // Poll every 5s so joining a call triggers notification quickly
 let currentPollMs = 5000
+
+// Cooldown: skip detection for first 60s after app launch to avoid false positives (e.g. Zoom/Teams auto-start)
+const LAUNCH_COOLDOWN_MS = 60 * 1000
+let appLaunchTime = Date.now()
 
 function execAsync(cmd: string, timeoutMs = 3000): Promise<string> {
   return new Promise((resolve) => {
@@ -59,7 +63,7 @@ export function setCalendarEvents(events: CalendarEventForMain[]): void {
   calendarEvents = events
 }
 
-/** Match if now is within 15 min before start or 5 min after end. */
+/** Match if now is within 15 min before start or 5 min after end (Granola-style). */
 function findCurrentCalendarEvent(): CalendarEventForMain | null {
   const now = Date.now()
   const beforeStartMs = 15 * 60 * 1000
@@ -91,6 +95,7 @@ function checkStartingSoon(): void {
 
 export function startMeetingDetection(win: BrowserWindow): void {
   mainWindow = win
+  appLaunchTime = Date.now()
   if (pollInterval) return
   // Run first check soon so we don't wait a full interval after app start
   setTimeout(() => checkForMeetings(), 2000)
@@ -156,9 +161,10 @@ async function checkForMeetings(): Promise<void> {
 
     // Notify whenever meeting app transitions from absent to present (scheduled or ad-hoc). Calendar used only for title.
     const calEvent = findCurrentCalendarEvent()
-    if (matchedApp && !lastPollHadMeetingApp) {
-      // Default: require mic in use so we only notify when likely on a call (avoids "Meeting detected" when app is open but not in call)
-      const requireMic = getSetting('meeting-detection-require-mic') !== 'false'
+    const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
+    if (matchedApp && !lastPollHadMeetingApp && !inCooldown) {
+      // Optional: require mic/audio in use (Granola-style) to reduce false positives when app is open but not in a call
+      const requireMic = getSetting('meeting-detection-require-mic') === 'true'
       if (requireMic) {
         const micActive = await checkMicActive()
         if (!micActive) {

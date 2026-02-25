@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, Pencil } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2 } from "lucide-react";
 import { SyagLogo } from "@/components/SyagLogo";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders, type Folder } from "@/contexts/FolderContext";
 
 const iconMap = {
@@ -17,13 +17,9 @@ const iconMap = {
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { folders, createFolder, deleteFolder, renameFolder } = useFolders();
-  const searchQuery = searchParams.get("q") ?? "";
+  const { folders, createFolder, deleteFolder } = useFolders();
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [editingFolderName, setEditingFolderName] = useState("");
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
@@ -36,42 +32,20 @@ export function Sidebar() {
     }
   };
 
-  const handleRenameFolder = (folderId: string) => {
-    const name = editingFolderName.trim();
-    if (name) {
-      renameFolder(folderId, name);
-    }
-    setEditingFolderId(null);
-    setEditingFolderName("");
-  };
-
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
-      {/* Logo — single image, large enough to be visible */}
-      <div className={cn("flex items-center px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
-        <SyagLogo size={140} className="max-w-[180px]" />
+      {/* Logo */}
+      <div className={cn("flex items-center gap-2 px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
+        <SyagLogo size={24} showText />
       </div>
 
-      {/* Search notes — drives home list filter via ?q= */}
+      {/* Search */}
       <div className="px-3 py-2">
-        <div className="flex items-center gap-2 rounded-md border border-border bg-background/50 px-2 py-1.5">
-          <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => {
-              const q = e.target.value;
-              const next = new URLSearchParams(location.search);
-              if (q.trim()) next.set("q", q); else next.delete("q");
-              setSearchParams(next, { replace: true });
-            }}
-            onFocus={() => location.pathname !== "/" && navigate("/")}
-            placeholder="Search notes..."
-            id="sidebar-search-input"
-            className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-            aria-label="Search notes"
-          />
-        </div>
+        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary">
+          <Search className="h-3.5 w-3.5" />
+          <span>Search</span>
+          <kbd className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+        </button>
       </div>
 
       {/* Nav */}
@@ -104,77 +78,37 @@ export function Sidebar() {
         <div className="flex flex-col gap-0.5">
           {folders.map((f) => {
             const Icon = iconMap[f.icon] || FolderOpen;
-            const isEditing = editingFolderId === f.id;
             return (
               <div
                 key={f.id}
                 className={cn(
                   "group/folder flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-                  !isEditing && new URLSearchParams(location.search).get("folder") === f.id
+                  new URLSearchParams(location.search).get("folder") === f.id
                     ? "bg-secondary text-foreground font-medium"
                     : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
                 )}
               >
-                {isEditing ? (
-                  <>
-                    <div className={cn("flex h-4 w-4 items-center justify-center rounded flex-shrink-0", f.color)}>
-                      <Icon className="h-2.5 w-2.5" />
-                    </div>
-                    <input
-                      autoFocus
-                      value={editingFolderName}
-                      onChange={(e) => setEditingFolderName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleRenameFolder(f.id);
-                        if (e.key === "Escape") { setEditingFolderId(null); setEditingFolderName(""); }
-                      }}
-                      onBlur={() => handleRenameFolder(f.id)}
-                      placeholder="Folder name"
-                      className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <button onClick={() => handleRenameFolder(f.id)} className="rounded p-0.5 text-accent hover:text-accent/80 flex-shrink-0">
-                      <Check className="h-3 w-3" />
-                    </button>
-                    <button onClick={() => { setEditingFolderId(null); setEditingFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => navigate(`/?folder=${f.id}`)}
-                      className="flex flex-1 items-center gap-2.5 min-w-0"
-                    >
-                      <div className={cn("flex h-4 w-4 items-center justify-center rounded flex-shrink-0", f.color)}>
-                        <Icon className="h-2.5 w-2.5" />
-                      </div>
-                      <span className="truncate">{f.name}</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingFolderId(f.id);
-                        setEditingFolderName(f.name);
-                      }}
-                      className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0"
-                      aria-label="Rename folder"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteFolder(f.id);
-                        if (new URLSearchParams(location.search).get("folder") === f.id) {
-                          navigate("/");
-                        }
-                      }}
-                      className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => navigate(`/?folder=${f.id}`)}
+                  className="flex flex-1 items-center gap-2.5 min-w-0"
+                >
+                  <div className={cn("flex h-4 w-4 items-center justify-center rounded flex-shrink-0", f.color)}>
+                    <Icon className="h-2.5 w-2.5" />
+                  </div>
+                  <span className="truncate">{f.name}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteFolder(f.id);
+                    if (new URLSearchParams(location.search).get("folder") === f.id) {
+                      navigate("/");
+                    }
+                  }}
+                  className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
               </div>
             );
           })}

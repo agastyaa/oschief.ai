@@ -47,9 +47,9 @@ AI-powered meeting notes and audio transcription for macOS. Record meetings with
 |-------|------|------|
 | **Entry** | `main.tsx` | React root, mounts `App` |
 | **App** | `App.tsx` | Providers (Model, Folder, Notes, Recording, Calendar), Router, GlobalRecordingBanner, MeetingDetectionHandler |
-| **Routes** | Routes in `App.tsx` | `/` Index, `/notes` AllNotes, `/new-note` NewNotePage, `/note/:id` NewNotePage (saved note view), `/calendar` CalendarPage, `/settings` SettingsPage, `/onboarding` OnboardingPage, `/ask` AskSyag |
+| **Routes** | Routes in `App.tsx` | `/` Index, `/notes` AllNotes, `/new-note` NewNotePage, `/note/:id` NoteDetailPage, `/calendar` CalendarPage, `/settings` SettingsPage, `/onboarding` OnboardingPage, `/ask` AskSyag |
 | **Contexts** | `contexts/*.tsx` | **RecordingContext**: session, transcript lines, start/stop/pause/resume capture, Web Speech fallback. **NotesContext**: CRUD notes. **FolderContext**: folders. **ModelSettingsContext**: selected AI/STT models, download states, connected cloud providers, keychain sync. **CalendarContext**: calendar events for meeting detection |
-| **Pages** | `pages/*.tsx` | NewNotePage (record, live transcript, summary, and saved note view with full toolbar), SettingsPage (AI models, STT, keychain connect), CalendarPage, OnboardingPage, etc. |
+| **Pages** | `pages/*.tsx` | NewNotePage (record, live transcript, summary), NoteDetailPage (view/edit note, Ask bar), SettingsPage (AI models, STT, keychain connect), CalendarPage, OnboardingPage, etc. |
 | **Components** | `components/*.tsx` | GlobalRecordingBanner, TrayMenu, AskBar, EditableSummary, Sidebar, MeetingCard, ICSDialog, UI primitives (components/ui/) |
 | **API bridge** | `lib/electron-api.ts` | Typed access to `window.electronAPI` (or undefined in web); used by contexts/pages |
 
@@ -64,7 +64,6 @@ AI-powered meeting notes and audio transcription for macOS. Record meetings with
 | **Windows** | `windows.ts` | Create main BrowserWindow, load app (dev vs prod), open tray preview window. |
 | **Tray** | `tray.ts` | System tray icon (colored “S”), recording state (red dot), menu (New note, Pause/Resume, Open, Quit), tray events → IPC to renderer. |
 | **Database** | `storage/database.ts` | better-sqlite3, `userData/data/syag.db`, WAL mode. Tables: notes (id, title, date, time, duration, personal_notes, transcript, summary, folder_id), folders, settings. CRUD + migrations. |
-| **Documents sync** | `storage/documents-sync.ts` | Writes summarized notes to **Documents/Syag meeting notes** as Markdown (one `.md` per note). Subfolders mirror app folders; no folder = root. Sync on add/update/updateFolder/delete and on startup. |
 | **Migrations** | `storage/migrations.ts` | Schema versioning and migrations for DB. |
 
 ---
@@ -127,24 +126,11 @@ Constants: `SAMPLE_RATE = 16000`, `MIN_SAMPLES_PER_CHANNEL = 2s`, `CHUNK_INTERVA
 
 ---
 
-### 8. Data storage & Documents sync
+### 8. Data flow summary
 
-- **App data (notes, folders, settings)** live in **SQLite** at `userData/data/syag.db` (e.g. on macOS: `~/Library/Application Support/Syag/data/syag.db`). Notes store transcript and summary as JSON; nothing is stored as separate doc files inside the app.
-- **Summarized meetings** are also mirrored to your **Documents** folder: **Documents/Syag meeting notes**. Each summarized note is written as a **Markdown file** (`{noteId}.md`) so you have a normal folder of meeting notes. If a note has no folder in Syag, its file lives in **Syag meeting notes**; if you assign a folder, the file lives in **Syag meeting notes/{FolderName}/**. Moving a note to a different folder in the app moves the file to the matching subfolder on disk. Only notes that have a summary are exported.
-
----
-
-### 9. Distribution (DMG)
-
-- **Giving the DMG to someone else:** The DMG contains only the app binary and resources. **No personal data, API keys, notes, or settings** are bundled. When they install and run Syag, they get a **new, empty** app data directory (`userData`). So they will not see your notes, keychain, or preferences.
-
----
-
-### 10. Data flow summary
-
-- **Notes:** Renderer ↔ IPC ↔ **database.ts** (SQLite). Summarized notes are also synced to **Documents/Syag meeting notes** (see §8).
+- **Notes:** Renderer ↔ IPC ↔ **database.ts** (SQLite).
 - **Transcript:** AudioWorklet → IPC `recording:audio-chunk` → **capture.ts** → STT (local or **router** → cloud) → IPC `recording:transcript-chunk` → **RecordingContext** → UI.
-- **Summaries:** NewNotePage → IPC `llm:summarize` / `llm:chat` → **llm-engine** + **router** → cloud LLM → result back to renderer.
+- **Summaries:** NewNotePage / NoteDetailPage → IPC `llm:summarize` / `llm:chat` → **llm-engine** + **router** → cloud LLM → result back to renderer.
 - **Models:** Settings → IPC models/download, keychain/set → main; **ModelSettingsContext** syncs selected STT/AI model and connected providers to DB and keychain.
 
 ---

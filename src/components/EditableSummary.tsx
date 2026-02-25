@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   CheckCircle2, Circle, Pencil, AlertCircle, Users
 } from "lucide-react";
@@ -32,14 +32,14 @@ export interface SummaryData {
   discussionTopics?: DiscussionTopic[];
   keyPoints?: string[];
   actionItems?: ActionItem[];
-  nextSteps?: { text: string; assignee: string; done: boolean; dueDate?: string }[];
+  nextSteps?: { text: string; assignee: string; done: boolean }[];
   questionsAndOpenItems?: string[];
   followUps?: string[];
   keyQuotes?: KeyQuote[];
 }
 
 interface EditableSummaryProps {
-  summary: SummaryData | null;
+  summary: SummaryData;
   onUpdate?: (summary: SummaryData) => void;
 }
 
@@ -50,20 +50,9 @@ function parseBullets(text: string): string[] {
     .filter(Boolean);
 }
 
-const EMPTY_SUMMARY: SummaryData = {
-  overview: "",
-  keyPoints: [],
-  nextSteps: [],
-};
-
 export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
-  const safeSummary = summary ?? EMPTY_SUMMARY;
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [localSummary, setLocalSummary] = useState<SummaryData>(safeSummary);
-
-  useEffect(() => {
-    setLocalSummary(summary ?? EMPTY_SUMMARY);
-  }, [summary]);
+  const [localSummary, setLocalSummary] = useState<SummaryData>(summary);
 
   const commit = (updated: SummaryData) => {
     setLocalSummary(updated);
@@ -76,8 +65,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
   };
 
   const handleToggleActionDone = (index: number) => {
-    const items = [...(localSummary.actionItems ?? localSummary.nextSteps ?? [])];
-    if (items[index] == null) return;
+    const items = [...(localSummary.actionItems || localSummary.nextSteps || [])];
     items[index] = { ...items[index], done: !items[index].done };
     const updated = localSummary.actionItems
       ? { ...localSummary, actionItems: items as ActionItem[] }
@@ -86,17 +74,17 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
     onUpdate?.(updated);
   };
 
-  const actions = localSummary.actionItems ?? localSummary.nextSteps?.map(s => ({
-    ...s, priority: "medium" as const, dueDate: s.dueDate,
-  })) ?? [];
-  const topics = localSummary.discussionTopics ?? [];
-  const keyPoints = localSummary.keyPoints ?? [];
-  const questions = localSummary.questionsAndOpenItems ?? [];
-  const quotes = localSummary.keyQuotes ?? [];
-  const attendees = localSummary.attendees ?? [];
+  const actions = localSummary.actionItems || localSummary.nextSteps?.map(s => ({
+    ...s, priority: "medium" as const, dueDate: undefined,
+  })) || [];
+  const topics = localSummary.discussionTopics || [];
+  const keyPoints = localSummary.keyPoints || [];
+  const questions = localSummary.questionsAndOpenItems || [];
+  const quotes = localSummary.keyQuotes || [];
+  const attendees = localSummary.attendees || [];
 
   return (
-    <div className="animate-fade-in space-y-4 summary-content font-body select-text" data-summary>
+    <div className="animate-fade-in space-y-4">
       {attendees.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users className="h-3 w-3 text-muted-foreground/40" />
@@ -120,13 +108,13 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                 }
                 if (e.key === "Escape") setEditingField(null);
               }}
-              className="w-full resize-none bg-transparent text-[15px] leading-relaxed font-normal text-foreground focus:outline-none"
+              className="w-full resize-none bg-transparent text-[15px] leading-relaxed font-medium text-foreground focus:outline-none"
               rows={2}
             />
           ) : (
             <p
               onClick={() => setEditingField("overview")}
-              className="text-[15px] leading-relaxed font-normal text-foreground cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
+              className="text-[15px] leading-relaxed font-medium text-foreground cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
             >
               {localSummary.overview}
               <Pencil className="inline-block ml-1 h-2.5 w-2.5 text-muted-foreground/0 group-hover/section:text-muted-foreground/30 transition-colors" />
@@ -140,7 +128,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
         if (bullets.length === 0) return null;
         return (
           <div key={i}>
-            <h3 className="text-base font-medium text-foreground mb-1">
+            <h3 className="text-[15px] font-semibold text-foreground mb-1">
               {topic.topic}
             </h3>
             <ul className="space-y-0.5">
@@ -154,10 +142,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                       isDecision ? "bg-accent" : "bg-foreground/15"
                     )} />
                     <span className={cn(
-                      "font-normal text-foreground/90",
-                      isDecision && "font-medium text-foreground"
+                      "font-medium text-foreground/90",
+                      isDecision && "font-semibold text-foreground"
                     )}>
-                      {isDecision && <span className="text-accent text-[12px] font-medium mr-1">DECISION</span>}
+                      {isDecision && <span className="text-accent text-[12px] font-semibold mr-1">DECISION</span>}
                       {displayText}
                     </span>
                   </li>
@@ -170,10 +158,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {keyPoints.length > 0 && topics.length === 0 && (
         <div>
-          <h3 className="text-base font-medium text-foreground mb-1">Key Points</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1">Key Points</h3>
           <ul className="space-y-0.5">
             {keyPoints.map((point, i) => (
-              <li key={i} className="flex gap-1.5 text-[15px] font-normal text-foreground/90 leading-snug">
+              <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
                 <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-foreground/15" />
                 <span>{point}</span>
               </li>
@@ -184,10 +172,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {actions.length > 0 && (
         <div>
-          <h3 className="text-base font-medium text-foreground mb-1.5">Action Items</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1.5">Action Items</h3>
           <div className="space-y-1">
             {actions.map((item, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-[15px] font-normal leading-snug">
+              <div key={i} className="flex items-start gap-1.5 text-[15px] font-medium leading-snug">
                 <button onClick={() => handleToggleActionDone(i)} className="mt-0.5 flex-shrink-0">
                   {item.done ? (
                     <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
@@ -203,9 +191,6 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                 {item.assignee && item.assignee !== "You" && (
                   <span className="text-[12px] text-muted-foreground/70 flex-shrink-0">— {item.assignee}</span>
                 )}
-                {item.dueDate && (
-                  <span className="text-[12px] text-muted-foreground/70 flex-shrink-0">Due {item.dueDate}</span>
-                )}
               </div>
             ))}
           </div>
@@ -214,10 +199,10 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {questions.length > 0 && (
         <div>
-          <h3 className="text-base font-medium text-foreground mb-1">Open Questions</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1">Open Questions</h3>
           <ul className="space-y-0.5">
             {questions.map((q, i) => (
-              <li key={i} className="flex gap-1.5 text-[15px] font-normal text-foreground/90 leading-snug">
+              <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
                 <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0 text-amber-500/60" />
                 <span>{q}</span>
               </li>

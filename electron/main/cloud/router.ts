@@ -1,12 +1,11 @@
 import { getSetting } from '../storage/database'
 import { chatOpenAI, sttOpenAI } from './openai'
 import { chatAnthropic } from './anthropic'
-import { chatCopart, sttCopart } from './copart'
+import { chatCopart, sttCopart, listCopartModels, isCopartSttModel } from './copart'
 import { chatGoogle } from './google'
 import { sttDeepgram } from './deepgram'
 import { sttAssemblyAI } from './assemblyai'
 import { chatGroq, sttGroq } from './groq'
-import { chatApple } from './apple-llm'
 
 function getApiKey(providerId: string): string {
   const { safeStorage } = require('electron')
@@ -45,10 +44,6 @@ export async function routeLLM(
 ): Promise<string> {
   const [providerId, ...rest] = model.split(':')
   const modelName = rest.join(':')
-
-  if (providerId === 'apple') {
-    return chatApple(messages, modelName, onChunk)
-  }
 
   const apiKey = getApiKey(providerId)
 
@@ -117,6 +112,25 @@ export async function testCopartConnection(): Promise<{ ok: boolean; error?: str
   } catch (err: any) {
     const message = err?.message ?? String(err)
     return { ok: false, error: message }
+  }
+}
+
+/**
+ * List available models from Copart Genie API.
+ * Returns { models: CopartModel[], sttModels: CopartModel[] } or empty arrays on error.
+ */
+export async function listCopartGenieModels(): Promise<{
+  models: { id: string }[]
+  sttModels: { id: string }[]
+}> {
+  try {
+    const apiKey = getApiKey('copart')
+    const all = await listCopartModels(apiKey)
+    const sttModels = all.filter((m) => isCopartSttModel(m.id))
+    const models = all.filter((m) => !isCopartSttModel(m.id))
+    return { models, sttModels }
+  } catch {
+    return { models: [], sttModels: [] }
   }
 }
 

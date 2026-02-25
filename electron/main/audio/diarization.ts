@@ -73,7 +73,7 @@ function agglomerativeClustering(
 
   // Each point starts in its own cluster
   let clusters: number[][] = Array.from({ length: n }, (_, i) => [i])
-  const clusterIds = Array.from({ length: n }, (_, i) => i)
+  let clusterIds: number[] = Array.from({ length: n }, (_, i) => i)
 
   while (clusters.length > 1) {
     // Find the two most similar clusters (average linkage)

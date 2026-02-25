@@ -22,12 +22,11 @@ let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
 
-// Near real-time: process every 4s when active, 15s when idle
+// Near real-time (Granola-style): process every 4s when active, 15s when idle
 const CHUNK_INTERVAL_ACTIVE_MS = 4000
 const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
-// Auto-pause only when both mic and system audio have had no detected speech for 5 min
-const AUTO_PAUSE_SILENCE_MS = 300000
+const AUTO_PAUSE_SILENCE_MS = 3000 // 3s silence → auto-pause and run summary
 const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (near real-time, APIs support short audio)
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
@@ -91,7 +90,7 @@ export async function startRecording(
     if (hasData) processBufferedAudio()
   }, currentChunkIntervalMs)
 
-  // Silence monitor: auto-pause when no speech detected for 5 min (both channels)
+  // Silence monitor: auto-pause when no speech detected for 3s
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
     const silenceDuration = Date.now() - lastSpeechTime
@@ -100,7 +99,7 @@ export async function startRecording(
       isPaused = true
       statusCallback?.({ state: 'auto-paused' })
     }
-  }, 10000)
+  }, 5000)
 
   return true
 }
@@ -269,14 +268,12 @@ async function processBufferedAudio(): Promise<void> {
         sttResult = { text, words: [] }
       }
 
-      const trimmed = sttResult.text.trim()
-      const isFillerOnly = /^(uh|um|uhm|hmm|mm|eh|ah)\s*\.?$/i.test(trimmed) || trimmed.length < 2
-      if (trimmed && !isFillerOnly) {
+      if (sttResult.text.trim()) {
         lastSpeechTime = Date.now()
         transcriptCallback({
           speaker,
           time: formatTimestamp(chunkStartSec),
-          text: trimmed,
+          text: sttResult.text.trim(),
         })
       }
     } catch (err: any) {

@@ -108,6 +108,7 @@ interface ModelSettingsContextType {
   setUseLocalModels: (v: boolean) => void;
   getActiveAIModelLabel: () => string;
   getAvailableAIModels: () => { value: string; label: string; group: string }[];
+  copartFetchedModels: { models: string[]; sttModels: string[] } | null;
 }
 
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
@@ -133,6 +134,21 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DownloadProgress>>({});
   const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>(init.connectedProviders);
   const [hiddenLocalModels, setHiddenLocalModels] = useState<string[]>(init.hiddenLocalModels ?? []);
+  const [copartFetchedModels, setCopartFetchedModels] = useState<{ models: string[]; sttModels: string[] } | null>(null);
+
+  // Fetch Copart Genie models when connected
+  useEffect(() => {
+    if (!api?.copart?.listModels || !connectedProviders.copart?.connected) {
+      setCopartFetchedModels(null);
+      return;
+    }
+    api.copart.listModels().then(({ models, sttModels }) => {
+      setCopartFetchedModels({
+        models: models.map((m) => m.id),
+        sttModels: sttModels.map((m) => m.id),
+      });
+    }).catch(() => setCopartFetchedModels(null));
+  }, [api, connectedProviders.copart?.connected]);
 
   // Sync download states from Electron main process on mount
   useEffect(() => {
@@ -327,7 +343,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     }
     const [providerId, ...rest] = selectedAIModel.split(":");
     const modelName = rest.join(":");
-    if (providerId === "apple") return "Apple Intelligence (On-Device)";
     const provider = enterpriseProviders.find((p) => p.id === providerId);
     return provider ? `${modelName}` : selectedAIModel;
   };
@@ -342,9 +357,12 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       .forEach(([pid]) => {
         const provider = enterpriseProviders.find((p) => p.id === pid);
         if (!provider || provider.sttOnly) return;
-        const aiModels = provider.supportsStt
-          ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
-          : provider.models;
+        const aiModels =
+          pid === "copart" && copartFetchedModels?.models?.length
+            ? copartFetchedModels.models
+            : provider.supportsStt
+              ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
+              : provider.models;
         aiModels.forEach((m) =>
           models.push({ value: `${pid}:${m}`, label: m, group: provider.name })
         );
@@ -363,6 +381,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         connectProvider, disconnectProvider,
         useLocalModels, setUseLocalModels,
         getActiveAIModelLabel, getAvailableAIModels,
+        copartFetchedModels,
       }}
     >
       {children}

@@ -140,7 +140,7 @@ export default function CalendarPage() {
 
           {/* Calendar header */}
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl text-foreground font-medium font-body">
+            <h1 className="font-display text-2xl text-foreground">
               {view === "list" ? "From today" : `${monthNames[month]} ${year}`}
             </h1>
             <div className="flex items-center gap-3">
