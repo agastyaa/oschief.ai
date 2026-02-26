@@ -127,6 +127,16 @@ function formatTimeRange(startTimeMs: number, durationSeconds: number): string {
   return `${start.toLocaleTimeString("en-US", fmt)} – ${end.toLocaleTimeString("en-US", fmt)}`;
 }
 
+function isPlaceholderSummary(s: SummaryData | null): boolean {
+  if (!s) return true;
+  const o = (s.overview || "").toLowerCase();
+  return (
+    o.includes("no content was captured") ||
+    o.includes("no transcript or notes") ||
+    o.includes("select an stt model")
+  );
+}
+
 export default function NewNotePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -627,7 +637,8 @@ export default function NewNotePage() {
       : elapsed;
   const isStopped = recordingState === "stopped";
   const showSummaryPanel = (recordingState === "paused" || recordingState === "stopped") && (summary || isSummarizing);
-  const showTemplateSelector = !!(summary || isSummarizing);
+  const hasRealSummary = !!summary && !isPlaceholderSummary(summary) && !isSummarizing;
+  const showSummaryControls = hasRealSummary;
 
   const folderChip = (
     <>
@@ -729,94 +740,38 @@ export default function NewNotePage() {
               ← Back to notes
             </button>
           </div>
-          {(showSummaryPanel || showTemplateSelector) && (
-            <div className="flex items-center gap-1.5">
-              {showSummaryPanel && (
-                <NotesViewToggle
-                  viewMode={viewMode}
-                  onViewModeChange={handleViewModeChange}
-                  transcriptVisible={transcriptVisible}
-                  onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
-                />
-              )}
-              <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
-                <button
-                  onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-                  disabled={isSummarizing}
-                  className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
-                  title={showSummaryPanel ? "Regenerate with different template" : "Generate summary with template"}
-                >
-                  <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
-                  <span className="max-w-[100px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
-                  {isSummarizing ? (
-                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
-                  )}
-                </button>
-                {showTemplateMenu && (
-                  <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
-                    {MEETING_TEMPLATES.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => {
-                          setMeetingTemplate(t.id);
-                          meetingTemplateRef.current = t.id;
-                          setShowTemplateMenu(false);
-                          generateNotes().catch((err) => {
-                            console.error("Summary failed:", err);
-                            toast.error("Summary failed. Try again.");
-                          });
-                        }}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span>{t.icon}</span>
-                          <span>{t.name}</span>
-                        </span>
-                        {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
-                      </button>
-                    ))}
-                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Select a template to generate or regenerate summary.</p>
-                  </div>
-                )}
-              </div>
-              {showSummaryPanel && (
-                <>
-              <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-                <Share2 className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-1.5">
+            <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <Share2 className="h-3.5 w-3.5" />
+            </button>
+            <div ref={moreMenuRef} className="relative">
+              <button
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
-              <div ref={moreMenuRef} className="relative">
-                <button
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
-                  className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </button>
-                {showMoreMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                    <button
-                      onClick={handleCopyText}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      Copy text
-                    </button>
-                    <div className="border-t border-border" />
-                    <button
-                      onClick={handleDeleteNote}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-                </>
+              {showMoreMenu && (
+                <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+                  <button
+                    onClick={handleCopyText}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    Copy text
+                  </button>
+                  <div className="border-t border-border" />
+                  <button
+                    onClick={handleDeleteNote}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
@@ -871,13 +826,60 @@ export default function NewNotePage() {
                     <Calendar className="h-3 w-3" />
                     Today
                   </span>
-                  {showSummaryPanel && (
+                  {(recordingState === "paused" || recordingState === "stopped") && (
                     <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
                       <Clock className="h-3 w-3" />
                       {displayTimeRange}
                     </span>
                   )}
                   {folderChip}
+                  {showSummaryControls && (
+                    <>
+                      <NotesViewToggle
+                        viewMode={viewMode}
+                        onViewModeChange={handleViewModeChange}
+                        transcriptVisible={transcriptVisible}
+                        onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+                      />
+                      <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
+                        <button
+                          onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                          className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+                          title="Regenerate with different template"
+                        >
+                          <span>{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
+                          <span className="max-w-[80px] truncate">{MEETING_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
+                          <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
+                        </button>
+                        {showTemplateMenu && (
+                          <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                            {MEETING_TEMPLATES.map((t) => (
+                              <button
+                                key={t.id}
+                                onClick={() => {
+                                  setMeetingTemplate(t.id);
+                                  meetingTemplateRef.current = t.id;
+                                  setShowTemplateMenu(false);
+                                  generateNotes().catch((err) => {
+                                    console.error("Summary failed:", err);
+                                    toast.error("Summary failed. Try again.");
+                                  });
+                                }}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span>{t.icon}</span>
+                                  <span>{t.name}</span>
+                                </span>
+                                {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
+                              </button>
+                            ))}
+                            <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Select a template to regenerate summary.</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Content: recording vs paused/stopped with notes */}
@@ -977,7 +979,7 @@ export default function NewNotePage() {
                 meetingTitle={title || "New note"}
                 recordingState={recordingState}
                 transcriptVisible={transcriptVisible}
-                hideTranscriptToggle={showSummaryPanel}
+                hideTranscriptToggle={showSummaryControls}
                 onResumeRecording={handleResume}
                 onPauseRecording={() => {
                   userPausedRef.current = true;

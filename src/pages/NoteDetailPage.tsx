@@ -231,7 +231,7 @@ export default function NoteDetailPage() {
                 {/* Title */}
                 <h1 className="mb-3 font-display text-2xl text-foreground leading-tight">{note.title}</h1>
 
-                {/* Meta chips — date, time, then My note / AI + template */}
+                {/* Meta chips — date, time, then My note / AI + template (only when summary exists and not regenerating) */}
                 <div className="flex items-center gap-2 mb-6 flex-wrap">
                   <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
                     <Calendar className="h-3 w-3" />
@@ -241,50 +241,49 @@ export default function NoteDetailPage() {
                     <Clock className="h-3 w-3" />
                     {note.timeRange ?? note.duration}
                   </span>
-                  <NotesViewToggle
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                    transcriptVisible={transcriptVisible}
-                    onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
-                  />
-                  <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
-                    <button
-                      onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-                      disabled={isSummarizing}
-                      className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
-                      title="Regenerate with different template"
-                    >
-                      <span>{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
-                      <span className="max-w-[80px] truncate">{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
-                      {isSummarizing ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
-                      )}
-                    </button>
-                    {showTemplateMenu && (
-                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
-                        {BUILTIN_TEMPLATES.map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => {
-                              setMeetingTemplate(t.id);
-                              setShowTemplateMenu(false);
-                              handleRegenerate();
-                            }}
-                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span>{t.icon}</span>
-                              <span>{t.name}</span>
-                            </span>
-                            {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
-                          </button>
-                        ))}
-                        <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Select a template to regenerate summary.</p>
+                  {note.summary && !isSummarizing && (
+                    <>
+                      <NotesViewToggle
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                        transcriptVisible={transcriptVisible}
+                        onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+                      />
+                      <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
+                        <button
+                          onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                          className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+                          title="Regenerate with different template"
+                        >
+                          <span>{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
+                          <span className="max-w-[80px] truncate">{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
+                          <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
+                        </button>
+                        {showTemplateMenu && (
+                          <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                            {BUILTIN_TEMPLATES.map((t) => (
+                              <button
+                                key={t.id}
+                                onClick={() => {
+                                  setMeetingTemplate(t.id);
+                                  setShowTemplateMenu(false);
+                                  handleRegenerate();
+                                }}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span>{t.icon}</span>
+                                  <span>{t.name}</span>
+                                </span>
+                                {meetingTemplate === t.id && <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />}
+                              </button>
+                            ))}
+                            <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border mt-1">Select a template to regenerate summary.</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
 
                 {viewMode === "ai-notes" ? (
@@ -324,7 +323,7 @@ export default function NoteDetailPage() {
               <AskBar
                 context="meeting"
                 meetingTitle={note.title}
-                hideTranscriptToggle
+                hideTranscriptToggle={!!note.summary && !isSummarizing}
                 noteContext={[
                   `Title: ${note.title}`,
                   note.personalNotes ? `Personal Notes: ${note.personalNotes}` : '',
