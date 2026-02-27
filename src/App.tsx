@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound";
 import { TrayMenu } from "@/components/TrayMenu";
 import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SearchCommandProvider } from "@/components/SearchCommand";
 
 const queryClient = new QueryClient();
 
@@ -124,11 +125,15 @@ const App = () => (
         <Sonner />
         {isElectron ? (
           <HashRouter>
-            <AppContent />
+            <SearchCommandProvider>
+              <AppContent />
+            </SearchCommandProvider>
           </HashRouter>
         ) : (
           <BrowserRouter>
-            <AppContent />
+            <SearchCommandProvider>
+              <AppContent />
+            </SearchCommandProvider>
           </BrowserRouter>
         )}
       </TooltipProvider>

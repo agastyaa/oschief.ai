@@ -136,7 +136,7 @@ export default function NoteDetailPage() {
     }
   }, [id, note?.title, updateNote]);
 
-  const handleRegenerate = useCallback(async () => {
+  const handleRegenerate = useCallback(async (templateId?: string) => {
     if (!id || !note || !api || !selectedAIModel) {
       toast.error("Select an AI model in Settings to regenerate the summary.");
       return;
@@ -146,16 +146,17 @@ export default function NoteDetailPage() {
       toast.error("No transcript or notes to summarize.");
       return;
     }
+    const effectiveTemplateId = templateId ?? meetingTemplate;
     setIsSummarizing(true);
     try {
-      const customPrompt = BUILTIN_TEMPLATES.some(t => t.id === meetingTemplate)
+      const customPrompt = BUILTIN_TEMPLATES.some(t => t.id === effectiveTemplateId)
         ? undefined
-        : (await api.db.settings.get(`template-prompt-${meetingTemplate}`).catch(() => null)) || undefined;
+        : (await api.db.settings.get(`template-prompt-${effectiveTemplateId}`).catch(() => null)) || undefined;
       const summary = await api.llm.summarize({
         transcript,
         personalNotes: note.personalNotes || "",
         model: selectedAIModel,
-        meetingTemplateId: meetingTemplate,
+        meetingTemplateId: effectiveTemplateId,
         customPrompt,
         meetingTitle: note.title?.trim() || undefined,
       });
@@ -309,7 +310,7 @@ export default function NoteDetailPage() {
                                 onClick={() => {
                                   setMeetingTemplate(t.id);
                                   setShowTemplateMenu(false);
-                                  handleRegenerate();
+                                  handleRegenerate(t.id);
                                 }}
                                 className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
                               >

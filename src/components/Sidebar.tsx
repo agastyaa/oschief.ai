@@ -4,7 +4,8 @@ import { SyagLogo } from "@/components/SyagLogo";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useFolders, type Folder } from "@/contexts/FolderContext";
+import { useFolders } from "@/contexts/FolderContext";
+import { useSearchCommand } from "@/components/SearchCommand";
 
 const iconMap = {
   folder: FolderOpen,
@@ -18,6 +19,7 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { folders, createFolder, deleteFolder } = useFolders();
+  const { open: openSearch } = useSearchCommand();
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
@@ -41,7 +43,10 @@ export function Sidebar() {
 
       {/* Search */}
       <div className="px-3 py-2">
-        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary">
+        <button
+          onClick={openSearch}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
           <Search className="h-3.5 w-3.5" />
           <span>Search</span>
           <kbd className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
