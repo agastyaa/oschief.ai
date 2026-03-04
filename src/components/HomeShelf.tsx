@@ -83,11 +83,6 @@ export function HomeShelf({
                   </button>
                 );
               })}
-              <div className="px-4 py-2">
-                <button onClick={onOpenCalendar} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                  Re-sync calendar
-                </button>
-              </div>
             </div>
           ) : icsSource ? (
             <div className="w-full rounded-xl border border-border bg-card/50 px-4 py-5 text-center">

@@ -21,6 +21,7 @@ let isProcessing = false
 let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
+let hasLoggedNoSTTModelThisSession = false
 
 // Near real-time (Granola-style): process every 4s when active, 15s when idle
 const CHUNK_INTERVAL_ACTIVE_MS = 4000
@@ -85,6 +86,7 @@ export async function startRecording(
   recordingStartTime = Date.now()
   lastSpeechTime = Date.now()
   currentSTTModel = options.sttModel
+  hasLoggedNoSTTModelThisSession = false
   resetContext()
 
   // Merge vocabulary: settings + meeting title tokens + explicit vocabulary
@@ -228,6 +230,10 @@ async function processBufferedAudio(): Promise<void> {
 
     try {
       if (!currentSTTModel) {
+        if (!hasLoggedNoSTTModelThisSession) {
+          hasLoggedNoSTTModelThisSession = true
+          console.warn('[capture] No STT model configured; transcript will be empty. Set Speech-to-Text model in Settings > AI Models.')
+        }
         isProcessing = false
         return
       }

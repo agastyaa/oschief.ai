@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { toast } from "sonner";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 
 interface RecordingSession {
@@ -70,6 +71,10 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     if (!api) return;
 
     const cleanupTranscript = api.recording.onTranscriptChunk((chunk) => {
+      if (chunk.text.startsWith("[STT Error:")) {
+        const message = chunk.text.replace(/^\[STT Error:\s*/i, "").replace(/\]$/, "").trim() || "Transcription failed.";
+        toast.error(message, { duration: 6000 });
+      }
       setTranscriptLines((prev) => [...prev, chunk]);
     });
 

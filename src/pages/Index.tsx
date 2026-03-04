@@ -12,7 +12,7 @@ import { ICSDialog } from "@/components/ICSDialog";
 import { EventDetailSheet } from "@/components/EventDetailSheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CalendarEvent } from "@/lib/ics-parser";
-import { format, isToday as isTodayFn, isAfter } from "date-fns";
+import { format, parse, isToday as isTodayFn, isAfter, isValid } from "date-fns";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ const Index = () => {
   const upcomingEventsList = events
     .filter((e) => isAfter(new Date(e.start), now))
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-    .slice(0, 15);
+    .slice(0, 5);
   const upcomingByDate = upcomingEventsList.reduce<Record<string, CalendarEvent[]>>((acc, evt) => {
     const key = format(new Date(evt.start), "yyyy-MM-dd");
     (acc[key] = acc[key] || []).push(evt);
@@ -63,7 +63,7 @@ const Index = () => {
         <Sidebar />
         <main className="flex flex-1 flex-col min-w-0 relative">
           <div className="flex-1 overflow-y-auto pb-24">
-            <div className="mx-auto max-w-2xl px-6 py-8">
+            <div className="mx-auto max-w-2xl px-6 py-8 font-body">
               <div className="flex items-center gap-3 mb-6">
                 <button
                   onClick={() => navigate("/")}
@@ -96,7 +96,7 @@ const Index = () => {
                       >
                         <FileText className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-display text-[15px] text-foreground truncate">{n.title}</h3>
+                          <h3 className="font-body text-[15px] font-medium text-foreground truncate">{n.title}</h3>
                           {isRecording && (
                             <span className="text-[10px] text-accent font-medium">Recording</span>
                           )}
@@ -129,8 +129,8 @@ const Index = () => {
       <Sidebar />
       <main className="flex flex-1 flex-col min-w-0 relative">
         <div className="flex-1 overflow-y-auto pb-24">
-          <div className="mx-auto max-w-2xl px-6 py-8">
-            {/* Coming up section */}
+          <div className="mx-auto max-w-2xl px-6 py-8 font-body">
+            {/* Coming up section — no Re-sync calendar link here; resync is only on Calendar page */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-display text-lg text-foreground">Coming up</h2>
@@ -167,10 +167,10 @@ const Index = () => {
                     const dateObj = new Date(dateKey + "T00:00:00");
                     const dayIsToday = isTodayFn(dateObj);
                     return (
-                      <div key={dateKey} className="border-b border-border last:border-b-0">
+                      <div key={dateKey} className="border-b border-dashed border-border last:border-b-0">
                         <div className="px-4 pt-3 pb-1">
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold text-foreground tabular-nums">
+                            <span className="font-display-serif text-3xl font-semibold text-foreground tabular-nums">
                               {format(dateObj, "d")}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -203,11 +203,6 @@ const Index = () => {
                       </div>
                     );
                   })}
-                  <div className="px-4 py-2 border-t border-border">
-                    <button onClick={() => setIcsOpen(true)} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                      Re-sync calendar
-                    </button>
-                  </div>
                 </div>
               ) : icsSource ? (
                 <div className="w-full rounded-xl border border-border bg-card/50 px-5 py-6 text-center">
@@ -250,7 +245,14 @@ const Index = () => {
                 {Object.entries(grouped).map(([date, items]) => (
                   <div key={date} className="mb-6">
                     <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground px-3 mb-1">
-                      {date}
+                      {(() => {
+                        try {
+                          const parsed = parse(date, "MMM d, yyyy", new Date());
+                          return isValid(parsed) ? format(parsed, "EEE, MMM d") : date;
+                        } catch {
+                          return date;
+                        }
+                      })()}
                     </h3>
                     <div className="space-y-0.5">
                       {items.map((n) => {
@@ -263,7 +265,7 @@ const Index = () => {
                           >
                             <FileText className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-display text-[15px] text-foreground truncate">{n.title}</h3>
+                              <h3 className="font-body text-[15px] font-medium text-foreground truncate">{n.title}</h3>
                               {isRecording && (
                                 <span className="text-[10px] text-accent font-medium">Recording</span>
                               )}

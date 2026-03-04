@@ -1030,8 +1030,8 @@ export default function NewNotePage() {
             </div>
           </div>
 
-          {/* Transcript side panel — hidden during active recording if real-time transcription is off */}
-          {transcriptVisible && (showRealTimeTranscript || recordingState !== "recording") && (
+          {/* Transcript side panel — always visible when recording (so user sees "No STT model" / Listening / errors); when not recording, show if real-time on or there are lines */}
+          {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0) && (
             <div className="w-[36rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between gap-1">

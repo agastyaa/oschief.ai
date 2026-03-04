@@ -121,7 +121,7 @@ export default function CalendarPage() {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 pt-4 pb-8">
+        <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
           {/* Connect prompt */}
           {!icsSource ? (
             <div className="mb-6 rounded-xl border border-border bg-card p-6 text-center">

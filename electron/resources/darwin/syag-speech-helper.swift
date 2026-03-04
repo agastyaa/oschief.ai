@@ -1,6 +1,7 @@
 #!/usr/bin/env swift
 import Foundation
 import Speech
+import AppKit
 
 // Usage: syag-speech-helper <path-to-wav>
 // Reads WAV file, runs macOS Speech recognition, prints transcript to stdout. Errors to stderr.
@@ -31,7 +32,11 @@ _ = authSem.wait(timeout: .now() + 10)
 guard authStatus == .authorized else {
   let msg: String
   switch authStatus {
-  case .denied: msg = "Speech recognition access denied. Enable in System Settings > Privacy & Security > Speech Recognition."
+  case .denied:
+    msg = "Speech recognition access denied. Enable in System Settings > Privacy & Security > Speech Recognition."
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition") {
+      NSWorkspace.shared.open(url)
+    }
   case .restricted: msg = "Speech recognition is restricted on this device."
   case .notDetermined: msg = "Speech recognition authorization not determined. Grant access when prompted."
   default: msg = "Speech recognition not authorized."
@@ -46,7 +51,7 @@ guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.is
 }
 
 let request = SFSpeechURLRecognitionRequest(url: url)
-request.requiresOnDeviceRecognition = false
+request.requiresOnDeviceRecognition = true  // Privacy-first: no audio sent to Apple
 request.shouldReportPartialResults = false
 
 var resultText: String?

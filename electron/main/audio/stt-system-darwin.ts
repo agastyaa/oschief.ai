@@ -13,8 +13,13 @@ const SCRIPT_NAME = 'syag-speech-helper.swift'
 
 function getHelperScriptPath(): string | null {
   // Packaged app: extraResources puts script at Contents/Resources/darwin/
-  const packaged = join(app.getPath('resourcesPath'), 'darwin', SCRIPT_NAME)
-  if (existsSync(packaged)) return packaged
+  try {
+    const resourcesPath = app.getPath('resourcesPath')
+    const packaged = join(resourcesPath, 'darwin', SCRIPT_NAME)
+    if (existsSync(packaged)) return packaged
+  } catch {
+    // resourcesPath can throw in some contexts (e.g. dev before ready); fall back to dev path
+  }
   // Dev: from project root, electron/resources/darwin/
   const dev = join(app.getAppPath(), 'electron', 'resources', 'darwin', SCRIPT_NAME)
   if (existsSync(dev)) return dev
