@@ -367,7 +367,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const resumeAudioCapture = useCallback(async (sttModel?: string) => {
     if (api) {
-      await api.recording.resume();
+      await api.recording.resume({ sttModel: sttModel ?? undefined });
     }
     setActiveSession(prev => prev ? { ...prev, isRecording: true } : null);
     // Restart Web Speech API fallback if no STT model

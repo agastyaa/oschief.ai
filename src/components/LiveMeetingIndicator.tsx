@@ -1,9 +1,8 @@
 import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FileText, Play, X } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
-import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number) {
@@ -13,8 +12,7 @@ function formatTime(seconds: number) {
 }
 
 export function LiveMeetingIndicator() {
-  const { activeSession, pauseAudioCapture, resumeAudioCapture } = useRecording();
-  const { selectedSTTModel } = useModelSettings();
+  const { activeSession, pauseAudioCapture } = useRecording();
   const navigate = useNavigate();
   const location = useLocation();
   const [manuallyHidden, setManuallyHidden] = useState(false);
@@ -36,24 +34,20 @@ export function LiveMeetingIndicator() {
     navigate(`/new-note?session=${activeSession?.noteId}`);
   }, [activeSession?.noteId, navigate]);
 
-  const handlePause = useCallback(
+  const handleTimerClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      pauseAudioCapture().then(() => {
-        navigate(`/new-note?session=${activeSession?.noteId}`, {
-          state: { triggerPauseAndSummarize: true },
+      if (activeSession?.isRecording) {
+        pauseAudioCapture().then(() => {
+          navigate(`/new-note?session=${activeSession?.noteId}`, {
+            state: { triggerPauseAndSummarize: true },
+          });
         });
-      });
+      } else {
+        handleGoToNote();
+      }
     },
-    [activeSession?.noteId, navigate, pauseAudioCapture]
-  );
-
-  const handleResume = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      resumeAudioCapture(selectedSTTModel || undefined).catch(console.error);
-    },
-    [resumeAudioCapture, selectedSTTModel]
+    [activeSession?.noteId, activeSession?.isRecording, navigate, pauseAudioCapture]
   );
 
   const prefs = loadPreferences();
@@ -99,21 +93,14 @@ export function LiveMeetingIndicator() {
           {title}
         </span>
         <button
-          onClick={handleGoToNote}
-          className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90 transition-opacity"
-        >
-          <FileText className="h-3 w-3" />
-          Go to note
-        </button>
-        <button
-          onClick={isRecording ? handlePause : handleResume}
+          onClick={handleTimerClick}
           className={cn(
             "flex items-center gap-1.5 rounded-full border shadow px-2.5 py-1.5 transition-colors",
             isRecording
               ? "border-border bg-card text-muted-foreground hover:text-foreground"
               : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
           )}
-          title={isRecording ? "Pause recording" : "Resume recording"}
+          title={isRecording ? "Pause and go to note" : "Go to note"}
         >
           {elapsed && <span className="text-[11px] font-medium">{elapsed}</span>}
           {isRecording ? (

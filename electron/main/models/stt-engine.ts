@@ -316,19 +316,15 @@ let mlxWorker: ReturnType<typeof spawn> | null = null
 let mlxWorkerReady = false
 let mlxIdleTimer: ReturnType<typeof setTimeout> | null = null
 const MLX_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle
+const MLX_STARTUP_READY_TIMEOUT_MS = 30000 // 30s to get "ready" after spawn (import only, no warmup)
+const MLX_HINT = ' Ensure Python 3 and mlx-whisper are installed (pip3 install mlx-whisper). First run may take several minutes to download the model.'
 
 const MLX_WORKER_SCRIPT = `
 import json, sys, os
 
-# Load model once on startup
+# Import only; model loads on first transcribe to avoid startup timeout/hangs from warmup
 import mlx_whisper
 _model_repo = "mlx-community/whisper-large-v3-turbo"
-
-# Warm up by loading the model
-try:
-    mlx_whisper.transcribe(os.devnull, path_or_hf_repo=_model_repo, language="en")
-except:
-    pass
 
 sys.stdout.write('{"status":"ready"}\\n')
 sys.stdout.flush()
@@ -364,7 +360,7 @@ function ensureMLXWorker(): Promise<void> {
 
     if (mlxWorker) {
       // Worker exists but not ready — wait for it
-      const waitTimer = setTimeout(() => reject(new Error('MLX worker startup timeout')), 60000)
+      const waitTimer = setTimeout(() => reject(new Error('MLX worker startup timeout' + MLX_HINT)), MLX_STARTUP_READY_TIMEOUT_MS)
       const check = setInterval(() => {
         if (mlxWorkerReady) {
           clearInterval(check)
@@ -381,6 +377,11 @@ function ensureMLXWorker(): Promise<void> {
     })
 
     let resolved = false
+    let stderrBuf = ''
+
+    mlxWorker.stderr?.on('data', (d: Buffer) => {
+      stderrBuf += d.toString()
+    })
 
     const onFirstLine = (data: Buffer) => {
       const line = data.toString().trim()
@@ -396,10 +397,16 @@ function ensureMLXWorker(): Promise<void> {
 
     mlxWorker.stdout!.once('data', onFirstLine)
 
+    const failWithStderr = (base: string) => {
+      const tail = stderrBuf.trim().split('\n').slice(-8).join('\n')
+      const suffix = tail ? ` Last stderr: ${tail.slice(-500)}` : ''
+      return base + suffix + MLX_HINT
+    }
+
     mlxWorker.on('exit', () => {
       mlxWorker = null
       mlxWorkerReady = false
-      if (!resolved) { resolved = true; reject(new Error('MLX worker exited during startup')) }
+      if (!resolved) { resolved = true; reject(new Error(failWithStderr('MLX worker exited during startup.'))) }
     })
 
     mlxWorker.on('error', (err) => {
@@ -408,14 +415,14 @@ function ensureMLXWorker(): Promise<void> {
       if (!resolved) { resolved = true; reject(err) }
     })
 
-    // Startup timeout
+    // Startup timeout (ready line expected within 30s; no heavy warmup)
     setTimeout(() => {
       if (!resolved) {
         resolved = true
         killMLXWorker()
-        reject(new Error('MLX worker startup timed out (60s)'))
+        reject(new Error(failWithStderr('MLX worker startup timed out.')))
       }
-    }, 60000)
+    }, MLX_STARTUP_READY_TIMEOUT_MS)
   })
 }
 
@@ -498,8 +505,8 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
       }
 
       const timeout = setTimeout(() => {
-        reject(new Error('MLX transcription timed out (120s)'))
-      }, 120000)
+        reject(new Error('MLX transcription timed out (180s). First run may take several minutes to load the model.'))
+      }, 180000)
 
       const onData = (data: Buffer) => {
         clearTimeout(timeout)
@@ -581,7 +588,7 @@ function runWhisperCLI(binaryPath: string, modelPath: string, audioPath: string,
       if (code === 0) {
         resolve(parseWhisperOutput(stdout, audioPath))
       } else {
-        reject(new Error(`whisper.cpp exited with code ${code}: ${stderr.slice(0, 500)}`))
+        reject(new Error(`whisper.cpp exited with code ${code}: ${stderr.slice(0, 1000)}`))
       }
     })
 

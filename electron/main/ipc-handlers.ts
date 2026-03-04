@@ -115,7 +115,7 @@ export function registerIPCHandlers(): void {
   })
   ipcMain.handle('recording:stop', async () => { updateTrayRecordingState(false); return stopRecording() })
   ipcMain.handle('recording:pause', () => { pauseRecording(); updateTrayRecordingState(false); return true })
-  ipcMain.handle('recording:resume', () => { resumeRecording(); updateTrayRecordingState(true); return true })
+  ipcMain.handle('recording:resume', (_e, options?: { sttModel?: string }) => { resumeRecording(options); updateTrayRecordingState(true); return true })
   ipcMain.handle('recording:audio-chunk', async (_e, pcmData: any, channel?: number) => {
     let data: Float32Array
     if (pcmData instanceof Float32Array) {

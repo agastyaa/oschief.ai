@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
-import { useModelSettings } from "@/contexts/ModelSettingsContext";
+import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
 import type { SummaryData } from "@/components/EditableSummary";
@@ -203,6 +203,19 @@ export default function NewNotePage() {
     const custom = customTemplates.map(ct => ({ id: ct.id, name: ct.name, icon: "📝" }));
     return [...BUILTIN_TEMPLATES, ...custom];
   }, [customTemplates]);
+
+  const activeSTTLabel = useMemo(() => {
+    if (!selectedSTTModel) return null;
+    if (selectedSTTModel === "system:default") return "Apple Speech (macOS)";
+    if (selectedSTTModel.startsWith("local:")) {
+      const id = selectedSTTModel.slice(6);
+      const m = localModels.find(m => m.id === id && m.type === "stt");
+      return m ? m.name : id.replace(/-/g, " ");
+    }
+    const [provider, ...rest] = selectedSTTModel.split(":");
+    const model = rest.join(":");
+    return provider && model ? `${provider.charAt(0).toUpperCase() + provider.slice(1)} ${model}` : selectedSTTModel;
+  }, [selectedSTTModel]);
 
   useEffect(() => {
     if (!api) return;
@@ -1168,6 +1181,11 @@ export default function NewNotePage() {
                         : "Listening..."}
                     </span>
                   </div>
+                )}
+                {!transcriptSearch && (recordingState === "recording" || recordingState === "paused") && activeSTTLabel && (
+                  <p className="text-[10px] text-muted-foreground pt-0.5">
+                    Transcription: {activeSTTLabel}. To change, pick another model in Settings and start or resume recording.
+                  </p>
                 )}
                 {!transcriptSearch && recordingState === "paused" && (
                   <div className="flex items-center gap-1.5 pt-1">

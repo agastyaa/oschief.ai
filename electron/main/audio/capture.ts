@@ -166,10 +166,13 @@ export function pauseRecording(): void {
   isPaused = true
 }
 
-export function resumeRecording(): void {
+export function resumeRecording(options?: { sttModel?: string }): void {
   isPaused = false
   autoPaused = false
   lastSpeechTime = Date.now()
+  if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
+    currentSTTModel = options.sttModel
+  }
 }
 
 export function processAudioChunk(pcmData: Float32Array, channel: number): boolean {
@@ -317,9 +320,11 @@ async function processBufferedAudio(): Promise<void> {
         const msg = err?.message || String(err)
         let hint = ''
         if (currentSTTModel.startsWith('local:')) {
-          hint = msg.includes('MLX worker startup')
-            ? ' To use Deepgram or another cloud STT instead, select it in Settings > AI Models and start a new note.'
-            : ' Check that the model is downloaded in Settings > AI Models.'
+          if (msg.includes('MLX') || msg.includes('mlx')) {
+            hint = ' For MLX: ensure Python 3 and mlx-whisper are installed (pip3 install mlx-whisper); first run may take several minutes. To use another STT, select it in Settings > AI Models and start or resume recording.'
+          } else {
+            hint = ' For whisper.cpp: ensure the model is downloaded and whisper-cli is available in Settings > AI Models.'
+          }
         } else if (currentSTTModel.startsWith('system:')) {
           hint = ' Grant Speech Recognition in System Settings > Privacy & Security, or try another STT model.'
         } else if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('no api key')) {

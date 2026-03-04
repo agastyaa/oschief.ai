@@ -61,7 +61,7 @@ const electronAPI = {
       ipcRenderer.invoke('recording:start', options),
     stop: () => ipcRenderer.invoke('recording:stop'),
     pause: () => ipcRenderer.invoke('recording:pause'),
-    resume: () => ipcRenderer.invoke('recording:resume'),
+    resume: (options?: { sttModel?: string }) => ipcRenderer.invoke('recording:resume', options),
     sendAudioChunk: (pcmData: Float32Array, channel?: number) =>
       ipcRenderer.invoke('recording:audio-chunk', pcmData, channel ?? 0),
     onTranscriptChunk: (callback: (chunk: TranscriptChunk) => void) => {
