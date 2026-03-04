@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron } from "@/lib/electron-api";
@@ -15,6 +15,7 @@ import { EventDetailSheet } from "@/components/EventDetailSheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CalendarEvent } from "@/lib/ics-parser";
 import { format, parse, isToday as isTodayFn, isAfter, isValid } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const Index = () => {
   const navigate = useNavigate();
