@@ -174,10 +174,10 @@ const Index = () => {
       <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-8 font-body">
-            {/* Coming up section — no Re-sync calendar link here; resync is only on Calendar page */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display text-lg text-foreground">Coming up</h2>
+            {/* Coming up section */}
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-serif text-2xl tracking-tight text-foreground">Coming up</h2>
                 <div className="flex items-center gap-2">
                   {icsSource && (
                     <Tooltip>
@@ -205,41 +205,46 @@ const Index = () => {
               </div>
 
               {icsSource && upcomingDateKeys.length > 0 ? (
-                <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+                <div className="space-y-6">
                   {upcomingDateKeys.map((dateKey) => {
                     const dayEvents = upcomingByDate[dateKey];
                     const dateObj = new Date(dateKey + "T00:00:00");
                     const dayIsToday = isTodayFn(dateObj);
                     return (
-                      <div key={dateKey} className="border-b border-dashed border-border last:border-b-0">
-                        <div className="px-4 pt-3 pb-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-display-serif text-3xl font-semibold text-foreground tabular-nums">
-                              {format(dateObj, "d")}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(dateObj, "MMMM EEE")}
-                              {dayIsToday && (
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent ml-1.5 align-middle" />
-                              )}
-                            </span>
-                          </div>
+                      <div key={dateKey} className="flex gap-5 items-stretch">
+                        {/* Date column */}
+                        <div className="flex flex-col items-center min-w-[54px] pt-0.5">
+                          <span className="font-serif text-4xl font-bold text-foreground tabular-nums leading-none">
+                            {format(dateObj, "d")}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                            {format(dateObj, "MMM")}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {format(dateObj, "EEE")}
+                          </span>
+                          {dayIsToday && (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mt-1.5" />
+                          )}
                         </div>
-                        <div className="border-l-2 border-border pl-3 ml-4 mb-3 space-y-0.5">
+                        {/* Amber vertical bar */}
+                        <div className="w-1 rounded-full bg-amber-400/80 self-stretch flex-shrink-0" />
+                        {/* Events */}
+                        <div className="flex-1 min-w-0 space-y-1 py-0.5">
                           {dayEvents.map((evt) => {
                             const start = new Date(evt.start);
                             const end = new Date(evt.end);
                             const timeStr = evt.isAllDay
                               ? "All day"
-                              : `${format(start, "h:mm a")}–${format(end, "h:mm a")}`;
+                              : `${format(start, "h:mm")} – ${format(end, "h:mm a")}`;
                             return (
                               <button
                                 key={evt.id}
                                 onClick={() => setSelectedEvent(evt)}
-                                className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-secondary/50 transition-colors cursor-pointer rounded-r"
+                                className="group/evt flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left rounded-lg transition-all duration-200 hover:bg-secondary/60 hover:shadow-sm hover:translate-x-0.5 cursor-pointer"
                               >
-                                <p className="text-sm font-medium text-foreground truncate w-full">{evt.title}</p>
-                                <p className="text-[11px] text-muted-foreground">{timeStr}</p>
+                                <p className="text-sm font-medium text-foreground truncate w-full group-hover/evt:text-accent transition-colors duration-200">{evt.title}</p>
+                                <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wide" style={{ fontVariant: "all-small-caps" }}>{timeStr}</p>
                               </button>
                             );
                           })}
