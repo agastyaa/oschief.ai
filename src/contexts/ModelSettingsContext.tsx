@@ -119,7 +119,7 @@ const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null
 const defaults = {
   selectedAIModel: "",
   selectedSTTModel: "",
-  useLocalModels: false,
+  useLocalModels: true,
   downloadStates: {} as Record<string, DownloadState>,
   connectedProviders: {} as Record<string, { connected: boolean; apiKey: string }>,
   hiddenLocalModels: [] as string[],
@@ -139,6 +139,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [hiddenLocalModels, setHiddenLocalModels] = useState<string[]>(init.hiddenLocalModels ?? []);
   const [copartFetchedModels, setCopartFetchedModels] = useState<{ models: string[]; sttModels: string[] } | null>(null);
   const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
+  const [modelsListFetched, setModelsListFetched] = useState(false);
 
   // Apple (on-device) Foundation Model availability
   useEffect(() => {
@@ -168,6 +169,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       const states: Record<string, DownloadState> = {};
       for (const id of downloaded) states[id] = "downloaded";
       setDownloadStates((prev) => ({ ...prev, ...states }));
+      setModelsListFetched(true);
     });
 
     // Load API keys from keychain
@@ -201,6 +203,13 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     const cleanupComplete = api.models.onDownloadComplete((data) => {
       if (data.success) {
         setDownloadStates((prev) => ({ ...prev, [data.modelId]: "downloaded" }));
+        // Auto-select default models when installed on first launch
+        if (data.modelId === "whisper-tiny") {
+          setSelectedSTTModel((prev) => (prev === "" ? "local:whisper-tiny" : prev));
+        }
+        if (data.modelId === "gemma-2-2b") {
+          setSelectedAIModel((prev) => (prev === "" ? "local:gemma-2-2b" : prev));
+        }
       } else {
         setDownloadStates((prev) => {
           const next = { ...prev };
@@ -256,6 +265,27 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       });
     }).catch(() => {});
   }, [hiddenLocalModels]);
+
+  // Install default local STT + LLM on first launch after onboarding (Quill-style).
+  const DEFAULT_STT = "whisper-tiny";
+  const DEFAULT_LLM = "gemma-2-2b";
+  useEffect(() => {
+    if (!api || !modelsListFetched) return;
+    if (typeof localStorage !== "undefined" && localStorage.getItem("syag-onboarding-complete") !== "true") return;
+
+    api.db.settings.get("default-local-models-install-started").then((flag) => {
+      if (flag === "true") return;
+      const hasSTT = localModels.some((m) => m.type === "stt" && downloadStates[m.id] === "downloaded");
+      const hasLLM = localModels.some((m) => m.type === "llm" && downloadStates[m.id] === "downloaded");
+      if (hasSTT && hasLLM) return;
+
+      api.db.settings.set("default-local-models-install-started", "true").then(() => {
+        setUseLocalModels(true);
+        if (!hasSTT) handleDownload(DEFAULT_STT);
+        if (!hasLLM) handleDownload(DEFAULT_LLM);
+      });
+    });
+  }, [api, modelsListFetched, downloadStates, handleDownload]);
 
   // Only auto-select a local STT model when "Use local by default" is on.
   // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).

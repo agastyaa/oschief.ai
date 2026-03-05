@@ -1,4 +1,4 @@
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarCollapseButton } from "@/components/Sidebar";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
@@ -19,6 +19,9 @@ export default function AllNotes() {
         <SidebarExpandTrigger />
       )}
       <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <SidebarCollapseButton />
+        </div>
         <div className="mx-auto max-w-2xl px-6 py-8">
           <h1 className="font-display text-2xl text-foreground mb-1">All Notes</h1>
           <p className="text-xs text-muted-foreground mb-6">0 notes</p>

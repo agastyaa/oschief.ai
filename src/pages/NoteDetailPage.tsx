@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
@@ -8,7 +8,7 @@ import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2 } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
@@ -31,7 +31,7 @@ export default function NoteDetailPage() {
   const { activeSession, resumeSession, updateSession, clearSession } = useRecording();
   const { selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
-  const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
+  const { sidebarOpen } = useSidebarVisibility();
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
   const [transcriptVisible, setTranscriptVisible] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
@@ -216,20 +216,10 @@ export default function NoteDetailPage() {
           "flex items-center justify-between px-4 pt-3 pb-0",
           !sidebarOpen && isElectron && "pl-20"
         )}>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleSidebar}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={() => navigate(-1)}
-              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ← Back to notes
-            </button>
-          </div>
+          <SidebarTopBarLeft
+            backLabel="← Back to notes"
+            onBack={() => navigate(-1)}
+          />
           <div className="flex items-center gap-1.5">
             <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
               <Share2 className="h-3.5 w-3.5" />

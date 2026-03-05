@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { MeetingDetail } from "@/components/MeetingDetail";
 import { AskBar } from "@/components/AskBar";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { meetings } from "@/data/meetings";
-import { PanelLeftClose, PanelLeft, Share2, MoreHorizontal } from "lucide-react";
+import { Share2, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
 
 export default function MeetingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
+  const { sidebarOpen } = useSidebarVisibility();
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
   const meeting = meetings.find((m) => m.id === id);
 
@@ -39,21 +39,10 @@ export default function MeetingPage() {
           "flex items-center justify-between px-4 pt-3 pb-0",
           !sidebarOpen && isElectron && "pl-20"
         )}>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleSidebar}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={() => navigate(-1)}
-              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ← Back to notes
-            </button>
-          </div>
+          <SidebarTopBarLeft
+            backLabel="← Back to notes"
+            onBack={() => navigate(-1)}
+          />
           <div className="flex items-center gap-1.5">
             <NotesViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
             <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">

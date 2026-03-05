@@ -5,7 +5,7 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -38,6 +38,7 @@ const sections = [
 const TOGGLE_DB_KEYS: Record<string, string> = {
   autoRecord: 'auto-record',
   realTimeTranscribe: 'real-time-transcription',
+  transcribeWhenStopped: 'transcribe-when-stopped',
   aiSummaries: 'auto-generate-notes',
   summaryReady: 'summary-ready-notification',
   actionReminder: 'action-reminder-notification',
@@ -50,6 +51,7 @@ const TOGGLE_DB_KEYS: Record<string, string> = {
 const DEFAULT_TOGGLES: Record<string, boolean> = {
   autoRecord: true,
   realTimeTranscribe: true,
+  transcribeWhenStopped: false,
   aiSummaries: true,
   summaryReady: true,
   actionReminder: true,
@@ -559,6 +561,9 @@ export default function SettingsPage() {
         <SidebarExpandTrigger />
       )}
       <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <SidebarCollapseButton />
+        </div>
         <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
@@ -758,7 +763,7 @@ export default function SettingsPage() {
                         </div>
                       </SettingRow>
                     </div>
-                    <p className="text-[11px] text-muted-foreground -mt-2">Download models to run entirely on your device. No data leaves your machine.</p>
+                    <p className="text-[11px] text-muted-foreground -mt-2">Download models to run entirely on your device. With local models, transcription and summaries stay on this device.</p>
 
                     <div className="space-y-1.5">
                       {localModels
@@ -951,6 +956,9 @@ export default function SettingsPage() {
                     </SettingRow>
                     <SettingRow label="Real-time transcription" description="Show live transcript during recording">
                       <Toggle enabled={toggles.realTimeTranscribe} onToggle={() => toggle("realTimeTranscribe")} />
+                    </SettingRow>
+                    <SettingRow label="Transcribe when recording stops" description="Run transcription once after you stop recording instead of live (privacy-friendly, works well with local models)">
+                      <Toggle enabled={toggles.transcribeWhenStopped} onToggle={() => toggle("transcribeWhenStopped")} />
                     </SettingRow>
                     <SettingRow label="Auto-generate AI notes" description="Create summaries and action items when recording ends">
                       <Toggle enabled={toggles.aiSummaries} onToggle={() => toggle("aiSummaries")} />

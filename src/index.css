@@ -131,6 +131,9 @@
   .font-display-serif {
     font-family: 'DM Serif Display', Georgia, serif;
   }
+  .small-caps {
+    font-variant-caps: small-caps;
+  }
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {

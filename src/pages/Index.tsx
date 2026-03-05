@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
@@ -103,12 +103,11 @@ const Index = () => {
           <div className="flex-1 overflow-y-auto pb-24">
             <div className="mx-auto max-w-2xl px-6 py-8 font-body">
               <div className="flex items-center gap-3 mb-6">
-                <button
-                  onClick={() => navigate("/")}
-                  className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
+                <SidebarTopBarLeft
+                  backLabel="Back to home"
+                  onBack={() => navigate("/")}
+                  backIcon
+                />
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-5 w-5 text-accent" />
                   <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
@@ -172,12 +171,15 @@ const Index = () => {
         <SidebarExpandTrigger />
       )}
       <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <SidebarCollapseButton />
+        </div>
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-8 font-body">
-            {/* Coming up section */}
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-serif text-2xl tracking-tight text-foreground">Coming up</h2>
+            {/* Coming up section — no Re-sync calendar link here; resync is only on Calendar page */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display-serif text-2xl text-foreground">Coming up</h2>
                 <div className="flex items-center gap-2">
                   {icsSource && (
                     <Tooltip>
@@ -227,10 +229,7 @@ const Index = () => {
                             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mt-1.5" />
                           )}
                         </div>
-                        {/* Amber vertical bar */}
-                        <div className="w-1 rounded-full bg-amber-400/80 self-stretch flex-shrink-0" />
-                        {/* Events */}
-                        <div className="flex-1 min-w-0 space-y-1 py-0.5">
+                        <div className="border-l-4 border-amber-500 dark:border-amber-500 pl-3 ml-4 mb-3 space-y-0.5">
                           {dayEvents.map((evt) => {
                             const start = new Date(evt.start);
                             const end = new Date(evt.end);
@@ -241,10 +240,10 @@ const Index = () => {
                               <button
                                 key={evt.id}
                                 onClick={() => setSelectedEvent(evt)}
-                                className="group/evt flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left rounded-lg transition-all duration-200 hover:bg-secondary/60 hover:shadow-sm hover:translate-x-0.5 cursor-pointer"
+                                className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-secondary/70 hover:shadow-sm transition-all duration-200 ease-out cursor-pointer rounded-r"
                               >
-                                <p className="text-sm font-medium text-foreground truncate w-full group-hover/evt:text-accent transition-colors duration-200">{evt.title}</p>
-                                <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wide" style={{ fontVariant: "all-small-caps" }}>{timeStr}</p>
+                                <p className="text-sm font-medium text-foreground truncate w-full">{evt.title}</p>
+                                <p className="text-[11px] text-muted-foreground small-caps">{timeStr}</p>
                               </button>
                             );
                           })}
@@ -292,8 +291,8 @@ const Index = () => {
             ) : (
               <div className="space-y-7">
                 {Object.entries(grouped).map(([date, items]) => (
-                  <div key={date}>
-                    <h3 className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/70 px-3 mb-2">
+                  <div key={date} className="mb-8">
+                    <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground px-3 mb-1">
                       {(() => {
                         try {
                           const parsed = parse(date, "MMM d, yyyy", new Date());
@@ -307,7 +306,7 @@ const Index = () => {
                       {items.map((n) => {
                         const isRecording = activeSession?.noteId === n.id && !n.summary;
                         return (
-                        <div key={n.id} className="group flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all duration-200 hover:bg-card hover:shadow-sm border border-transparent hover:border-border">
+                        <div key={n.id} className="group flex items-center gap-2 rounded-lg px-3 py-3 hover:bg-card border border-transparent hover:border-border transition-colors">
                           <button
                             onClick={() => navigate(isRecording ? `/new-note?session=${n.id}` : `/note/${n.id}`)}
                             className="flex flex-1 items-center gap-3 text-left min-w-0"

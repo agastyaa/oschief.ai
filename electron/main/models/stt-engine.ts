@@ -257,8 +257,28 @@ function commandExists(cmd: string): boolean {
   }
 }
 
+/** Common Homebrew paths so GUI apps (with minimal PATH) can find ffmpeg. */
+const BREW_BIN_PATHS = ['/opt/homebrew/bin', '/usr/local/bin']
+
+function checkFfmpegInBrewPaths(): boolean {
+  for (const dir of BREW_BIN_PATHS) {
+    try {
+      if (existsSync(join(dir, 'ffmpeg'))) return true
+    } catch {}
+  }
+  return false
+}
+
 export function checkFfmpegAvailable(): boolean {
-  return commandExists('ffmpeg')
+  if (commandExists('ffmpeg')) return true
+  return checkFfmpegInBrewPaths()
+}
+
+/** PATH string that includes Homebrew bins so child processes (e.g. MLX worker) find ffmpeg. */
+function getEnvPathWithBrew(): string {
+  const existing = process.env.PATH || ''
+  const extra = BREW_BIN_PATHS.filter((p) => existing.indexOf(p) === -1).join(':')
+  return extra ? `${extra}:${existing}` : existing
 }
 
 /** Install ffmpeg (required for MLX Whisper audio). On macOS runs brew install ffmpeg. */
@@ -268,12 +288,14 @@ export async function installFfmpeg(): Promise<boolean> {
     console.warn('[STT] ffmpeg auto-install only supported on macOS. Install ffmpeg manually.')
     return false
   }
-  if (!commandExists('brew')) {
+  const brewPath = BREW_BIN_PATHS.map((p) => join(p, 'brew')).find((p) => existsSync(p))
+  if (!brewPath && !commandExists('brew')) {
     console.warn('[STT] Homebrew not found; cannot install ffmpeg. Install from https://brew.sh')
     return false
   }
   try {
-    execSync('brew install ffmpeg', { stdio: 'pipe', timeout: 120000 })
+    const env = { ...process.env, PATH: getEnvPathWithBrew() }
+    execSync(brewPath ? `${brewPath} install ffmpeg` : 'brew install ffmpeg', { stdio: 'pipe', timeout: 120000, env })
     return checkFfmpegAvailable()
   } catch (err: any) {
     console.warn('[STT] brew install ffmpeg failed:', err?.message)
@@ -578,24 +600,43 @@ const MLX_8BIT_HINT = ' Install ffmpeg (brew install ffmpeg) and mlx-audio-plus 
 
 const MLX_8BIT_WORKER_SCRIPT = `
 import json, sys
-from mlx_audio.stt import transcribe
-_model = "mlx-community/whisper-large-v3-turbo-8bit"
+from mlx_audio.stt import load
+from mlx_audio.stt.utils import load_audio
+
+_model_id = "mlx-community/whisper-large-v3-turbo-8bit"
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        _model = load(_model_id)
+    return _model
+
 sys.stdout.write('{"status":"ready"}\\n')
 sys.stdout.flush()
+
 for line in sys.stdin:
     try:
         req = json.loads(line.strip())
         audio_path = req.get("audio_path", "")
-        result = transcribe(audio=audio_path, model=_model)
-        text = result.get("text", "") if isinstance(result, dict) else str(result or "")
+        model = get_model()
+        audio = load_audio(audio_path)
+        result = model.generate(audio)
+        text = ""
+        if hasattr(result, "text"):
+            text = getattr(result, "text", "") or ""
+        elif isinstance(result, dict):
+            text = result.get("text", "") or ""
+        else:
+            text = str(result or "")
         words = []
-        if isinstance(result, dict) and "segments" in result:
-            for seg in result["segments"]:
+        if isinstance(result, dict):
+            for seg in result.get("segments", []):
                 for w in seg.get("words", []):
                     words.append({"word": w.get("word", ""), "start": w.get("start", 0), "end": w.get("end", 0)})
-        elif isinstance(result, dict) and "chunks" in result:
-            for c in result["chunks"]:
-                words.append({"word": c.get("text", ""), "start": c.get("start", 0), "end": c.get("end", 0)})
+            if not words:
+                for c in result.get("chunks", []):
+                    words.append({"word": c.get("text", ""), "start": c.get("start", 0), "end": c.get("end", 0)})
         sys.stdout.write(json.dumps({"text": text, "words": words}) + '\\n')
         sys.stdout.flush()
     except Exception as e:
@@ -639,7 +680,10 @@ function ensureMLX8BitWorker(): Promise<void> {
       return
     }
     mlx8BitWorkerReady = false
-    mlx8BitWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_8BIT_WORKER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] })
+    mlx8BitWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_8BIT_WORKER_SCRIPT], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
+    })
     let resolved = false
     let stderrBuf = ''
     mlx8BitWorker.stderr?.on('data', (d: Buffer) => { stderrBuf += d.toString() })
@@ -686,7 +730,7 @@ export async function checkMLXWhisper8BitAvailable(): Promise<boolean> {
     return false
   }
   try {
-    execSync('python3 -c "from mlx_audio.stt import transcribe"', { stdio: 'pipe', timeout: 10000 })
+    execSync('python3 -c "from mlx_audio.stt import load; from mlx_audio.stt.utils import load_audio"', { stdio: 'pipe', timeout: 10000 })
     mlx8BitAvailable = true
   } catch {
     mlx8BitAvailable = false
@@ -699,6 +743,7 @@ export async function installMLXWhisper8Bit(): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-audio-plus'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
     })
     let stderr = ''
     proc.stderr?.on('data', (d) => { stderr += d.toString() })

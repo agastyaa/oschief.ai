@@ -22,6 +22,8 @@ let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
 let hasLoggedNoSTTModelThisSession = false
+/** When true, do not run live STT during recording; run once on full buffer when recording stops. */
+let deferTranscription = false
 
 // Near real-time: process every 2.5s when active, 15s when idle; 1s minimum buffer for faster first result
 const CHUNK_INTERVAL_ACTIVE_MS = 2500
@@ -90,6 +92,7 @@ export async function startRecording(
   lastSpeechTime = Date.now()
   currentSTTModel = options.sttModel
   hasLoggedNoSTTModelThisSession = false
+  deferTranscription = getSetting('transcribe-when-stopped') === 'true'
   resetContext()
 
   // Merge vocabulary: settings + meeting title tokens + explicit vocabulary
@@ -122,18 +125,20 @@ export async function startRecording(
 
   consecutiveSilentChunks = 0
   currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
-  chunkTimer = setInterval(() => {
-    if (isPaused || isProcessing) return
-    const hasData = audioBuffers[0].length > 0 || audioBuffers[1].length > 0
-    if (hasData) processBufferedAudio()
-  }, currentChunkIntervalMs)
+  if (!deferTranscription) {
+    chunkTimer = setInterval(() => {
+      if (isPaused || isProcessing) return
+      const hasData = audioBuffers[0].length > 0 || audioBuffers[1].length > 0
+      if (hasData) processBufferedAudio()
+    }, currentChunkIntervalMs)
+  }
 
   // Silence-based auto-pause disabled — user triggers pause manually and uses "Generate summary" button
 
   return true
 }
 
-export function stopRecording(): any {
+export async function stopRecording(): Promise<{ duration: number } | null> {
   if (!isRecording) return null
 
   isRecording = false
@@ -152,7 +157,11 @@ export function stopRecording(): any {
   // silenceTimer no longer used (auto-pause disabled)
 
   const hasData = (audioBuffers[0].length > 0 || audioBuffers[1].length > 0)
-  if (hasData && !isProcessing) {
+  if (deferTranscription && hasData && transcriptCallback) {
+    statusCallback?.({ state: 'stt-processing' })
+    await processBufferedAudio()
+    statusCallback?.({ state: 'stt-idle' })
+  } else if (hasData && !isProcessing) {
     processBufferedAudio()
   }
 
@@ -198,10 +207,12 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
 
   audioBuffers[ch].push(pcmData)
 
-  // Near real-time: schedule STT as soon as we have enough audio (don't wait for next timer)
-  const totalSamples = audioBuffers[ch].reduce((sum, c) => sum + c.length, 0)
-  if (!isProcessing && totalSamples >= MIN_SAMPLES_PER_CHANNEL) {
-    setImmediate(() => processBufferedAudio())
+  // Near real-time: schedule STT as soon as we have enough audio (don't wait for next timer). Skip when transcribe-when-stopped.
+  if (!deferTranscription) {
+    const totalSamples = audioBuffers[ch].reduce((sum, c) => sum + c.length, 0)
+    if (!isProcessing && totalSamples >= MIN_SAMPLES_PER_CHANNEL) {
+      setImmediate(() => processBufferedAudio())
+    }
   }
 
   return true

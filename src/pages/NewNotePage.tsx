@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sidebar } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
-  PanelLeftClose, PanelLeft, Share2, MoreHorizontal,
+  Share2, MoreHorizontal,
   Calendar, Clock, Plus, FolderOpen, Check, X, Hash,
   CheckCircle2, Circle, Loader2, Copy, Trash2, ChevronDown, FileText
 } from "lucide-react";
@@ -143,7 +143,7 @@ export default function NewNotePage() {
   const location = useLocation();
   const eventState = location.state as { eventTitle?: string; eventId?: string; joinLink?: string; startFresh?: boolean; triggerPauseAndSummarize?: boolean } | null;
   const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture, setSessionScratch, getSessionScratch } = useRecording();
-  const { selectedSTTModel, selectedAIModel } = useModelSettings();
+  const { selectedSTTModel, selectedAIModel, useLocalModels } = useModelSettings();
   const api = getElectronAPI();
 
   const searchParams = new URLSearchParams(location.search);
@@ -152,7 +152,7 @@ export default function NewNotePage() {
   const startFreshFromUrl = searchParams.get("startFresh") === "1";
   const startFresh = eventState?.startFresh === true || startFreshFromUrl;
 
-  const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
+  const { sidebarOpen } = useSidebarVisibility();
   const [recordingState, setRecordingState] = useState<RecordingState>(() => {
     if (isReturning && activeSession) {
       return activeSession.isRecording ? "recording" : "paused";
@@ -286,6 +286,13 @@ export default function NewNotePage() {
 
     const finalTranscript = usingRealAudio ? transcriptRef.current : fakeTranscriptLines;
 
+    // Capture session-derived values and clear session immediately so the floating indicator hides (don't wait for LLM)
+    const noteIdToSave = override?.noteId ?? noteId;
+    const startTimeToUse = activeSession?.startTime;
+    if (activeSession && !activeSession.isRecording) {
+      clearSession();
+    }
+
     let generatedSummary: SummaryData;
     try {
       if (api && selectedAIModel) {
@@ -319,7 +326,7 @@ export default function NewNotePage() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
       const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const startTimeMs = activeSession?.startTime ?? now.getTime() - elapsedSeconds * 1000;
+      const startTimeMs = startTimeToUse ?? now.getTime() - elapsedSeconds * 1000;
       const timeRange = formatTimeRange(startTimeMs, elapsedSeconds);
 
       const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
@@ -332,7 +339,7 @@ export default function NewNotePage() {
           ? useTitle || noteTitle
           : (aiTitle || noteTitle);
         addNote({
-          id: override?.noteId ?? noteId,
+          id: noteIdToSave,
           title: finalTitle,
           date: dateStr,
           time: timeStr,
@@ -351,10 +358,6 @@ export default function NewNotePage() {
       // Granola-style: only auto-update title from summary if user hasn't manually edited and we got a real title
       if (!userHasEditedTitleRef.current && generatedSummary.title && generatedSummary.title !== noteTitle && !isGenericTitle(generatedSummary.title)) {
         setTitle(generatedSummary.title);
-      }
-      // Once summary is generated while paused, clear session so the live meeting indicator doesn't keep showing
-      if (activeSession && !activeSession.isRecording) {
-        clearSession();
       }
     } finally {
       setIsSummarizing(false);
@@ -428,6 +431,31 @@ export default function NewNotePage() {
         } else {
           if (hadSession && usingRealAudio) stopAudioCapture().catch(console.error);
           doStartNew();
+        }
+        return;
+      }
+
+      // Calendar "Meeting starting soon" notification click: start a new note for this event and start listening (do not redirect to any existing session)
+      const fromCalendarNotification = (eventState?.eventId != null || !!eventState?.eventTitle) && !existingSessionId;
+      if (fromCalendarNotification) {
+        clearSession();
+        const newId = crypto.randomUUID();
+        setNoteId(newId);
+        userHasEditedTitleRef.current = false;
+        setTitle(eventState?.eventTitle ?? "");
+        setSummary(null);
+        setPersonalNotes("");
+        setRecordingState("recording");
+        setViewMode("ai-notes");
+        setUserHasStartedCapture(true);
+        startSession(newId);
+        navigate(`/new-note?session=${newId}`, { replace: true });
+        if (usingRealAudio) {
+          const meetingTitle = (eventState?.eventTitle ?? eventState?.eventId) || undefined;
+          startAudioCapture(selectedSTTModel || "", { meetingTitle }).catch((err) => {
+            console.error("Audio capture failed:", err);
+            toast.error("Recording couldn't start. Check microphone and STT settings.");
+          });
         }
         return;
       }
@@ -761,10 +789,12 @@ export default function NewNotePage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
+      {sidebarOpen ? (
         <div className="w-56 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
+      ) : (
+        <SidebarExpandTrigger />
       )}
 
       <main className="flex flex-1 flex-col min-w-0">
@@ -773,14 +803,11 @@ export default function NewNotePage() {
           "flex items-center justify-between px-4 pt-3 pb-0",
           !sidebarOpen && isElectron && "pl-20"
         )}>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleSidebar}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-            </button>
-          </div>
+          <SidebarTopBarLeft
+            backLabel="Back to home"
+            onBack={() => navigate("/")}
+            backIcon
+          />
           <div className="flex items-center gap-1.5">
             <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
               <Share2 className="h-3.5 w-3.5" />
@@ -1212,6 +1239,11 @@ export default function NewNotePage() {
                 {!transcriptSearch && (recordingState === "recording" || recordingState === "paused") && activeSTTLabel && (
                   <p className="text-[10px] text-muted-foreground pt-0.5">
                     Transcription: {activeSTTLabel}. To change, pick another model in Settings and start or resume recording.
+                  </p>
+                )}
+                {!transcriptSearch && useLocalModels && (recordingState === "recording" || recordingState === "paused") && (
+                  <p className="text-[10px] text-muted-foreground pt-0.5">
+                    With local models, transcription and summaries stay on this device.
                   </p>
                 )}
                 {!transcriptSearch && recordingState === "paused" && (

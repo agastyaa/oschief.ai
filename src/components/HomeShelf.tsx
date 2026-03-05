@@ -50,7 +50,7 @@ export function HomeShelf({
         {/* Coming up */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium text-foreground">Coming up</h2>
+            <h2 className="font-display-serif text-base text-foreground">Coming up</h2>
             {hasNotes && (
               <button
                 onClick={onQuickNote}
@@ -71,7 +71,7 @@ export function HomeShelf({
                   <button
                     key={evt.id}
                     onClick={() => onSelectEvent(isSelected ? null : evt)}
-                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${isSelected ? "bg-accent/10" : "hover:bg-secondary/50"}`}
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 cursor-pointer ${isSelected ? "bg-accent/10" : "hover:bg-secondary/50"}`}
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent flex-shrink-0">
                       <Calendar className="h-4 w-4" />

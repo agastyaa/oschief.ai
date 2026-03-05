@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft } from "lucide-react";
 import { SyagLogo } from "@/components/SyagLogo";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
@@ -16,10 +16,62 @@ const iconMap = {
   archive: Archive,
 };
 
+const COLLAPSE_BTN_CLASS =
+  "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
+
+/** Left group for main content top bar: sidebar collapse/expand + optional back link. Use as standard across the app. */
+export function SidebarTopBarLeft({
+  backLabel,
+  onBack,
+  backIcon = false,
+}: {
+  backLabel?: string;
+  onBack?: () => void;
+  /** When true, show ArrowLeft icon before back label (e.g. for "Back to home") */
+  backIcon?: boolean;
+}) {
+  const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={toggleSidebar}
+        className={COLLAPSE_BTN_CLASS}
+        title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+      >
+        {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+      </button>
+      {backLabel != null && onBack != null && (
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {backIcon && <ArrowLeft className="h-4 w-4" />}
+          {backLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Collapse button only (no back link). For pages that only need the sidebar toggle. */
+export function SidebarCollapseButton() {
+  const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
+  return (
+    <button
+      onClick={toggleSidebar}
+      className={COLLAPSE_BTN_CLASS}
+      title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+      aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+    >
+      {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+    </button>
+  );
+}
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sidebarOpen, setSidebarOpen } = useSidebarVisibility();
   const { folders, createFolder, deleteFolder } = useFolders();
   const { open: openSearch } = useSearchCommand();
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -38,17 +90,9 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
-      {/* Logo + collapse */}
-      <div className={cn("flex items-center justify-between gap-2 px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
+      {/* Logo only — collapse is in content top bar via SidebarTopBarLeft */}
+      <div className={cn("flex items-center gap-2 px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
         <SyagLogo size={24} showText />
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="rounded p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Hide sidebar"
-          aria-label="Hide sidebar"
-        >
-          <PanelLeftClose className="h-4 w-4" />
-        </button>
       </div>
 
       {/* Search */}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, ChevronDown, ChevronRight, FileText, Square } from "lucide-react";
-import { Sidebar, SidebarExpandTrigger } from "@/components/Sidebar";
+import { Sidebar, SidebarExpandTrigger, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { useNotes } from "@/contexts/NotesContext";
@@ -171,6 +171,9 @@ export default function AskSyag() {
         <SidebarExpandTrigger />
       )}
       <main className={cn("flex flex-1 flex-col min-w-0", !sidebarOpen && isElectron && "pl-20")}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <SidebarCollapseButton />
+        </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
             <div className="flex h-full flex-col items-center justify-center px-6">
