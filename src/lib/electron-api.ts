@@ -50,7 +50,7 @@ type ElectronAPI = {
     installTheStageWhisper: () => Promise<boolean>
   }
   recording: {
-    start: (options: { sttModel: string; deviceId?: string }) => Promise<boolean>
+    start: (options: { sttModel: string; deviceId?: string; meetingTitle?: string; vocabulary?: string[] }) => Promise<boolean>
     stop: () => Promise<any>
     pause: () => Promise<boolean>
     resume: (options?: { sttModel?: string }) => Promise<boolean>
@@ -59,7 +59,7 @@ type ElectronAPI = {
     onRecordingStatus: (callback: (status: { state: string; error?: string }) => void) => () => void
   }
   llm: {
-    summarize: (data: { transcript: any[]; personalNotes: string; model: string }) => Promise<any>
+    summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string; customPrompt?: string; meetingTitle?: string; meetingDuration?: string | null; attendees?: string[] }) => Promise<any>
     chat: (data: { messages: any[]; context: any; model: string }) => Promise<string>
     onChatChunk: (callback: (chunk: { text: string; done: boolean }) => void) => () => void
   }

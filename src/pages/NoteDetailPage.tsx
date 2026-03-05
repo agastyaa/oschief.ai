@@ -340,7 +340,13 @@ export default function NoteDetailPage() {
                   <>
                     {note.summary ? (
                       <EditableSummary
-                        summary={note.summary}
+                        summary={{
+                          ...note.summary,
+                          actionItems: note.summary.actionItems?.map((item: any) => ({
+                            ...item,
+                            priority: (["high", "medium", "low"].includes(item.priority) ? item.priority : "medium") as "high" | "medium" | "low",
+                          })),
+                        }}
                         onUpdate={(updated) => {
                           if (id) updateNote(id, { summary: updated });
                         }}

@@ -7,7 +7,8 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "vite",
+    "dev:electron": "electron-vite dev",
     "dev:web": "vite",
     "build": "electron-vite build",
     "build:web": "vite build",

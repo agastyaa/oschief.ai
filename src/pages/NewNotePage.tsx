@@ -418,7 +418,7 @@ export default function NewNotePage() {
         if (hadSession && hadContent && usingRealAudio) {
           pauseAudioCapture()
             .catch(console.error)
-            .then(() => generateNotes({ personalNotes: scratch.personalNotes, title: scratch.title, noteId: activeSession.noteId }))
+            .then(() => { const s = getSessionScratch(); return generateNotes({ personalNotes: s.personalNotes, title: s.title, noteId: activeSession.noteId }); })
             .then(() => stopAudioCapture())
             .then(() => doStartNew())
             .catch((err) => {
