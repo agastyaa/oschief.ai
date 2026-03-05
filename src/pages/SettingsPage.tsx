@@ -374,6 +374,8 @@ export default function SettingsPage() {
     connectedProviders, setConnectedProviders,
     connectProvider, disconnectProvider,
     useLocalModels, setUseLocalModels,
+    getAvailableAIModels,
+    appleFoundationAvailable,
     copartFetchedModels,
   } = modelSettings;
   const [active, setActive] = useState("account");
@@ -430,29 +432,11 @@ export default function SettingsPage() {
   const [aiModelOpen, setAiModelOpen] = useState(false);
   const [sttModelOpen, setSttModelOpen] = useState(false);
 
-  // Build AI model options (for searchable dropdown): local + connected providers, exclude whisper for supportsStt
-  const aiOptions = useMemo(() => {
-    const out: { value: string; label: string; group: string }[] = [];
-    localModels
-      .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
-      .forEach((m) => out.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local Models" }));
-    Object.entries(connectedProviders)
-      .filter(([_, v]) => v.connected)
-      .forEach(([pid]) => {
-        const provider = enterpriseProviders.find((p) => p.id === pid);
-        if (!provider || provider.sttOnly) return;
-        const aiModels =
-          pid === "copart" && copartFetchedModels?.models?.length
-            ? copartFetchedModels.models
-            : provider.supportsStt
-              ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
-              : provider.models;
-        aiModels.forEach((m) =>
-          out.push({ value: `${pid}:${m}`, label: m, group: `${provider.icon} ${provider.name}` })
-        );
-      });
-    return out;
-  }, [connectedProviders, downloadStates, copartFetchedModels]);
+  // AI model options: from context (includes Apple on-device when available, local, connected providers)
+  const aiOptions = useMemo(
+    () => getAvailableAIModels(),
+    [getAvailableAIModels, appleFoundationAvailable, connectedProviders, downloadStates, copartFetchedModels]
+  );
 
   // Build STT model options: local + system (darwin) + connected providers (sttOnly all, supportsStt whisper-only)
   const sttOptions = useMemo(() => {
@@ -777,7 +761,9 @@ export default function SettingsPage() {
                     <p className="text-[11px] text-muted-foreground -mt-2">Download models to run entirely on your device. No data leaves your machine.</p>
 
                     <div className="space-y-1.5">
-                      {localModels.map((model) => {
+                      {localModels
+                        .filter((m) => m.id !== "thestage-whisper-apple" || api?.app?.getPlatform?.() === "darwin")
+                        .map((model) => {
                         const state = downloadStates[model.id] || "idle";
                         const progress = downloadProgress[model.id];
                         return (

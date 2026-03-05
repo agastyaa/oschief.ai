@@ -40,6 +40,14 @@ type ElectronAPI = {
     list: () => Promise<string[]>
     onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
     onDownloadComplete: (callback: (data: { modelId: string; success: boolean; error?: string }) => void) => () => void
+    checkMLXWhisper: () => Promise<boolean>
+    installMLXWhisper: () => Promise<boolean>
+    checkMLXWhisper8Bit: () => Promise<boolean>
+    installMLXWhisper8Bit: () => Promise<boolean>
+    checkFfmpeg: () => Promise<boolean>
+    installFfmpeg: () => Promise<boolean>
+    checkTheStageWhisper: () => Promise<boolean>
+    installTheStageWhisper: () => Promise<boolean>
   }
   recording: {
     start: (options: { sttModel: string; deviceId?: string }) => Promise<boolean>
@@ -77,6 +85,7 @@ type ElectronAPI = {
   app: {
     getVersion: () => Promise<string>
     getPlatform: () => string
+    isAppleFoundationAvailable?: () => Promise<boolean>
     setLoginItem?: (enabled: boolean) => Promise<boolean>
     onTrayStartRecording: (callback: () => void) => () => void
     onTrayStopRecording?: (callback: () => void) => () => void

@@ -12,6 +12,10 @@ import { existsSync } from 'fs'
 const HELPER_NAME = 'syag-apple-llm.swift'
 
 function getHelperPath(): string | null {
+  if (process.resourcesPath) {
+    const packaged = join(process.resourcesPath, 'darwin', HELPER_NAME)
+    if (existsSync(packaged)) return packaged
+  }
   try {
     const packaged = join(app.getPath('resourcesPath'), 'darwin', HELPER_NAME)
     if (existsSync(packaged)) return packaged

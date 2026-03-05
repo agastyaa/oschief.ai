@@ -1,5 +1,6 @@
 import { getModelPath } from './manager'
 import { routeLLM } from '../cloud/router'
+import { chatApple } from '../cloud/apple-llm'
 import {
   getTemplate,
   detectMeetingTypeFromContent,
@@ -100,6 +101,10 @@ export async function summarize(
     return summarizeWithLocal(userInput, model.replace('local:', ''), template)
   }
 
+  if (model.startsWith('apple:')) {
+    return summarizeWithApple(userInput, template)
+  }
+
   const response = await routeLLM(
     [{ role: 'user', content: userInput }],
     model
@@ -131,7 +136,38 @@ export async function chat(
     return chatWithLocal(llmMessages, model.replace('local:', ''), onChunk)
   }
 
+  if (model.startsWith('apple:')) {
+    return chatApple(llmMessages, model, onChunk)
+  }
+
   return routeLLM(llmMessages, model, onChunk)
+}
+
+// ─── Apple (on-device) ───────────────────────────────────────────────────────
+
+async function summarizeWithApple(
+  userInput: string,
+  template: MeetingTemplate
+): Promise<MeetingSummary> {
+  try {
+    const response = await chatApple(
+      [{ role: 'user', content: userInput }],
+      'foundation'
+    )
+    const parsed = parseEnhancedNotes(response)
+    const title = extractTitleFromResponse(response)
+    return parsedToMeetingSummary(parsed, title, template.id)
+  } catch (err: any) {
+    const msg = err?.message ?? String(err)
+    if (/restrict|safety|block|not available|Tahoe|Apple Silicon/i.test(msg)) {
+      throw new Error(
+        'Summary restricted by on-device safety or unsupported device. You can still read the full transcript or try another model in Settings.'
+      )
+    }
+    throw new Error(
+      `Apple on-device summary failed. Try another model in Settings. ${msg.slice(0, 80)}`
+    )
+  }
 }
 
 // ─── Local Model Fallbacks ──────────────────────────────────────────────────

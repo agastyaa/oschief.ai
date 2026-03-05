@@ -54,6 +54,12 @@ const electronAPI = {
     },
     checkMLXWhisper: () => ipcRenderer.invoke('models:check-mlx-whisper'),
     installMLXWhisper: () => ipcRenderer.invoke('models:install-mlx-whisper'),
+    checkMLXWhisper8Bit: () => ipcRenderer.invoke('models:check-mlx-whisper-8bit'),
+    installMLXWhisper8Bit: () => ipcRenderer.invoke('models:install-mlx-whisper-8bit'),
+    checkFfmpeg: () => ipcRenderer.invoke('models:check-ffmpeg'),
+    installFfmpeg: () => ipcRenderer.invoke('models:install-ffmpeg'),
+    checkTheStageWhisper: () => ipcRenderer.invoke('models:check-thestage-whisper'),
+    installTheStageWhisper: () => ipcRenderer.invoke('models:install-thestage-whisper'),
   },
 
   recording: {
@@ -123,6 +129,7 @@ const electronAPI = {
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getPlatform: () => process.platform,
+    isAppleFoundationAvailable: () => ipcRenderer.invoke('app:apple-foundation-available') as Promise<boolean>,
     setLoginItem: (enabled: boolean) => ipcRenderer.invoke('app:set-login-item', enabled),
     onTrayStartRecording: (callback: () => void) => {
       ipcRenderer.on('tray:start-recording', callback)

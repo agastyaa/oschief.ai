@@ -782,12 +782,6 @@ export default function NewNotePage() {
             >
               {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
             </button>
-            <button
-              onClick={() => navigate("/")}
-              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ← Back to notes
-            </button>
           </div>
           <div className="flex items-center gap-1.5">
             <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
@@ -838,8 +832,8 @@ export default function NewNotePage() {
           </div>
         )}
 
-        {/* Content area */}
-        <div className="flex flex-1 overflow-hidden">
+        {/* Content area: stack on small screens so transcript doesn't squeeze layout */}
+        <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
           <div className="flex flex-1 flex-col min-w-0">
             <div className="flex-1 overflow-y-auto pb-24">
               <div className="mx-auto max-w-3xl px-8 py-3">
@@ -1073,9 +1067,9 @@ export default function NewNotePage() {
             </div>
           </div>
 
-          {/* Transcript side panel — always visible when recording (so user sees "No STT model" / Listening / errors); when not recording, show if real-time on or there are lines */}
+          {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-[36rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
+            <div className="w-full lg:w-[36rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[12px] font-medium uppercase tracking-wider text-foreground/80">

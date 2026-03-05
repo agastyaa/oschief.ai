@@ -19,6 +19,17 @@ const SOURCE_KEY = "syag_calendar_source";
 const URL_KEY = "syag_calendar_url";
 const AUTO_REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
+/** Remove duplicates: same start time + same title (e.g. duplicate 11am tomorrow). Keep first. */
+function dedupeCalendarEvents(evts: CalendarEvent[]): CalendarEvent[] {
+  const seen = new Set<string>();
+  return evts.filter((e) => {
+    const key = `${e.start instanceof Date ? e.start.getTime() : new Date(e.start).getTime()}-${(e.title || "").trim().toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function CalendarProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [icsSource, setIcsSource] = useState<string | null>(null);
@@ -30,11 +41,12 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
   const persist = useCallback((evts: CalendarEvent[], source: string, feedUrl?: string) => {
     // Only show events with a meeting link and exclude full-day blocks (focus blocks, etc.)
     const filtered = evts.filter((e) => e.joinLink && !e.isAllDay);
-    setEvents(filtered);
+    const deduped = dedupeCalendarEvents(filtered);
+    setEvents(deduped);
     setIcsSource(source);
     setError(null);
     setLastRefresh(new Date());
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
     localStorage.setItem(SOURCE_KEY, source);
     if (feedUrl) localStorage.setItem(URL_KEY, feedUrl);
   }, []);
@@ -71,7 +83,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(stored) as CalendarEvent[];
         const withDates = parsed.map((e) => ({ ...e, start: new Date(e.start), end: new Date(e.end) }));
         const filtered = withDates.filter((e) => e.joinLink && !e.isAllDay);
-        setEvents(filtered);
+        setEvents(dedupeCalendarEvents(filtered));
       }
       if (source) setIcsSource(source);
       // Auto-refresh URL feeds on mount

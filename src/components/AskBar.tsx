@@ -194,7 +194,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {leftSlot}
 
           {context === "meeting" && recordingState && (
@@ -249,7 +249,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
 
           <div
             onClick={handleBarClick}
-            className="flex flex-1 items-center rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text relative"
+            className="flex flex-1 items-center rounded-full border border-border bg-card shadow-lg px-4 py-2.5 cursor-text relative min-w-[140px]"
           >
             {showSlashMenu && (
               <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden z-50">

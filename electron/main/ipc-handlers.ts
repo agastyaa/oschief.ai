@@ -10,6 +10,7 @@ import { downloadModel, cancelDownload, deleteModel, listDownloadedModels } from
 import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk } from './audio/capture'
 import { summarize } from './models/llm-engine'
 import { chat, testCopartConnection, listCopartGenieModels } from './cloud/router'
+import { checkAppleFoundationAvailable } from './cloud/apple-llm'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
@@ -89,6 +90,30 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('models:install-mlx-whisper', async () => {
     const { installMLXWhisper } = await import('./models/stt-engine')
     return installMLXWhisper()
+  })
+  ipcMain.handle('models:check-mlx-whisper-8bit', async () => {
+    const { checkMLXWhisper8BitAvailable } = await import('./models/stt-engine')
+    return checkMLXWhisper8BitAvailable()
+  })
+  ipcMain.handle('models:install-mlx-whisper-8bit', async () => {
+    const { installMLXWhisper8Bit } = await import('./models/stt-engine')
+    return installMLXWhisper8Bit()
+  })
+  ipcMain.handle('models:check-ffmpeg', async () => {
+    const { checkFfmpegAvailable } = await import('./models/stt-engine')
+    return checkFfmpegAvailable()
+  })
+  ipcMain.handle('models:install-ffmpeg', async () => {
+    const { installFfmpeg } = await import('./models/stt-engine')
+    return installFfmpeg()
+  })
+  ipcMain.handle('models:check-thestage-whisper', async () => {
+    const { checkTheStageWhisperAvailable } = await import('./models/stt-engine')
+    return checkTheStageWhisperAvailable()
+  })
+  ipcMain.handle('models:install-thestage-whisper', async () => {
+    const { installTheStageWhisper } = await import('./models/stt-engine')
+    return installTheStageWhisper()
   })
   // --- Tray / Meeting ---
   ipcMain.handle('tray:update-recording', (_e, isRecording: boolean) => {
@@ -214,6 +239,7 @@ export function registerIPCHandlers(): void {
 
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())
+  ipcMain.handle('app:apple-foundation-available', () => checkAppleFoundationAvailable())
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
     return true

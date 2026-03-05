@@ -329,7 +329,13 @@ async function processBufferedAudio(): Promise<void> {
         const msg = err?.message || String(err)
         let hint = ''
         if (currentSTTModel.startsWith('local:')) {
-          if (msg.includes('MLX') || msg.includes('mlx')) {
+          const isMLX = currentSTTModel.includes('mlx')
+          const isTheStage = currentSTTModel.includes('thestage')
+          if (/ffmpeg|Errno 2.*file or directory/i.test(msg)) {
+            hint = ' Install ffmpeg (e.g. brew install ffmpeg) and ensure it is in your PATH. MLX Whisper needs it to read audio.'
+          } else if (isTheStage) {
+            hint = ' For TheStage Whisper: install from Settings > AI Models (Download); macOS only. Requires Python 3 and thestage-speechkit.'
+          } else if (isMLX || msg.includes('MLX') || msg.includes('mlx')) {
             hint = ' For MLX: ensure Python 3 and mlx-whisper are installed (pip3 install mlx-whisper); first run may take several minutes. To use another STT, select it in Settings > AI Models and start or resume recording.'
           } else {
             hint = ' For whisper.cpp: ensure the model is downloaded and whisper-cli is available in Settings > AI Models.'

@@ -257,6 +257,30 @@ function commandExists(cmd: string): boolean {
   }
 }
 
+export function checkFfmpegAvailable(): boolean {
+  return commandExists('ffmpeg')
+}
+
+/** Install ffmpeg (required for MLX Whisper audio). On macOS runs brew install ffmpeg. */
+export async function installFfmpeg(): Promise<boolean> {
+  if (checkFfmpegAvailable()) return true
+  if (require('os').platform() !== 'darwin') {
+    console.warn('[STT] ffmpeg auto-install only supported on macOS. Install ffmpeg manually.')
+    return false
+  }
+  if (!commandExists('brew')) {
+    console.warn('[STT] Homebrew not found; cannot install ffmpeg. Install from https://brew.sh')
+    return false
+  }
+  try {
+    execSync('brew install ffmpeg', { stdio: 'pipe', timeout: 120000 })
+    return checkFfmpegAvailable()
+  } catch (err: any) {
+    console.warn('[STT] brew install ffmpeg failed:', err?.message)
+    return false
+  }
+}
+
 function downloadFile(url: string, dest: string, redirectCount = 0): Promise<void> {
   return new Promise((resolve, reject) => {
     if (redirectCount > 5) { reject(new Error('Too many redirects')); return }
@@ -282,6 +306,12 @@ function downloadFile(url: string, dest: string, redirectCount = 0): Promise<voi
 export async function processWithLocalSTT(wavBuffer: Buffer, modelId: string, customVocabulary?: string): Promise<STTResult> {
   if (modelId === 'mlx-whisper-large-v3-turbo') {
     return processWithMLXWhisper(wavBuffer, customVocabulary)
+  }
+  if (modelId === 'mlx-whisper-large-v3-turbo-8bit') {
+    return processWithMLXWhisper8Bit(wavBuffer, customVocabulary)
+  }
+  if (modelId === 'thestage-whisper-apple') {
+    return processWithTheStageWhisper(wavBuffer, customVocabulary)
   }
 
   const modelPath = getModelPath(modelId)
@@ -324,6 +354,7 @@ import json, sys, os
 
 # Import only; model loads on first transcribe to avoid startup timeout/hangs from warmup
 import mlx_whisper
+# Full-precision turbo; 8-bit variant (mlx-community/whisper-large-v3-turbo-8bit) requires mlx-audio-plus, not mlx_whisper
 _model_repo = "mlx-community/whisper-large-v3-turbo"
 
 sys.stdout.write('{"status":"ready"}\\n')
@@ -455,6 +486,7 @@ export async function checkMLXWhisperAvailable(): Promise<boolean> {
 }
 
 export async function installMLXWhisper(): Promise<boolean> {
+  await installFfmpeg()
   return new Promise<boolean>((resolve) => {
     const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-whisper'], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -534,6 +566,399 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
       mlxWorker.stdin.write(request)
     })
 
+    return result
+  } finally {
+    try { unlinkSync(tmpFile) } catch {}
+  }
+}
+
+// ─── MLX Whisper 8-bit (mlx-audio-plus) ─────────────────────────────────────
+
+const MLX_8BIT_HINT = ' Install ffmpeg (brew install ffmpeg) and mlx-audio-plus (pip3 install mlx-audio-plus). First run may download the 8-bit model.'
+
+const MLX_8BIT_WORKER_SCRIPT = `
+import json, sys
+from mlx_audio.stt import transcribe
+_model = "mlx-community/whisper-large-v3-turbo-8bit"
+sys.stdout.write('{"status":"ready"}\\n')
+sys.stdout.flush()
+for line in sys.stdin:
+    try:
+        req = json.loads(line.strip())
+        audio_path = req.get("audio_path", "")
+        result = transcribe(audio=audio_path, model=_model)
+        text = result.get("text", "") if isinstance(result, dict) else str(result or "")
+        words = []
+        if isinstance(result, dict) and "segments" in result:
+            for seg in result["segments"]:
+                for w in seg.get("words", []):
+                    words.append({"word": w.get("word", ""), "start": w.get("start", 0), "end": w.get("end", 0)})
+        elif isinstance(result, dict) and "chunks" in result:
+            for c in result["chunks"]:
+                words.append({"word": c.get("text", ""), "start": c.get("start", 0), "end": c.get("end", 0)})
+        sys.stdout.write(json.dumps({"text": text, "words": words}) + '\\n')
+        sys.stdout.flush()
+    except Exception as e:
+        sys.stdout.write(json.dumps({"error": str(e)}) + '\\n')
+        sys.stdout.flush()
+`
+
+let mlx8BitWorker: ReturnType<typeof spawn> | null = null
+let mlx8BitWorkerReady = false
+let mlx8BitIdleTimer: ReturnType<typeof setTimeout> | null = null
+const MLX_8BIT_IDLE_TIMEOUT_MS = 300000
+
+function resetMLX8BitIdleTimer(): void {
+  if (mlx8BitIdleTimer) clearTimeout(mlx8BitIdleTimer)
+  mlx8BitIdleTimer = setTimeout(() => {
+    killMLX8BitWorker()
+  }, MLX_8BIT_IDLE_TIMEOUT_MS)
+}
+
+export function killMLX8BitWorker(): void {
+  if (mlx8BitIdleTimer) { clearTimeout(mlx8BitIdleTimer); mlx8BitIdleTimer = null }
+  if (mlx8BitWorker) {
+    try { mlx8BitWorker.kill() } catch {}
+    mlx8BitWorker = null
+    mlx8BitWorkerReady = false
+  }
+}
+
+function ensureMLX8BitWorker(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (mlx8BitWorker && mlx8BitWorkerReady) {
+      resetMLX8BitIdleTimer()
+      resolve()
+      return
+    }
+    if (mlx8BitWorker) {
+      const waitTimer = setTimeout(() => reject(new Error('MLX 8-bit worker startup timeout' + MLX_8BIT_HINT)), MLX_STARTUP_READY_TIMEOUT_MS)
+      const check = setInterval(() => {
+        if (mlx8BitWorkerReady) { clearInterval(check); clearTimeout(waitTimer); resolve() }
+      }, 200)
+      return
+    }
+    mlx8BitWorkerReady = false
+    mlx8BitWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_8BIT_WORKER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] })
+    let resolved = false
+    let stderrBuf = ''
+    mlx8BitWorker.stderr?.on('data', (d: Buffer) => { stderrBuf += d.toString() })
+    mlx8BitWorker.stdout!.once('data', (data: Buffer) => {
+      try {
+        const msg = JSON.parse(data.toString().trim())
+        if (msg.status === 'ready') {
+          mlx8BitWorkerReady = true
+          resetMLX8BitIdleTimer()
+          if (!resolved) { resolved = true; resolve() }
+        }
+      } catch {}
+    })
+    const fail = (base: string) => {
+      const tail = stderrBuf.trim().split('\n').slice(-8).join('\n').slice(-500)
+      return base + (tail ? ` Last stderr: ${tail}` : '') + MLX_8BIT_HINT
+    }
+    mlx8BitWorker.on('exit', () => {
+      mlx8BitWorker = null
+      mlx8BitWorkerReady = false
+      if (!resolved) { resolved = true; reject(new Error(fail('MLX 8-bit worker exited during startup.'))) }
+    })
+    mlx8BitWorker.on('error', (err) => {
+      mlx8BitWorker = null
+      mlx8BitWorkerReady = false
+      if (!resolved) { resolved = true; reject(err) }
+    })
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        killMLX8BitWorker()
+        reject(new Error(fail('MLX 8-bit worker startup timed out.')))
+      }
+    }, MLX_STARTUP_READY_TIMEOUT_MS)
+  })
+}
+
+let mlx8BitAvailable: boolean | null = null
+
+export async function checkMLXWhisper8BitAvailable(): Promise<boolean> {
+  if (mlx8BitAvailable !== null) return mlx8BitAvailable
+  if (!checkFfmpegAvailable()) {
+    mlx8BitAvailable = false
+    return false
+  }
+  try {
+    execSync('python3 -c "from mlx_audio.stt import transcribe"', { stdio: 'pipe', timeout: 10000 })
+    mlx8BitAvailable = true
+  } catch {
+    mlx8BitAvailable = false
+  }
+  return mlx8BitAvailable
+}
+
+export async function installMLXWhisper8Bit(): Promise<boolean> {
+  await installFfmpeg()
+  return new Promise<boolean>((resolve) => {
+    const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-audio-plus'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let stderr = ''
+    proc.stderr?.on('data', (d) => { stderr += d.toString() })
+    proc.on('close', (code) => {
+      if (code === 0) {
+        mlx8BitAvailable = true
+        resolve(true)
+      } else {
+        console.warn('[MLX 8-bit] pip install failed:', code, stderr.slice(-500))
+        resolve(false)
+      }
+    })
+    proc.on('error', () => resolve(false))
+  })
+}
+
+async function processWithMLXWhisper8Bit(wavBuffer: Buffer, customVocabulary?: string): Promise<STTResult> {
+  const available = await checkMLXWhisper8BitAvailable()
+  if (!available) {
+    throw new Error('mlx-audio-plus or ffmpeg not available. Install from Settings > AI Models (Download) or run: brew install ffmpeg && pip3 install mlx-audio-plus')
+  }
+  await ensureMLX8BitWorker()
+  const tmpDir = join(app.getPath('temp'), 'syag-stt')
+  mkdirSync(tmpDir, { recursive: true })
+  const tmpFile = join(tmpDir, `mlx8-chunk-${Date.now()}.wav`)
+  try {
+    writeFileSync(tmpFile, wavBuffer)
+    const request = JSON.stringify({ audio_path: tmpFile }) + '\n'
+    const result = await new Promise<STTResult>((resolve, reject) => {
+      if (!mlx8BitWorker?.stdin || !mlx8BitWorker?.stdout) {
+        reject(new Error('MLX 8-bit worker not available'))
+        return
+      }
+      const timeout = setTimeout(() => reject(new Error('MLX 8-bit transcription timed out (180s). First run may take several minutes to load the model.')), 180000)
+      const onData = (data: Buffer) => {
+        clearTimeout(timeout)
+        mlx8BitWorker?.stdout?.removeListener('data', onData)
+        resetMLX8BitIdleTimer()
+        const line = data.toString().trim()
+        try {
+          const parsed = JSON.parse(line)
+          if (parsed.error) {
+            reject(new Error(parsed.error))
+            return
+          }
+          const text = cleanTranscriptText(parsed.text || '')
+          const words: WordTimestamp[] = (parsed.words || [])
+            .map((w: any) => ({ word: (w.word || '').trim(), start: w.start ?? 0, end: w.end ?? 0 }))
+            .filter((w: WordTimestamp) => w.word.length > 0)
+          resolve({ text, words })
+        } catch {
+          resolve({ text: cleanTranscriptText(line), words: [] })
+        }
+      }
+      mlx8BitWorker.stdout.on('data', onData)
+      mlx8BitWorker.stdin.write(request)
+    })
+    return result
+  } finally {
+    try { unlinkSync(tmpFile) } catch {}
+  }
+}
+
+// ─── TheStage Whisper (Apple / CoreML) ──────────────────────────────────────
+
+const THESTAGE_HINT = ' macOS only. Install from Settings > AI Models (Download) or run: pip3 install thestage-speechkit[apple].'
+
+const THESTAGE_WORKER_SCRIPT = `
+import json, sys
+# Import only; model loads on first transcribe
+from thestage_speechkit.apple import ASRPipeline
+_pipeline = None
+def get_pipeline():
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = ASRPipeline(
+            model='TheStageAI/thewhisper-large-v3-turbo',
+            model_size='S',
+            chunk_length_s=10
+        )
+    return _pipeline
+sys.stdout.write('{"status":"ready"}\\n')
+sys.stdout.flush()
+for line in sys.stdin:
+    try:
+        req = json.loads(line.strip())
+        audio_path = req.get("audio_path", "")
+        result = get_pipeline()(audio_path, return_timestamps="word")
+        text = result.get("text", "") if isinstance(result, dict) else str(result or "")
+        words = []
+        if isinstance(result, dict):
+            if "chunks" in result:
+                for c in result["chunks"]:
+                    words.append({"word": c.get("word", c.get("text", "")), "start": c.get("start", 0), "end": c.get("end", 0)})
+            elif "segments" in result:
+                for seg in result["segments"]:
+                    for w in seg.get("words", []):
+                        words.append({"word": w.get("word", ""), "start": w.get("start", 0), "end": w.get("end", 0)})
+        sys.stdout.write(json.dumps({"text": text, "words": words}) + '\\n')
+        sys.stdout.flush()
+    except Exception as e:
+        sys.stdout.write(json.dumps({"error": str(e)}) + '\\n')
+        sys.stdout.flush()
+`
+
+let thestageWorker: ReturnType<typeof spawn> | null = null
+let thestageWorkerReady = false
+let thestageIdleTimer: ReturnType<typeof setTimeout> | null = null
+const THESTAGE_IDLE_TIMEOUT_MS = 300000
+
+function resetTheStageIdleTimer(): void {
+  if (thestageIdleTimer) clearTimeout(thestageIdleTimer)
+  thestageIdleTimer = setTimeout(() => killTheStageWorker(), THESTAGE_IDLE_TIMEOUT_MS)
+}
+
+export function killTheStageWorker(): void {
+  if (thestageIdleTimer) { clearTimeout(thestageIdleTimer); thestageIdleTimer = null }
+  if (thestageWorker) {
+    try { thestageWorker.kill() } catch {}
+    thestageWorker = null
+    thestageWorkerReady = false
+  }
+}
+
+function ensureTheStageWorker(): Promise<void> {
+  if (require('os').platform() !== 'darwin') {
+    return Promise.reject(new Error('TheStage Whisper is only available on macOS.' + THESTAGE_HINT))
+  }
+  return new Promise((resolve, reject) => {
+    if (thestageWorker && thestageWorkerReady) {
+      resetTheStageIdleTimer()
+      resolve()
+      return
+    }
+    if (thestageWorker) {
+      const waitTimer = setTimeout(() => reject(new Error('TheStage worker startup timeout' + THESTAGE_HINT)), MLX_STARTUP_READY_TIMEOUT_MS)
+      const check = setInterval(() => {
+        if (thestageWorkerReady) { clearInterval(check); clearTimeout(waitTimer); resolve() }
+      }, 200)
+      return
+    }
+    thestageWorkerReady = false
+    thestageWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', THESTAGE_WORKER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] })
+    let resolved = false
+    let stderrBuf = ''
+    thestageWorker.stderr?.on('data', (d: Buffer) => { stderrBuf += d.toString() })
+    thestageWorker.stdout!.once('data', (data: Buffer) => {
+      try {
+        const msg = JSON.parse(data.toString().trim())
+        if (msg.status === 'ready') {
+          thestageWorkerReady = true
+          resetTheStageIdleTimer()
+          if (!resolved) { resolved = true; resolve() }
+        }
+      } catch {}
+    })
+    const fail = (base: string) => {
+      const tail = stderrBuf.trim().split('\n').slice(-8).join('\n').slice(-500)
+      return base + (tail ? ` Last stderr: ${tail}` : '') + THESTAGE_HINT
+    }
+    thestageWorker.on('exit', () => {
+      thestageWorker = null
+      thestageWorkerReady = false
+      if (!resolved) { resolved = true; reject(new Error(fail('TheStage worker exited during startup.'))) }
+    })
+    thestageWorker.on('error', (err) => {
+      thestageWorker = null
+      thestageWorkerReady = false
+      if (!resolved) { resolved = true; reject(err) }
+    })
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        killTheStageWorker()
+        reject(new Error(fail('TheStage worker startup timed out.')))
+      }
+    }, MLX_STARTUP_READY_TIMEOUT_MS)
+  })
+}
+
+let thestageAvailable: boolean | null = null
+
+export async function checkTheStageWhisperAvailable(): Promise<boolean> {
+  if (require('os').platform() !== 'darwin') return false
+  if (thestageAvailable !== null) return thestageAvailable
+  try {
+    execSync('python3 -c "from thestage_speechkit.apple import ASRPipeline"', { stdio: 'pipe', timeout: 10000 })
+    thestageAvailable = true
+  } catch {
+    thestageAvailable = false
+  }
+  return thestageAvailable
+}
+
+export async function installTheStageWhisper(): Promise<boolean> {
+  if (require('os').platform() !== 'darwin') {
+    console.warn('[TheStage] Only available on macOS.')
+    return false
+  }
+  await installFfmpeg()
+  return new Promise<boolean>((resolve) => {
+    const proc = spawn('python3', ['-m', 'pip', 'install', 'thestage-speechkit[apple]'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let stderr = ''
+    proc.stderr?.on('data', (d) => { stderr += d.toString() })
+    proc.on('close', (code) => {
+      if (code === 0) {
+        thestageAvailable = true
+        resolve(true)
+      } else {
+        console.warn('[TheStage] pip install thestage-speechkit[apple] failed:', code, stderr.slice(-500))
+        resolve(false)
+      }
+    })
+    proc.on('error', () => resolve(false))
+  })
+}
+
+async function processWithTheStageWhisper(wavBuffer: Buffer, customVocabulary?: string): Promise<STTResult> {
+  const available = await checkTheStageWhisperAvailable()
+  if (!available) {
+    throw new Error('TheStage Whisper not available. macOS only. Install from Settings > AI Models (Download) or run: pip3 install thestage-speechkit[apple]')
+  }
+  await ensureTheStageWorker()
+  const tmpDir = join(app.getPath('temp'), 'syag-stt')
+  mkdirSync(tmpDir, { recursive: true })
+  const tmpFile = join(tmpDir, `thestage-chunk-${Date.now()}.wav`)
+  try {
+    writeFileSync(tmpFile, wavBuffer)
+    const request = JSON.stringify({ audio_path: tmpFile }) + '\n'
+    const result = await new Promise<STTResult>((resolve, reject) => {
+      if (!thestageWorker?.stdin || !thestageWorker?.stdout) {
+        reject(new Error('TheStage worker not available'))
+        return
+      }
+      const timeout = setTimeout(() => reject(new Error('TheStage transcription timed out (180s). First run may take several minutes to load the model.')), 180000)
+      const onData = (data: Buffer) => {
+        clearTimeout(timeout)
+        thestageWorker?.stdout?.removeListener('data', onData)
+        resetTheStageIdleTimer()
+        const line = data.toString().trim()
+        try {
+          const parsed = JSON.parse(line)
+          if (parsed.error) {
+            reject(new Error(parsed.error))
+            return
+          }
+          const text = cleanTranscriptText(parsed.text || '')
+          const words: WordTimestamp[] = (parsed.words || [])
+            .map((w: any) => ({ word: (w.word || '').trim(), start: w.start ?? 0, end: w.end ?? 0 }))
+            .filter((w: WordTimestamp) => w.word.length > 0)
+          resolve({ text, words })
+        } catch {
+          resolve({ text: cleanTranscriptText(line), words: [] })
+        }
+      }
+      thestageWorker.stdout.on('data', onData)
+      thestageWorker.stdin.write(request)
+    })
     return result
   } finally {
     try { unlinkSync(tmpFile) } catch {}

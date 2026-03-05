@@ -54,7 +54,9 @@ export type LocalModel = {
 };
 
 export const localModels: LocalModel[] = [
-  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Best quality — uses Apple Neural Engine. Click Download to install automatically." },
+  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Best quality — uses Apple Neural Engine. Click Download to install (ffmpeg + mlx-whisper)." },
+  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "8-bit quantized — smaller, faster. Click Download to install (ffmpeg + mlx-audio-plus)." },
+  { id: "thestage-whisper-apple", name: "TheStage Whisper (Apple)", size: "~2 GB", type: "stt", description: "Streaming, low power (CoreML). macOS only. Click Download to install." },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "Recommended — Nova-2 quality, 4x faster than Large V3" },
   { id: "whisper-large-v3", name: "Whisper Large V3", size: "3.1 GB", type: "stt", description: "Best accuracy, slower" },
   { id: "whisper-medium", name: "Whisper Medium", size: "1.5 GB", type: "stt", description: "Good balance of speed and accuracy" },
@@ -108,6 +110,7 @@ interface ModelSettingsContextType {
   setUseLocalModels: (v: boolean) => void;
   getActiveAIModelLabel: () => string;
   getAvailableAIModels: () => { value: string; label: string; group: string }[];
+  appleFoundationAvailable: boolean;
   copartFetchedModels: { models: string[]; sttModels: string[] } | null;
 }
 
@@ -135,6 +138,13 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>(init.connectedProviders);
   const [hiddenLocalModels, setHiddenLocalModels] = useState<string[]>(init.hiddenLocalModels ?? []);
   const [copartFetchedModels, setCopartFetchedModels] = useState<{ models: string[]; sttModels: string[] } | null>(null);
+  const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
+
+  // Apple (on-device) Foundation Model availability
+  useEffect(() => {
+    if (!api?.app?.isAppleFoundationAvailable) return;
+    api.app.isAppleFoundationAvailable().then(setAppleFoundationAvailable).catch(() => setAppleFoundationAvailable(false));
+  }, [api]);
 
   // Fetch Copart Genie models when connected
   useEffect(() => {
@@ -229,13 +239,21 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Check if MLX Whisper is installed on mount; don't show as downloaded if user removed it
+  // Check if MLX Whisper and MLX 8-bit are installed on mount; don't show as downloaded if user removed them
   useEffect(() => {
     if (!api) return;
-    api.models.checkMLXWhisper().then((available: boolean) => {
-      if (available && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo')) {
-        setDownloadStates((prev) => ({ ...prev, 'mlx-whisper-large-v3-turbo': 'downloaded' }));
-      }
+    Promise.all([
+      api.models.checkMLXWhisper(),
+      api.models.checkMLXWhisper8Bit?.(),
+      api.models.checkTheStageWhisper?.(),
+    ]).then(([mlxAvailable, mlx8BitAvailable, thestageAvailable]) => {
+      setDownloadStates((prev) => {
+        const next = { ...prev };
+        if (mlxAvailable && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo')) next['mlx-whisper-large-v3-turbo'] = 'downloaded';
+        if (mlx8BitAvailable && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo-8bit')) next['mlx-whisper-large-v3-turbo-8bit'] = 'downloaded';
+        if (thestageAvailable && !hiddenLocalModels.includes('thestage-whisper-apple')) next['thestage-whisper-apple'] = 'downloaded';
+        return next;
+      });
     }).catch(() => {});
   }, [hiddenLocalModels]);
 
@@ -245,7 +263,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     if (!useLocalModels || selectedSTTModel) return;
     const downloadedSTT = localModels.filter(m => m.type === 'stt' && downloadStates[m.id] === 'downloaded');
     if (downloadedSTT.length === 0) return;
-    const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo') ?? downloadedSTT[0];
+    const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo' && m.id !== 'mlx-whisper-large-v3-turbo-8bit' && m.id !== 'thestage-whisper-apple') ?? downloadedSTT[0];
     setSelectedSTTModel(`local:${preferWhisperCpp.id}`);
   }, [useLocalModels, downloadStates, selectedSTTModel]);
 
@@ -267,15 +285,51 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         if (success) {
           setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
           setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
-          toast.success("MLX Whisper ready");
+          toast.success("MLX Whisper ready (ffmpeg + mlx-whisper installed)");
         } else {
           setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
-          toast.error("MLX Whisper install failed. Install Python 3 and run: python3 -m pip install mlx-whisper");
+          toast.error("MLX Whisper install failed. Install Python 3, then: brew install ffmpeg && pip3 install mlx-whisper");
         }
       } catch (err) {
         console.error('MLX Whisper install failed:', err);
         setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
         toast.error("MLX Whisper install failed. Ensure Python 3 is installed.");
+      }
+      return;
+    }
+    if (modelId === 'mlx-whisper-large-v3-turbo-8bit' && api) {
+      try {
+        const success = api.models.installMLXWhisper8Bit ? await api.models.installMLXWhisper8Bit() : false;
+        if (success) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("MLX Whisper 8-bit ready (ffmpeg + mlx-audio-plus installed)");
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("8-bit install failed. Run: brew install ffmpeg && pip3 install mlx-audio-plus");
+        }
+      } catch (err) {
+        console.error('MLX Whisper 8-bit install failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("MLX Whisper 8-bit install failed. Ensure Python 3 is installed.");
+      }
+      return;
+    }
+    if (modelId === 'thestage-whisper-apple' && api) {
+      try {
+        const success = api.models.installTheStageWhisper ? await api.models.installTheStageWhisper() : false;
+        if (success) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("TheStage Whisper ready (macOS)");
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("TheStage Whisper is macOS only. On Mac run: pip3 install thestage-speechkit[apple]");
+        }
+      } catch (err) {
+        console.error('TheStage Whisper install failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("TheStage Whisper install failed. Ensure Python 3 is installed (macOS only).");
       }
       return;
     }
@@ -306,7 +360,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     setSelectedSTTModel((prev) => (prev === `local:${modelId}` ? "" : prev));
     setSelectedAIModel((prev) => (prev === `local:${modelId}` ? "" : prev));
     // MLX is re-detected on load; hide it so it doesn't reappear until user downloads again
-    if (modelId === 'mlx-whisper-large-v3-turbo') {
+    if (modelId === 'mlx-whisper-large-v3-turbo' || modelId === 'mlx-whisper-large-v3-turbo-8bit' || modelId === 'thestage-whisper-apple') {
       setHiddenLocalModels((prev) => (prev.includes(modelId) ? prev : [...prev, modelId]));
     }
     if (api) {
@@ -336,6 +390,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   }, [api]);
 
   const getActiveAIModelLabel = (): string => {
+    if (selectedAIModel.startsWith("apple:")) return "Apple (on-device)";
     if (selectedAIModel.startsWith("local:")) {
       const id = selectedAIModel.replace("local:", "");
       const m = localModels.find((lm) => lm.id === id);
@@ -349,6 +404,9 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   const getAvailableAIModels = () => {
     const models: { value: string; label: string; group: string }[] = [];
+    if (appleFoundationAvailable) {
+      models.push({ value: "apple:foundation", label: "Apple (on-device)", group: "System" });
+    }
     localModels
       .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
       .forEach((m) => models.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local" }));
@@ -381,6 +439,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         connectProvider, disconnectProvider,
         useLocalModels, setUseLocalModels,
         getActiveAIModelLabel, getAvailableAIModels,
+        appleFoundationAvailable,
         copartFetchedModels,
       }}
     >
