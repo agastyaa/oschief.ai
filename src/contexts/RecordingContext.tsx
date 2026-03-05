@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
-import { isElectron, getElectronAPI, type ElectronAPI } from "@/lib/electron-api";
+import { isElectron, getElectronAPI } from "@/lib/electron-api";
 
 interface RecordingSession {
   noteId: string;
