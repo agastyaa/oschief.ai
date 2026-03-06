@@ -266,46 +266,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, [hiddenLocalModels]);
 
-  // Install default local STT + LLM on first launch after onboarding (Quill-style).
-  const DEFAULT_STT = "whisper-tiny";
-  const DEFAULT_LLM = "gemma-2-2b";
-  useEffect(() => {
-    if (!api || !modelsListFetched) return;
-    if (typeof localStorage !== "undefined" && localStorage.getItem("syag-onboarding-complete") !== "true") return;
-
-    api.db.settings.get("default-local-models-install-started").then((flag) => {
-      if (flag === "true") return;
-      const hasSTT = localModels.some((m) => m.type === "stt" && downloadStates[m.id] === "downloaded");
-      const hasLLM = localModels.some((m) => m.type === "llm" && downloadStates[m.id] === "downloaded");
-      if (hasSTT && hasLLM) return;
-
-      api.db.settings.set("default-local-models-install-started", "true").then(() => {
-        setUseLocalModels(true);
-        if (!hasSTT) handleDownload(DEFAULT_STT);
-        if (!hasLLM) handleDownload(DEFAULT_LLM);
-      });
-    });
-  }, [api, modelsListFetched, downloadStates, handleDownload]);
-
-  // Only auto-select a local STT model when "Use local by default" is on.
-  // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
-  useEffect(() => {
-    if (!useLocalModels || selectedSTTModel) return;
-    const downloadedSTT = localModels.filter(m => m.type === 'stt' && downloadStates[m.id] === 'downloaded');
-    if (downloadedSTT.length === 0) return;
-    const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo' && m.id !== 'mlx-whisper-large-v3-turbo-8bit' && m.id !== 'thestage-whisper-apple') ?? downloadedSTT[0];
-    setSelectedSTTModel(`local:${preferWhisperCpp.id}`);
-  }, [useLocalModels, downloadStates, selectedSTTModel]);
-
-  // Persist to BOTH localStorage and DB so sync load always works
-  useEffect(() => {
-    const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels };
-    saveToStorage(data);
-    if (api) {
-      api.db.settings.set('model-settings', JSON.stringify(data)).catch(console.error);
-    }
-  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels]);
-
   const handleDownload = useCallback(async (modelId: string) => {
     setDownloadStates((prev) => ({ ...prev, [modelId]: "downloading" }));
 
@@ -379,6 +339,46 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       }, 3000);
     }
   }, [api]);
+
+  // Install default local STT + LLM on first launch after onboarding (Quill-style).
+  const DEFAULT_STT = "whisper-tiny";
+  const DEFAULT_LLM = "gemma-2-2b";
+  useEffect(() => {
+    if (!api || !modelsListFetched) return;
+    if (typeof localStorage !== "undefined" && localStorage.getItem("syag-onboarding-complete") !== "true") return;
+
+    api.db.settings.get("default-local-models-install-started").then((flag) => {
+      if (flag === "true") return;
+      const hasSTT = localModels.some((m) => m.type === "stt" && downloadStates[m.id] === "downloaded");
+      const hasLLM = localModels.some((m) => m.type === "llm" && downloadStates[m.id] === "downloaded");
+      if (hasSTT && hasLLM) return;
+
+      api.db.settings.set("default-local-models-install-started", "true").then(() => {
+        setUseLocalModels(true);
+        if (!hasSTT) handleDownload(DEFAULT_STT);
+        if (!hasLLM) handleDownload(DEFAULT_LLM);
+      });
+    });
+  }, [api, modelsListFetched, downloadStates, handleDownload]);
+
+  // Only auto-select a local STT model when "Use local by default" is on.
+  // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
+  useEffect(() => {
+    if (!useLocalModels || selectedSTTModel) return;
+    const downloadedSTT = localModels.filter(m => m.type === 'stt' && downloadStates[m.id] === 'downloaded');
+    if (downloadedSTT.length === 0) return;
+    const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo' && m.id !== 'mlx-whisper-large-v3-turbo-8bit' && m.id !== 'thestage-whisper-apple') ?? downloadedSTT[0];
+    setSelectedSTTModel(`local:${preferWhisperCpp.id}`);
+  }, [useLocalModels, downloadStates, selectedSTTModel]);
+
+  // Persist to BOTH localStorage and DB so sync load always works
+  useEffect(() => {
+    const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels };
+    saveToStorage(data);
+    if (api) {
+      api.db.settings.set('model-settings', JSON.stringify(data)).catch(console.error);
+    }
+  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels]);
 
   const handleDeleteModel = useCallback((modelId: string) => {
     setDownloadStates((prev) => {

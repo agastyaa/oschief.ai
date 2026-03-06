@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 
 let mainWindow: BrowserWindow | null = null
@@ -25,6 +25,14 @@ export function createMainWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    // When packaged, open DevTools so we can see load/console errors (e.g. blank screen)
+    if (app.isPackaged) {
+      mainWindow.webContents.openDevTools({ mode: 'detach' })
+    }
+  })
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('[Syag] did-fail-load', errorCode, errorDescription, validatedURL)
   })
 
   mainWindow.on('close', (e) => {
@@ -42,7 +50,9 @@ export function createMainWindow(): BrowserWindow {
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    // Use app:// so the renderer loads over a custom protocol instead of file://,
+    // avoiding blank screen (file:// blocks ES module scripts in Chromium).
+    mainWindow.loadURL('app://./index.html')
   }
 
   return mainWindow

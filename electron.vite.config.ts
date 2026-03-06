@@ -28,6 +28,7 @@ export default defineConfig({
   },
   renderer: {
     root: '.',
+    base: './', // required for packaged app: loadFile() uses file:// so absolute paths like /assets/xxx.js break
     build: {
       rollupOptions: {
         input: {
