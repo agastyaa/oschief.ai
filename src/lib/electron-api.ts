@@ -48,6 +48,10 @@ type ElectronAPI = {
     installMLXWhisper8Bit: () => Promise<boolean>
     checkFfmpeg: () => Promise<boolean>
     installFfmpeg: () => Promise<boolean>
+    repairMLXWhisper: () => Promise<{ ok: boolean; error?: string }>
+    repairMLXWhisper8Bit: () => Promise<{ ok: boolean; error?: string }>
+    uninstallMLXWhisper: () => Promise<{ ok: boolean; error?: string }>
+    uninstallMLXWhisper8Bit: () => Promise<{ ok: boolean; error?: string }>
   }
   recording: {
     start: (options: { sttModel: string; deviceId?: string; meetingTitle?: string; vocabulary?: string[]; sampleRate?: number }) => Promise<boolean>
@@ -100,6 +104,33 @@ type ElectronAPI = {
     onPowerModeChanged?: (callback: (data: { onBattery: boolean }) => void) => () => void
     setCalendarEvents?: (events: Array<{ id: string; title: string; start: number; end: number; joinLink?: string }>) => Promise<boolean>
     updateTrayMeetingInfo?: (info: { title: string; startTime: number } | null) => Promise<void>
+  }
+  export?: {
+    toDocx: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
+    toPdf: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
+    toObsidian: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
+  }
+  slack?: {
+    testWebhook: (webhookUrl: string) => Promise<{ ok: boolean; error?: string }>
+    sendSummary: (webhookUrl: string, payload: any) => Promise<{ ok: boolean; error?: string }>
+  }
+  teams?: {
+    testWebhook: (webhookUrl: string) => Promise<{ ok: boolean; error?: string }>
+    sendSummary: (webhookUrl: string, payload: any) => Promise<{ ok: boolean; error?: string }>
+  }
+  google?: {
+    calendarAuth: (clientId: string) => Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; email?: string; error?: string }>
+    calendarFetch: (accessToken: string) => Promise<{ ok: boolean; events: any[]; error?: string }>
+    calendarRefresh: (clientId: string, refreshToken: string) => Promise<{ ok: boolean; accessToken?: string; expiresIn?: number; error?: string }>
+  }
+  jira?: {
+    testToken: (siteUrl: string, email: string, apiToken: string) => Promise<{ ok: boolean; displayName?: string; error?: string }>
+    getProjects: (configJson: string) => Promise<any[]>
+    getIssueTypes: (configJson: string, projectKey: string) => Promise<any[]>
+    searchUsers: (configJson: string, query: string) => Promise<any[]>
+    createIssue: (configJson: string, issueData: any) => Promise<{ ok: boolean; issue?: any; error?: string }>
+    bulkCreate: (configJson: string, issues: any[]) => Promise<{ results: any[] }>
+    getIssue: (configJson: string, issueKey: string) => Promise<any>
   }
 }
 

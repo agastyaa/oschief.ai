@@ -21,6 +21,7 @@ import AskSyag from "./pages/AskSyag";
 
 import NewNotePage from "./pages/NewNotePage";
 import CalendarPage from "./pages/CalendarPage";
+import CoachingPage from "./pages/CoachingPage";
 import SettingsPage from "./pages/SettingsPage";
 import NoteDetailPage from "./pages/NoteDetailPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -102,6 +103,7 @@ function AppContent() {
           </ErrorBoundary>
         } />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/coaching" element={<CoachingPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/tray-preview" element={
           <div className="flex items-center justify-center min-h-screen bg-muted/50">

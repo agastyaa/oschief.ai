@@ -201,8 +201,8 @@ async function summarizeWithLocal(
     const title = extractTitleFromResponse(response)
     return parsedToMeetingSummary(parsed, title, template.id)
   } catch (err: any) {
-    if (err.code === 'MODULE_NOT_FOUND' || err.message?.includes('Cannot find module')) {
-      throw new Error('node-llama-cpp is not installed. Install it with: npm install node-llama-cpp')
+    if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {
+      throw new Error('Local LLM requires node-llama-cpp. It is not bundled with the app. Use a cloud model (e.g. OpenAI, Groq) in Settings, or install node-llama-cpp in development.')
     }
     throw err
   }
@@ -256,8 +256,8 @@ async function chatWithLocal(
     await model.dispose()
     return fullResponse
   } catch (err: any) {
-    if (err.code === 'MODULE_NOT_FOUND' || err.message?.includes('Cannot find module')) {
-      throw new Error('node-llama-cpp is not installed. Install it with: npm install node-llama-cpp')
+    if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {
+      throw new Error('Local LLM requires node-llama-cpp. It is not bundled with the app. Use a cloud model (e.g. OpenAI, Groq) in Settings, or install node-llama-cpp in development.')
     }
     throw err
   }

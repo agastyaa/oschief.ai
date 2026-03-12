@@ -167,12 +167,12 @@ export function AskBar({ context = "home", meetingTitle, noteContext, leftSlot, 
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div ref={scrollRef} className="h-96 max-h-[70vh] overflow-y-auto px-4 py-3 space-y-3">
+              <div ref={scrollRef} className="h-[28rem] max-h-[75vh] overflow-y-auto px-4 py-3 space-y-3">
                 {messages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-xl px-3 py-2.5 text-[15px] font-medium leading-relaxed",
+                        "max-w-[90%] rounded-xl px-3.5 py-3 text-[15px] font-medium leading-relaxed",
                         msg.role === "user"
                           ? "bg-accent text-accent-foreground"
                           : "bg-secondary text-foreground"

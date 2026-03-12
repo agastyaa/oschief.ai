@@ -1,8 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  CheckCircle2, Circle, Pencil, Users, X
+  CheckCircle2, Circle, Pencil, Users, X, Copy, Check, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  overviewToMarkdown,
+  topicsToMarkdown,
+  keyPointsToMarkdown,
+  decisionsToMarkdown,
+  actionItemsToMarkdown,
+  keyQuotesToMarkdown,
+} from "@/lib/export-markdown";
+import { JiraCreateTicketDialog } from "@/components/JiraCreateTicketDialog";
+import { JiraStatusBadge } from "@/components/JiraStatusBadge";
+
+/** Small copy-to-clipboard button that appears on hover with check feedback */
+function CopyButton({ getText }: { getText: () => string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = getText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard access denied */ }
+  }, [getText]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center opacity-0 group-hover/section:opacity-100 transition-opacity ml-1.5 p-0.5 rounded hover:bg-secondary/50"
+      title="Copy section"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-accent" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground/50" />
+      )}
+    </button>
+  );
+}
 
 type BulletWithSub = { text: string; subBullets?: string[] };
 
@@ -47,6 +86,8 @@ interface ActionItem {
   dueDate?: string;
   priority: "high" | "medium" | "low";
   done: boolean;
+  jiraIssueKey?: string;
+  jiraIssueUrl?: string;
 }
 
 interface KeyQuote {
@@ -73,11 +114,14 @@ export interface SummaryData {
 interface EditableSummaryProps {
   summary: SummaryData;
   onUpdate?: (summary: SummaryData) => void;
+  meetingTitle?: string;
+  meetingDate?: string;
 }
 
-export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
+export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }: EditableSummaryProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localSummary, setLocalSummary] = useState<SummaryData>(summary);
+  const [jiraDialogItem, setJiraDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
   useEffect(() => {
     setLocalSummary(summary);
   }, [summary]);
@@ -227,6 +271,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
             >
               {localSummary.overview}
               <Pencil className="inline-block ml-1 h-2.5 w-2.5 text-muted-foreground/0 group-hover/section:text-muted-foreground/30 transition-colors" />
+              <CopyButton getText={() => overviewToMarkdown(localSummary)} />
             </p>
           )}
         </div>
@@ -353,7 +398,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {decisions.length > 0 && (
         <div className="group/section">
-          <h3 className="text-[15px] font-semibold text-foreground mb-1">Decisions</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1 flex items-center">Decisions<CopyButton getText={() => decisionsToMarkdown(localSummary)} /></h3>
           <ul className="space-y-0.5">
             {decisions.map((d, i) => (
               <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
@@ -391,7 +436,7 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
 
       {keyPoints.length > 0 && topics.length === 0 && (
         <div className="group/section">
-          <h3 className="text-[15px] font-semibold text-foreground mb-1">Key Points</h3>
+          <h3 className="text-[15px] font-semibold text-foreground mb-1 flex items-center">Key Points<CopyButton getText={() => keyPointsToMarkdown(localSummary)} /></h3>
           <ul className="space-y-0.5">
             {keyPoints.map((point, i) => (
               <li key={i} className="flex gap-1.5 text-[15px] font-medium text-foreground/90 leading-snug">
@@ -428,8 +473,8 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
       )}
 
       {actions.length > 0 && (
-        <div>
-          <h3 className="text-[15px] font-semibold text-foreground mb-1.5">Action items</h3>
+        <div className="group/section">
+          <h3 className="text-[15px] font-semibold text-foreground mb-1.5 flex items-center">Action items<CopyButton getText={() => actionItemsToMarkdown(localSummary)} /></h3>
           <div className="space-y-1">
             {actionsWithIndices.map(({ item, rawIndex }, i) => {
               const assigneeDisplay = item.assignee && !["You", "Unassigned", "[Unassigned]", "TBD", ""].includes(item.assignee.trim())
@@ -508,6 +553,21 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
                       </span>
                     )}
                     {dueStr && <span className="text-muted-foreground/70">{dueStr}</span>}
+                    {/* Jira badge or create button */}
+                    {item.jiraIssueKey && item.jiraIssueUrl ? (
+                      <JiraStatusBadge issueKey={item.jiraIssueKey} issueUrl={item.jiraIssueUrl} />
+                    ) : (
+                      <button
+                        onClick={() => setJiraDialogItem({ index: rawIndex, item })}
+                        className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] text-muted-foreground/50 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                        title="Create Jira ticket"
+                      >
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M11.53 2L3 10.53V14.47L11.53 22L14.47 22L22 14.47V10.53L11.53 2Z" />
+                        </svg>
+                        Jira
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -516,8 +576,38 @@ export function EditableSummary({ summary, onUpdate }: EditableSummaryProps) {
         </div>
       )}
 
+      {/* Jira Create Ticket Dialog */}
+      {jiraDialogItem && (
+        <JiraCreateTicketDialog
+          open
+          onClose={() => setJiraDialogItem(null)}
+          actionItemText={jiraDialogItem.item.text}
+          assignee={jiraDialogItem.item.assignee}
+          priority={jiraDialogItem.item.priority}
+          dueDate={jiraDialogItem.item.dueDate}
+          meetingTitle={meetingTitle}
+          meetingDate={meetingDate}
+          onCreated={(issueKey, issueUrl) => {
+            // Update the action item with Jira info
+            const items = [...(localSummary.actionItems || localSummary.nextSteps || [])] as ActionItem[];
+            if (items[jiraDialogItem.index]) {
+              items[jiraDialogItem.index] = {
+                ...items[jiraDialogItem.index],
+                jiraIssueKey: issueKey,
+                jiraIssueUrl: issueUrl,
+              };
+            }
+            const updated = localSummary.actionItems
+              ? { ...localSummary, actionItems: items }
+              : { ...localSummary, nextSteps: items };
+            commit(updated);
+            setJiraDialogItem(null);
+          }}
+        />
+      )}
+
       {quotes.length > 0 && (
-        <div className="pt-1">
+        <div className="pt-1 group/section">
           {quotes.map((q, i) => (
             <blockquote key={i} className="border-l-2 border-accent/20 pl-2.5 py-0.5">
               <p className="text-[14px] italic font-medium text-foreground/80">"{q.text}"</p>

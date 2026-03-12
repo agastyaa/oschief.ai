@@ -1,16 +1,17 @@
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, BarChart3 } from "lucide-react";
 
-type ViewMode = "my-notes" | "ai-notes";
+type ViewMode = "my-notes" | "ai-notes" | "coaching";
 
 interface NotesViewToggleProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   transcriptVisible?: boolean;
   onToggleTranscript?: () => void;
+  showCoaching?: boolean;
 }
 
-export function NotesViewToggle({ viewMode, onViewModeChange, transcriptVisible, onToggleTranscript }: NotesViewToggleProps) {
+export function NotesViewToggle({ viewMode, onViewModeChange, transcriptVisible, onToggleTranscript, showCoaching }: NotesViewToggleProps) {
   return (
     <div className="flex items-center gap-1">
     <div className="flex items-center rounded-full border border-border bg-card overflow-hidden">
@@ -48,6 +49,22 @@ export function NotesViewToggle({ viewMode, onViewModeChange, transcriptVisible,
           <path d="M12 9l.7 2L15 12l-2.3.7-.7 2-.7-2L9 12l2.3-.7.7-2z" />
         </svg>
       </button>
+
+      {/* Coaching icon (bar chart) */}
+      {showCoaching && (
+        <button
+          onClick={() => onViewModeChange("coaching")}
+          className={cn(
+            "flex items-center justify-center p-2 transition-colors",
+            viewMode === "coaching"
+              ? "bg-secondary text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+          )}
+          title="Speech coaching"
+        >
+          <BarChart3 className="h-4 w-4" />
+        </button>
+      )}
     </div>
     {onToggleTranscript && (
       <button

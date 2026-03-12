@@ -1,18 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
-import { useNotes } from "@/contexts/NotesContext";
+import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2 } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
+import { noteToMarkdown } from "@/lib/export-markdown";
+import { CoachingCard } from "@/components/CoachingCard";
+import { computeCoachingMetrics } from "@/lib/coaching-analytics";
+import { SlackShareDialog } from "@/components/SlackShareDialog";
+import { TeamsShareDialog } from "@/components/TeamsShareDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const BUILTIN_TEMPLATES = [
   { id: "general", name: "General", icon: "📋" },
@@ -32,7 +43,7 @@ export default function NoteDetailPage() {
   const { selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
   const { sidebarOpen } = useSidebarVisibility();
-  const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes">("ai-notes");
+  const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes" | "coaching">("ai-notes");
   const [transcriptVisible, setTranscriptVisible] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [recordingState, setRecordingState] = useState<"recording" | "paused" | "stopped">("stopped");
@@ -41,6 +52,8 @@ export default function NoteDetailPage() {
   const [meetingTemplate, setMeetingTemplate] = useState("general");
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [slackShareOpen, setSlackShareOpen] = useState(false);
+  const [teamsShareOpen, setTeamsShareOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -221,12 +234,95 @@ export default function NoteDetailPage() {
             onBack={() => navigate(-1)}
           />
           <div className="flex items-center gap-1.5">
-            <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <Share2 className="h-3.5 w-3.5" />
-            </button>
-            <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                  <Share2 className="h-3.5 w-3.5" />
+                  Export
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!note) return;
+                    const md = noteToMarkdown(note);
+                    navigator.clipboard.writeText(md).then(
+                      () => toast.success("Copied as Markdown"),
+                      () => toast.error("Failed to copy")
+                    );
+                  }}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5" />
+                  Copy as Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (!note) return;
+                    const api = isElectron() ? getElectronAPI() : null;
+                    if (api?.export?.toDocx) {
+                      const result = await api.export.toDocx(note);
+                      if (result.ok) toast.success("Word document saved");
+                      else toast.error(result.error || "Export failed");
+                    } else {
+                      toast.error("Word export requires the desktop app");
+                    }
+                  }}
+                >
+                  <FileDown className="mr-2 h-3.5 w-3.5" />
+                  Export as Word
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (!note) return;
+                    const api = isElectron() ? getElectronAPI() : null;
+                    if (api?.export?.toPdf) {
+                      const result = await api.export.toPdf(note);
+                      if (result.ok) toast.success("PDF saved");
+                      else toast.error(result.error || "Export failed");
+                    } else {
+                      toast.error("PDF export requires the desktop app");
+                    }
+                  }}
+                >
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (!note) return;
+                    const api = isElectron() ? getElectronAPI() : null;
+                    if (api?.export?.toObsidian) {
+                      const result = await api.export.toObsidian(note);
+                      if (result.ok) toast.success("Saved to Obsidian vault");
+                      else if (result.error !== "Cancelled") toast.error(result.error || "Export failed");
+                    } else {
+                      toast.error("Obsidian export requires the desktop app");
+                    }
+                  }}
+                >
+                  <BookOpen className="mr-2 h-3.5 w-3.5" />
+                  Export to Obsidian
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!note) return;
+                    setSlackShareOpen(true);
+                  }}
+                >
+                  <MessageSquare className="mr-2 h-3.5 w-3.5" />
+                  Share to Slack
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!note) return;
+                    setTeamsShareOpen(true);
+                  }}
+                >
+                  <MessageSquare className="mr-2 h-3.5 w-3.5" />
+                  Share to Teams
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         {/* Content area with side panel */}
@@ -284,6 +380,7 @@ export default function NoteDetailPage() {
                         onViewModeChange={setViewMode}
                         transcriptVisible={transcriptVisible}
                         onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+                        showCoaching={!!note.transcript?.length}
                       />
                       <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
                         <button
@@ -340,11 +437,15 @@ export default function NoteDetailPage() {
                         onUpdate={(updated) => {
                           if (id) updateNote(id, { summary: updated });
                         }}
+                        meetingTitle={note.title}
+                        meetingDate={note.date}
                       />
                     ) : (
                       <p className="text-sm text-muted-foreground">No AI summary available for this note.</p>
                     )}
                   </>
+                ) : viewMode === "coaching" ? (
+                  <CoachingView note={note} updateNote={updateNote} />
                 ) : (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -374,7 +475,7 @@ export default function NoteDetailPage() {
                   `Title: ${note.title}`,
                   note.personalNotes ? `Personal Notes: ${note.personalNotes}` : '',
                   note.summary?.overview ? `Overview: ${note.summary.overview}` : '',
-                  note.transcript?.length ? `Transcript:\n${note.transcript.map((t: any) => `[${t.time}] ${t.speaker}: ${t.text}`).join('\n')}` : '',
+                  (note.transcript?.length || newLines.length) ? `Transcript:\n${[...note.transcript, ...newLines].map((t: any) => `[${t.time}] ${t.speaker}: ${t.text}`).join('\n')}` : '',
                 ].filter(Boolean).join('\n\n')}
                 recordingState={recordingState}
                 elapsed={recordingState !== "stopped" ? formatElapsed(displayElapsed) : undefined}
@@ -449,6 +550,8 @@ export default function NoteDetailPage() {
                                 part
                               )
                             )
+                          ) : viewMode === "coaching" && group.speaker === "You" ? (
+                            highlightFillers(group.text)
                           ) : (
                             group.text
                           )}
@@ -471,6 +574,74 @@ export default function NoteDetailPage() {
           )}
         </div>
       </main>
+      {note && (
+        <>
+          <SlackShareDialog
+            open={slackShareOpen}
+            onClose={() => setSlackShareOpen(false)}
+            noteTitle={note.title || "Untitled Meeting"}
+            noteDate={note.date}
+            summary={note.summary as any}
+          />
+          <TeamsShareDialog
+            open={teamsShareOpen}
+            onClose={() => setTeamsShareOpen(false)}
+            noteTitle={note.title || "Untitled Meeting"}
+            noteDate={note.date}
+            summary={note.summary as any}
+          />
+        </>
+      )}
     </div>
+  );
+}
+
+// ── Coaching View (computed on demand) ───────────────────────────────
+
+function CoachingView({ note, updateNote }: { note: SavedNote; updateNote: (id: string, updates: Partial<SavedNote>) => void }) {
+  const meetingDurationSec = useMemo(() => {
+    const parts = (note.duration || "0:00").split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  }, [note.duration]);
+
+  const metrics = useMemo(() => {
+    // Use cached metrics if available
+    if (note.coachingMetrics) return note.coachingMetrics;
+    // Otherwise compute on the fly
+    if (!note.transcript?.length || meetingDurationSec <= 0) return null;
+    const computed = computeCoachingMetrics(note.transcript, meetingDurationSec);
+    // Persist computed metrics
+    updateNote(note.id, { coachingMetrics: computed });
+    return computed;
+  }, [note.coachingMetrics, note.transcript, meetingDurationSec, note.id, updateNote]);
+
+  if (!metrics) {
+    return (
+      <div className="text-center py-12">
+        <BarChart3 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">No transcript data available for coaching analysis.</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Record a meeting to get speech coaching insights.</p>
+      </div>
+    );
+  }
+
+  return <CoachingCard metrics={metrics} meetingDurationSec={meetingDurationSec} />;
+}
+
+// ── Filler word highlighting ─────────────────────────────────────────
+
+const FILLER_PATTERN = /\b(um|uh|like|basically|right|actually|literally|so|you know|i mean|kind of|sort of)\b/gi;
+
+function highlightFillers(text: string): ReactNode {
+  const parts = text.split(FILLER_PATTERN);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    FILLER_PATTERN.test(part) ? (
+      <mark key={i} className="bg-orange-100/60 dark:bg-orange-900/25 text-orange-700 dark:text-orange-300 rounded-sm px-0.5">{part}</mark>
+    ) : (
+      part
+    )
   );
 }

@@ -1,0 +1,318 @@
+// ── Types ────────────────────────────────────────────────────────────────
+
+export interface TranscriptLine {
+  speaker: string
+  time: string   // "m:ss" format
+  text: string
+  words?: { word: string; start: number; end: number }[]
+}
+
+export interface FillerWordEntry {
+  word: string
+  count: number
+}
+
+export interface CoachingMetrics {
+  // Speaking time
+  yourSpeakingTimeSec: number
+  othersSpeakingTimeSec: number
+  silenceTimeSec: number
+  talkToListenRatio: number   // your / (your + others), 0-1
+
+  // Pacing
+  wordsPerMinute: number
+  pacingVariance: number       // std dev of WPM across 30s windows
+  fastestSegmentWpm: number
+  slowestSegmentWpm: number
+
+  // Filler words
+  fillerWords: FillerWordEntry[]
+  fillerWordsPerMinute: number
+  totalFillerCount: number
+
+  // Interruptions
+  interruptionCount: number          // times "You" started while "Others" speaking
+  interruptedByOthersCount: number   // times "Others" started while "You" speaking
+
+  // Scores (0-100)
+  pacingScore: number
+  concisenessScore: number
+  listeningScore: number
+  overallScore: number
+}
+
+// ── Constants ────────────────────────────────────────────────────────────
+
+/** Single-word fillers */
+const SINGLE_FILLERS = ['um', 'uh', 'like', 'basically', 'right', 'actually', 'literally', 'so']
+
+/** Multi-word fillers (matched as regex on lowercased text) */
+const MULTI_FILLER_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /\byou know\b/gi, label: 'you know' },
+  { pattern: /\bi mean\b/gi, label: 'I mean' },
+  { pattern: /\bkind of\b/gi, label: 'kind of' },
+  { pattern: /\bsort of\b/gi, label: 'sort of' },
+]
+
+// ── Main computation ─────────────────────────────────────────────────────
+
+/**
+ * Compute coaching metrics from a note's transcript.
+ * @param transcript The transcript lines (with optional word-level timestamps)
+ * @param meetingDurationSec Total meeting duration in seconds
+ */
+export function computeCoachingMetrics(
+  transcript: TranscriptLine[],
+  meetingDurationSec: number
+): CoachingMetrics {
+  if (!transcript.length || meetingDurationSec <= 0) {
+    return emptyMetrics()
+  }
+
+  // ── Speaking time ──
+  const { yourTimeSec, othersTimeSec } = computeSpeakingTime(transcript, meetingDurationSec)
+  const silenceTimeSec = Math.max(0, meetingDurationSec - yourTimeSec - othersTimeSec)
+  const totalSpeaking = yourTimeSec + othersTimeSec
+  const talkToListenRatio = totalSpeaking > 0 ? yourTimeSec / totalSpeaking : 0
+
+  // ── Pacing (WPM) ──
+  const yourLines = transcript.filter(l => l.speaker === 'You')
+  const yourWordCount = yourLines.reduce((sum, l) => sum + countWords(l.text), 0)
+  const yourSpeakingMinutes = yourTimeSec / 60
+  const wordsPerMinute = yourSpeakingMinutes > 0 ? yourWordCount / yourSpeakingMinutes : 0
+
+  // WPM in 30s windows for variance
+  const windowWpms = computeWindowWpms(yourLines, 30)
+  const pacingVariance = stdDev(windowWpms)
+  const fastestSegmentWpm = windowWpms.length > 0 ? Math.max(...windowWpms) : 0
+  const slowestSegmentWpm = windowWpms.length > 0 ? Math.min(...windowWpms) : 0
+
+  // ── Filler words ──
+  const fillerCounts = countFillerWords(yourLines)
+  const totalFillerCount = fillerCounts.reduce((sum, f) => sum + f.count, 0)
+  const fillerWordsPerMinute = yourSpeakingMinutes > 0 ? totalFillerCount / yourSpeakingMinutes : 0
+
+  // ── Interruptions ──
+  const { youInterrupted, othersInterrupted } = countInterruptions(transcript)
+
+  // ── Scores ──
+  const pacingScore = scorePacing(wordsPerMinute)
+  const concisenessScore = scoreConciseness(fillerWordsPerMinute)
+  const listeningScore = scoreListening(talkToListenRatio)
+  const overallScore = Math.round(pacingScore * 0.25 + concisenessScore * 0.25 + listeningScore * 0.50)
+
+  return {
+    yourSpeakingTimeSec: Math.round(yourTimeSec),
+    othersSpeakingTimeSec: Math.round(othersTimeSec),
+    silenceTimeSec: Math.round(silenceTimeSec),
+    talkToListenRatio: Math.round(talkToListenRatio * 100) / 100,
+    wordsPerMinute: Math.round(wordsPerMinute),
+    pacingVariance: Math.round(pacingVariance * 10) / 10,
+    fastestSegmentWpm: Math.round(fastestSegmentWpm),
+    slowestSegmentWpm: Math.round(slowestSegmentWpm),
+    fillerWords: fillerCounts.filter(f => f.count > 0),
+    fillerWordsPerMinute: Math.round(fillerWordsPerMinute * 10) / 10,
+    totalFillerCount,
+    interruptionCount: youInterrupted,
+    interruptedByOthersCount: othersInterrupted,
+    pacingScore,
+    concisenessScore,
+    listeningScore,
+    overallScore,
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function emptyMetrics(): CoachingMetrics {
+  return {
+    yourSpeakingTimeSec: 0, othersSpeakingTimeSec: 0, silenceTimeSec: 0,
+    talkToListenRatio: 0, wordsPerMinute: 0, pacingVariance: 0,
+    fastestSegmentWpm: 0, slowestSegmentWpm: 0,
+    fillerWords: [], fillerWordsPerMinute: 0, totalFillerCount: 0,
+    interruptionCount: 0, interruptedByOthersCount: 0,
+    pacingScore: 0, concisenessScore: 0, listeningScore: 0, overallScore: 0,
+  }
+}
+
+function parseTimeToSec(time: string): number {
+  const parts = time.split(':').map(Number)
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  return 0
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+/**
+ * Estimate speaking time per speaker using chunk timestamps.
+ * With word-level data: sum word durations. Without: estimate from chunk gaps.
+ */
+function computeSpeakingTime(
+  transcript: TranscriptLine[],
+  totalDurationSec: number
+): { yourTimeSec: number; othersTimeSec: number } {
+  let yourTimeSec = 0
+  let othersTimeSec = 0
+
+  // Try word-level timing first
+  const hasWords = transcript.some(l => l.words?.length)
+  if (hasWords) {
+    for (const line of transcript) {
+      if (!line.words?.length) continue
+      const duration = line.words[line.words.length - 1].end - line.words[0].start
+      if (line.speaker === 'You') yourTimeSec += duration
+      else if (line.speaker !== 'System') othersTimeSec += duration
+    }
+    return { yourTimeSec, othersTimeSec }
+  }
+
+  // Fallback: estimate from chunk timestamps
+  for (let i = 0; i < transcript.length; i++) {
+    const line = transcript[i]
+    if (line.speaker === 'System') continue
+    const startSec = parseTimeToSec(line.time)
+    const nextStartSec = i + 1 < transcript.length ? parseTimeToSec(transcript[i + 1].time) : totalDurationSec
+    const duration = Math.min(nextStartSec - startSec, 60) // Cap at 60s per chunk
+    if (line.speaker === 'You') yourTimeSec += duration
+    else othersTimeSec += duration
+  }
+
+  return { yourTimeSec, othersTimeSec }
+}
+
+/**
+ * Compute WPM in sliding windows of windowSizeSec seconds.
+ */
+function computeWindowWpms(yourLines: TranscriptLine[], windowSizeSec: number): number[] {
+  if (!yourLines.length) return []
+  const wpms: number[] = []
+  const startSec = parseTimeToSec(yourLines[0].time)
+  const endSec = parseTimeToSec(yourLines[yourLines.length - 1].time)
+  if (endSec - startSec < windowSizeSec) {
+    // Meeting too short for windowing — return single WPM
+    const totalWords = yourLines.reduce((s, l) => s + countWords(l.text), 0)
+    const durationMin = (endSec - startSec) / 60
+    if (durationMin > 0) wpms.push(totalWords / durationMin)
+    return wpms
+  }
+
+  for (let winStart = startSec; winStart + windowSizeSec <= endSec + windowSizeSec; winStart += windowSizeSec) {
+    const winEnd = winStart + windowSizeSec
+    const windowLines = yourLines.filter(l => {
+      const ts = parseTimeToSec(l.time)
+      return ts >= winStart && ts < winEnd
+    })
+    if (windowLines.length === 0) continue
+    const words = windowLines.reduce((s, l) => s + countWords(l.text), 0)
+    wpms.push(words / (windowSizeSec / 60))
+  }
+  return wpms
+}
+
+function stdDev(values: number[]): number {
+  if (values.length < 2) return 0
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length
+  return Math.sqrt(variance)
+}
+
+/**
+ * Count filler words in the user's transcript lines.
+ */
+function countFillerWords(yourLines: TranscriptLine[]): FillerWordEntry[] {
+  const counts: Record<string, number> = {}
+
+  for (const line of yourLines) {
+    const lower = line.text.toLowerCase()
+    const words = lower.split(/\s+/)
+
+    // Single-word fillers
+    for (const filler of SINGLE_FILLERS) {
+      for (const w of words) {
+        // Strip punctuation from word for matching
+        const clean = w.replace(/[^a-z']/g, '')
+        if (clean === filler) {
+          counts[filler] = (counts[filler] || 0) + 1
+        }
+      }
+    }
+
+    // Multi-word fillers
+    for (const { pattern, label } of MULTI_FILLER_PATTERNS) {
+      const matches = lower.match(pattern)
+      if (matches) {
+        counts[label] = (counts[label] || 0) + matches.length
+      }
+    }
+  }
+
+  return Object.entries(counts)
+    .map(([word, count]) => ({ word, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/**
+ * Detect interruptions based on speaker transitions.
+ * An interruption is when one speaker starts a new chunk while the previous
+ * speaker's chunk is recent (within 2 seconds overlap).
+ */
+function countInterruptions(transcript: TranscriptLine[]): { youInterrupted: number; othersInterrupted: number } {
+  let youInterrupted = 0
+  let othersInterrupted = 0
+
+  for (let i = 1; i < transcript.length; i++) {
+    const prev = transcript[i - 1]
+    const curr = transcript[i]
+    if (prev.speaker === 'System' || curr.speaker === 'System') continue
+    if (prev.speaker === curr.speaker) continue
+
+    const prevStart = parseTimeToSec(prev.time)
+    const currStart = parseTimeToSec(curr.time)
+    // Estimate prev end: ~words/2.5 per second
+    const prevEstDuration = countWords(prev.text) / 2.5
+    const prevEstEnd = prevStart + prevEstDuration
+
+    // If current speaker starts before previous speaker finishes (overlap)
+    if (currStart < prevEstEnd - 0.5) { // 0.5s tolerance
+      if (curr.speaker === 'You') youInterrupted++
+      else othersInterrupted++
+    }
+  }
+
+  return { youInterrupted, othersInterrupted }
+}
+
+// ── Scoring ──────────────────────────────────────────────────────────────
+
+/**
+ * Score pacing: ideal range is 130-160 WPM.
+ * 100 within range, degrades linearly outside.
+ */
+function scorePacing(wpm: number): number {
+  if (wpm === 0) return 0
+  if (wpm >= 130 && wpm <= 160) return 100
+  if (wpm < 130) return Math.max(0, Math.round(100 - (130 - wpm) * 1.5))
+  return Math.max(0, Math.round(100 - (wpm - 160) * 1.5))
+}
+
+/**
+ * Score conciseness: based on filler words per minute.
+ * 100 at 0 fillers/min, 0 at 5+ fillers/min.
+ */
+function scoreConciseness(fillersPerMin: number): number {
+  if (fillersPerMin <= 0) return 100
+  return Math.max(0, Math.round(100 - fillersPerMin * 20))
+}
+
+/**
+ * Score listening: ideal talk ratio is 40-60%.
+ * 100 within range, degrades outside.
+ */
+function scoreListening(talkRatio: number): number {
+  if (talkRatio >= 0.40 && talkRatio <= 0.60) return 100
+  if (talkRatio < 0.40) return Math.max(0, Math.round(100 - (0.40 - talkRatio) * 250))
+  return Math.max(0, Math.round(100 - (talkRatio - 0.60) * 250))
+}

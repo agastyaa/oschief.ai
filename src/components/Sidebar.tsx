@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3 } from "lucide-react";
 import { SyagLogo } from "@/components/SyagLogo";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
@@ -113,7 +113,7 @@ export function Sidebar() {
           onClick={() => navigate("/")}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder")
+            isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder")
               ? "bg-secondary text-foreground font-medium"
               : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
           )}
@@ -217,6 +217,18 @@ export function Sidebar() {
         >
           <Sparkles className="h-3.5 w-3.5" />
           Syag Chat
+        </button>
+        <button
+          onClick={() => navigate("/coaching")}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+            isActive("/coaching")
+              ? "bg-secondary text-foreground font-medium"
+              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+          )}
+        >
+          <BarChart3 className="h-3.5 w-3.5" />
+          Coaching
         </button>
         <button
           onClick={() => navigate("/calendar")}

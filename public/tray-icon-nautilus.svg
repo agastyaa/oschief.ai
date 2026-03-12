@@ -1,0 +1,21 @@
+<svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simplified nautilus shell for 22px menu bar (44px @2x Retina) -->
+  <!-- Black on transparent — macOS Template image handles light/dark -->
+
+  <!-- Spiral shell: thick strokes for legibility at small size -->
+  <!-- Outer arc -->
+  <path d="M34 18 C34 10 28 4 20 4 C12 4 6 10 6 18 C6 26 12 32 20 32"
+    stroke="#000000" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <!-- Middle arc -->
+  <path d="M20 32 C26 32 30 28 30 22 C30 16 26 13 21 13"
+    stroke="#000000" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <!-- Inner arc -->
+  <path d="M21 13 C17 13 14 16 14 19 C14 22 16 24 19 24"
+    stroke="#000000" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Center dot -->
+  <circle cx="21" cy="20" r="2" fill="#000000"/>
+
+  <!-- Wave tail -->
+  <path d="M20 32 C16 36 10 40 5 40"
+    stroke="#000000" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>

@@ -28,7 +28,7 @@ export function initDatabase(): void {
 
 export function getAllNotes(): any[] {
   const rows = getDb().prepare(`
-    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics
     FROM notes ORDER BY created_at DESC
   `).all() as any[]
   return rows.map(deserializeNote)
@@ -36,7 +36,7 @@ export function getAllNotes(): any[] {
 
 export function getNote(id: string): any | null {
   const row = getDb().prepare(`
-    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics
     FROM notes WHERE id = ?
   `).get(id) as any
   return row ? deserializeNote(row) : null
@@ -44,8 +44,8 @@ export function getNote(id: string): any | null {
 
 export function addNote(note: any): void {
   getDb().prepare(`
-    INSERT OR REPLACE INTO notes (id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO notes (id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     note.id,
     note.title,
@@ -56,7 +56,8 @@ export function addNote(note: any): void {
     note.personalNotes || '',
     JSON.stringify(note.transcript || []),
     note.summary ? JSON.stringify(note.summary) : null,
-    note.folderId || null
+    note.folderId || null,
+    note.coachingMetrics ? JSON.stringify(note.coachingMetrics) : null
   )
 }
 
@@ -73,6 +74,7 @@ export function updateNote(id: string, data: any): void {
   if (data.transcript !== undefined) { fields.push('transcript = ?'); values.push(JSON.stringify(data.transcript)) }
   if (data.summary !== undefined) { fields.push('summary = ?'); values.push(data.summary ? JSON.stringify(data.summary) : null) }
   if (data.folderId !== undefined) { fields.push('folder_id = ?'); values.push(data.folderId) }
+  if (data.coachingMetrics !== undefined) { fields.push('coaching_metrics = ?'); values.push(data.coachingMetrics ? JSON.stringify(data.coachingMetrics) : null) }
 
   if (fields.length === 0) return
 
@@ -157,5 +159,6 @@ function deserializeNote(row: any): any {
     transcript: JSON.parse(row.transcript || '[]'),
     summary: row.summary ? JSON.parse(row.summary) : null,
     folderId: row.folder_id,
+    coachingMetrics: row.coaching_metrics ? JSON.parse(row.coaching_metrics) : undefined,
   }
 }

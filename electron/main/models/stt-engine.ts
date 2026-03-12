@@ -1,5 +1,5 @@
 import { spawn, execSync } from 'child_process'
-import { writeFileSync, unlinkSync, existsSync, chmodSync, mkdirSync } from 'fs'
+import { writeFileSync, unlinkSync, existsSync, chmodSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
 import { getModelPath, getModelsDir } from './manager'
@@ -422,27 +422,39 @@ function ensureMLXWorker(): Promise<void> {
     }
 
     mlxWorkerReady = false
+    console.log('[MLX] Spawning Python worker (python3 -c mlx_whisper)...')
     mlxWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_WORKER_SCRIPT], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
     })
 
     let resolved = false
     let stderrBuf = ''
 
     mlxWorker.stderr?.on('data', (d: Buffer) => {
-      stderrBuf += d.toString()
+      const s = d.toString()
+      stderrBuf += s
+      if (s.trim()) console.warn('[MLX] stderr:', s.trim())
     })
 
     const onFirstLine = (data: Buffer) => {
-      const line = data.toString().trim()
-      try {
-        const msg = JSON.parse(line)
-        if (msg.status === 'ready') {
-          mlxWorkerReady = true
-          resetMLXIdleTimer()
-          if (!resolved) { resolved = true; resolve() }
-        }
-      } catch {}
+      const raw = data.toString()
+      const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
+      for (const line of lines) {
+        try {
+          const msg = JSON.parse(line)
+          if (msg.status === 'ready') {
+            mlxWorkerReady = true
+            resetMLXIdleTimer()
+            console.log('[MLX] Worker ready (model will load on first transcription).')
+            if (!resolved) {
+              resolved = true
+              resolve()
+            }
+            return
+          }
+        } catch {}
+      }
     }
 
     mlxWorker.stdout!.once('data', onFirstLine)
@@ -453,16 +465,26 @@ function ensureMLXWorker(): Promise<void> {
       return base + suffix + MLX_HINT
     }
 
-    mlxWorker.on('exit', () => {
+    mlxWorker.on('exit', (code) => {
       mlxWorker = null
       mlxWorkerReady = false
-      if (!resolved) { resolved = true; reject(new Error(failWithStderr('MLX worker exited during startup.'))) }
+      if (!resolved) {
+        resolved = true
+        reject(new Error(failWithStderr('MLX worker exited during startup.')))
+      } else {
+        console.warn(`[MLX] Worker exited unexpectedly (code ${code}). Will respawn on next transcription request.`)
+      }
     })
 
     mlxWorker.on('error', (err) => {
       mlxWorker = null
       mlxWorkerReady = false
-      if (!resolved) { resolved = true; reject(err) }
+      if (!resolved) {
+        resolved = true
+        reject(err)
+      } else {
+        console.warn('[MLX] Worker error after startup:', err.message)
+      }
     })
 
     // Startup timeout (ready line expected within 30s; no heavy warmup)
@@ -506,15 +528,15 @@ export async function checkMLXWhisperAvailable(): Promise<boolean> {
 
 export async function installMLXWhisper(): Promise<boolean> {
   await installFfmpeg()
-  return new Promise<boolean>((resolve) => {
+  const pipOk = await new Promise<boolean>((resolve) => {
     const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-whisper'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
     })
     let stderr = ''
     proc.stderr?.on('data', (d) => { stderr += d.toString() })
     proc.on('close', (code) => {
       if (code === 0) {
-        mlxWhisperAvailable = true
         resolve(true)
       } else {
         console.warn('[MLX] pip install failed:', code, stderr.slice(-500))
@@ -526,6 +548,15 @@ export async function installMLXWhisper(): Promise<boolean> {
       resolve(false)
     })
   })
+  if (!pipOk) return false
+  // Verify the import actually works after install
+  mlxWhisperAvailable = null
+  const available = await checkMLXWhisperAvailable()
+  if (!available) {
+    console.warn('[MLX] pip install succeeded but import check failed')
+    return false
+  }
+  return true
 }
 
 async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: string): Promise<STTResult> {
@@ -555,9 +586,10 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
         return
       }
 
+      console.log('[MLX] Sending chunk for transcription (first run may take several minutes to load model)...')
       const timeout = setTimeout(() => {
-        reject(new Error('MLX transcription timed out (180s). First run may take several minutes to load the model.'))
-      }, 180000)
+        reject(new Error('MLX transcription timed out (300s). First run may take several minutes to load the model.'))
+      }, 300000)
 
       const onData = (data: Buffer) => {
         clearTimeout(timeout)
@@ -575,6 +607,7 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
           const words: WordTimestamp[] = (parsed.words || [])
             .map((w: any) => ({ word: (w.word || '').trim(), start: w.start || 0, end: w.end || 0 }))
             .filter((w: WordTimestamp) => w.word.length > 0)
+          if (text) console.log('[MLX] Result:', text.slice(0, 80) + (text.length > 80 ? '...' : ''))
           resolve({ text, words })
         } catch {
           resolve({ text: cleanTranscriptText(line), words: [] })
@@ -586,6 +619,10 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
     })
 
     return result
+  } catch (err) {
+    // Clear availability cache so next attempt rechecks dependencies
+    mlxWhisperAvailable = null
+    throw err
   } finally {
     try { unlinkSync(tmpFile) } catch {}
   }
@@ -698,15 +735,25 @@ function ensureMLX8BitWorker(): Promise<void> {
       const tail = stderrBuf.trim().split('\n').slice(-8).join('\n').slice(-500)
       return base + (tail ? ` Last stderr: ${tail}` : '') + MLX_8BIT_HINT
     }
-    mlx8BitWorker.on('exit', () => {
+    mlx8BitWorker.on('exit', (code) => {
       mlx8BitWorker = null
       mlx8BitWorkerReady = false
-      if (!resolved) { resolved = true; reject(new Error(fail('MLX 8-bit worker exited during startup.'))) }
+      if (!resolved) {
+        resolved = true
+        reject(new Error(fail('MLX 8-bit worker exited during startup.')))
+      } else {
+        console.warn(`[MLX 8-bit] Worker exited unexpectedly (code ${code}). Will respawn on next request.`)
+      }
     })
     mlx8BitWorker.on('error', (err) => {
       mlx8BitWorker = null
       mlx8BitWorkerReady = false
-      if (!resolved) { resolved = true; reject(err) }
+      if (!resolved) {
+        resolved = true
+        reject(err)
+      } else {
+        console.warn('[MLX 8-bit] Worker error after startup:', err.message)
+      }
     })
     setTimeout(() => {
       if (!resolved) {
@@ -737,7 +784,7 @@ export async function checkMLXWhisper8BitAvailable(): Promise<boolean> {
 
 export async function installMLXWhisper8Bit(): Promise<boolean> {
   await installFfmpeg()
-  return new Promise<boolean>((resolve) => {
+  const pipOk = await new Promise<boolean>((resolve) => {
     const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-audio-plus'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PATH: getEnvPathWithBrew() },
@@ -746,7 +793,6 @@ export async function installMLXWhisper8Bit(): Promise<boolean> {
     proc.stderr?.on('data', (d) => { stderr += d.toString() })
     proc.on('close', (code) => {
       if (code === 0) {
-        mlx8BitAvailable = true
         resolve(true)
       } else {
         console.warn('[MLX 8-bit] pip install failed:', code, stderr.slice(-500))
@@ -755,6 +801,15 @@ export async function installMLXWhisper8Bit(): Promise<boolean> {
     })
     proc.on('error', () => resolve(false))
   })
+  if (!pipOk) return false
+  // Verify the import actually works after install
+  mlx8BitAvailable = null
+  const available = await checkMLXWhisper8BitAvailable()
+  if (!available) {
+    console.warn('[MLX 8-bit] pip install succeeded but import check failed')
+    return false
+  }
+  return true
 }
 
 async function processWithMLXWhisper8Bit(wavBuffer: Buffer, customVocabulary?: string): Promise<STTResult> {
@@ -799,9 +854,140 @@ async function processWithMLXWhisper8Bit(wavBuffer: Buffer, customVocabulary?: s
       mlx8BitWorker.stdin.write(request)
     })
     return result
+  } catch (err) {
+    mlx8BitAvailable = null
+    throw err
   } finally {
     try { unlinkSync(tmpFile) } catch {}
   }
+}
+
+// ─── Repair functions ────────────────────────────────────────────────────────
+
+/** Force-reinstall a pip package (with --force-reinstall --no-cache-dir) */
+function forceInstallPip(packageName: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const proc = spawn('python3', ['-m', 'pip', 'install', '--force-reinstall', '--no-cache-dir', packageName], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
+    })
+    let stderr = ''
+    proc.stderr?.on('data', (d) => { stderr += d.toString() })
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(true)
+      } else {
+        console.warn(`[STT] pip install ${packageName} failed:`, code, stderr.slice(-500))
+        resolve(false)
+      }
+    })
+    proc.on('error', (err) => {
+      console.warn(`[STT] pip spawn error for ${packageName}:`, err.message)
+      resolve(false)
+    })
+  })
+}
+
+/**
+ * Repair MLX Whisper: kill worker, clear cache, reinstall ffmpeg + mlx-whisper, verify.
+ * Returns { ok, error? } for UI feedback.
+ */
+export async function repairMLXWhisper(): Promise<{ ok: boolean; error?: string }> {
+  killMLXWorker()
+  mlxWhisperAvailable = null
+  try {
+    const ffmpegOk = await installFfmpeg()
+    if (!ffmpegOk) return { ok: false, error: 'Could not install ffmpeg. Run: brew install ffmpeg' }
+    const pipOk = await forceInstallPip('mlx-whisper')
+    if (!pipOk) return { ok: false, error: 'pip install mlx-whisper failed. Run: pip3 install mlx-whisper' }
+    // Verify the import works
+    mlxWhisperAvailable = null
+    const available = await checkMLXWhisperAvailable()
+    if (!available) return { ok: false, error: 'mlx-whisper installed but import failed. Check Python 3 installation.' }
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Unknown repair error' }
+  }
+}
+
+/** Repair MLX Whisper 8-bit: same pattern as full-precision. */
+export async function repairMLXWhisper8Bit(): Promise<{ ok: boolean; error?: string }> {
+  killMLX8BitWorker()
+  mlx8BitAvailable = null
+  try {
+    const ffmpegOk = await installFfmpeg()
+    if (!ffmpegOk) return { ok: false, error: 'Could not install ffmpeg. Run: brew install ffmpeg' }
+    const pipOk = await forceInstallPip('mlx-audio-plus')
+    if (!pipOk) return { ok: false, error: 'pip install mlx-audio-plus failed. Run: pip3 install mlx-audio-plus' }
+    mlx8BitAvailable = null
+    const available = await checkMLXWhisper8BitAvailable()
+    if (!available) return { ok: false, error: 'mlx-audio-plus installed but import failed.' }
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Unknown repair error' }
+  }
+}
+
+// ─── Uninstall functions (thorough cleanup) ──────────────────────────────────
+
+/** pip uninstall a package (with -y for non-interactive) */
+function pipUninstall(packageName: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const proc = spawn('python3', ['-m', 'pip', 'uninstall', '-y', packageName], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: getEnvPathWithBrew() },
+    })
+    proc.on('close', (code) => resolve(code === 0))
+    proc.on('error', () => resolve(false))
+  })
+}
+
+/**
+ * Fully uninstall MLX Whisper: kill worker, pip uninstall, remove HuggingFace cache.
+ */
+export async function uninstallMLXWhisper(): Promise<{ ok: boolean; error?: string }> {
+  killMLXWorker()
+  mlxWhisperAvailable = null
+  const errors: string[] = []
+  // 1. pip uninstall mlx-whisper
+  const pipOk = await pipUninstall('mlx-whisper')
+  if (!pipOk) errors.push('pip uninstall mlx-whisper may have partially failed')
+  // 2. Remove HuggingFace model cache
+  try {
+    const hfCacheDir = join(require('os').homedir(), '.cache', 'huggingface', 'hub', 'models--mlx-community--whisper-large-v3-turbo')
+    if (existsSync(hfCacheDir)) {
+      rmSync(hfCacheDir, { recursive: true, force: true })
+    }
+  } catch (err: any) {
+    errors.push(`Could not remove HF cache: ${err.message}`)
+  }
+  return errors.length > 0
+    ? { ok: true, error: errors.join('; ') }
+    : { ok: true }
+}
+
+/**
+ * Fully uninstall MLX Whisper 8-bit: kill worker, pip uninstall, remove HuggingFace cache.
+ */
+export async function uninstallMLXWhisper8Bit(): Promise<{ ok: boolean; error?: string }> {
+  killMLX8BitWorker()
+  mlx8BitAvailable = null
+  const errors: string[] = []
+  // 1. pip uninstall mlx-audio-plus
+  const pipOk = await pipUninstall('mlx-audio-plus')
+  if (!pipOk) errors.push('pip uninstall mlx-audio-plus may have partially failed')
+  // 2. Remove HuggingFace model cache
+  try {
+    const hfCacheDir = join(require('os').homedir(), '.cache', 'huggingface', 'hub', 'models--mlx-community--whisper-large-v3-turbo-8bit')
+    if (existsSync(hfCacheDir)) {
+      rmSync(hfCacheDir, { recursive: true, force: true })
+    }
+  } catch (err: any) {
+    errors.push(`Could not remove HF cache: ${err.message}`)
+  }
+  return errors.length > 0
+    ? { ok: true, error: errors.join('; ') }
+    : { ok: true }
 }
 
 // Exported so battery-aware mode can adjust at runtime

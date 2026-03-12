@@ -8,7 +8,7 @@ interface SyagLogoProps {
 }
 
 /**
- * Syag logo — brain-and-pen mark. Uses bundled asset so it loads in Electron.
+ * Syag logo — nautilus shell with circuit brain. Uses bundled asset so it loads in Electron.
  * Sizing: 24px sidebar, 20px tray menu per macOS/HIG.
  */
 export function SyagLogo({ size = 24, className, showText = false }: SyagLogoProps) {
@@ -19,7 +19,7 @@ export function SyagLogo({ size = 24, className, showText = false }: SyagLogoPro
         alt="Syag"
         width={size}
         height={size}
-        className="flex-shrink-0 object-contain"
+        className="flex-shrink-0 object-contain rounded-md"
       />
       {showText && (
         <span className="font-display text-lg text-foreground tracking-tight">syag</span>

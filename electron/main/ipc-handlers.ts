@@ -7,11 +7,12 @@ import {
   getSetting, setSetting, getAllSettings,
 } from './storage/database'
 import { downloadModel, cancelDownload, deleteModel, listDownloadedModels } from './models/manager'
+import { netFetch } from './cloud/net-request'
 import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk } from './audio/capture'
 import { summarize } from './models/llm-engine'
 import { chat, testCopartConnection, listCopartGenieModels } from './cloud/router'
 import { checkAppleFoundationAvailable } from './cloud/apple-llm'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
 const keychainPath = () => {
@@ -106,6 +107,22 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('models:install-ffmpeg', async () => {
     const { installFfmpeg } = await import('./models/stt-engine')
     return installFfmpeg()
+  })
+  ipcMain.handle('models:repair-mlx-whisper', async () => {
+    const { repairMLXWhisper } = await import('./models/stt-engine')
+    return repairMLXWhisper()
+  })
+  ipcMain.handle('models:repair-mlx-whisper-8bit', async () => {
+    const { repairMLXWhisper8Bit } = await import('./models/stt-engine')
+    return repairMLXWhisper8Bit()
+  })
+  ipcMain.handle('models:uninstall-mlx-whisper', async () => {
+    const { uninstallMLXWhisper } = await import('./models/stt-engine')
+    return uninstallMLXWhisper()
+  })
+  ipcMain.handle('models:uninstall-mlx-whisper-8bit', async () => {
+    const { uninstallMLXWhisper8Bit } = await import('./models/stt-engine')
+    return uninstallMLXWhisper8Bit()
   })
   // --- Tray / Meeting ---
   ipcMain.handle('tray:update-recording', (_e, isRecording: boolean) => {
@@ -229,6 +246,263 @@ export function registerIPCHandlers(): void {
   // --- Copart Genie test ---
   ipcMain.handle('copart:test', () => testCopartConnection())
   ipcMain.handle('copart:listModels', () => listCopartGenieModels())
+
+  // --- Calendar / URL Fetch ---
+  ipcMain.handle('fetch:url', async (_e, url: string) => {
+    try {
+      const { statusCode, data } = await netFetch(url, { method: 'GET' })
+      return { ok: statusCode < 400, status: statusCode, body: data }
+    } catch (err: any) {
+      return { ok: false, status: 0, body: err.message || 'Network error' }
+    }
+  })
+
+  // --- Export ---
+  ipcMain.handle('export:docx', async (_e, noteData: any) => {
+    try {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { ok: false, error: 'No active window' }
+      const { dialog } = await import('electron')
+      const result = await dialog.showSaveDialog(win, {
+        title: 'Export as Word Document',
+        defaultPath: `${(noteData.title || 'Meeting Notes').replace(/[/\\?%*:|"<>]/g, '-')}.docx`,
+        filters: [{ name: 'Word Documents', extensions: ['docx'] }],
+      })
+      if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled' }
+      const { exportToDocx } = await import('./export/docx-exporter')
+      await exportToDocx(noteData, result.filePath)
+      return { ok: true, path: result.filePath }
+    } catch (err: any) {
+      console.error('[export:docx]', err)
+      return { ok: false, error: err.message || 'Export failed' }
+    }
+  })
+
+  ipcMain.handle('export:pdf', async (_e, noteData: any) => {
+    try {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { ok: false, error: 'No active window' }
+      const { dialog } = await import('electron')
+      const result = await dialog.showSaveDialog(win, {
+        title: 'Export as PDF',
+        defaultPath: `${(noteData.title || 'Meeting Notes').replace(/[/\\?%*:|"<>]/g, '-')}.pdf`,
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+      })
+      if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled' }
+      const { exportToPdf } = await import('./export/pdf-exporter')
+      await exportToPdf(noteData, result.filePath)
+      return { ok: true, path: result.filePath }
+    } catch (err: any) {
+      console.error('[export:pdf]', err)
+      return { ok: false, error: err.message || 'Export failed' }
+    }
+  })
+
+  // --- Obsidian export ---
+  ipcMain.handle('export:obsidian', async (_e, noteData: any) => {
+    try {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { ok: false, error: 'No active window' }
+      const { dialog } = await import('electron')
+      const savedVault = getSetting('obsidian-vault-path') ?? app.getPath('home')
+      const result = await dialog.showSaveDialog(win, {
+        title: 'Export to Obsidian Vault',
+        defaultPath: join(savedVault, `${(noteData.title || 'Meeting Notes').replace(/[/\\?%*:|"<>]/g, '-')}.md`),
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      })
+      if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled' }
+      setSetting('obsidian-vault-path', dirname(result.filePath))
+
+      const lines: string[] = []
+      lines.push('---')
+      lines.push(`title: "${(noteData.title || 'Untitled Meeting').replace(/"/g, '\\"')}"`)
+      if (noteData.date) lines.push(`date: ${noteData.date}`)
+      if (noteData.duration) lines.push(`duration: "${noteData.duration}"`)
+      lines.push('tags: [meeting-notes, syag]')
+      lines.push('---')
+      lines.push('')
+      lines.push(`# ${noteData.title || 'Untitled Meeting'}`)
+      lines.push('')
+
+      const summary = noteData.summary
+      if (summary) {
+        if (summary.overview) { lines.push('## Summary', summary.overview, '') }
+        if (summary.keyPoints?.length) {
+          lines.push('## Key Points')
+          summary.keyPoints.forEach((kp: string) => lines.push(`- ${kp}`))
+          lines.push('')
+        }
+        if (summary.discussionTopics?.length) {
+          lines.push('## Discussion Topics')
+          for (const topic of summary.discussionTopics) {
+            lines.push(`### ${topic.topic}`)
+            if (topic.speakers?.length) lines.push(`*Speakers: ${topic.speakers.join(', ')}*`)
+            if (topic.summary) lines.push(topic.summary)
+            lines.push('')
+          }
+        }
+        if (summary.decisions?.length) {
+          lines.push('## Decisions')
+          summary.decisions.forEach((d: string) => lines.push(`- ${d}`))
+          lines.push('')
+        }
+        const actionItems = summary.actionItems || summary.nextSteps
+        if (actionItems?.length) {
+          lines.push('## Action Items')
+          for (const ai of actionItems) {
+            const check = ai.done ? '[x]' : '[ ]'
+            const assignee = ai.assignee && ai.assignee !== 'Unassigned' ? ` — ${ai.assignee}` : ''
+            const due = ai.dueDate ? ` 📅 ${ai.dueDate}` : ''
+            lines.push(`- ${check} ${ai.text}${assignee}${due}`)
+          }
+          lines.push('')
+        }
+        if (summary.questionsAndOpenItems?.length) {
+          lines.push('## Open Questions')
+          summary.questionsAndOpenItems.forEach((q: string) => lines.push(`- ${q}`))
+          lines.push('')
+        }
+        if (summary.keyQuotes?.length) {
+          lines.push('## Key Quotes')
+          summary.keyQuotes.forEach((q: any) => lines.push(`> "${q.text}" — *${q.speaker}*`, ''))
+        }
+      }
+      if (noteData.personalNotes?.trim()) {
+        lines.push('## Personal Notes', noteData.personalNotes.trim(), '')
+      }
+      if (noteData.transcript?.length) {
+        lines.push('## Transcript')
+        for (const t of noteData.transcript) { lines.push(`**[${t.time}] ${t.speaker}:** ${t.text}`, '') }
+      }
+
+      writeFileSync(result.filePath, lines.join('\n'), 'utf-8')
+      return { ok: true, path: result.filePath }
+    } catch (err: any) {
+      console.error('[export:obsidian]', err)
+      return { ok: false, error: err.message || 'Export failed' }
+    }
+  })
+
+  // --- Slack ---
+  ipcMain.handle('slack:test-webhook', async (_e, webhookUrl: string) => {
+    try {
+      const { statusCode } = await netFetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: '✅ Syag Note connected successfully!' }),
+      })
+      return { ok: statusCode === 200 }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Connection failed' }
+    }
+  })
+  ipcMain.handle('slack:send-summary', async (_e, webhookUrl: string, payload: any) => {
+    try {
+      const { statusCode, data } = await netFetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return { ok: statusCode === 200, error: statusCode !== 200 ? data : undefined }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Send failed' }
+    }
+  })
+
+  // --- Microsoft Teams ---
+  ipcMain.handle('teams:test-webhook', async (_e, webhookUrl: string) => {
+    try {
+      const payload = {
+        type: 'message',
+        attachments: [{
+          contentType: 'application/vnd.microsoft.card.adaptive',
+          contentUrl: null,
+          content: {
+            $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+            type: 'AdaptiveCard',
+            version: '1.4',
+            body: [{ type: 'TextBlock', text: '✅ Syag Note connected successfully!', weight: 'Bolder', wrap: true }],
+          },
+        }],
+      }
+      const { statusCode } = await netFetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return { ok: statusCode >= 200 && statusCode < 300 }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Connection failed' }
+    }
+  })
+  ipcMain.handle('teams:send-summary', async (_e, webhookUrl: string, payload: any) => {
+    try {
+      const { statusCode, data } = await netFetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return { ok: statusCode >= 200 && statusCode < 300, error: statusCode >= 300 ? data : undefined }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Send failed' }
+    }
+  })
+
+  // --- Google Calendar OAuth ---
+  ipcMain.handle('google:calendar-auth', async (_e, clientId: string) => {
+    try {
+      const { startGoogleOAuth } = await import('./integrations/google-auth')
+      return startGoogleOAuth(clientId)
+    } catch (err: any) {
+      return { ok: false, error: err.message }
+    }
+  })
+  ipcMain.handle('google:calendar-fetch', async (_e, accessToken: string) => {
+    try {
+      const { fetchGoogleCalendarEvents } = await import('./integrations/google-calendar')
+      return fetchGoogleCalendarEvents(accessToken)
+    } catch (err: any) {
+      return { ok: false, events: [], error: err.message }
+    }
+  })
+  ipcMain.handle('google:calendar-refresh', async (_e, clientId: string, refreshToken: string) => {
+    try {
+      const { refreshGoogleToken } = await import('./integrations/google-auth')
+      return refreshGoogleToken(clientId, refreshToken)
+    } catch (err: any) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // --- Jira ---
+  ipcMain.handle('jira:test-token', async (_e, siteUrl: string, email: string, apiToken: string) => {
+    const { testJiraTokenConnection } = await import('./integrations/jira-auth')
+    return testJiraTokenConnection(siteUrl, email, apiToken)
+  })
+  ipcMain.handle('jira:get-projects', async (_e, configJson: string) => {
+    const { getJiraProjects } = await import('./integrations/jira-api')
+    return getJiraProjects(JSON.parse(configJson))
+  })
+  ipcMain.handle('jira:get-issue-types', async (_e, configJson: string, projectKey: string) => {
+    const { getJiraIssueTypes } = await import('./integrations/jira-api')
+    return getJiraIssueTypes(JSON.parse(configJson), projectKey)
+  })
+  ipcMain.handle('jira:search-users', async (_e, configJson: string, query: string) => {
+    const { searchJiraUsers } = await import('./integrations/jira-api')
+    return searchJiraUsers(JSON.parse(configJson), query)
+  })
+  ipcMain.handle('jira:create-issue', async (_e, configJson: string, issueData: any) => {
+    const { createJiraIssue } = await import('./integrations/jira-api')
+    return createJiraIssue(JSON.parse(configJson), issueData)
+  })
+  ipcMain.handle('jira:bulk-create', async (_e, configJson: string, issues: any[]) => {
+    const { bulkCreateJiraIssues } = await import('./integrations/jira-api')
+    return bulkCreateJiraIssues(JSON.parse(configJson), issues)
+  })
+  ipcMain.handle('jira:get-issue', async (_e, configJson: string, issueKey: string) => {
+    const { getJiraIssue } = await import('./integrations/jira-api')
+    return getJiraIssue(JSON.parse(configJson), issueKey)
+  })
 
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())

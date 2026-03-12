@@ -97,6 +97,7 @@ interface ModelSettingsContextType {
   downloadProgress: Record<string, DownloadProgress>;
   handleDownload: (modelId: string) => void;
   handleDeleteModel: (modelId: string) => void;
+  handleRepairModel: (modelId: string) => void;
   connectedProviders: Record<string, { connected: boolean; apiKey: string }>;
   setConnectedProviders: React.Dispatch<React.SetStateAction<Record<string, { connected: boolean; apiKey: string }>>>;
   connectProvider: (providerId: string, apiKey: string) => Promise<void>;
@@ -135,6 +136,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [copartFetchedModels, setCopartFetchedModels] = useState<{ models: string[]; sttModels: string[] } | null>(null);
   const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
   const [modelsListFetched, setModelsListFetched] = useState(false);
+  const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
 
   // Apple (on-device) Foundation Model availability
   useEffect(() => {
@@ -160,10 +162,22 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!api) return;
 
-    api.models.list().then((downloaded) => {
-      const states: Record<string, DownloadState> = {};
-      for (const id of downloaded) states[id] = "downloaded";
-      setDownloadStates((prev) => ({ ...prev, ...states }));
+    api.models.list().then((downloaded: string[]) => {
+      const onDisk = new Set(downloaded);
+      setDownloadStates((prev) => {
+        const next = { ...prev };
+        // Mark models found on disk as downloaded
+        for (const id of downloaded) next[id] = "downloaded";
+        // Clear stale "downloaded" state for binary models NOT on disk
+        // (MLX models are checked separately, so skip those)
+        const mlxIds = new Set(['mlx-whisper-large-v3-turbo', 'mlx-whisper-large-v3-turbo-8bit', 'thestage-whisper-apple']);
+        for (const lm of localModels) {
+          if (!mlxIds.has(lm.id) && !onDisk.has(lm.id) && next[lm.id] === 'downloaded') {
+            delete next[lm.id];
+          }
+        }
+        return next;
+      });
       setModelsListFetched(true);
     });
 
@@ -228,19 +242,21 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   // Load settings from Electron DB on mount (localStorage may be empty in production Electron)
   useEffect(() => {
-    if (!api) return;
+    if (!api) { setDbSettingsLoaded(true); return; }
     api.db.settings.get('model-settings').then((raw: string | null) => {
-      if (!raw) return;
-      try {
-        const data = JSON.parse(raw);
-        if (data.selectedAIModel) setSelectedAIModel((prev: string) => prev || data.selectedAIModel);
-        if (data.selectedSTTModel) setSelectedSTTModel((prev: string) => prev || data.selectedSTTModel);
-        if (data.useLocalModels !== undefined) setUseLocalModels(data.useLocalModels);
-        if (data.downloadStates) setDownloadStates((prev) => ({ ...prev, ...data.downloadStates }));
-        if (data.connectedProviders) setConnectedProviders((prev) => ({ ...prev, ...data.connectedProviders }));
-        if (Array.isArray(data.hiddenLocalModels)) setHiddenLocalModels(data.hiddenLocalModels);
-      } catch { /* ignore corrupt data */ }
-    });
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (data.selectedAIModel) setSelectedAIModel((prev: string) => prev || data.selectedAIModel);
+          if (data.selectedSTTModel) setSelectedSTTModel((prev: string) => prev || data.selectedSTTModel);
+          if (data.useLocalModels !== undefined) setUseLocalModels(data.useLocalModels);
+          if (data.downloadStates) setDownloadStates((prev) => ({ ...prev, ...data.downloadStates }));
+          if (data.connectedProviders) setConnectedProviders((prev) => ({ ...prev, ...data.connectedProviders }));
+          if (Array.isArray(data.hiddenLocalModels)) setHiddenLocalModels(data.hiddenLocalModels);
+        } catch { /* ignore corrupt data */ }
+      }
+      setDbSettingsLoaded(true);
+    }).catch(() => setDbSettingsLoaded(true));
   }, []);
 
   // Check if MLX Whisper and MLX 8-bit are installed on mount; don't show as downloaded if user removed them
@@ -367,15 +383,18 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   }, [useLocalModels, downloadStates, selectedSTTModel]);
 
   // Persist to BOTH localStorage and DB so sync load always works
+  // IMPORTANT: Only persist AFTER initial data has been fully loaded from filesystem + DB
+  // to avoid overwriting saved states with empty defaults on mount
   useEffect(() => {
+    if (!modelsListFetched || !dbSettingsLoaded) return;
     const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels };
     saveToStorage(data);
     if (api) {
       api.db.settings.set('model-settings', JSON.stringify(data)).catch(console.error);
     }
-  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels]);
+  }, [selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels, modelsListFetched, dbSettingsLoaded]);
 
-  const handleDeleteModel = useCallback((modelId: string) => {
+  const handleDeleteModel = useCallback(async (modelId: string) => {
     setDownloadStates((prev) => {
       const next = { ...prev };
       delete next[modelId];
@@ -389,7 +408,45 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       setHiddenLocalModels((prev) => (prev.includes(modelId) ? prev : [...prev, modelId]));
     }
     if (api) {
-      api.models.delete(modelId).catch(console.error);
+      // MLX models: full uninstall (pip uninstall + remove HuggingFace cache)
+      if (modelId === 'mlx-whisper-large-v3-turbo' && api.models.uninstallMLXWhisper) {
+        try {
+          const result = await api.models.uninstallMLXWhisper();
+          if (result.ok) toast.success("MLX Whisper uninstalled and cache cleared");
+          if (result.error) console.warn('MLX uninstall note:', result.error);
+        } catch (err) { console.error('MLX uninstall error:', err); }
+      } else if (modelId === 'mlx-whisper-large-v3-turbo-8bit' && api.models.uninstallMLXWhisper8Bit) {
+        try {
+          const result = await api.models.uninstallMLXWhisper8Bit();
+          if (result.ok) toast.success("MLX 8-bit uninstalled and cache cleared");
+          if (result.error) console.warn('MLX 8-bit uninstall note:', result.error);
+        } catch (err) { console.error('MLX 8-bit uninstall error:', err); }
+      } else {
+        api.models.delete(modelId).catch(console.error);
+      }
+    }
+  }, [api]);
+
+  const handleRepairModel = useCallback(async (modelId: string) => {
+    if (!api) return;
+    setDownloadStates((prev) => ({ ...prev, [modelId]: "downloading" }));
+    try {
+      let result: { ok: boolean; error?: string } = { ok: false, error: 'Unknown model' };
+      if (modelId === 'mlx-whisper-large-v3-turbo' && api.models.repairMLXWhisper) {
+        result = await api.models.repairMLXWhisper();
+      } else if (modelId === 'mlx-whisper-large-v3-turbo-8bit' && api.models.repairMLXWhisper8Bit) {
+        result = await api.models.repairMLXWhisper8Bit();
+      }
+      if (result.ok) {
+        setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+        toast.success("MLX Whisper repaired successfully");
+      } else {
+        setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+        toast.error(`Repair failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+      toast.error(`Repair failed: ${err.message || 'Unknown error'}`);
     }
   }, [api]);
 
@@ -462,7 +519,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         selectedAIModel, setSelectedAIModel,
         selectedSTTModel, setSelectedSTTModel,
         downloadStates, downloadProgress,
-        handleDownload, handleDeleteModel,
+        handleDownload, handleDeleteModel, handleRepairModel,
         connectedProviders, setConnectedProviders,
         connectProvider, disconnectProvider,
         useLocalModels, setUseLocalModels,

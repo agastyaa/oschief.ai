@@ -35,20 +35,16 @@ function createTrayIcon(): Electron.NativeImage {
     image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
   }
   if (process.platform === 'darwin') {
-    image.setTemplateImage(false) // false = always black (no inversion for light/dark menu bar)
+    image.setTemplateImage(true) // false = always black (no inversion for light/dark menu bar)
     image = image.resize({ width: 22, height: 22 })
   }
   return image
 }
 
 function createRecordingIcon(): Electron.NativeImage {
-  const path = getTrayIconPath()
-  let image: Electron.NativeImage
-  if (path) {
-    image = nativeImage.createFromPath(path)
-  } else {
-    image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
-  }
+  // Recording icon has a colored red dot, so we use the base64 version
+  // (NOT template mode — template strips color and only uses alpha)
+  let image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
   if (process.platform === 'darwin') {
     image.setTemplateImage(false)
     image = image.resize({ width: 22, height: 22 })

@@ -58,6 +58,10 @@ const electronAPI = {
     installMLXWhisper8Bit: () => ipcRenderer.invoke('models:install-mlx-whisper-8bit'),
     checkFfmpeg: () => ipcRenderer.invoke('models:check-ffmpeg'),
     installFfmpeg: () => ipcRenderer.invoke('models:install-ffmpeg'),
+    repairMLXWhisper: () => ipcRenderer.invoke('models:repair-mlx-whisper') as Promise<{ ok: boolean; error?: string }>,
+    repairMLXWhisper8Bit: () => ipcRenderer.invoke('models:repair-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
+    uninstallMLXWhisper: () => ipcRenderer.invoke('models:uninstall-mlx-whisper') as Promise<{ ok: boolean; error?: string }>,
+    uninstallMLXWhisper8Bit: () => ipcRenderer.invoke('models:uninstall-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
   },
 
   recording: {
@@ -177,6 +181,52 @@ const electronAPI = {
       ipcRenderer.on('power:mode-changed', handler)
       return () => ipcRenderer.removeListener('power:mode-changed', handler)
     },
+  },
+
+  export: {
+    toDocx: (noteData: any) => ipcRenderer.invoke('export:docx', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
+    toPdf: (noteData: any) => ipcRenderer.invoke('export:pdf', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
+    toObsidian: (noteData: any) => ipcRenderer.invoke('export:obsidian', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
+  },
+
+  slack: {
+    testWebhook: (webhookUrl: string) =>
+      ipcRenderer.invoke('slack:test-webhook', webhookUrl) as Promise<{ ok: boolean; error?: string }>,
+    sendSummary: (webhookUrl: string, payload: any) =>
+      ipcRenderer.invoke('slack:send-summary', webhookUrl, payload) as Promise<{ ok: boolean; error?: string }>,
+  },
+
+  teams: {
+    testWebhook: (webhookUrl: string) =>
+      ipcRenderer.invoke('teams:test-webhook', webhookUrl) as Promise<{ ok: boolean; error?: string }>,
+    sendSummary: (webhookUrl: string, payload: any) =>
+      ipcRenderer.invoke('teams:send-summary', webhookUrl, payload) as Promise<{ ok: boolean; error?: string }>,
+  },
+
+  google: {
+    calendarAuth: (clientId: string) =>
+      ipcRenderer.invoke('google:calendar-auth', clientId) as Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; email?: string; error?: string }>,
+    calendarFetch: (accessToken: string) =>
+      ipcRenderer.invoke('google:calendar-fetch', accessToken) as Promise<{ ok: boolean; events: any[]; error?: string }>,
+    calendarRefresh: (clientId: string, refreshToken: string) =>
+      ipcRenderer.invoke('google:calendar-refresh', clientId, refreshToken) as Promise<{ ok: boolean; accessToken?: string; expiresIn?: number; error?: string }>,
+  },
+
+  jira: {
+    testToken: (siteUrl: string, email: string, apiToken: string) =>
+      ipcRenderer.invoke('jira:test-token', siteUrl, email, apiToken) as Promise<{ ok: boolean; displayName?: string; error?: string }>,
+    getProjects: (configJson: string) =>
+      ipcRenderer.invoke('jira:get-projects', configJson) as Promise<any[]>,
+    getIssueTypes: (configJson: string, projectKey: string) =>
+      ipcRenderer.invoke('jira:get-issue-types', configJson, projectKey) as Promise<any[]>,
+    searchUsers: (configJson: string, query: string) =>
+      ipcRenderer.invoke('jira:search-users', configJson, query) as Promise<any[]>,
+    createIssue: (configJson: string, issueData: any) =>
+      ipcRenderer.invoke('jira:create-issue', configJson, issueData) as Promise<{ ok: boolean; issue?: any; error?: string }>,
+    bulkCreate: (configJson: string, issues: any[]) =>
+      ipcRenderer.invoke('jira:bulk-create', configJson, issues) as Promise<{ results: any[] }>,
+    getIssue: (configJson: string, issueKey: string) =>
+      ipcRenderer.invoke('jira:get-issue', configJson, issueKey) as Promise<any>,
   },
 }
 

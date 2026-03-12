@@ -41,6 +41,12 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `ALTER TABLE notes ADD COLUMN time_range TEXT`,
     ]
   },
+  {
+    version: 3,
+    up: [
+      `ALTER TABLE notes ADD COLUMN coaching_metrics TEXT`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

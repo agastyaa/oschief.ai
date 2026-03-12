@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import type { CoachingMetrics } from "@/lib/coaching-analytics";
 
 export interface SavedNote {
   id: string;
@@ -12,7 +13,7 @@ export interface SavedNote {
   /** Optional calendar event id when note was created from a calendar meeting (for mapping back) */
   calendarEventId?: string;
   personalNotes: string;
-  transcript: { speaker: string; time: string; text: string }[];
+  transcript: { speaker: string; time: string; text: string; words?: { word: string; start: number; end: number }[] }[];
   summary: {
     overview: string;
     keyPoints?: string[];
@@ -24,6 +25,8 @@ export interface SavedNote {
     attachments?: { type: "image"; url: string }[];
   } | null;
   folderId: string | null;
+  /** Computed speech coaching metrics — generated after transcription completes */
+  coachingMetrics?: CoachingMetrics;
 }
 
 interface NotesContextType {

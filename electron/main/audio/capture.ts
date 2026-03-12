@@ -4,7 +4,7 @@ import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
 import { getSetting } from '../storage/database'
 
-export type TranscriptCallback = (chunk: { speaker: string; time: string; text: string }) => void
+export type TranscriptCallback = (chunk: { speaker: string; time: string; text: string; words?: { word: string; start: number; end: number }[] }) => void
 export type CorrectionCallback = (chunk: { speaker: string; time: string; text: string; originalText: string }) => void
 export type StatusCallback = (status: { state: string; error?: string }) => void
 
@@ -32,6 +32,16 @@ const correctionQueue: Array<{ speaker: string; time: string; text: string }> = 
 let isCorrecting = false
 const CORRECTION_QUEUE_MAX = 20
 const CORRECTION_TIMEOUT_MS = 15000
+const CLOUD_STT_TIMEOUT_MS = 30000  // 30s timeout for cloud STT to prevent hung requests blocking pipeline
+let consecutiveEmptyCloudResults = 0
+const MAX_SILENT_EMPTY_RESULTS = 4  // After this many consecutive empties, warn the user
+// Local STT error backoff: after repeated failures, pause before retrying to avoid error spam
+let consecutiveLocalSTTErrors = 0
+const MAX_LOCAL_ERRORS_BEFORE_BACKOFF = 3
+const MAX_LOCAL_ERRORS_BEFORE_BACKOFF_MLX = 4  // MLX first run can timeout while loading model
+const LOCAL_ERROR_BACKOFF_MS = 30000  // 30s cooldown
+let localSTTBackoffUntil = 0
+let autoRepairInProgress = false
 /** Sliding window of recently corrected segments for LLM context continuity. */
 const recentCorrectedSegments: string[] = []
 const MAX_RECENT_CONTEXT = 3
@@ -104,6 +114,10 @@ export async function startRecording(
   correctionQueue.length = 0
   isCorrecting = false
   recentCorrectedSegments.length = 0
+  consecutiveEmptyCloudResults = 0
+  consecutiveLocalSTTErrors = 0
+  localSTTBackoffUntil = 0
+  autoRepairInProgress = false
   audioBuffers[0].length = 0
   audioBuffers[1].length = 0
   recordingStartTime = Date.now()
@@ -283,9 +297,18 @@ async function processBufferedAudio(): Promise<void> {
         return
       }
 
+      // Backoff: skip processing if local STT is in cooldown after repeated failures
+      if (currentSTTModel.startsWith('local:') && Date.now() < localSTTBackoffUntil) {
+        console.log('[capture] Skipping local STT (backoff until', new Date(localSTTBackoffUntil).toISOString(), ')')
+        isProcessing = false
+        statusCallback?.({ state: 'stt-idle' })
+        continue
+      }
+
       const energy = merged.reduce((sum, v) => sum + v * v, 0) / merged.length
       const minEnergy = MIN_ENERGY_BY_CHANNEL[channel]
       if (energy < minEnergy) {
+        if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (buffer energy', energy.toFixed(6), '<', minEnergy, ') channel:', channel)
         consecutiveSilentChunks++
         if (consecutiveSilentChunks >= 2 && currentChunkIntervalMs < CHUNK_INTERVAL_IDLE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_IDLE_MS
@@ -316,6 +339,7 @@ async function processBufferedAudio(): Promise<void> {
         const vadSegments = await runVAD(merged, SAMPLE_RATE, { threshold: vadThreshold })
         if (vadSegments.length === 0) {
           hasSpeech = false
+          if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: no segments) channel:', channel)
           isProcessing = false
           statusCallback?.({ state: 'stt-idle' })
           continue
@@ -323,6 +347,7 @@ async function processBufferedAudio(): Promise<void> {
         const totalSpeechDuration = vadSegments.reduce((sum, s) => sum + (s.end - s.start), 0)
         const minSpeechSec = MIN_SPEECH_DURATION_SEC_BY_CHANNEL[channel]
         if (totalSpeechDuration < minSpeechSec) {
+          if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: speech duration', totalSpeechDuration.toFixed(1), '<', minSpeechSec, 's) channel:', channel)
           isProcessing = false
           statusCallback?.({ state: 'stt-idle' })
           continue
@@ -336,6 +361,7 @@ async function processBufferedAudio(): Promise<void> {
       const speechEnergy = speechAudio.reduce((sum, v) => sum + v * v, 0) / speechAudio.length
       const minSpeechEnergy = MIN_SPEECH_ENERGY_BY_CHANNEL[channel]
       if (speechEnergy < minSpeechEnergy) {
+        if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (speech energy', speechEnergy.toFixed(6), '<', minSpeechEnergy, ') channel:', channel)
         isProcessing = false
         statusCallback?.({ state: 'stt-idle' })
         continue
@@ -353,6 +379,7 @@ async function processBufferedAudio(): Promise<void> {
       const wavBuffer = pcmToWav(speechAudio, SAMPLE_RATE)
       let sttResult: STTResult
       if (currentSTTModel.startsWith('local:')) {
+        console.log('[capture] Running local STT:', currentSTTModel, 'channel:', channel, 'samples:', speechAudio.length)
         sttResult = await processWithLocalSTT(wavBuffer, currentSTTModel.replace('local:', ''), customVocabulary)
       } else if (currentSTTModel.startsWith('system:')) {
         const text = await sttSystemDarwin(wavBuffer)
@@ -361,8 +388,28 @@ async function processBufferedAudio(): Promise<void> {
         // vocabulary: for Deepgram keywords; prompt: for Groq/OpenAI Whisper
         const vocab = sttVocabularyTerms.length > 0 ? sttVocabularyTerms : undefined
         const prompt = customVocabulary || undefined
-        const text = await routeSTT(wavBuffer, currentSTTModel, vocab, prompt)
+        // Timeout prevents a hung API call from blocking the entire pipeline
+        const text = await Promise.race([
+          routeSTT(wavBuffer, currentSTTModel, vocab, prompt),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('Cloud STT timed out after 30s')), CLOUD_STT_TIMEOUT_MS)
+          ),
+        ])
         sttResult = { text, words: [] }
+        // Track consecutive empty results from cloud STT
+        if (!text.trim()) {
+          consecutiveEmptyCloudResults++
+          if (consecutiveEmptyCloudResults >= MAX_SILENT_EMPTY_RESULTS && transcriptCallback) {
+            transcriptCallback({
+              speaker: 'System',
+              time: formatTimestamp(chunkStartSec),
+              text: `[STT: No speech detected in ${consecutiveEmptyCloudResults} consecutive chunks. Check audio input or try another STT model.]`,
+            })
+            consecutiveEmptyCloudResults = 0  // Reset so we don't spam
+          }
+        } else {
+          consecutiveEmptyCloudResults = 0
+        }
       }
 
       // Confidence-based filtering: skip low-confidence segments (likely noise/hallucination)
@@ -376,7 +423,9 @@ async function processBufferedAudio(): Promise<void> {
       if (filtered) {
         lastSpeechTime = Date.now()
         const time = formatTimestamp(chunkStartSec)
-        transcriptCallback({ speaker, time, text: filtered })
+        transcriptCallback({ speaker, time, text: filtered, words: sttResult.words?.length ? sttResult.words : undefined })
+        // Success — reset error counters
+        if (currentSTTModel.startsWith('local:')) consecutiveLocalSTTErrors = 0
         // Queue for LLM correction in background
         if (llmPostProcessEnabled && correctionCallback) {
           enqueueCorrection({ speaker, time, text: filtered })
@@ -384,8 +433,41 @@ async function processBufferedAudio(): Promise<void> {
       }
     } catch (err: any) {
       console.error('STT processing error:', err)
+      const msg = err?.message || String(err)
+
+      // Track consecutive local STT failures for backoff
+      if (currentSTTModel.startsWith('local:')) {
+        consecutiveLocalSTTErrors++
+        const backoffThreshold = currentSTTModel.includes('mlx') ? MAX_LOCAL_ERRORS_BEFORE_BACKOFF_MLX : MAX_LOCAL_ERRORS_BEFORE_BACKOFF
+        if (consecutiveLocalSTTErrors >= backoffThreshold) {
+          localSTTBackoffUntil = Date.now() + LOCAL_ERROR_BACKOFF_MS
+          if (transcriptCallback) {
+            transcriptCallback({
+              speaker: 'System',
+              time: formatTimestamp(elapsedSec),
+              text: `[STT paused: ${consecutiveLocalSTTErrors} consecutive errors. Retrying in 30s. Check Settings > AI Models or try another STT model.]`,
+            })
+          }
+          // Attempt auto-repair for MLX models
+          if (currentSTTModel.includes('mlx') && !autoRepairInProgress) {
+            autoRepairInProgress = true
+            import('../models/stt-engine').then(({ repairMLXWhisper, repairMLXWhisper8Bit }) => {
+              const repairFn = currentSTTModel.includes('8bit') ? repairMLXWhisper8Bit : repairMLXWhisper
+              repairFn().then(({ ok }) => {
+                autoRepairInProgress = false
+                if (ok) {
+                  localSTTBackoffUntil = 0
+                  consecutiveLocalSTTErrors = 0
+                  transcriptCallback?.({ speaker: 'System', time: formatTimestamp(elapsedSec), text: '[STT repaired automatically. Resuming transcription.]' })
+                }
+              }).catch(() => { autoRepairInProgress = false })
+            }).catch(() => { autoRepairInProgress = false })
+          }
+          consecutiveLocalSTTErrors = 0
+        }
+      }
+
       if (transcriptCallback) {
-        const msg = err?.message || String(err)
         let hint = ''
         if (currentSTTModel.startsWith('local:')) {
           const isMLX = currentSTTModel.includes('mlx')

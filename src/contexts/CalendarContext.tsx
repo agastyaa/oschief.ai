@@ -81,6 +81,48 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [persist]);
 
+  // Fetch events from Google Calendar OAuth (if connected)
+  const fetchGoogleCalendar = useCallback(async (silent = false) => {
+    const api = getElectronAPI();
+    if (!api?.google || !api?.keychain) return;
+    try {
+      const raw = await api.keychain.get("google-calendar-config");
+      if (!raw) return;
+      const config = JSON.parse(raw);
+      let accessToken = config.accessToken;
+
+      // Refresh token if expired
+      if (config.expiresAt && Date.now() > config.expiresAt - 60_000) {
+        const refreshResult = await api.google.calendarRefresh(config.clientId, config.refreshToken);
+        if (refreshResult.ok && refreshResult.accessToken) {
+          accessToken = refreshResult.accessToken;
+          config.accessToken = accessToken;
+          config.expiresAt = Date.now() + (refreshResult.expiresIn || 3600) * 1000;
+          await api.keychain.set("google-calendar-config", JSON.stringify(config));
+        } else {
+          if (!silent) setError("Google Calendar token expired — please reconnect in Settings");
+          return;
+        }
+      }
+
+      const result = await api.google.calendarFetch(accessToken);
+      if (result.ok && result.events?.length) {
+        const mapped: CalendarEvent[] = result.events.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          start: new Date(e.start),
+          end: new Date(e.end),
+          joinLink: e.joinLink,
+          location: e.location,
+          isAllDay: e.isAllDay,
+        }));
+        persist(mapped, "Google Calendar");
+      }
+    } catch {
+      if (!silent) setError("Failed to fetch Google Calendar events");
+    }
+  }, [persist]);
+
   // Load from localStorage on mount + start auto-refresh if URL source
   useEffect(() => {
     try {
@@ -98,21 +140,28 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       if (feedUrl) {
         fetchAndParse(feedUrl, true);
       }
+      // Also try Google Calendar if connected
+      fetchGoogleCalendar(true);
     } catch { /* ignore corrupt data */ }
-  }, [fetchAndParse]);
+  }, [fetchAndParse, fetchGoogleCalendar]);
 
-  // Set up auto-refresh interval for URL-based feeds
+  // Set up auto-refresh interval for URL-based feeds and Google Calendar
   useEffect(() => {
     const feedUrl = localStorage.getItem(URL_KEY);
     if (feedUrl) {
       refreshTimer.current = setInterval(() => {
         fetchAndParse(feedUrl, true);
       }, AUTO_REFRESH_INTERVAL);
+    } else {
+      // If no ICS URL, still auto-refresh Google Calendar
+      refreshTimer.current = setInterval(() => {
+        fetchGoogleCalendar(true);
+      }, AUTO_REFRESH_INTERVAL);
     }
     return () => {
       if (refreshTimer.current) clearInterval(refreshTimer.current);
     };
-  }, [icsSource, fetchAndParse]);
+  }, [icsSource, fetchAndParse, fetchGoogleCalendar]);
 
   const importFromFile = useCallback((content: string, name?: string) => {
     try {
