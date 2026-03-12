@@ -121,7 +121,6 @@
     "appId": "com.syag.app",
     "productName": "Syag",
     "publish": null,
-    "_comment_userData": "Do not change appId or productName; user data lives in ~/Library/Application Support/Syag and must stay stable across DMG updates.",
     "mac": {
       "target": ["dmg", "zip"],
       "category": "public.app-category.productivity",
