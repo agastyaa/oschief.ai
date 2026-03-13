@@ -1,6 +1,6 @@
 # Syag
 
-AI-powered meeting notes and audio transcription for macOS, Windows, and Linux. Record meetings with near real-time transcription (mic + system audio), “You” vs “Others” speaker labels, AI summaries, and optional coaching insights.
+AI-powered meeting notes and audio transcription for macOS. Record meetings with near real-time transcription (mic + system audio), “You” vs “Others” speaker labels, AI summaries, and optional coaching insights.
 
 **Privacy:** Installers contain no API keys or user data. Your keys, notes, and calendar stay on your machine (stored in the app’s user data directory).
 
@@ -18,7 +18,7 @@ When a new version is released, the GitHub Action builds the app and attaches in
 2. Pick the latest release (e.g. **v1.0.4**).
 3. Under **Assets**, download:
    - **macOS:** `Syag-<version>.dmg` (or the `.zip`).
-   - *(Windows/Linux installers appear there when those builds are enabled.)*
+   - *(Releases are macOS only; DMG and zip are built by the workflow.)*
 4. Open the DMG, drag Syag to Applications, and run it.
 
 The DMG is available as soon as the Release workflow finishes for that version (a few minutes after the tag is pushed).
@@ -59,7 +59,7 @@ Other useful commands:
 - **Frontend:** React 18, TypeScript, Vite, React Router, Tailwind CSS, shadcn/ui, TanStack Query
 - **Desktop:** Electron 40
 - **Data:** better-sqlite3 (local DB), Electron safeStorage (encrypted API keys)
-- **Build:** electron-vite, electron-builder (DMG/zip on macOS, NSIS/portable on Windows, AppImage on Linux)
+- **Build:** electron-vite, electron-builder (macOS only: DMG and zip)
 
 ---
 
@@ -225,9 +225,9 @@ npm run build
 npm run package
 ```
 
-Output: **dist/** — DMG/zip (mac), NSIS/portable (Windows), AppImage (Linux). Version from `package.json`.
+Output: **dist/** — DMG and zip (macOS only). Version from `package.json`.
 
-**GitHub Releases:** Push a version tag (e.g. `v1.0.4`) to trigger the Release workflow (`.github/workflows/release.yml`): builds on macOS, Windows, and Linux and attaches installers to the release. Users download from the repo’s Releases page; no API keys or data are bundled.
+**GitHub Releases:** Push a version tag (e.g. `v1.0.5`) to trigger the Release workflow (`.github/workflows/release.yml`): builds on macOS only and attaches the DMG/zip to the release. Users download from the repo’s Releases page; no API keys or data are bundled. If the workflow fails with "Artifact storage quota has been hit", delete old workflow artifacts (Actions → run → Delete workflow run, or reduce retention in Settings → Actions) to free space.
 
 **Updates preserve your data:** Installing a new build over an existing install (e.g. replacing Syag.app in Applications) keeps your notes, API keys, and settings. User data lives in `~/Library/Application Support/Syag` (macOS) and is tied to the app identity, not the build—like an in-place update without OTA.
 
