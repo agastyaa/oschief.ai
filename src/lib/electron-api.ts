@@ -157,6 +157,17 @@ type ElectronAPI = {
     }
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[] }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>
   }
+  kb?: {
+    pickFolder: () => Promise<{ ok: boolean; path?: string; added?: number; updated?: number; removed?: number; total?: number; error?: string }>
+    scan: () => Promise<{ ok: boolean; added?: number; updated?: number; removed?: number; total?: number; error?: string }>
+    search: (query: string, topK?: number) => Promise<any[]>
+    getChunkCount: () => Promise<number>
+    clear: () => Promise<{ ok: boolean }>
+    getLiveSuggestions: (recentTranscript: string, model?: string) => Promise<{ text: string; source: string }[]>
+  }
+  contentProtection?: {
+    set: (enabled: boolean) => Promise<boolean>
+  }
   jira?: {
     testToken: (siteUrl: string, email: string, apiToken: string) => Promise<{ ok: boolean; displayName?: string; error?: string }>
     getProjects: (configJson: string) => Promise<any[]>

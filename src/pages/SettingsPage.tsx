@@ -2,7 +2,8 @@ import {
   User, Mic, Globe, Calendar, Bell, Sparkles, Brain, Download,
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
   Volume2, Save, Sliders, Monitor, Sun, Moon, FileText, ChevronDown, ChevronUp,
-  Search, Info, MicOff, MonitorSpeaker, CheckCircle2, XCircle, Loader2
+  Search, Info, MicOff, MonitorSpeaker, CheckCircle2, XCircle, Loader2,
+  FolderOpen, BookOpen, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
@@ -35,6 +36,7 @@ const sections = [
   { icon: Calendar, label: "Calendar", id: "calendar" },
   { icon: Bell, label: "Notifications", id: "notifications" },
   { icon: Globe, label: "Integrations", id: "integrations" },
+  { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
   { icon: Info, label: "About", id: "about" },
 ];
 
@@ -107,6 +109,128 @@ function SectionHeader({ title, description }: { title: string; description?: st
     <div className="mb-4">
       <h2 className="font-display text-lg text-foreground">{title}</h2>
       {description && <p className="text-[12px] text-muted-foreground mt-1">{description}</p>}
+    </div>
+  );
+}
+
+// ─── Knowledge Base Section ──────────────────────────────────────────────
+
+function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
+  const [folderPath, setFolderPath] = useState<string>("");
+  const [chunkCount, setChunkCount] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    api?.db.settings.get("kb-folder-path").then((p) => { if (p) setFolderPath(p) });
+    api?.kb?.getChunkCount().then(setChunkCount);
+  }, [api]);
+
+  const handlePickFolder = async () => {
+    if (!api?.kb) return;
+    setScanning(true);
+    setStatus(null);
+    try {
+      const result = await api.kb.pickFolder();
+      if (result.ok && result.path) {
+        setFolderPath(result.path);
+        setChunkCount(result.total ?? 0);
+        setStatus(`Indexed ${result.added ?? 0} new files, ${result.total ?? 0} chunks total`);
+      }
+    } catch (err: any) {
+      setStatus(`Error: ${err.message}`);
+    }
+    setScanning(false);
+  };
+
+  const handleRescan = async () => {
+    if (!api?.kb) return;
+    setScanning(true);
+    setStatus(null);
+    try {
+      const result = await api.kb.scan();
+      if (result.ok) {
+        setChunkCount(result.total ?? 0);
+        setStatus(`Scan complete: +${result.added ?? 0} added, ${result.updated ?? 0} updated, ${result.removed ?? 0} removed — ${result.total ?? 0} chunks`);
+      } else {
+        setStatus(result.error || "Scan failed");
+      }
+    } catch (err: any) {
+      setStatus(`Error: ${err.message}`);
+    }
+    setScanning(false);
+  };
+
+  const handleClear = async () => {
+    if (!api?.kb) return;
+    await api.kb.clear();
+    setFolderPath("");
+    setChunkCount(0);
+    setStatus("Knowledge base cleared");
+  };
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Knowledge Base" description="Point Syag at a folder of notes — it will search them during live meetings and suggest relevant talking points" />
+      <div className="space-y-4">
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                <FolderOpen className="h-3.5 w-3.5 text-accent" />
+                Notes folder
+              </p>
+              {folderPath ? (
+                <p className="text-[11px] text-muted-foreground mt-1 font-mono truncate max-w-[320px]">{folderPath}</p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">No folder selected</p>
+              )}
+            </div>
+            <button
+              onClick={handlePickFolder}
+              disabled={scanning}
+              className="rounded-md border border-border bg-secondary/50 px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              {folderPath ? "Change" : "Select folder"}
+            </button>
+          </div>
+
+          {folderPath && (
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <p className="text-[12px] text-muted-foreground">
+                <span className="font-medium text-foreground">{chunkCount}</span> chunks indexed
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRescan}
+                  disabled={scanning}
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("h-3 w-3", scanning && "animate-spin")} />
+                  Rescan
+                </button>
+                <button
+                  onClick={handleClear}
+                  className="flex items-center gap-1.5 rounded-md border border-red-200 dark:border-red-900 px-2.5 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {status && (
+            <p className="text-[11px] text-muted-foreground border-t border-border pt-2">{status}</p>
+          )}
+        </div>
+
+        <div className="rounded-md border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-3">
+          <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+            <strong>How it works:</strong> Syag reads .md and .txt files from this folder, chunks and indexes them locally. During live meetings, it searches your notes for context relevant to the conversation and suggests talking points — powered by your selected AI model. Everything stays on your machine.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -409,6 +533,7 @@ interface Preferences {
   showRecordingIndicator: boolean;
   launchOnStartup: boolean;
   autoReposition: boolean;
+  hideFromScreenShare: boolean;
   appearance: "light" | "dark" | "system";
 }
 
@@ -416,6 +541,7 @@ const defaultPrefs: Preferences = {
   showRecordingIndicator: true,
   launchOnStartup: false,
   autoReposition: true,
+  hideFromScreenShare: true,
   appearance: "light",
 };
 
@@ -1004,6 +1130,13 @@ export default function SettingsPage() {
                     <SettingRow label="Auto-reposition during meetings" description="Syag will move to the side when you join a meeting, so you can keep taking notes">
                       <Toggle enabled={prefs.autoReposition} onToggle={() => updatePref("autoReposition", !prefs.autoReposition)} />
                     </SettingRow>
+                    <SettingRow label="Hide from screen sharing" description="Prevents the Syag window from appearing in screen shares and recordings — invisible to others on calls">
+                      <Toggle enabled={prefs.hideFromScreenShare ?? true} onToggle={() => {
+                        const newVal = !(prefs.hideFromScreenShare ?? true);
+                        updatePref("hideFromScreenShare", newVal);
+                        api?.contentProtection?.set(newVal);
+                      }} />
+                    </SettingRow>
                   </div>
                   <div>
                     <label className="text-[13px] font-medium text-foreground mb-2 block">Appearance</label>
@@ -1507,6 +1640,10 @@ export default function SettingsPage() {
                     <TeamsIntegrationRow />
                   </div>
                 </div>
+              )}
+
+              {active === "knowledge-base" && (
+                <KnowledgeBaseSection api={api} />
               )}
 
               {active === "about" && (

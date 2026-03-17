@@ -626,6 +626,56 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- Knowledge Base ---
+  ipcMain.handle('kb:pick-folder', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return { ok: false, error: 'No active window' }
+    const { dialog } = await import('electron')
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select Knowledge Base Folder',
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || !result.filePaths[0]) return { ok: false }
+    const folderPath = result.filePaths[0]
+    setSetting('kb-folder-path', folderPath)
+    const { scanFolder } = await import('./knowledge-base/kb-store')
+    const stats = scanFolder(folderPath)
+    return { ok: true, path: folderPath, ...stats }
+  })
+  ipcMain.handle('kb:scan', async () => {
+    const folderPath = getSetting('kb-folder-path')
+    if (!folderPath) return { ok: false, error: 'No KB folder configured' }
+    const { scanFolder } = await import('./knowledge-base/kb-store')
+    const stats = scanFolder(folderPath)
+    return { ok: true, ...stats }
+  })
+  ipcMain.handle('kb:search', async (_e, query: string, topK?: number) => {
+    const { searchKB } = await import('./knowledge-base/kb-store')
+    return searchKB(query, topK ?? 5)
+  })
+  ipcMain.handle('kb:get-chunk-count', async () => {
+    const { getChunkCount } = await import('./knowledge-base/kb-store')
+    return getChunkCount()
+  })
+  ipcMain.handle('kb:clear', async () => {
+    const { clearAllChunks } = await import('./knowledge-base/kb-store')
+    clearAllChunks()
+    setSetting('kb-folder-path', '')
+    return { ok: true }
+  })
+  ipcMain.handle('kb:get-live-suggestions', async (_e, recentTranscript: string, model?: string) => {
+    const { getLiveSuggestions } = await import('./knowledge-base/live-suggestions')
+    return getLiveSuggestions(recentTranscript, model)
+  })
+
+  // --- Content Protection ---
+  ipcMain.handle('app:set-content-protection', (_e, enabled: boolean) => {
+    const { setContentProtection } = require('./windows')
+    setContentProtection(enabled)
+    setSetting('hide-from-screen-share', enabled ? 'true' : 'false')
+    return true
+  })
+
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())
   ipcMain.handle('app:apple-foundation-available', () => checkAppleFoundationAvailable())

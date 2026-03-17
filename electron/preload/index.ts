@@ -252,6 +252,26 @@ const electronAPI = {
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>,
   },
 
+  kb: {
+    pickFolder: () =>
+      ipcRenderer.invoke('kb:pick-folder') as Promise<{ ok: boolean; path?: string; added?: number; updated?: number; removed?: number; total?: number; error?: string }>,
+    scan: () =>
+      ipcRenderer.invoke('kb:scan') as Promise<{ ok: boolean; added?: number; updated?: number; removed?: number; total?: number; error?: string }>,
+    search: (query: string, topK?: number) =>
+      ipcRenderer.invoke('kb:search', query, topK) as Promise<any[]>,
+    getChunkCount: () =>
+      ipcRenderer.invoke('kb:get-chunk-count') as Promise<number>,
+    clear: () =>
+      ipcRenderer.invoke('kb:clear') as Promise<{ ok: boolean }>,
+    getLiveSuggestions: (recentTranscript: string, model?: string) =>
+      ipcRenderer.invoke('kb:get-live-suggestions', recentTranscript, model) as Promise<{ text: string; source: string }[]>,
+  },
+
+  contentProtection: {
+    set: (enabled: boolean) =>
+      ipcRenderer.invoke('app:set-content-protection', enabled) as Promise<boolean>,
+  },
+
   jira: {
     testToken: (siteUrl: string, email: string, apiToken: string) =>
       ipcRenderer.invoke('jira:test-token', siteUrl, email, apiToken) as Promise<{ ok: boolean; displayName?: string; error?: string }>,

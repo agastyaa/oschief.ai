@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LiveCoachOverlay } from "@/components/LiveCoachOverlay";
+import { KBSuggestionsPanel, type KBSuggestion } from "@/components/KBSuggestionsPanel";
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -184,6 +185,10 @@ export default function NewNotePage() {
   /** Granola-style: only start mic when user explicitly clicks Start. Prevents mic use when app opens or meeting detected. */
   const [userHasStartedCapture, setUserHasStartedCapture] = useState(false);
   const [coachVisible, setCoachVisible] = useState(true);
+  const [kbSuggestions, setKbSuggestions] = useState<KBSuggestion[]>([]);
+  const [kbVisible, setKbVisible] = useState(true);
+  const [kbLoading, setKbLoading] = useState(false);
+  const kbHasFolder = useRef(false);
   useEffect(() => {
     if (existingSessionId && noteId !== existingSessionId) setNoteId(existingSessionId);
   }, [existingSessionId]);
@@ -275,6 +280,35 @@ export default function NewNotePage() {
 
   useEffect(() => { transcriptRef.current = transcriptLines; }, [transcriptLines]);
   useEffect(() => { meetingTemplateRef.current = meetingTemplate; }, [meetingTemplate]);
+
+  // Check if KB folder is configured on mount
+  useEffect(() => {
+    api?.db.settings.get("kb-folder-path").then((p) => { kbHasFolder.current = !!p; });
+  }, [api]);
+
+  // Poll for KB suggestions every 30s while recording
+  useEffect(() => {
+    if (recordingState !== "recording" || !kbHasFolder.current || !api?.kb) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled || transcriptLines.length < 3) return;
+      setKbLoading(true);
+      try {
+        const recent = transcriptLines
+          .slice(-20)
+          .map(l => `${l.speaker}: ${l.text}`)
+          .join("\n");
+        const results = await api.kb!.getLiveSuggestions(recent);
+        if (!cancelled && results.length > 0) setKbSuggestions(results);
+      } catch { /* ignore */ }
+      if (!cancelled) setKbLoading(false);
+    };
+
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [recordingState, transcriptLines.length, api]);
 
   // Sync personalNotes, title, and user-edited state to session scratch so indicator pause-and-summarize can restore when navigating back
   useEffect(() => {
@@ -1286,6 +1320,17 @@ export default function NewNotePage() {
             </div>
           )}
         </div>
+
+        {/* KB suggestions — shown during active recording when KB folder is configured */}
+        {recordingState === "recording" && kbHasFolder.current && (
+          <KBSuggestionsPanel
+            suggestions={kbSuggestions}
+            visible={kbVisible}
+            loading={kbLoading}
+            onDismiss={(i) => setKbSuggestions(prev => prev.filter((_, idx) => idx !== i))}
+            onToggle={() => setKbVisible(v => !v)}
+          />
+        )}
 
         {/* Live coaching overlay — shown during active recording */}
         {recordingState === "recording" && transcriptLines.length > 0 && (

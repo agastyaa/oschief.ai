@@ -99,6 +99,22 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_topics_label ON topics(label)`,
     ]
   },
+  {
+    version: 5,
+    up: [
+      `CREATE TABLE IF NOT EXISTS kb_chunks (
+        id TEXT PRIMARY KEY,
+        file_path TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        checksum TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_kb_chunks_file ON kb_chunks(file_path)`,
+      `CREATE INDEX IF NOT EXISTS idx_kb_chunks_checksum ON kb_chunks(checksum)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

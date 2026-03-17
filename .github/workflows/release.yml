@@ -54,7 +54,9 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Syag ${{ github.ref_name }}
-          generate_release_notes: true
+          body: |
+            macOS DMG for Syag ${{ github.ref_name }}.
+            Download the .dmg, open it, and drag Syag to Applications.
           files: release/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
