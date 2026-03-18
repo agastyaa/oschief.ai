@@ -4,10 +4,11 @@ import { readFileSync, existsSync } from 'fs'
 import { createMainWindow, getMainWindow } from './windows'
 import { setupTray } from './tray'
 import { registerIPCHandlers } from './ipc-handlers'
-import { initDatabase } from './storage/database'
+import { initDatabase, getSetting } from './storage/database'
 import { ensureModelsDir } from './models/manager'
 import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
 import { setupPowerMonitor } from './power-manager'
+import { startApiServer, stopApiServer, getApiToken } from './api/server'
 
 app.setName('Syag')
 
@@ -63,6 +64,11 @@ app.whenReady().then(async () => {
   ensureModelsDir()
   registerIPCHandlers()
 
+  // Start Agent API if enabled and token exists
+  if (getSetting('api-enabled') === 'true' && getApiToken()) {
+    startApiServer().catch(err => console.error('[api] Failed to start:', err))
+  }
+
   // Use app icon in Dock for dev and local builds (packaged app also gets it from bundle)
   if (process.platform === 'darwin' && app.dock) {
     try {
@@ -102,6 +108,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopMeetingDetection()
+  stopApiServer().catch(() => {})
   const win = getMainWindow()
   if (win && !win.isDestroyed()) {
     win.removeAllListeners('close')

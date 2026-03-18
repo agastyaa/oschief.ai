@@ -630,6 +630,34 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- Agent API ---
+  ipcMain.handle('api:enable', async () => {
+    const { startApiServer, getApiToken, generateApiToken } = await import('./api/server')
+    if (!getApiToken()) generateApiToken()
+    setSetting('api-enabled', 'true')
+    await startApiServer()
+    return true
+  })
+  ipcMain.handle('api:disable', async () => {
+    const { stopApiServer } = await import('./api/server')
+    setSetting('api-enabled', 'false')
+    await stopApiServer()
+    return true
+  })
+  ipcMain.handle('api:get-status', async () => {
+    const { getApiToken, getSocketPath, isApiRunning } = await import('./api/server')
+    return {
+      enabled: getSetting('api-enabled') === 'true',
+      running: isApiRunning(),
+      token: getApiToken(),
+      socketPath: getSocketPath(),
+    }
+  })
+  ipcMain.handle('api:regenerate-token', async () => {
+    const { generateApiToken } = await import('./api/server')
+    return generateApiToken()
+  })
+
   // --- Coaching Feedback ---
   ipcMain.handle('coaching:generate-role-insights', async (_e, metrics: any, roleId: string, model?: string) => {
     const { generateRoleCoachingInsights } = await import('./models/coaching-feedback')

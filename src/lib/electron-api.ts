@@ -158,6 +158,12 @@ type ElectronAPI = {
     }
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[] }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>
   }
+  agentApi?: {
+    enable: () => Promise<boolean>
+    disable: () => Promise<boolean>
+    getStatus: () => Promise<{ enabled: boolean; running: boolean; token: string | null; socketPath: string }>
+    regenerateToken: () => Promise<string>
+  }
   coaching?: {
     generateRoleInsights: (metrics: any, roleId: string, model?: string) => Promise<{ roleInsights: string[]; roleId: string }>
   }

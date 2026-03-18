@@ -253,6 +253,13 @@ const electronAPI = {
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>,
   },
 
+  agentApi: {
+    enable: () => ipcRenderer.invoke('api:enable') as Promise<boolean>,
+    disable: () => ipcRenderer.invoke('api:disable') as Promise<boolean>,
+    getStatus: () => ipcRenderer.invoke('api:get-status') as Promise<{ enabled: boolean; running: boolean; token: string | null; socketPath: string }>,
+    regenerateToken: () => ipcRenderer.invoke('api:regenerate-token') as Promise<string>,
+  },
+
   coaching: {
     generateRoleInsights: (metrics: any, roleId: string, model?: string) =>
       ipcRenderer.invoke('coaching:generate-role-insights', metrics, roleId, model) as Promise<{ roleInsights: string[]; roleId: string }>,
