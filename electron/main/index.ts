@@ -63,6 +63,8 @@ app.whenReady().then(async () => {
     console.error('Failed to initialize database:', err)
   }
   ensureModelsDir()
+  // Clean up stale temp files from previous sessions (orphaned WAV chunks)
+  import('./models/stt-engine').then(({ cleanStaleTempFiles }) => cleanStaleTempFiles()).catch(() => {})
   registerIPCHandlers()
   loadOptionalProviders()
 
@@ -111,6 +113,8 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   stopMeetingDetection()
   stopApiServer().catch(() => {})
+  // Kill all STT workers/processes to prevent orphaned zombies
+  import('./models/stt-engine').then(({ killAllSTTProcesses }) => killAllSTTProcesses()).catch(() => {})
   const win = getMainWindow()
   if (win && !win.isDestroyed()) {
     win.removeAllListeners('close')

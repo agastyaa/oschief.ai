@@ -10,6 +10,7 @@ import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles } from "lucide-react";
 import { MeetingMetadata } from "@/components/MeetingMetadata";
+import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
@@ -26,15 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const BUILTIN_TEMPLATES = [
-  { id: "general", name: "General", icon: "📋" },
-  { id: "standup", name: "Standup", icon: "🏃" },
-  { id: "one-on-one", name: "1:1", icon: "🤝" },
-  { id: "brainstorm", name: "Brainstorm", icon: "💡" },
-  { id: "customer-call", name: "Customer Call", icon: "📞" },
-  { id: "interview", name: "Interview", icon: "🎯" },
-  { id: "retrospective", name: "Retro", icon: "🔄" },
-];
+import { BUILTIN_TEMPLATES } from "@/data/templates";
 
 export default function NoteDetailPage() {
   const { id } = useParams();
@@ -63,8 +56,12 @@ export default function NoteDetailPage() {
   const titleRef = useRef<HTMLInputElement>(null);
   const userHasEditedTitleRef = useRef(false);
 
-  // Timer logic: use activeSession.elapsedSeconds when we have an active session for this note; otherwise local state
-  const displayElapsed = activeSession?.noteId === id ? (activeSession.elapsedSeconds ?? 0) : elapsed;
+  // Timer: derive from startTime via hook when active session exists; otherwise local state
+  const sessionElapsed = useElapsedTime(
+    activeSession?.noteId === id ? (activeSession.startTime ?? null) : null,
+    activeSession?.noteId === id && activeSession?.isRecording === true
+  );
+  const displayElapsed = activeSession?.noteId === id ? sessionElapsed : elapsed;
   displayElapsedRef.current = displayElapsed;
   useEffect(() => {
     const hasActiveSessionForNote = activeSession?.noteId === id;

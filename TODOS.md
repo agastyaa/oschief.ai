@@ -52,6 +52,13 @@ Transform Syag from a meeting recorder into an AI executive assistant that remem
 **Effort:** M
 **Depends on:** Meeting detector infrastructure (shipped)
 
+### TypeScript Type Definitions for IPC API
+**What:** Create shared types for Note, Person, Commitment, Summary, Topic, TranscriptLine. Replace `any` with concrete types in `electron-api.ts` (30+ function signatures) and all IPC handlers.
+**Why:** No compile-time safety on the most critical data paths. TypeScript can't catch type mismatches, making refactoring risky.
+**Effort:** M (~2 hours with CC)
+**Depends on:** Nothing. Can be done independently.
+**Context:** Identified in eng review 2026-03-18. Deferred from reliability fix PR to keep scope focused.
+
 ### SettingsPage Decomposition
 **What:** Break the 1,692-line `SettingsPage.tsx` god component into `src/components/settings/` directory with separate section components.
 **Why:** Code quality — the file is the largest in the codebase and hard to maintain.

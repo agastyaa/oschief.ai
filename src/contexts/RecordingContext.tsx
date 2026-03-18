@@ -136,17 +136,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setTranscriptLines((prev) => prev.filter((_, i) => !set.has(i)));
   }, []);
 
-  // Global elapsed timer -- ticks regardless of which page is mounted
-  useEffect(() => {
-    if (!activeSession?.isRecording) return;
-    const id = setInterval(() => {
-      setActiveSession((prev) => prev && prev.isRecording
-        ? { ...prev, elapsedSeconds: prev.elapsedSeconds + 1 }
-        : prev
-      );
-    }, 1000);
-    return () => clearInterval(id);
-  }, [activeSession?.isRecording]);
+  // Elapsed time is now derived by consumers via useElapsedTime(startTime, isRecording)
+  // instead of ticking every second in context (which caused re-render cascades).
 
   const startSession = useCallback((noteId: string) => {
     const now = Date.now();
@@ -191,10 +182,17 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   }, [api]);
 
-  // Keep elapsed ref in sync for Web Speech API callback
+  // Keep elapsed ref in sync for Web Speech API callback — derive from startTime
   useEffect(() => {
-    elapsedRef.current = activeSession?.elapsedSeconds ?? 0;
-  }, [activeSession?.elapsedSeconds]);
+    if (activeSession?.startTime && activeSession?.isRecording) {
+      const updateRef = () => { elapsedRef.current = Math.floor((Date.now() - activeSession.startTime!) / 1000); };
+      updateRef();
+      const id = setInterval(updateRef, 5000); // Low-frequency update for ref only (not state)
+      return () => clearInterval(id);
+    } else {
+      elapsedRef.current = 0;
+    }
+  }, [activeSession?.startTime, activeSession?.isRecording]);
 
   const stopSpeechRecognition = useCallback(() => {
     if (speechRecRef.current) {

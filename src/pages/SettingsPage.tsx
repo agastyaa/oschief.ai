@@ -905,15 +905,7 @@ function AccountSection() {
 }
 
 
-const BUILTIN_TEMPLATES = [
-  { id: "general", name: "General Meeting", icon: "📋" },
-  { id: "standup", name: "Standup / Daily", icon: "🏃" },
-  { id: "one-on-one", name: "1:1 Meeting", icon: "🤝" },
-  { id: "brainstorm", name: "Brainstorm", icon: "💡" },
-  { id: "customer-call", name: "Customer Call", icon: "📞" },
-  { id: "interview", name: "Interview", icon: "🎯" },
-  { id: "retrospective", name: "Retrospective", icon: "🔄" },
-];
+import { BUILTIN_TEMPLATES } from "@/data/templates";
 
 function TemplatesSection() {
   const api = getElectronAPI();

@@ -35,6 +35,9 @@ const CORRECTION_TIMEOUT_MS = 15000
 const CLOUD_STT_TIMEOUT_MS = 30000  // 30s timeout for cloud STT to prevent hung requests blocking pipeline
 let consecutiveEmptyCloudResults = 0
 const MAX_SILENT_EMPTY_RESULTS = 4  // After this many consecutive empties, warn the user
+/** Per-channel retry counts — drop audio after MAX_CHUNK_RETRIES to prevent infinite loops. */
+const chunkRetryCount = [0, 0]
+const MAX_CHUNK_RETRIES = 3
 // Local STT error backoff: after repeated failures, pause before retrying to avoid error spam
 let consecutiveLocalSTTErrors = 0
 const MAX_LOCAL_ERRORS_BEFORE_BACKOFF = 3
@@ -127,6 +130,8 @@ export async function startRecording(
   recentEmittedTexts.length = 0
   audioBuffers[0].length = 0
   audioBuffers[1].length = 0
+  chunkRetryCount[0] = 0
+  chunkRetryCount[1] = 0
   recordingStartTime = Date.now()
   lastSpeechTime = Date.now()
   currentSTTModel = options.sttModel
@@ -270,14 +275,14 @@ async function processBufferedAudio(): Promise<void> {
   if (isProcessing) return
 
   for (const channel of [0, 1]) {
-    const chunks = audioBuffers[channel].splice(0)
-    if (chunks.length === 0) continue
+    if (audioBuffers[channel].length === 0) continue
 
-    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0)
-    if (totalLength < MIN_SAMPLES_PER_CHANNEL) {
-      audioBuffers[channel].push(...chunks)
-      continue
-    }
+    const totalLength = audioBuffers[channel].reduce((sum, c) => sum + c.length, 0)
+    if (totalLength < MIN_SAMPLES_PER_CHANNEL) continue
+
+    // Copy chunks — keep originals in buffer until STT succeeds
+    const chunkCount = audioBuffers[channel].length
+    const chunks = audioBuffers[channel].slice(0)
 
     isProcessing = true
     statusCallback?.({ state: 'stt-processing' })
@@ -299,6 +304,7 @@ async function processBufferedAudio(): Promise<void> {
           hasLoggedNoSTTModelThisSession = true
           console.warn('[capture] No STT model configured; transcript will be empty. Set Speech-to-Text model in Settings > AI Models.')
         }
+        audioBuffers[channel].splice(0, chunkCount)
         isProcessing = false
         statusCallback?.({ state: 'stt-idle' })
         return
@@ -316,6 +322,7 @@ async function processBufferedAudio(): Promise<void> {
       const minEnergy = MIN_ENERGY_BY_CHANNEL[channel]
       if (energy < minEnergy) {
         if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (buffer energy', energy.toFixed(6), '<', minEnergy, ') channel:', channel)
+        audioBuffers[channel].splice(0, chunkCount)
         consecutiveSilentChunks++
         if (consecutiveSilentChunks >= 2 && currentChunkIntervalMs < CHUNK_INTERVAL_IDLE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_IDLE_MS
@@ -347,6 +354,7 @@ async function processBufferedAudio(): Promise<void> {
         if (vadSegments.length === 0) {
           hasSpeech = false
           if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: no segments) channel:', channel)
+          audioBuffers[channel].splice(0, chunkCount)
           isProcessing = false
           statusCallback?.({ state: 'stt-idle' })
           continue
@@ -355,6 +363,7 @@ async function processBufferedAudio(): Promise<void> {
         const minSpeechSec = MIN_SPEECH_DURATION_SEC_BY_CHANNEL[channel]
         if (totalSpeechDuration < minSpeechSec) {
           if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: speech duration', totalSpeechDuration.toFixed(1), '<', minSpeechSec, 's) channel:', channel)
+          audioBuffers[channel].splice(0, chunkCount)
           isProcessing = false
           statusCallback?.({ state: 'stt-idle' })
           continue
@@ -369,6 +378,7 @@ async function processBufferedAudio(): Promise<void> {
       const minSpeechEnergy = MIN_SPEECH_ENERGY_BY_CHANNEL[channel]
       if (speechEnergy < minSpeechEnergy) {
         if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (speech energy', speechEnergy.toFixed(6), '<', minSpeechEnergy, ') channel:', channel)
+        audioBuffers[channel].splice(0, chunkCount)
         isProcessing = false
         statusCallback?.({ state: 'stt-idle' })
         continue
@@ -421,6 +431,8 @@ async function processBufferedAudio(): Promise<void> {
 
       // Confidence-based filtering: skip low-confidence segments (likely noise/hallucination)
       if (sttResult.avgConfidence != null && sttResult.avgConfidence < -3.0) {
+        audioBuffers[channel].splice(0, chunkCount)
+        chunkRetryCount[channel] = 0
         isProcessing = false
         statusCallback?.({ state: 'stt-idle' })
         continue
@@ -442,6 +454,8 @@ async function processBufferedAudio(): Promise<void> {
             || entry.text.includes(filteredNorm)
         })
         if (isDuplicate) {
+          audioBuffers[channel].splice(0, chunkCount)
+          chunkRetryCount[channel] = 0
           isProcessing = false
           statusCallback?.({ state: 'stt-idle' })
           continue
@@ -451,16 +465,30 @@ async function processBufferedAudio(): Promise<void> {
         lastSpeechTime = Date.now()
         const time = formatTimestamp(chunkStartSec)
         transcriptCallback({ speaker, time, text: filtered, words: sttResult.words?.length ? sttResult.words : undefined })
-        // Success — reset error counters
+        // Success — remove processed audio from buffer and reset retry counter
+        audioBuffers[channel].splice(0, chunkCount)
+        chunkRetryCount[channel] = 0
         if (currentSTTModel.startsWith('local:')) consecutiveLocalSTTErrors = 0
         // Queue for LLM correction in background
         if (llmPostProcessEnabled && correctionCallback) {
           enqueueCorrection({ speaker, time, text: filtered })
         }
+      } else {
+        // STT succeeded but produced no useful text — drain buffer
+        audioBuffers[channel].splice(0, chunkCount)
+        chunkRetryCount[channel] = 0
       }
     } catch (err: any) {
       console.error('STT processing error:', err)
       const msg = err?.message || String(err)
+
+      // Retry logic: keep audio in buffer for retry, but drop after MAX_CHUNK_RETRIES
+      chunkRetryCount[channel]++
+      if (chunkRetryCount[channel] >= MAX_CHUNK_RETRIES) {
+        console.warn(`[capture] Dropping audio for channel ${channel} after ${MAX_CHUNK_RETRIES} retries`)
+        audioBuffers[channel].splice(0, chunkCount)
+        chunkRetryCount[channel] = 0
+      }
 
       // Track consecutive local STT failures for backoff
       if (currentSTTModel.startsWith('local:')) {

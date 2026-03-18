@@ -147,6 +147,17 @@ export function getAllSettings(): Record<string, string> {
 
 // --- Helpers ---
 
+/** Parse JSON safely — returns fallback on corruption instead of crashing the app. */
+function safeJsonParse<T>(str: string | null | undefined, fallback: T, context?: string): T {
+  if (!str) return fallback
+  try {
+    return JSON.parse(str)
+  } catch (err) {
+    console.warn(`[DB] Corrupted JSON${context ? ` in ${context}` : ''}: ${(err as Error).message}`)
+    return fallback
+  }
+}
+
 function deserializeNote(row: any): any {
   return {
     id: row.id,
@@ -156,9 +167,9 @@ function deserializeNote(row: any): any {
     duration: row.duration,
     timeRange: row.time_range ?? undefined,
     personalNotes: row.personal_notes,
-    transcript: JSON.parse(row.transcript || '[]'),
-    summary: row.summary ? JSON.parse(row.summary) : null,
+    transcript: safeJsonParse(row.transcript, [], `note ${row.id} transcript`),
+    summary: safeJsonParse(row.summary, null, `note ${row.id} summary`),
     folderId: row.folder_id,
-    coachingMetrics: row.coaching_metrics ? JSON.parse(row.coaching_metrics) : undefined,
+    coachingMetrics: safeJsonParse(row.coaching_metrics, undefined, `note ${row.id} coachingMetrics`),
   }
 }

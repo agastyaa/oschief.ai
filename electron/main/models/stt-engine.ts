@@ -13,6 +13,7 @@ const WHISPER_CPP_SOURCE_URL = `https://github.com/ggml-org/whisper.cpp/archive/
 let whisperBinaryPath: string | null = null
 let isInstallingBinary = false
 let previousContext = ''
+let activeWhisperProc: ReturnType<typeof spawn> | null = null
 
 export interface WordTimestamp {
   word: string
@@ -28,6 +29,38 @@ export interface STTResult {
 
 export function resetContext(): void {
   previousContext = ''
+}
+
+/** Kill all active STT processes and workers. Call on app quit. */
+export function killAllSTTProcesses(): void {
+  // Kill whisper.cpp process
+  if (activeWhisperProc) {
+    try { activeWhisperProc.kill('SIGTERM') } catch {}
+    activeWhisperProc = null
+  }
+  // Kill MLX workers
+  killMLXWorker()
+  killMLX8BitWorker()
+}
+
+/** Remove stale temp files from previous sessions. Call on app startup. */
+export function cleanStaleTempFiles(): void {
+  try {
+    const tmpDir = join(app.getPath('temp'), 'syag-stt')
+    if (!existsSync(tmpDir)) return
+    const { readdirSync, statSync } = require('fs')
+    const files = readdirSync(tmpDir)
+    const oneHourAgo = Date.now() - 60 * 60 * 1000
+    for (const file of files) {
+      try {
+        const filePath = join(tmpDir, file)
+        const stat = statSync(filePath)
+        if (stat.mtimeMs < oneHourAgo) {
+          unlinkSync(filePath)
+        }
+      } catch {}
+    }
+  } catch {}
 }
 
 export function getContext(): string {
@@ -364,6 +397,7 @@ let mlxWhisperAvailable: boolean | null = null
 let mlxWorker: ReturnType<typeof spawn> | null = null
 let mlxWorkerReady = false
 let mlxIdleTimer: ReturnType<typeof setTimeout> | null = null
+let mlxTranscribing = false
 const MLX_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle
 const MLX_STARTUP_READY_TIMEOUT_MS = 30000 // 30s to get "ready" after spawn (import only, no warmup)
 const MLX_HINT = ' Ensure Python 3 and mlx-whisper are installed (pip3 install mlx-whisper). First run may take several minutes to download the model.'
@@ -501,6 +535,11 @@ function ensureMLXWorker(): Promise<void> {
 function resetMLXIdleTimer(): void {
   if (mlxIdleTimer) clearTimeout(mlxIdleTimer)
   mlxIdleTimer = setTimeout(() => {
+    if (mlxTranscribing) {
+      console.log('[MLX] Idle timer fired but transcription in progress — skipping kill')
+      resetMLXIdleTimer()
+      return
+    }
     console.log('[MLX] Killing idle worker after 5 min')
     killMLXWorker()
   }, MLX_IDLE_TIMEOUT_MS)
@@ -590,12 +629,16 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
       }
 
       console.log('[MLX] Sending chunk for transcription (first run may take several minutes to load model)...')
+      mlxTranscribing = true
       const timeout = setTimeout(() => {
+        mlxTranscribing = false
+        killMLXWorker() // Kill the hung worker so it respawns on next request
         reject(new Error('MLX transcription timed out (300s). First run may take several minutes to load the model.'))
       }, 300000)
 
       const onData = (data: Buffer) => {
         clearTimeout(timeout)
+        mlxTranscribing = false
         mlxWorker?.stdout?.removeListener('data', onData)
         resetMLXIdleTimer()
 
@@ -1029,17 +1072,31 @@ function runWhisperCLI(binaryPath: string, modelPath: string, audioPath: string,
     // Run at lower priority so it doesn't compete with foreground apps
     const proc = spawn('nice', ['-n', '10', binaryPath, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 120000,
     })
+
+    // Track active whisper process for cleanup on app quit
+    activeWhisperProc = proc
 
     let stdout = ''
     let stderr = ''
+    let killed = false
+
+    // Hard timeout: kill the process if it hangs (spawn timeout option doesn't actually kill)
+    const killTimer = setTimeout(() => {
+      killed = true
+      try { proc.kill('SIGTERM') } catch {}
+      setTimeout(() => { try { proc.kill('SIGKILL') } catch {} }, 5000)
+    }, 120000)
 
     proc.stdout.on('data', (data: Buffer) => { stdout += data.toString() })
     proc.stderr.on('data', (data: Buffer) => { stderr += data.toString() })
 
     proc.on('close', (code) => {
-      if (code === 0) {
+      clearTimeout(killTimer)
+      activeWhisperProc = null
+      if (killed) {
+        reject(new Error('whisper.cpp timed out after 120s and was killed'))
+      } else if (code === 0) {
         resolve(parseWhisperOutput(stdout, audioPath))
       } else {
         reject(new Error(`whisper.cpp exited with code ${code}: ${stderr.slice(0, 1000)}`))

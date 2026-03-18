@@ -18,20 +18,12 @@ import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { toast } from "sonner";
 import type { SummaryData } from "@/components/EditableSummary";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 
-const BUILTIN_TEMPLATES = [
-  { id: "general", name: "General", icon: "📋" },
-  { id: "standup", name: "Standup", icon: "🏃" },
-  { id: "one-on-one", name: "1:1", icon: "🤝" },
-  { id: "brainstorm", name: "Brainstorm", icon: "💡" },
-  { id: "customer-call", name: "Customer Call", icon: "📞" },
-  { id: "interview", name: "Interview", icon: "🎯" },
-  { id: "retrospective", name: "Retro", icon: "🔄" },
-];
-const BUILTIN_TEMPLATE_IDS = new Set(BUILTIN_TEMPLATES.map((t) => t.id));
+import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATE_IDS } from "@/data/templates";
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -243,7 +235,7 @@ export default function NewNotePage() {
   }, []);
 
   const usingRealAudio = isElectron;
-  const elapsedSeconds = activeSession?.elapsedSeconds ?? 0;
+  const elapsedSeconds = useElapsedTime(activeSession?.startTime ?? null, activeSession?.isRecording ?? false);
   const currentTranscript = usingRealAudio ? transcriptLines : fakeTranscriptLines.slice(0, visibleLines);
 
   // Build context string for AskBar so it can answer questions about the live meeting

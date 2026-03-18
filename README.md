@@ -40,6 +40,13 @@ Download the latest DMG from the [Releases](https://github.com/iamsagar125/syag-
 
 macOS (Apple Silicon) only.
 
+**If macOS blocks the app** (e.g. "cannot be opened because it is from an unidentified developer"): the DMG is not notarized. Use either (one-time per install):
+
+- **Right-click** Syag in Applications → **Open** → confirm **Open** in the dialog; or  
+- In Terminal: `xattr -cr /Applications/Syag.app` then open Syag as usual.
+
+**To avoid the prompt entirely** (for your own builds): use an Apple Developer ID and notarize. In `electron-builder.yml` set `mac.identity` to your Developer ID Application certificate name (remove `identity: null`). For notarization, set env vars `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`, then run the same package command; electron-builder will notarize when credentials are present.
+
 ---
 
 ## Resources
