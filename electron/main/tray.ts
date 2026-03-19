@@ -44,12 +44,19 @@ function createTrayIcon(): Electron.NativeImage {
 }
 
 function createRecordingIcon(): Electron.NativeImage {
-  // Recording icon has a colored red dot, so we use the base64 version
-  // (NOT template mode — template strips color and only uses alpha)
-  let image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_RECORDING_BASE64}`)
+  // Use the same template icon for recording state so it adapts to menu bar
+  // theme (light/dark). Recording state is already indicated by the tray title
+  // text ("Meeting Name  0:42") and the menu bar title updater.
+  const path = getTrayIconPath()
+  let image: Electron.NativeImage
+  if (path) {
+    image = nativeImage.createFromPath(path)
+  } else {
+    image = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
+  }
   if (process.platform === 'darwin') {
     image = image.resize({ width: 22, height: 22 })
-    image.setTemplateImage(false) // Recording has red dot — keep color
+    image.setTemplateImage(true)
   }
   return image
 }

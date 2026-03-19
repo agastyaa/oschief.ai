@@ -497,7 +497,7 @@ export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }
                   <th className="w-7 p-1.5">#</th>
                   <th className="p-1.5 min-w-0">Task</th>
                   <th className="w-28 p-1.5">Assignee</th>
-                  <th className="w-10 p-1.5" aria-label="Jira" />
+                  <th className="w-8 p-1.5" aria-label="Jira link" />
                 </tr>
               </thead>
               <tbody>
@@ -619,14 +619,15 @@ export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }
                           <JiraStatusBadge issueKey={item.jiraIssueKey} issueUrl={item.jiraIssueUrl} />
                         ) : (
                           <button
+                            type="button"
                             onClick={() => setJiraDialogItem({ index: rawIndex, item })}
-                            className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground/60 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                            className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                             title="Create Jira ticket"
+                            aria-label="Create Jira ticket"
                           >
-                            <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor">
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                               <path d="M11.53 2L3 10.53V14.47L11.53 22L14.47 22L22 14.47V10.53L11.53 2Z" />
                             </svg>
-                            Jira
                           </button>
                         )}
                       </td>

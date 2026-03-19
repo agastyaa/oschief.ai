@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { isElectron, getElectronAPI, type LocalSetupResult } from "@/lib/electron-api";
 
@@ -122,7 +122,10 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [modelsListFetched, setModelsListFetched] = useState(false);
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
   const [optionalProviders, setOptionalProviders] = useState<{ id: string; name: string; icon: string; supportsStt?: boolean }[]>([]);
+  /** True after main process has responded with optional-provider list (may be empty). */
+  const [optionalProvidersReady, setOptionalProvidersReady] = useState(false);
   const [optionalFetchedModels, setOptionalFetchedModels] = useState<Record<string, { models: string[]; sttModels: string[] }>>({});
+  const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
 
   const effectiveProviders = useMemo(
     () => [
@@ -146,9 +149,52 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   // Optional providers — only when user has the optional-providers files in userData
   useEffect(() => {
-    if (!api?.app?.getOptionalProviders) return;
-    api.app.getOptionalProviders().then(setOptionalProviders).catch(() => setOptionalProviders([]));
+    if (!api?.app?.getOptionalProviders) {
+      setOptionalProvidersReady(true);
+      return;
+    }
+    api.app
+      .getOptionalProviders()
+      .then(setOptionalProviders)
+      .catch(() => setOptionalProviders([]))
+      .finally(() => setOptionalProvidersReady(true));
   }, [api]);
+
+  /** Drop AI selection if it references a provider that isn’t built-in and isn’t loaded (e.g. copart without optional bundle). */
+  useEffect(() => {
+    if (!modelsListFetched || !dbSettingsLoaded || !optionalProvidersReady) return;
+    const m = selectedAIModel;
+    if (!m || !m.includes(":")) {
+      return;
+    }
+    const prefix = m.split(":")[0];
+    if (prefix === "local" || prefix === "apple") {
+      lastInvalidAiPrefixToastRef.current = null;
+      return;
+    }
+    const builtInAi = enterpriseProviders.filter((p) => !p.sttOnly).some((p) => p.id === prefix);
+    if (builtInAi) {
+      lastInvalidAiPrefixToastRef.current = null;
+      return;
+    }
+    if (optionalProviders.some((p) => p.id === prefix)) {
+      lastInvalidAiPrefixToastRef.current = null;
+      return;
+    }
+    if (lastInvalidAiPrefixToastRef.current === prefix) return;
+    lastInvalidAiPrefixToastRef.current = prefix;
+    setSelectedAIModel("");
+    toast.error("Previous AI model isn’t available", {
+      description: `“${prefix}” isn’t loaded (optional providers live in Application Support → Syag → optional-providers). Choose another model under Settings → AI Models.`,
+      duration: 12_000,
+    });
+  }, [
+    selectedAIModel,
+    optionalProviders,
+    optionalProvidersReady,
+    modelsListFetched,
+    dbSettingsLoaded,
+  ]);
 
   // Load keychain for optional providers when they become available
   useEffect(() => {

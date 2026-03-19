@@ -8,8 +8,8 @@ import {
 
 const COOLDOWN_MS = 75_000;
 
-const NO_MODEL_HINT =
-  "You were mentioned. Open Ask below and try “What should I say?” or type / for prompts.";
+const STATIC_HINT =
+  "You were mentioned in the conversation.";
 
 const LLM_SYSTEM =
   "You help someone who was just addressed by name in a live meeting transcript. In one concise sentence (no greeting), state what topic or question they should speak to, or what others seem to expect from them. If unclear, say what the discussion is about right now.";
@@ -17,8 +17,9 @@ const LLM_SYSTEM =
 type Line = { speaker: string; time: string; text: string };
 
 /**
- * When the latest transcript line mentions the user's account name, fetches a one-line
- * context summary for the Ask bar (or shows a static hint if no AI model is selected).
+ * Detects when the user's name appears in the live transcript and shows a
+ * static "you were mentioned" hint. The LLM context call only fires when
+ * the user explicitly triggers it (click).
  */
 export function useNameMentionContext(
   transcriptLines: Line[],
@@ -34,9 +35,10 @@ export function useNameMentionContext(
   const dismissedRef = useRef(false);
   const prevLenForDismissRef = useRef(0);
   const processedLineKeyRef = useRef("");
-  const pendingLineKeyRef = useRef("");
   const hasSeededRef = useRef(false);
   const lastNoteIdRef = useRef(noteId);
+  const linesRef = useRef(transcriptLines);
+  linesRef.current = transcriptLines;
 
   const onDismissMentionHint = useCallback(() => {
     dismissedRef.current = true;
@@ -44,11 +46,40 @@ export function useNameMentionContext(
     setMentionHintLoading(false);
   }, []);
 
+  const triggerMentionLLM = useCallback(async () => {
+    if (!selectedAIModel) return;
+    const api = getElectronAPI();
+    if (!api?.llm?.chat) return;
+    if (Date.now() - lastMentionLlmAt.current < COOLDOWN_MS) return;
+
+    setMentionHintLoading(true);
+    try {
+      const account = loadAccountFromStorage();
+      const name = account.name?.trim() || "User";
+      const recent = formatRecentTranscriptForMention(linesRef.current, 14);
+      const userContent = `Meeting: ${meetingTitle || "Untitled"}\nUser's name (mentioned): ${name}\n\nRecent transcript:\n${recent}`;
+
+      const response = await api.llm.chat({
+        messages: [
+          { role: "system", content: LLM_SYSTEM },
+          { role: "user", content: userContent },
+        ],
+        model: selectedAIModel,
+      });
+      const line = (response || "").trim().split(/\n+/)[0]?.trim() || "";
+      setMentionHint(line || STATIC_HINT);
+      lastMentionLlmAt.current = Date.now();
+    } catch {
+      setMentionHint("Couldn\u2019t load a quick summary. Try Ask with \u201CWhat should I say?\u201D");
+    } finally {
+      setMentionHintLoading(false);
+    }
+  }, [selectedAIModel, meetingTitle]);
+
   useEffect(() => {
     if (noteId !== lastNoteIdRef.current) {
       lastNoteIdRef.current = noteId;
       processedLineKeyRef.current = "";
-      pendingLineKeyRef.current = "";
       hasSeededRef.current = false;
       prevLenForDismissRef.current = 0;
       setMentionHint(null);
@@ -80,7 +111,6 @@ export function useNameMentionContext(
 
     const lineKey = `${len}|${last.time}|${last.text.slice(0, 400)}`;
 
-    // Skip LLM on initial transcript backlog (joining mid-session with multiple lines already)
     if (!hasSeededRef.current) {
       hasSeededRef.current = true;
       if (len > 1) {
@@ -90,62 +120,12 @@ export function useNameMentionContext(
     }
 
     if (lineKey === processedLineKeyRef.current) return;
-    if (lineKey === pendingLineKeyRef.current) return;
-
     if (!accountNameAppearsInText(name, last.text)) return;
     if (dismissedRef.current) return;
 
-    if (!selectedAIModel) {
-      processedLineKeyRef.current = lineKey;
-      setMentionHint(NO_MODEL_HINT);
-      return;
-    }
+    processedLineKeyRef.current = lineKey;
+    setMentionHint(STATIC_HINT);
+  }, [transcriptLines, recordingState, usingRealAudio, noteId]);
 
-    if (Date.now() - lastMentionLlmAt.current < COOLDOWN_MS) return;
-
-    const api = getElectronAPI();
-    if (!api?.llm?.chat) {
-      processedLineKeyRef.current = lineKey;
-      setMentionHint(NO_MODEL_HINT);
-      return;
-    }
-
-    pendingLineKeyRef.current = lineKey;
-    setMentionHintLoading(true);
-
-    let cancelled = false;
-    const recent = formatRecentTranscriptForMention(transcriptLines, 14);
-    const userContent = `Meeting: ${meetingTitle || "Untitled"}\nUser's name (mentioned): ${name}\n\nRecent transcript:\n${recent}`;
-
-    void (async () => {
-      try {
-        const response = await api.llm.chat({
-          messages: [
-            { role: "system", content: LLM_SYSTEM },
-            { role: "user", content: userContent },
-          ],
-          model: selectedAIModel,
-        });
-        if (cancelled) return;
-        const line = (response || "").trim().split(/\n+/)[0]?.trim() || "";
-        setMentionHint(line || NO_MODEL_HINT);
-        processedLineKeyRef.current = lineKey;
-        lastMentionLlmAt.current = Date.now();
-      } catch {
-        if (!cancelled) {
-          setMentionHint("Couldn’t load a quick summary. Try Ask with “What should I say?”");
-          processedLineKeyRef.current = lineKey;
-        }
-      } finally {
-        pendingLineKeyRef.current = "";
-        if (!cancelled) setMentionHintLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [transcriptLines, recordingState, selectedAIModel, meetingTitle, usingRealAudio, noteId]);
-
-  return { mentionHint, mentionHintLoading, onDismissMentionHint };
+  return { mentionHint, mentionHintLoading, onDismissMentionHint, triggerMentionLLM };
 }

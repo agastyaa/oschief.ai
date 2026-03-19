@@ -96,8 +96,8 @@ FORMATTING
 - Topic headers: **Topic name** — use specific names, never "Discussion" or "Other Topics" or "Miscellaneous".
 - Bullets: (- ) and sub-bullets (  - ). No numbered lists. No paragraphs.
 - Quotes: only when exact wording matters (commitments, strong reactions) — use > blockquote.
-- Action items: → **Name** to [task] (by [date] if mentioned). Unassigned: → [task]. Include all real commitments.
-- Use **Me** when {{USER_NAME}} is the owner.
+- Action items: default form is **unassigned** — use → [task] (by [date] if mentioned). Do **not** prefix with **Me**, **You**, or **{{USER_NAME}}**.
+- Only use → **Name** to [task] when the transcript or user notes **explicitly name** a **different** person (real name as stated) as the owner. Never infer the note-taker as owner from context alone — they assign themselves in the UI.
 - Decisions: → **Decision:** [what was decided]. Include reasoning in a sub-bullet if it was stated.
 
 LENGTH (respect meeting duration)
@@ -129,14 +129,15 @@ OUTPUT FORMAT (follow exactly)
 - [What was concluded or learned — not just what was raised]
 - [Key point with specifics: names, numbers, dates]
   - [Supporting detail]
-→ **Name** to [action] (by [date])
+→ [action] (by [date])
 → **Decision:** [decision text]
   - [Reasoning if stated]
 
 **[Topic 2 — equally specific]**
 - [Same quality as Topic 1 — no thinning out]
   - [Detail]
-→ **Name** to [action]
+→ [action]
+→ **Jane** to [action] (only when Jane is explicitly named as owner in source material)
 
 Place action items and decisions under the topic they belong to. Omit if none apply.`
 
@@ -733,6 +734,17 @@ export function getRecipeByCommand(command: string): Recipe | undefined {
 // Backward compatibility — adapt ParsedNotes to legacy MeetingSummary shape
 // ---------------------------------------------------------------------------
 
+/** Strip auto-assignees so the UI shows Unassigned until the user picks "Assign to me" or types a name. */
+export function normalizeActionAssignee(assignee: string, userDisplayName?: string): string {
+  const t = assignee.trim()
+  if (!t) return ''
+  const lower = t.toLowerCase()
+  if (lower === 'me' || lower === 'you' || lower === 'i') return ''
+  const uname = userDisplayName?.trim()
+  if (uname && lower === uname.toLowerCase()) return ''
+  return assignee
+}
+
 /** Legacy shape used by EditableSummary, ActionItemsThisWeek, etc. */
 export interface MeetingSummary {
   title: string
@@ -762,17 +774,20 @@ export function parsedToMeetingSummary(
   parsed: ParsedNotes,
   title = 'Meeting Notes',
   meetingType = 'general',
+  /** Used to clear assignees that mean the note-taker (Me/You/user name). */
+  userDisplayName?: string,
 ): MeetingSummary {
+  const norm = (a: string) => normalizeActionAssignee(a, userDisplayName)
   const actionItems = parsed.actionItems.map(a => ({
     text: a.text,
-    assignee: a.assignee,
+    assignee: norm(a.assignee),
     dueDate: a.dueDate ?? undefined,
     priority: 'medium' as const,
     done: a.done,
   }))
   const nextSteps = parsed.actionItems.map(a => ({
       text: a.text,
-      assignee: a.assignee,
+      assignee: norm(a.assignee),
       done: a.done,
       dueDate: a.dueDate ?? undefined,
     }))

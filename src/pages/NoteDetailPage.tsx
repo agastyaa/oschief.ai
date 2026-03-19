@@ -8,11 +8,12 @@ import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair, Mic } from "lucide-react";
 import { MeetingMetadata } from "@/components/MeetingMetadata";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
+import { loadAccountFromStorage } from "@/lib/account-context";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
 import { noteToMarkdown } from "@/lib/export-markdown";
@@ -173,6 +174,7 @@ export default function NoteDetailPage() {
         customPrompt,
         meetingTitle: note.title?.trim() || undefined,
         meetingDuration: note.duration || undefined,
+        accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
       });
       // Granola-style: update title from regenerated summary when we have a meaningful one (never overwrite user edits)
       const updates: { summary: typeof summary; title?: string } = { summary };
@@ -665,31 +667,12 @@ function CoachingView({
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationFailed, setConversationFailed] = useState(false);
   const conversationAnalysisStarted = useRef(false);
+  const [metricsExpanded, setMetricsExpanded] = useState(false);
 
   useEffect(() => {
     setConversationFailed(false);
     conversationAnalysisStarted.current = false;
   }, [note.id]);
-
-  useEffect(() => {
-    if (!metrics || metrics.roleInsights?.length || !api?.coaching) return;
-    let cancelled = false;
-    (async () => {
-      if (!accountRoleId || cancelled) return;
-      setInsightsLoading(true);
-      try {
-        const result = await api.coaching!.generateRoleInsights(metrics, accountRoleId);
-        if (!cancelled && result.roleInsights.length > 0) {
-          setRoleInsights(result.roleInsights);
-          updateNote(note.id, { coachingMetrics: { ...metrics, roleInsights: result.roleInsights, roleId: accountRoleId } });
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setInsightsLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [metrics, api, note.id, updateNote, accountRoleId]);
 
   useEffect(() => {
     if (
@@ -731,6 +714,35 @@ function CoachingView({
     };
   }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, heuristics]);
 
+  /** Metrics-only LLM coaching — skipped while transcript+role analysis is expected (primary), or once it exists. */
+  useEffect(() => {
+    if (!metrics || metrics.roleInsights?.length || !api?.coaching) return;
+    if (metrics.conversationInsights) return;
+    const transcriptCoachingEligible = !!(
+      api?.coaching?.analyzeConversation &&
+      accountRoleId &&
+      note.transcript?.length
+    );
+    if (transcriptCoachingEligible && !conversationFailed) return;
+
+    let cancelled = false;
+    (async () => {
+      if (!accountRoleId || cancelled) return;
+      setInsightsLoading(true);
+      try {
+        const result = await api.coaching!.generateRoleInsights(metrics, accountRoleId);
+        if (!cancelled && result.roleInsights.length > 0) {
+          setRoleInsights(result.roleInsights);
+          updateNote(note.id, { coachingMetrics: { ...metrics, roleInsights: result.roleInsights, roleId: accountRoleId } });
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setInsightsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, conversationFailed]);
+
   const conv = metrics?.conversationInsights;
 
   if (!metrics) {
@@ -738,54 +750,33 @@ function CoachingView({
       <div className="text-center py-12">
         <BarChart3 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">No transcript data available for coaching analysis.</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Record a meeting to get speech coaching insights.</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Record a meeting to get role-aware meeting coaching.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Deterministic signals (transparent chips) */}
       {!accountRoleId && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
           Choose your <span className="font-medium text-foreground">role</span> in Settings to unlock transcript-grounded coaching and role frameworks.
         </div>
       )}
 
-      {heuristics && (
-        <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-2">
-          <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Signals we measured</h4>
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Your turns: {heuristics.yourTurns}
-            </span>
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Questions (you): {Math.round(heuristics.questionRatioYou * 100)}% of turns
-            </span>
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Longest run (you): {heuristics.longestYouMonologueWords} words
-            </span>
-            {heuristics.suggestedHabitTags.map((t) => (
-              <span
-                key={t}
-                className="rounded-md bg-accent/10 border border-accent/25 px-2 py-0.5 text-[10px] text-accent font-medium"
-              >
-                {t.replace(/_/g, " ")}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Transcript-grounded conversation analysis */}
+      {/* Transcript-grounded meeting coaching (primary) */}
       {(conv || conversationLoading) && (
         <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
-          <h4 className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
-            <MessageSquare className="h-3 w-3" />
-            Conversation quality
-          </h4>
+          <div>
+            <h4 className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
+              <MessageSquare className="h-3 w-3" />
+              Meeting effectiveness
+            </h4>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              What you said, when, and how it lines up with your role — not just speaking pace.
+            </p>
+          </div>
           {conversationLoading && !conv ? (
-            <p className="text-[12px] text-muted-foreground animate-pulse">Analyzing transcript and role frameworks…</p>
+            <p className="text-[12px] text-muted-foreground animate-pulse">Analyzing transcript against your role and knowledge base…</p>
           ) : conv ? (
             <>
               <div>
@@ -873,6 +864,33 @@ function CoachingView({
         </div>
       )}
 
+      {/* Supporting signals (turns, questions, monologue) — context for the analysis above */}
+      {heuristics && (
+        <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-2">
+          <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Supporting signals</h4>
+          <p className="text-[10px] text-muted-foreground/90 -mt-1">Quick counts; the main coaching is transcript + role above.</p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
+              Your turns: {heuristics.yourTurns}
+            </span>
+            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
+              Questions (you): {Math.round(heuristics.questionRatioYou * 100)}% of turns
+            </span>
+            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
+              Longest run (you): {heuristics.longestYouMonologueWords} words
+            </span>
+            {heuristics.suggestedHabitTags.map((t) => (
+              <span
+                key={t}
+                className="rounded-md bg-accent/10 border border-accent/25 px-2 py-0.5 text-[10px] text-accent font-medium"
+              >
+                {t.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
           <p className="text-[11px] text-muted-foreground">
@@ -911,12 +929,15 @@ function CoachingView({
         </div>
       )}
 
-      {/* Role-specific coaching insights (metrics + KB) */}
-      {(roleInsights.length > 0 || insightsLoading) && (
+      {/* Metrics-only coaching — fallback when transcript analysis isn’t available or failed */}
+      {(roleInsights.length > 0 || insightsLoading) && !conv && !conversationLoading && (
         <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-2">
           <h4 className="text-xs font-medium text-accent uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="h-3 w-3" /> Role-Specific Coaching
+            <Sparkles className="h-3 w-3" /> Delivery &amp; pace (metrics)
           </h4>
+          <p className="text-[10px] text-muted-foreground">
+            From talk-time and filler metrics. Prefer <span className="font-medium text-foreground">Meeting effectiveness</span> above when present.
+          </p>
           {insightsLoading && roleInsights.length === 0 ? (
             <p className="text-[12px] text-muted-foreground animate-pulse">Generating coaching insights...</p>
           ) : (
@@ -932,9 +953,30 @@ function CoachingView({
         </div>
       )}
 
-      <CommunicationMixBar metrics={metrics} />
-
-      <CoachingCard metrics={metrics} meetingDurationSec={meetingDurationSec} />
+      {/* Speaking Metrics (collapsible — secondary to qualitative coaching above) */}
+      <div className="rounded-xl border border-border bg-card">
+        <button
+          type="button"
+          onClick={() => setMetricsExpanded(!metricsExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors rounded-xl"
+        >
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Mic className="h-3 w-3" />
+            Speaking Metrics
+          </h4>
+          {metricsExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+        </button>
+        {metricsExpanded && (
+          <div className="px-4 pb-4 space-y-4">
+            <CommunicationMixBar metrics={metrics} />
+            <CoachingCard metrics={metrics} meetingDurationSec={meetingDurationSec} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

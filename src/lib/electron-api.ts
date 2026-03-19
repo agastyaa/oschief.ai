@@ -81,7 +81,7 @@ type ElectronAPI = {
     onCorrectedTranscript?: (callback: (chunk: TranscriptChunk & { originalText: string }) => void) => () => void
   }
   llm: {
-    summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string; customPrompt?: string; meetingTitle?: string; meetingDuration?: string | null; attendees?: string[] }) => Promise<any>
+    summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string; customPrompt?: string; meetingTitle?: string; meetingDuration?: string | null; attendees?: string[]; accountDisplayName?: string }) => Promise<any>
     chat: (data: { messages: any[]; context: any; model: string }) => Promise<string>
     onChatChunk: (callback: (chunk: { text: string; done: boolean }) => void) => () => void
   }
@@ -144,6 +144,11 @@ type ElectronAPI = {
     list: () => Promise<{ id: string; title: string; startIso: string; endIso: string; noteId: string | null; createdAt: string }[]>
     add: (block: { id: string; title: string; startIso: string; endIso: string; noteId?: string | null }) => Promise<boolean>
     delete: (id: string) => Promise<boolean>
+  }
+  floating?: {
+    updateMeeting: (state: { title: string; startTime: number; isRecording: boolean } | null) => void
+    focusMain: () => void
+    onState: (callback: (state: { title: string; startTime: number; isRecording: boolean } | null) => void) => () => void
   }
   trayAgenda?: {
     setCache: (events: unknown) => Promise<boolean>

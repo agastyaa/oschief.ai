@@ -165,7 +165,9 @@ export async function summarize(
   customPrompt?: string,
   meetingTitle?: string,
   meetingDuration?: string | null,
-  attendees?: string[]
+  attendees?: string[],
+  /** Account name from Settings — used in prompts and to normalize action assignees (Me/You/name). */
+  accountDisplayName?: string,
 ): Promise<MeetingSummary> {
   const transcriptText = transcript.map(t => `[${t.time}] ${t.speaker}: ${t.text}`).join('\n')
 
@@ -176,17 +178,21 @@ export async function summarize(
     ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
     ...(attendees?.length ? { attendees } : {}),
   })
+  if (accountDisplayName?.trim()) {
+    context.user = { ...context.user, name: accountDisplayName.trim() }
+  }
+  const assigneeNormName = context.user.name
 
   const templatePrompt = customPrompt ? `${template.prompt}\n\n${customPrompt}` : template.prompt
   const effectiveTemplate = { ...template, prompt: templatePrompt }
   const userInput = buildPrompt(effectiveTemplate, context, personalNotes, transcriptText)
 
   if (model.startsWith('local:')) {
-    return summarizeWithLocal(userInput, model.replace('local:', ''), template)
+    return summarizeWithLocal(userInput, model.replace('local:', ''), template, assigneeNormName)
   }
 
   if (model.startsWith('apple:')) {
-    return summarizeWithApple(userInput, template)
+    return summarizeWithApple(userInput, template, assigneeNormName)
   }
 
   const response = await routeLLM(
@@ -196,7 +202,7 @@ export async function summarize(
 
   const parsed = parseEnhancedNotes(response)
   const title = extractTitleFromResponse(response)
-  return parsedToMeetingSummary(parsed, title, template.id)
+  return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
 
 // ─── Chat ───────────────────────────────────────────────────────────────────
@@ -229,7 +235,8 @@ export async function chat(
 
 async function summarizeWithApple(
   userInput: string,
-  template: MeetingTemplate
+  template: MeetingTemplate,
+  userDisplayName?: string,
 ): Promise<MeetingSummary> {
   try {
     const response = await chatApple(
@@ -238,7 +245,7 @@ async function summarizeWithApple(
     )
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
-    return parsedToMeetingSummary(parsed, title, template.id)
+    return parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
   } catch (err: any) {
     const msg = err?.message ?? String(err)
     if (/restrict|safety|block|not available|Tahoe|Apple Silicon/i.test(msg)) {
@@ -257,10 +264,60 @@ async function summarizeWithApple(
 /** Limit context and CPU threads so local Llama doesn't overwhelm the machine. */
 const LLAMA_CONTEXT_OPTIONS = { contextSize: 8192, threads: 4 }
 
+/** Max chars for multi-turn local chat transcript (system + trailer reserved separately). */
+const LOCAL_CHAT_BODY_CHAR_CAP = 16_000
+const LOCAL_CHAT_TURN_GAP = '\n\n'
+
+function buildLocalChatPrompt(messages: { role: string; content?: string }[]): string {
+  const systemContent = (messages.find((m) => m.role === 'system')?.content || '').trim()
+  const turns: string[] = []
+  for (const m of messages) {
+    if (m.role === 'user' || m.role === 'assistant') {
+      const label = m.role === 'assistant' ? 'Assistant' : 'User'
+      const text = (m.content ?? '').trim()
+      if (!text) continue
+      turns.push(`${label}: ${text}`)
+    }
+  }
+
+  let body: string
+  if (turns.length === 0) {
+    body = ''
+  } else {
+    const last = turns[turns.length - 1]!
+    const joinedLen = turns.join(LOCAL_CHAT_TURN_GAP).length
+    if (joinedLen <= LOCAL_CHAT_BODY_CHAR_CAP) {
+      body = turns.join(LOCAL_CHAT_TURN_GAP)
+    } else {
+      // Keep full last turn; prepend older turns until budget (never drop last message).
+      const parts: string[] = [last]
+      let used = last.length
+      for (let i = turns.length - 2; i >= 0; i--) {
+        const t = turns[i]!
+        const add = t.length + LOCAL_CHAT_TURN_GAP.length
+        if (used + add > LOCAL_CHAT_BODY_CHAR_CAP) break
+        parts.unshift(t)
+        used += add
+      }
+      body = parts.join(LOCAL_CHAT_TURN_GAP)
+      if (body.length > LOCAL_CHAT_BODY_CHAR_CAP) {
+        body = last
+      }
+    }
+  }
+
+  const trailer = '\n\nReply concisely as the Assistant.'
+  if (systemContent) {
+    return body ? `${systemContent}\n\n${body}${trailer}` : `${systemContent}${trailer}`
+  }
+  return body ? `${body}${trailer}` : 'Reply concisely as the Assistant.'
+}
+
 async function summarizeWithLocal(
   userInput: string,
   modelId: string,
-  template: MeetingTemplate
+  template: MeetingTemplate,
+  userDisplayName?: string,
 ): Promise<MeetingSummary> {
   const modelPath = getModelPath(modelId)
   if (!modelPath) {
@@ -284,7 +341,7 @@ async function summarizeWithLocal(
 
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
-    return parsedToMeetingSummary(parsed, title, template.id)
+    return parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
   } catch (err: any) {
     if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {
       throw new Error('Local LLM requires node-llama-cpp. It is not bundled with the app. Use a cloud model (e.g. OpenAI, Groq) in Settings, or install node-llama-cpp in development.')
@@ -311,13 +368,7 @@ async function chatWithLocal(
     const ctx = await model.createContext(LLAMA_CONTEXT_OPTIONS)
     const session = new LlamaChatSession({ contextSequence: ctx.getSequence() })
 
-    const systemContent = messages.find(m => m.role === 'system')?.content || ''
-    const userMessages = messages.filter(m => m.role !== 'system')
-    const lastMessage = userMessages[userMessages.length - 1]?.content || ''
-
-    const prompt = systemContent
-      ? `${systemContent}\n\nUser: ${lastMessage}`
-      : lastMessage
+    const prompt = buildLocalChatPrompt(messages)
 
     let fullResponse = ''
 

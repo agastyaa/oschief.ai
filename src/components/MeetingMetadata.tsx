@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Users, Tag, X, Plus, Check, UserPlus,
+  Users, X, Check, UserPlus,
 } from "lucide-react";
 import { getElectronAPI } from "@/lib/electron-api";
 
@@ -13,11 +13,6 @@ interface Person {
   meeting_role?: string;
 }
 
-interface Topic {
-  id: string;
-  label: string;
-}
-
 interface MeetingMetadataProps {
   noteId: string;
 }
@@ -25,26 +20,17 @@ interface MeetingMetadataProps {
 export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
   const api = getElectronAPI();
   const [people, setPeople] = useState<Person[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
   const [editingPerson, setEditingPerson] = useState<string | null>(null);
-  const [editingTopic, setEditingTopic] = useState<string | null>(null);
   const [addingPerson, setAddingPerson] = useState(false);
-  const [addingTopic, setAddingTopic] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
-  const [newTopicLabel, setNewTopicLabel] = useState("");
   const [allPeople, setAllPeople] = useState<Person[]>([]);
   const [peopleSuggestions, setPeopleSuggestions] = useState<Person[]>([]);
   const addPersonRef = useRef<HTMLInputElement>(null);
-  const addTopicRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     if (!api?.memory) return;
-    const [p, t] = await Promise.all([
-      api.memory.people.forNote(noteId),
-      api.memory.topics.forNote(noteId),
-    ]);
+    const p = await api.memory.people.forNote(noteId);
     setPeople(p || []);
-    setTopics(t || []);
   }, [api, noteId]);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -82,28 +68,6 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
     await refresh();
   };
 
-  // Topic editing
-  const handleUpdateTopic = async (id: string, label: string) => {
-    if (!api?.memory || !label.trim()) return;
-    await api.memory.topics.updateLabel(id, label.trim());
-    await refresh();
-    setEditingTopic(null);
-  };
-
-  const handleRemoveTopic = async (topicId: string) => {
-    if (!api?.memory) return;
-    await api.memory.topics.unlinkFromNote(noteId, topicId);
-    await refresh();
-  };
-
-  const handleAddTopic = async () => {
-    if (!api?.memory || !newTopicLabel.trim() || topics.length >= 2) return;
-    await api.memory.topics.addToNote(noteId, newTopicLabel.trim());
-    setNewTopicLabel("");
-    setAddingTopic(false);
-    await refresh();
-  };
-
   // People search/autocomplete
   const handlePersonSearch = async (query: string) => {
     setNewPersonName(query);
@@ -133,10 +97,6 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
   useEffect(() => {
     if (addingPerson) addPersonRef.current?.focus();
   }, [addingPerson]);
-  useEffect(() => {
-    if (addingTopic) addTopicRef.current?.focus();
-  }, [addingTopic]);
-
   if (!api?.memory) return null;
 
   return (
@@ -199,44 +159,6 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
           </div>
         </div>
 
-      {/* Tags */}
-      <div className="flex items-start gap-2 flex-wrap">
-          <Tag className="h-3.5 w-3.5 text-muted-foreground/50 mt-1.5 flex-shrink-0" />
-          <div className="flex items-center gap-1.5 flex-wrap flex-1">
-            {topics.map((topic) => (
-              <TopicChip
-                key={topic.id}
-                topic={topic}
-                isEditing={editingTopic === topic.id}
-                onStartEdit={() => setEditingTopic(topic.id)}
-                onUpdate={(label) => handleUpdateTopic(topic.id, label)}
-                onRemove={() => handleRemoveTopic(topic.id)}
-                onCancel={() => setEditingTopic(null)}
-              />
-            ))}
-            {topics.length < 2 && (addingTopic ? (
-              <input
-                ref={addTopicRef}
-                value={newTopicLabel}
-                onChange={(e) => setNewTopicLabel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddTopic();
-                  if (e.key === "Escape") { setAddingTopic(false); setNewTopicLabel(""); }
-                }}
-                onBlur={() => { if (newTopicLabel.trim()) handleAddTopic(); else { setAddingTopic(false); setNewTopicLabel(""); } }}
-                placeholder="Tag..."
-                className="h-6 w-24 rounded-full border border-border bg-background px-2.5 text-[11px] text-foreground outline-none focus:ring-1 focus:ring-ring"
-              />
-            ) : (
-              <button
-                onClick={() => setAddingTopic(true)}
-                className="flex items-center gap-0.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              >
-                <Plus className="h-2.5 w-2.5" />
-              </button>
-            ))}
-          </div>
-        </div>
     </div>
   );
 }
@@ -338,76 +260,3 @@ function PersonChip({
   );
 }
 
-// ── Topic Chip ──────────────────────────────────────────────────────
-
-function TopicChip({
-  topic,
-  isEditing,
-  onStartEdit,
-  onUpdate,
-  onRemove,
-  onCancel,
-}: {
-  topic: Topic;
-  isEditing: boolean;
-  onStartEdit: () => void;
-  onUpdate: (label: string) => void;
-  onRemove: () => void;
-  onCancel: () => void;
-}) {
-  const [label, setLabel] = useState(topic.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isEditing) inputRef.current?.focus();
-  }, [isEditing]);
-
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-1 rounded-full border border-ring bg-background px-2 py-0.5">
-        <input
-          ref={inputRef}
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onUpdate(label.trim() || topic.label);
-            if (e.key === "Escape") onCancel();
-          }}
-          onBlur={() => { if (label.trim()) onUpdate(label.trim()); else onCancel(); }}
-          className="h-5 w-24 bg-transparent text-[11px] text-foreground outline-none"
-        />
-        <button
-          onClick={() => onUpdate(label.trim() || topic.label)}
-          className="p-0.5 rounded hover:bg-secondary text-accent"
-          title="Save"
-        >
-          <Check className="h-3 w-3" />
-        </button>
-        <button
-          onClick={onCancel}
-          className="p-0.5 rounded hover:bg-secondary text-muted-foreground"
-          title="Cancel"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group/topic flex items-center gap-0.5 rounded-full border border-border bg-accent/5 px-2 py-0.5 text-[11px] hover:bg-accent/10 transition-colors">
-      <span
-        onClick={onStartEdit}
-        className="text-foreground/80 cursor-pointer"
-      >
-        {topic.label}
-      </span>
-      <button
-        onClick={onRemove}
-        className="opacity-0 group-hover/topic:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-      >
-        <X className="h-2.5 w-2.5" />
-      </button>
-    </div>
-  );
-}

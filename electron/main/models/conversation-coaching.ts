@@ -6,6 +6,7 @@
 import { routeLLM } from '../cloud/router'
 import { getRoleKB, ROLES } from './coaching-kb'
 import { getSetting } from '../storage/database'
+import { searchKB, getChunkCount } from '../knowledge-base/kb-store'
 
 export type TranscriptLineInput = { speaker: string; time: string; text: string }
 
@@ -47,10 +48,35 @@ export type ConversationInsightsResult = {
 const MAX_TRANSCRIPT_CHARS = 26000
 const KB_MEETING_MAX = 2200
 const KB_METRICS_FOCUS_MAX = 900
+const USER_KB_MAX_CHARS = 3000
+const USER_KB_TOP_K = 5
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s
   return `${s.slice(0, max)}\n[…truncated…]`
+}
+
+function buildKBQuery(transcript: TranscriptLineInput[], roleLabel: string): string {
+  const sample = transcript.slice(0, 20).map((l) => l.text).join(' ')
+  return `${roleLabel} meeting best practices ${sample.slice(0, 300)}`
+}
+
+function fetchUserKBContext(transcript: TranscriptLineInput[], roleLabel: string): string {
+  try {
+    if (getChunkCount() === 0) return ''
+    const query = buildKBQuery(transcript, roleLabel)
+    const results = searchKB(query, USER_KB_TOP_K)
+    if (results.length === 0) return ''
+    let out = ''
+    for (const r of results) {
+      const chunk = `[${r.chunk.file_name}] ${r.chunk.content}\n`
+      if (out.length + chunk.length > USER_KB_MAX_CHARS) break
+      out += chunk
+    }
+    return out.trim()
+  } catch {
+    return ''
+  }
 }
 
 function formatTranscript(lines: TranscriptLineInput[]): string {
@@ -66,16 +92,22 @@ function formatTranscript(lines: TranscriptLineInput[]): string {
   return out
 }
 
-const SYSTEM_PROMPT = `You are a world-class executive and sales meeting coach. You read real transcripts and produce structured, evidence-based coaching.
+const SYSTEM_PROMPT = `You are a world-class coach for how someone RUNS meetings in their professional role — not a speech therapist. You read real transcripts plus role-specific guidance and judge substance, timing, and judgment.
+
+Priorities (in order):
+1. **What they said** — content, promises, claims, and whether they matched the moment (too early/late, missed follow-up, jumped to solution).
+2. **Questions vs tells** — discovery, clarity, stakeholder alignment; did they ask the right things before pitching or closing?
+3. **Role playbook** — apply the role briefing you were given (e.g. sales discovery before demo, PM outcomes before solutions). Tie micro-insights to that playbook.
+4. **Delivery metrics** (pace, fillers, long monologue) — mention only when the transcript clearly supports it as a problem for the meeting outcome, not as generic "speaking style" feedback.
 
 Rules:
 - Return ONLY a single JSON object (no markdown fences).
-- Every claim in microInsights must be grounded in the transcript: use evidenceQuote with exact or near-exact wording from the transcript when possible.
-- headline: one sharp pattern name (e.g. "You demo before you discover", "High monologue, few check-ins").
-- narrative: 2-4 sentences explaining what you observed and why it matters for their role.
-- microInsights: 3-5 objects with "text" (actionable), optional "framework" (named method), optional "evidenceQuote", "speaker" (You or Others), "time" (from transcript timestamp).
-- habitTags: array of short snake_case tags (e.g. low_questions, long_monologue, agenda_gap, filler_heavy, interruption_pattern, demo_before_discovery). Include tags supported by evidence.
-- keyMoments: 2-4 objects with "title", "quote" (short excerpt from transcript), "speaker", "time" — moments that illustrate the headline.
+- Every claim in microInsights must be grounded in the transcript: use evidenceQuote with exact or near-exact wording when possible.
+- headline: one sharp pattern about **content or meeting arc** (e.g. "You demo before you discover", "Closed without confirming success metrics").
+- narrative: 2-4 sentences on what they said/did in context of their role and why it mattered.
+- microInsights: 3-5 objects with "text" (actionable), optional "framework", optional "evidenceQuote", "speaker", "time".
+- habitTags: snake_case tags tied to **substance** when possible (e.g. agenda_gap, demo_before_discovery, low_questions, unclear_next_step); use filler_heavy or long_monologue only if transcript backs it.
+- keyMoments: 2-4 transcript moments that best illustrate the headline (what was said, when).
 - Be direct. No empty praise. If the meeting was strong, name one nuanced improvement.
 - Do not invent quotes; only use phrases that appear in the transcript.`
 
@@ -114,8 +146,13 @@ export async function analyzeConversationQuality(input: {
     ? JSON.stringify(input.heuristics)
     : 'null'
 
-  const userMessage = `${kbBlock}
+  const userKBContext = fetchUserKBContext(input.transcript, roleLabel)
+  const userKBSection = userKBContext
+    ? `\nReference material from your knowledge base (use these best practices to ground your coaching):\n${userKBContext}\n`
+    : ''
 
+  const userMessage = `${kbBlock}
+${userKBSection}
 Deterministic heuristics (trust these as facts; incorporate into habitTags and narrative when relevant):
 ${heuristicsStr}
 

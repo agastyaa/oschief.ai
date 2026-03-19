@@ -106,6 +106,7 @@ const electronAPI = {
       meetingTitle?: string
       meetingDuration?: string | null
       attendees?: string[]
+      accountDisplayName?: string
     }) => ipcRenderer.invoke('llm:summarize', data),
     chat: (data: { messages: any[]; context: any; model: string }) =>
       ipcRenderer.invoke('llm:chat', data),
@@ -230,6 +231,17 @@ const electronAPI = {
     add: (block: { id: string; title: string; startIso: string; endIso: string; noteId?: string | null }) =>
       ipcRenderer.invoke('calendar-local-blocks:add', block),
     delete: (id: string) => ipcRenderer.invoke('calendar-local-blocks:delete', id),
+  },
+
+  floating: {
+    updateMeeting: (state: { title: string; startTime: number; isRecording: boolean } | null) =>
+      ipcRenderer.send('floating:update-meeting', state),
+    focusMain: () => ipcRenderer.send('floating:focus-main'),
+    onState: (callback: (state: { title: string; startTime: number; isRecording: boolean } | null) => void) => {
+      const handler = (_event: any, s: any) => callback(s)
+      ipcRenderer.on('floating:state', handler)
+      return () => ipcRenderer.removeListener('floating:state', handler)
+    },
   },
 
   trayAgenda: {

@@ -26,6 +26,7 @@ import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATE_IDS } from "@/data/templates";
+import { loadAccountFromStorage } from "@/lib/account-context";
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -60,8 +61,8 @@ const generateLocalSummary = (
         : "No content was captured during this session. Select an STT model in Settings > AI Models for live transcription, or speak and ensure mic access is allowed.",
       keyPoints: ["No transcript or notes were recorded"],
       nextSteps: hasSTTConfigured
-        ? [{ text: "Speak or allow microphone access to capture transcript", assignee: "You", done: false }]
-        : [{ text: "Configure an STT model in Settings > AI Models for live transcription", assignee: "You", done: false }],
+        ? [{ text: "Speak or allow microphone access to capture transcript", assignee: "", done: false }]
+        : [{ text: "Configure an STT model in Settings > AI Models for live transcription", assignee: "", done: false }],
     };
   }
 
@@ -88,10 +89,10 @@ const generateLocalSummary = (
   const actionItems = allSentences
     .filter(s => actionKeywords.test(s))
     .slice(0, 4)
-    .map(s => ({ text: s, assignee: "You", done: false }));
+    .map(s => ({ text: s, assignee: "", done: false }));
 
   if (actionItems.length === 0) {
-    actionItems.push({ text: "Review notes from this session", assignee: "You", done: false });
+    actionItems.push({ text: "Review notes from this session", assignee: "", done: false });
   }
 
   // Derive a title from first substantial sentence (Granola-style auto-name fallback)
@@ -191,6 +192,8 @@ export default function NewNotePage() {
   const lastGeneratedTranscriptLengthRef = useRef(-1);
   const lastGeneratedNotesRef = useRef("");
   const userPausedRef = useRef(false);
+  /** Fire `generateNotes` once 3s after explicit pause when no real summary yet. */
+  const pauseAutoSummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggeredPauseAndSummarizeRef = useRef(false);
   const lastStartFreshKeyRef = useRef<string | null>(null);
   /** Granola-style: if user manually edited title, don't overwrite with AI-generated one */
@@ -250,7 +253,7 @@ export default function NewNotePage() {
     return parts.join('\n\n') || undefined;
   }, [usingRealAudio, transcriptLines, personalNotes]);
 
-  const { mentionHint, mentionHintLoading, onDismissMentionHint } = useNameMentionContext(
+  const { mentionHint, mentionHintLoading, onDismissMentionHint, triggerMentionLLM } = useNameMentionContext(
     transcriptLines,
     recordingState,
     selectedAIModel,
@@ -356,6 +359,7 @@ export default function NewNotePage() {
             customPrompt,
             meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
             meetingDuration: formatTime(elapsedSeconds),
+            accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
           });
         } catch (err) {
           console.error('LLM summarization failed, using local fallback:', err);
@@ -426,6 +430,50 @@ export default function NewNotePage() {
     }
   }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing, activeSession?.startTime, activeSession?.isRecording, activeSession, clearSession]);
   // Note: userHasEditedTitleRef is a ref, not in deps
+
+  const generateNotesRef = useRef(generateNotes);
+  useEffect(() => {
+    generateNotesRef.current = generateNotes;
+  }, [generateNotes]);
+
+  // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
+  useEffect(() => {
+    const clearPauseTimer = () => {
+      if (pauseAutoSummaryTimerRef.current != null) {
+        clearTimeout(pauseAutoSummaryTimerRef.current);
+        pauseAutoSummaryTimerRef.current = null;
+      }
+    };
+    clearPauseTimer();
+
+    const hasReal = !!summary && !isPlaceholderSummary(summary);
+    if (
+      recordingState !== "paused" ||
+      hasReal ||
+      isSummarizing ||
+      !userPausedRef.current
+    ) {
+      return clearPauseTimer;
+    }
+
+    const hasContent =
+      transcriptRef.current.length > 0 || personalNotes.trim().length > 0;
+    if (!hasContent) {
+      return clearPauseTimer;
+    }
+
+    pauseAutoSummaryTimerRef.current = setTimeout(() => {
+      pauseAutoSummaryTimerRef.current = null;
+      generateNotesRef
+        .current()
+        .catch((err) => {
+          console.error("Auto summary failed:", err);
+          toast.error("Summary failed. Try again.");
+        });
+    }, 3000);
+
+    return clearPauseTimer;
+  }, [recordingState, summary, isSummarizing]);
 
   // When indicator triggered "pause and summarize", we land here with state; run generateNotes with scratch and clear state
   useEffect(() => {
@@ -711,6 +759,7 @@ export default function NewNotePage() {
             customPrompt,
             meetingTitle: (eventState?.eventTitle || title || "").trim() || undefined,
             meetingDuration: formatTime(elapsedSeconds),
+            accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
           });
           setSummary(newSummary);
         } catch {
@@ -1098,6 +1147,7 @@ export default function NewNotePage() {
                 mentionContextHint={mentionHint}
                 mentionHintLoading={mentionHintLoading}
                 onDismissMentionHint={onDismissMentionHint}
+                onTriggerMentionLLM={triggerMentionLLM}
                 transcriptVisible={transcriptVisible}
                 hideTranscriptToggle={showSummaryControls}
                 onResumeRecording={handleResume}

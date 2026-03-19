@@ -8,6 +8,7 @@ import { initDatabase, getSetting } from './storage/database'
 import { ensureModelsDir } from './models/manager'
 import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
 import { setupPowerMonitor } from './power-manager'
+import { setupFloatingIndicator, destroyFloatingIndicator } from './floating-indicator'
 import { startApiServer, stopApiServer, getApiToken } from './api/server'
 import { loadOptionalProviders } from './cloud/optional-providers-loader'
 
@@ -92,6 +93,7 @@ app.whenReady().then(async () => {
 
   const mainWindow = createMainWindow()
   setupTray(mainWindow)
+  setupFloatingIndicator(mainWindow)
   startMeetingDetection(mainWindow)
   setupPowerMonitor(mainWindow)
 
@@ -112,6 +114,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopMeetingDetection()
+  destroyFloatingIndicator()
   stopApiServer().catch(() => {})
   // Kill all STT workers/processes to prevent orphaned zombies
   import('./models/stt-engine').then(({ killAllSTTProcesses }) => killAllSTTProcesses()).catch(() => {})

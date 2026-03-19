@@ -190,7 +190,8 @@ export function registerIPCHandlers(): void {
       data.customPrompt,
       data.meetingTitle,
       data.meetingDuration,
-      data.attendees
+      data.attendees,
+      data.accountDisplayName,
     )
   })
   ipcMain.handle('llm:chat', async (_e, data: any) => {

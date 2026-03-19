@@ -5,6 +5,10 @@ import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { getElectronAPI, isElectron } from "@/lib/electron-api";
 import { ChatMessageContent } from "@/components/ChatMessageContent";
 
+/** Used for one-click “You were mentioned” and / menu — sent with full note context. */
+export const WHAT_SHOULD_I_SAY_PROMPT =
+  "What should I say next? Using this meeting’s transcript and notes, give 2–4 short, concrete things I could say. If I was just mentioned by name, address that first.";
+
 interface AskBarProps {
   context?: "home" | "meeting";
   meetingTitle?: string;
@@ -25,9 +29,10 @@ interface AskBarProps {
   mentionContextHint?: string | null;
   mentionHintLoading?: boolean;
   onDismissMentionHint?: () => void;
+  onTriggerMentionLLM?: () => Promise<void>;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, noteContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -44,6 +49,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
   const contextLabel = context === "meeting" ? meetingTitle || "This note" : "All notes";
 
   const SLASH_PROMPTS = [
+    { label: "What should I say?", prompt: WHAT_SHOULD_I_SAY_PROMPT },
     { label: "TL;DR", prompt: "Give me a brief TL;DR of these notes." },
     { label: "What is being discussed", prompt: "What are the main topics being discussed?" },
     { label: "What did I miss", prompt: "What did I miss? Summarize the key points I should know." },
@@ -220,7 +226,37 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                   Summarizing what to address…
                 </p>
               ) : (
-                <p className="text-[13px] text-foreground/90 leading-snug">{mentionContextHint}</p>
+                <>
+                  <p className="text-[13px] text-foreground/90 leading-snug">{mentionContextHint}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    {onTriggerMentionLLM && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void onTriggerMentionLLM();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[12px] font-medium text-accent hover:bg-accent/20 transition-colors"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Get context
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDismissMentionHint?.();
+                        setIsActive(true);
+                        setTimeout(() => inputRef.current?.focus(), 50);
+                        void handleSend(WHAT_SHOULD_I_SAY_PROMPT);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary transition-colors"
+                    >
+                      What should I say?
+                    </button>
+                  </div>
+                </>
               )}
             </div>
             {!mentionHintLoading && onDismissMentionHint && (

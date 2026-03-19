@@ -1,8 +1,9 @@
 import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Play, X } from "lucide-react";
+import { Play, Pause, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
+import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number) {
@@ -17,6 +18,11 @@ export function LiveMeetingIndicator() {
   const location = useLocation();
   const [manuallyHidden, setManuallyHidden] = useState(false);
   const [visible, setVisible] = useState(false);
+
+  const elapsedSeconds = useElapsedTime(
+    activeSession?.startTime ?? null,
+    activeSession?.isRecording ?? false,
+  );
 
   useEffect(() => {
     setManuallyHidden(false);
@@ -46,7 +52,6 @@ export function LiveMeetingIndicator() {
 
   if (
     !activeSession ||
-    !activeSession.isRecording ||
     location.pathname === "/new-note" ||
     !prefs.showRecordingIndicator ||
     manuallyHidden
@@ -55,7 +60,7 @@ export function LiveMeetingIndicator() {
 
   const title = activeSession.title || "Recording";
   const isRecording = activeSession.isRecording;
-  const elapsed = formatTime(activeSession.elapsedSeconds ?? 0);
+  const elapsed = formatTime(elapsedSeconds);
 
   return (
     <div
@@ -73,11 +78,13 @@ export function LiveMeetingIndicator() {
           WebkitBackdropFilter: "blur(12px)",
         }}
       >
-        {isRecording && (
+        {isRecording ? (
           <span className="relative flex h-2 w-2 flex-shrink-0">
             <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
+        ) : (
+          <Pause className="h-3 w-3 text-amber-500 flex-shrink-0" />
         )}
         <span
           className="flex-1 min-w-0 truncate text-[12px] font-medium text-foreground"
@@ -103,60 +110,20 @@ export function LiveMeetingIndicator() {
               fill="currentColor"
             >
               <rect x="1" y="6" width="2.5" height="7" rx="1">
-                <animate
-                  attributeName="height"
-                  values="7;4;7"
-                  dur="0.8s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="y"
-                  values="6;8;6"
-                  dur="0.8s"
-                  repeatCount="indefinite"
-                />
+                <animate attributeName="height" values="7;4;7" dur="0.8s" repeatCount="indefinite" />
+                <animate attributeName="y" values="6;8;6" dur="0.8s" repeatCount="indefinite" />
               </rect>
               <rect x="5.5" y="3" width="2.5" height="10" rx="1">
-                <animate
-                  attributeName="height"
-                  values="10;5;10"
-                  dur="0.6s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="y"
-                  values="3;6;3"
-                  dur="0.6s"
-                  repeatCount="indefinite"
-                />
+                <animate attributeName="height" values="10;5;10" dur="0.6s" repeatCount="indefinite" />
+                <animate attributeName="y" values="3;6;3" dur="0.6s" repeatCount="indefinite" />
               </rect>
               <rect x="10" y="5" width="2.5" height="8" rx="1">
-                <animate
-                  attributeName="height"
-                  values="8;3;8"
-                  dur="0.7s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="y"
-                  values="5;8;5"
-                  dur="0.7s"
-                  repeatCount="indefinite"
-                />
+                <animate attributeName="height" values="8;3;8" dur="0.7s" repeatCount="indefinite" />
+                <animate attributeName="y" values="5;8;5" dur="0.7s" repeatCount="indefinite" />
               </rect>
               <rect x="14.5" y="4" width="2.5" height="9" rx="1">
-                <animate
-                  attributeName="height"
-                  values="9;5;9"
-                  dur="0.9s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="y"
-                  values="4;7;4"
-                  dur="0.9s"
-                  repeatCount="indefinite"
-                />
+                <animate attributeName="height" values="9;5;9" dur="0.9s" repeatCount="indefinite" />
+                <animate attributeName="y" values="4;7;4" dur="0.9s" repeatCount="indefinite" />
               </rect>
             </svg>
           ) : (
