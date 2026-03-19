@@ -129,6 +129,13 @@
     "directories": {
       "buildResources": "electron/resources"
     },
+    "extraResources": [
+      {
+        "from": "electron/main/cloud/optional-providers-dist/",
+        "to": "optional-providers/",
+        "filter": ["*.js", "*.json"]
+      }
+    ],
     "mac": {
       "target": [
         "dmg"

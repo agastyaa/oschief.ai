@@ -71,7 +71,11 @@ function loadOptionalProvidersFromDir(dir: string, skipIfAlreadyRegistered: bool
 export function loadOptionalProviders(): void {
   loadOptionalProvidersFromDir(join(app.getPath('userData'), 'optional-providers'), false)
 
-  if (!app.isPackaged) {
+  if (app.isPackaged) {
+    // Packaged builds: check extraResources for bundled optional providers
+    const resourceDir = join(process.resourcesPath, 'optional-providers')
+    loadOptionalProvidersFromDir(resourceDir, true)
+  } else {
     const devCandidates = [
       resolve(process.cwd(), 'electron/main/cloud/optional-providers-dist'),
       resolve(app.getAppPath(), 'electron/main/cloud/optional-providers-dist'),
