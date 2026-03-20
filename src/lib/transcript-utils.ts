@@ -6,13 +6,17 @@ export type TranscriptGroup = {
   indices: number[];
 };
 
-/** Parse "m:ss" or "mm:ss" transcript timestamp to total seconds. */
+/** Parse "m:ss", "mm:ss", or "h:mm:ss" transcript timestamp to total seconds. */
 export function parseTimeToSeconds(time: string): number {
-  const parts = time.split(':');
-  if (parts.length !== 2) return 0;
-  const minutes = parseInt(parts[0], 10) || 0;
-  const seconds = parseInt(parts[1], 10) || 0;
-  return minutes * 60 + seconds;
+  const parts = time.split(':').map(p => parseInt(p, 10) || 0);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
+
+/** Count words in a string. */
+export function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 /** When consecutive same-speaker chunks are ≥ this many seconds apart, start a new paragraph. */

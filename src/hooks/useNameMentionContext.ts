@@ -12,7 +12,7 @@ const STATIC_HINT =
   "You were mentioned in the conversation.";
 
 const LLM_SYSTEM =
-  "You help someone who was just addressed by name in a live meeting transcript. In one concise sentence (no greeting), state what topic or question they should speak to, or what others seem to expect from them. If unclear, say what the discussion is about right now.";
+  "You help someone who was just addressed by name in a live meeting. Reply with exactly 1-2 short sentences (no greeting, no bullet points). State what they should address or what is expected of them. Be specific and direct.";
 
 type Line = { speaker: string; time: string; text: string };
 
@@ -120,6 +120,7 @@ export function useNameMentionContext(
     }
 
     if (lineKey === processedLineKeyRef.current) return;
+    if (last.speaker === "You") return;
     if (!accountNameAppearsInText(name, last.text)) return;
     if (dismissedRef.current) return;
 

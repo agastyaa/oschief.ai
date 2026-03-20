@@ -55,9 +55,21 @@ let autoRepairInProgress = false
 const recentCorrectedSegments: string[] = []
 const MAX_RECENT_CONTEXT = 3
 
+/** Word-overlap (Jaccard) similarity between two normalized strings. Returns 0–1. */
+function textSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.split(' ').filter(Boolean))
+  const wordsB = new Set(b.split(' ').filter(Boolean))
+  if (wordsA.size === 0 && wordsB.size === 0) return 1
+  if (wordsA.size === 0 || wordsB.size === 0) return 0
+  let intersection = 0
+  for (const w of wordsA) if (wordsB.has(w)) intersection++
+  return intersection / (wordsA.size + wordsB.size - intersection)
+}
+
 /** Recent emitted transcripts for cross-channel deduplication. */
-const recentEmittedTexts: Array<{ text: string; time: number }> = []
+const recentEmittedTexts: Array<{ text: string; time: number; channel: number }> = []
 const DEDUP_WINDOW_MS = 12000 // 12s window — if same/similar text was emitted recently, skip
+const FUZZY_DEDUP_THRESHOLD = 0.75 // Jaccard word-overlap threshold for cross-channel echo suppression
 
 // Near real-time: process every 2.5s when active, 15s when idle; 1s minimum buffer for faster first result
 const CHUNK_INTERVAL_ACTIVE_MS = 5000
@@ -487,10 +499,11 @@ async function processBufferedAudio(): Promise<void> {
           recentEmittedTexts.shift()
         }
         const isDuplicate = recentEmittedTexts.some(entry => {
-          // Exact match or one is a substring of the other (handles partial overlap)
-          return entry.text === filteredNorm
-            || filteredNorm.includes(entry.text)
-            || entry.text.includes(filteredNorm)
+          if (entry.text === filteredNorm) return true
+          if (filteredNorm.includes(entry.text) || entry.text.includes(filteredNorm)) return true
+          // Fuzzy match for cross-channel echo (speaker bleed into mic)
+          if (entry.channel !== channel && textSimilarity(entry.text, filteredNorm) > FUZZY_DEDUP_THRESHOLD) return true
+          return false
         })
         if (isDuplicate) {
           audioBuffers[channel].splice(0, chunkCount)
@@ -500,7 +513,7 @@ async function processBufferedAudio(): Promise<void> {
           statusCallback?.({ state: 'stt-idle' })
           continue
         }
-        recentEmittedTexts.push({ text: filteredNorm, time: now })
+        recentEmittedTexts.push({ text: filteredNorm, time: now, channel })
 
         lastSpeechTime = Date.now()
         const time = formatTimestamp(chunkStartSec)

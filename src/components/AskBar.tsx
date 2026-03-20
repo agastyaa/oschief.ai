@@ -38,7 +38,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
 
   const [input, setInput] = useState("");
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; displayText?: string }[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,15 +79,17 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = useCallback(async (override?: string) => {
+  const handleSend = useCallback(async (override?: string, displayLabel?: string) => {
     const q = (override ?? input).trim();
     if (!q) return;
     setInput("");
     setShowChat(true);
 
-    const userMsg = { role: "user" as const, text: q };
+    const userMsg = { role: "user" as const, text: q, displayText: displayLabel };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
+
+    const isSlashPrompt = SLASH_PROMPTS.some(s => s.prompt === q);
 
     if (api && selectedAIModel) {
       try {
@@ -96,17 +98,32 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
           content: m.text,
         }));
 
-        // Load user profile from localStorage for coaching context
         let userProfile: any = undefined;
         try {
           const raw = localStorage.getItem("syag-account");
           if (raw) userProfile = JSON.parse(raw);
         } catch {}
 
+        let effectiveNotes = noteContext;
+        if (isSlashPrompt && effectiveNotes) {
+          const lines = effectiveNotes.split('\n');
+          const transcriptIdx = lines.findIndex(l => l.startsWith('TRANSCRIPT:'));
+          if (transcriptIdx >= 0) {
+            const beforeTranscript = lines.slice(0, transcriptIdx + 1);
+            const transcriptLines = lines.slice(transcriptIdx + 1);
+            const recentLines = transcriptLines.slice(-25);
+            effectiveNotes = [...beforeTranscript, ...recentLines].join('\n');
+          }
+        }
+
         const contextData: any = {};
-        if (noteContext) contextData.notes = noteContext;
-        if (userProfile?.name || userProfile?.role) contextData.userProfile = userProfile;
-        if (coachingMetrics) contextData.coachingMetrics = coachingMetrics;
+        if (effectiveNotes) contextData.notes = effectiveNotes;
+        if (isSlashPrompt) {
+          contextData.mode = 'quick';
+        } else {
+          if (userProfile?.name || userProfile?.role) contextData.userProfile = userProfile;
+          if (coachingMetrics) contextData.coachingMetrics = coachingMetrics;
+        }
 
         const response = await api.llm.chat({
           messages: chatMessages,
@@ -153,9 +170,9 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
     }
   };
 
-  const handleSlashSelect = (prompt: string) => {
+  const handleSlashSelect = (prompt: string, label?: string) => {
     setInput("");
-    handleSend(prompt);
+    handleSend(prompt, label);
   };
 
   const handleBarClick = () => {
@@ -199,7 +216,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                           : "bg-secondary text-foreground"
                       )}
                     >
-                      {msg.role === "user" ? msg.text : <ChatMessageContent text={msg.text} />}
+                      {msg.role === "user" ? (msg.displayText || msg.text) : <ChatMessageContent text={msg.text} />}
                     </div>
                   </div>
                 ))}
@@ -249,7 +266,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                         onDismissMentionHint?.();
                         setIsActive(true);
                         setTimeout(() => inputRef.current?.focus(), 50);
-                        void handleSend(WHAT_SHOULD_I_SAY_PROMPT);
+                        void handleSend(WHAT_SHOULD_I_SAY_PROMPT, "What should I say?");
                       }}
                       className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary transition-colors"
                     >
@@ -340,7 +357,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                   <button
                     key={item.label}
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleSlashSelect(item.prompt); }}
+                    onClick={(e) => { e.stopPropagation(); handleSlashSelect(item.prompt, item.label); }}
                     className="w-full px-3.5 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
                   >
                     {item.label}

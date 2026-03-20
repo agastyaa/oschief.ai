@@ -35,7 +35,7 @@ export default function NoteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { notes, updateNote } = useNotes();
-  const { activeSession, resumeSession, updateSession, clearSession } = useRecording();
+  const { activeSession, resumeSession, updateSession, clearSession, pauseAudioCapture } = useRecording();
   const { selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
   const { sidebarOpen } = useSidebarVisibility();
@@ -499,6 +499,10 @@ export default function NoteDetailPage() {
                 transcriptVisible={transcriptVisible}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 onResumeRecording={handleResume}
+                onPauseRecording={() => {
+                  setRecordingState("paused");
+                  pauseAudioCapture().catch(console.error);
+                }}
               />
             </div>
           </div>

@@ -124,7 +124,7 @@ export default function AskSyag() {
         const notesContext = buildNotesContext();
         const chatMessages = [...messages, userMsg].map(m => ({
           role: m.role,
-          content: m.text,
+          content: m.recipe?.prompt || m.text,
         }));
 
         const response = await api.llm.chat({

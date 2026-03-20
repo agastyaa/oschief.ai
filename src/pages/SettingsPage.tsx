@@ -19,6 +19,7 @@ import {
 } from "@/contexts/CalendarContext";
 import { ICSDialog, type CalendarProviderId } from "@/components/ICSDialog";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { ACCOUNT_LS_KEY } from "@/lib/account-context";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { JiraConnectDialog, type JiraConfig } from "@/components/JiraConnectDialog";
 import { SlackConnectDialog, type SlackConfig } from "@/components/SlackConnectDialog";
@@ -686,7 +687,6 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
   );
 }
 
-const ACCOUNT_LS_KEY = "syag-account";
 const PREFS_LS_KEY = "syag-preferences";
 const CALENDAR_PROVIDER_KEY = "syag_calendar_provider";
 

@@ -2,6 +2,7 @@
  * Deterministic signals for conversation coaching (transparent chips + LLM grounding).
  * Pure functions — safe to run in renderer; same inputs passed to main for analysis.
  */
+import { countWords } from './transcript-utils'
 
 import type { TranscriptLine } from "./coaching-analytics";
 
@@ -18,10 +19,6 @@ export type ConversationHeuristics = {
 
 const SALES_DISCOVERY = /\b(pain|priority|budget|timeline|decision|stakeholder|goal|challenge|problem|need|current process)\b/i
 const SALES_DEMO = /\b(let me show|demo|screen.?share|walk you through|as you can see|click here)\b/i
-
-function countWords(s: string): number {
-  return s.trim().split(/\s+/).filter(Boolean).length
-}
 
 /**
  * Heuristics from transcript. meetingDurationSec optional for density hints.

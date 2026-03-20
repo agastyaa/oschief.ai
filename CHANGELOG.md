@@ -4,6 +4,19 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.7.0]
+
+- **Fix false "You were mentioned" alerts:** Mention detection now only triggers on speech from others (system audio), not your own mic. Fuzzy Levenshtein matching removed — only exact name matches trigger alerts.
+- **Faster "What should I say?" and slash prompts:** Slash-menu prompts (TL;DR, What should I say, Coach me, etc.) now use only the last 25 transcript lines and a lean system prompt, dramatically reducing response time for long meetings.
+- **Clean chat UI:** Slash prompts show a friendly label ("What should I say?") in the chat bubble instead of the raw system instruction.
+- **Content protection wired up:** "Hide from screen share" toggle in Settings now actually works — calls Electron's setContentProtection API.
+- **NoteDetailPage pause fix:** Pause button in the AskBar on saved notes now correctly pauses recording instead of crashing.
+- **Dead code cleanup:** Removed 8 unused components (MeetingPage, MeetingDetail, HomeShelf, MeetingCard, ActionItemsThisWeek, CompactCommitmentsCard, CoachingPulseCard, LiveCoachOverlay) and dead data/meetings.ts.
+- **Unified folder state:** Removed duplicate note-to-folder tracking from FolderContext; NotesContext is now the single source of truth for folder assignments.
+- **DRY helpers:** Consolidated duplicate `parseTimeToSeconds` (3 copies) and `countWords` (2 copies) into shared exports in `transcript-utils.ts`.
+- **Shared constants:** SettingsPage now imports `ACCOUNT_LS_KEY` from `account-context.ts` instead of redefining it.
+- **Tests updated:** Account-context tests updated to match strict matching behavior; all 112 tests pass.
+
 ## [1.6.0]
 
 - **Conversation analysis fix:** AI model resolver now reads from both legacy and new settings storage, fixing "conversation analysis didn't complete" errors.

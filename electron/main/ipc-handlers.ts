@@ -1,5 +1,5 @@
 import { ipcMain, systemPreferences, desktopCapturer, app, safeStorage, BrowserWindow } from 'electron'
-import { getMainWindow } from './windows'
+import { getMainWindow, setContentProtection } from './windows'
 import { updateTrayRecordingState, updateTrayMeetingInfo, rebuildTrayContextMenu } from './tray'
 import { setCalendarEvents } from './meeting-detector'
 import {
@@ -772,6 +772,12 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('kb:get-live-suggestions', async (_e, recentTranscript: string, model?: string) => {
     const { getLiveSuggestions } = await import('./knowledge-base/live-suggestions')
     return getLiveSuggestions(recentTranscript, model)
+  })
+
+  // --- Content protection (hide from screen share) ---
+  ipcMain.handle('window:set-content-protection', async (_e, enabled: boolean) => {
+    setContentProtection(enabled)
+    return true
   })
 
   // --- Window visibility (for recording privacy) ---

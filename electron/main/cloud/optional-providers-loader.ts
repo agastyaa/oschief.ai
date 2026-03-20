@@ -14,6 +14,7 @@ import { app, ipcMain } from 'electron'
 import { join, resolve } from 'path'
 import { readdirSync, existsSync, readFileSync } from 'fs'
 import { createRequire } from 'module'
+import Anthropic from '@anthropic-ai/sdk'
 import {
   registerOptionalProvider,
   getApiKey,
@@ -50,12 +51,7 @@ function loadOptionalProvidersFromDir(dir: string, skipIfAlreadyRegistered: bool
       const nodeRequire = createRequire(join(dir, '_'))
       const mod = nodeRequire(jsPath)
       if (typeof mod.register !== 'function') continue
-      let anthropic: OptionalProviderAPI['anthropic']
-      try {
-        anthropic = nodeRequire('@anthropic-ai/sdk').default
-      } catch {
-        anthropic = null
-      }
+      const anthropic: OptionalProviderAPI['anthropic'] = Anthropic ?? null
       const api: OptionalProviderAPI = {
         getApiKey,
         registerOptionalProvider,

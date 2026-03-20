@@ -1,3 +1,5 @@
+import { parseTimeToSeconds } from './transcript-utils'
+
 /**
  * Live Coaching Engine
  *
@@ -39,15 +41,7 @@ export interface TranscriptLine {
   text: string
 }
 
-/**
- * Parse a time string like "0:42" or "12:05" into total seconds.
- */
-function parseTimeToSeconds(time: string): number {
-  const parts = time.split(':').map(Number)
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  return 0
-}
+// parseTimeToSeconds imported from transcript-utils.ts
 
 /**
  * Count filler words in text (case-insensitive, word boundary aware).

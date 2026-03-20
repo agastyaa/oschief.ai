@@ -86,19 +86,24 @@ Tailor every insight to their specific role and seniority. Always relate coachin
 }
 
 function buildChatSystemMessage(context: any): string {
+  if (context?.mode === 'quick') {
+    let prompt = `You are Syag, an AI meeting assistant. The user is in a live meeting right now and needs a fast, specific answer based on the transcript below. Be direct — reference what was actually said, use names and topics from the transcript. No generic advice. Keep it short (2-4 bullet points max).`
+    if (context?.notes) {
+      prompt += `\n\nMeeting transcript and notes:\n${context.notes}`
+    }
+    return prompt
+  }
+
   let prompt = CHAT_SYSTEM_PROMPT
 
-  // Inject coaching intelligence when user profile is available
   if (context?.userProfile) {
     prompt += '\n\n' + buildCoachingPrompt(context.userProfile)
   }
 
-  // Inject coaching metrics when available
   if (context?.coachingMetrics) {
     prompt += `\n\n**User's recent coaching metrics:**\n${JSON.stringify(context.coachingMetrics, null, 2)}`
   }
 
-  // Inject notes context
   if (context?.notes) {
     prompt += `\n\nContext from user's notes:\n${context.notes}`
   }

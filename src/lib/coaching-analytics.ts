@@ -1,3 +1,5 @@
+import { parseTimeToSeconds, countWords } from './transcript-utils'
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export interface TranscriptLine {
@@ -172,16 +174,7 @@ function emptyMetrics(): CoachingMetrics {
   }
 }
 
-function parseTimeToSec(time: string): number {
-  const parts = time.split(':').map(Number)
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  return 0
-}
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length
-}
+const parseTimeToSec = parseTimeToSeconds
 
 /**
  * Estimate speaking time per speaker using chunk timestamps.

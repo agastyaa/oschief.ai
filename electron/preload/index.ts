@@ -374,6 +374,11 @@ const electronAPI = {
       ipcRenderer.invoke('kb:get-live-suggestions', recentTranscript, model) as Promise<{ text: string; source: string }[]>,
   },
 
+  contentProtection: {
+    set: (enabled: boolean) =>
+      ipcRenderer.invoke('window:set-content-protection', enabled) as Promise<boolean>,
+  },
+
   window: {
     hide: () =>
       ipcRenderer.invoke('window:hide') as Promise<void>,

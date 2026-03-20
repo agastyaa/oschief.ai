@@ -1,10 +1,9 @@
 import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Play, Pause, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
-import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -40,14 +39,6 @@ export function LiveMeetingIndicator() {
     navigate(`/new-note?session=${activeSession?.noteId}`);
   }, [activeSession?.noteId, navigate]);
 
-  const handleTimerClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      handleGoToNote();
-    },
-    [handleGoToNote]
-  );
-
   const prefs = loadPreferences();
 
   if (
@@ -72,72 +63,98 @@ export function LiveMeetingIndicator() {
       }}
     >
       <div
-        className="flex items-center gap-2 rounded-full border border-border/50 bg-card/95 shadow-lg px-3 py-2 min-w-[200px] max-w-[280px] animate-in fade-in duration-200"
+        onClick={handleGoToNote}
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 14px",
+          borderRadius: 24,
+          background: "rgba(30, 28, 25, 0.92)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
+          color: "#fff",
+          cursor: "pointer",
+          fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+          fontSize: 12,
+          fontWeight: 500,
+          userSelect: "none",
+          overflow: "hidden",
+          minWidth: 200,
+          maxWidth: 280,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
         }}
       >
         {isRecording ? (
-          <span className="relative flex h-2 w-2 flex-shrink-0">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-          </span>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#ef4444",
+              flexShrink: 0,
+              animation: "live-indicator-pulse 1.5s ease-in-out infinite",
+            }}
+          />
         ) : (
-          <Pause className="h-3 w-3 text-amber-500 flex-shrink-0" />
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#f59e0b",
+              flexShrink: 0,
+            }}
+          />
         )}
         <span
-          className="flex-1 min-w-0 truncate text-[12px] font-medium text-foreground"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
           title={title}
         >
           {title}
         </span>
-        <button
-          onClick={handleTimerClick}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full border shadow px-2.5 py-1.5 transition-colors",
-            isRecording
-              ? "border-border bg-card text-muted-foreground hover:text-foreground"
-              : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
-          )}
-          title="Go to note"
+        <span
+          style={{
+            fontVariantNumeric: "tabular-nums",
+            opacity: 0.8,
+            flexShrink: 0,
+          }}
         >
-          {elapsed && <span className="text-[11px] font-medium">{elapsed}</span>}
-          {isRecording ? (
-            <svg
-              className="h-3.5 w-3.5 text-accent"
-              viewBox="0 0 18 16"
-              fill="currentColor"
-            >
-              <rect x="1" y="6" width="2.5" height="7" rx="1">
-                <animate attributeName="height" values="7;4;7" dur="0.8s" repeatCount="indefinite" />
-                <animate attributeName="y" values="6;8;6" dur="0.8s" repeatCount="indefinite" />
-              </rect>
-              <rect x="5.5" y="3" width="2.5" height="10" rx="1">
-                <animate attributeName="height" values="10;5;10" dur="0.6s" repeatCount="indefinite" />
-                <animate attributeName="y" values="3;6;3" dur="0.6s" repeatCount="indefinite" />
-              </rect>
-              <rect x="10" y="5" width="2.5" height="8" rx="1">
-                <animate attributeName="height" values="8;3;8" dur="0.7s" repeatCount="indefinite" />
-                <animate attributeName="y" values="5;8;5" dur="0.7s" repeatCount="indefinite" />
-              </rect>
-              <rect x="14.5" y="4" width="2.5" height="9" rx="1">
-                <animate attributeName="height" values="9;5;9" dur="0.9s" repeatCount="indefinite" />
-                <animate attributeName="y" values="4;7;4" dur="0.9s" repeatCount="indefinite" />
-              </rect>
-            </svg>
-          ) : (
-            <Play className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          onClick={() => setManuallyHidden(true)}
-          className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          {elapsed}
+        </span>
+        <span
+          onClick={(e) => { e.stopPropagation(); setManuallyHidden(true); }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            cursor: "pointer",
+            flexShrink: 0,
+            opacity: 0.5,
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.5"; }}
           title="Dismiss"
         >
-          <X className="h-3.5 w-3.5" />
-        </button>
+          <X style={{ width: 12, height: 12 }} />
+        </span>
       </div>
+      <style>{`
+        @keyframes live-indicator-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
     </div>
   );
 }

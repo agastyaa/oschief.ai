@@ -14,10 +14,6 @@ interface FolderContextType {
   getOrCreateFolderByName: (name: string) => Folder;
   deleteFolder: (id: string) => void;
   renameFolder: (id: string, name: string) => void;
-  noteFolders: Record<string, string>;
-  addNoteToFolder: (noteId: string, folderId: string) => void;
-  removeNoteFromFolder: (noteId: string) => void;
-  getNotesInFolder: (folderId: string) => string[];
 }
 
 const LS_KEY = "syag-folders";
@@ -45,7 +41,6 @@ export function FolderProvider({ children }: { children: ReactNode }) {
   const api = getElectronAPI();
   const stored = isElectron ? { folders: [], noteFolders: {} } : loadFoldersFromLS();
   const [folders, setFolders] = useState<Folder[]>(stored.folders);
-  const [noteFolders, setNoteFolders] = useState<Record<string, string>>(stored.noteFolders);
 
   useEffect(() => {
     if (api) {
@@ -56,10 +51,10 @@ export function FolderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!api) {
       try {
-        localStorage.setItem(LS_KEY, JSON.stringify({ folders, noteFolders }));
+        localStorage.setItem(LS_KEY, JSON.stringify({ folders, noteFolders: {} }));
       } catch {}
     }
-  }, [folders, noteFolders]);
+  }, [folders]);
 
   const createFolder = (name: string): Folder => {
     const folder: Folder = {
@@ -85,11 +80,6 @@ export function FolderProvider({ children }: { children: ReactNode }) {
 
   const deleteFolder = (id: string) => {
     setFolders((prev) => prev.filter((f) => f.id !== id));
-    setNoteFolders((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((k) => { if (next[k] === id) delete next[k]; });
-      return next;
-    });
     if (api) {
       api.db.folders.delete(id).catch(console.error);
     }
@@ -102,24 +92,8 @@ export function FolderProvider({ children }: { children: ReactNode }) {
     }
   }, [api]);
 
-  const addNoteToFolder = (noteId: string, folderId: string) => {
-    setNoteFolders((prev) => ({ ...prev, [noteId]: folderId }));
-  };
-
-  const removeNoteFromFolder = (noteId: string) => {
-    setNoteFolders((prev) => {
-      const next = { ...prev };
-      delete next[noteId];
-      return next;
-    });
-  };
-
-  const getNotesInFolder = (folderId: string) => {
-    return Object.entries(noteFolders).filter(([_, fId]) => fId === folderId).map(([nId]) => nId);
-  };
-
   return (
-    <FolderContext.Provider value={{ folders, createFolder, getOrCreateFolderByName, deleteFolder, renameFolder, noteFolders, addNoteToFolder, removeNoteFromFolder, getNotesInFolder }}>
+    <FolderContext.Provider value={{ folders, createFolder, getOrCreateFolderByName, deleteFolder, renameFolder }}>
       {children}
     </FolderContext.Provider>
   );
