@@ -98,13 +98,8 @@ export async function routeLLM(
       return chatGoogle(messages, modelName, apiKey, onChunk)
     case 'groq':
       return chatGroq(messages, modelName, apiKey, onChunk)
-    default: {
-      const hint =
-        providerId === 'copart'
-          ? ' Copart Genie is an optional add-on: add copart.js + copart.json to Syag’s optional-providers folder (see docs/optional-provider-install.md), then restart the app.'
-          : ' If this is a custom provider, install its files in Application Support → Syag → optional-providers.'
-      throw new Error(`Unknown LLM provider: ${providerId}.${hint} Or pick OpenAI, Anthropic, Google, Groq, or a local model in Settings.`)
-    }
+    default:
+      throw new Error(`Unknown LLM provider: ${providerId}. If this is an optional provider, install its files in Application Support > Syag > optional-providers and restart. Or pick OpenAI, Anthropic, Google, Groq, or a local model in Settings.`)
   }
 }
 
@@ -141,13 +136,8 @@ export async function routeSTT(wavBuffer: Buffer, model: string, vocabulary?: st
       return sttAssemblyAI(wavBuffer, apiKey)
     case 'groq':
       return sttGroq(wavBuffer, apiKey, prompt)
-    default: {
-      const sttHint =
-        providerId === 'copart'
-          ? ' Install the Copart optional provider bundle in Syag → optional-providers (see docs/optional-provider-install.md).'
-          : ' Custom STT providers must be loaded from optional-providers.'
-      throw new Error(`Unknown STT provider: ${providerId}.${sttHint}`)
-    }
+    default:
+      throw new Error(`Unknown STT provider: ${providerId}. If this is an optional provider, install its files in Application Support > Syag > optional-providers and restart. Or pick Deepgram, AssemblyAI, Groq, or a local model in Settings.`)
   }
 }
 

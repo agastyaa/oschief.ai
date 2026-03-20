@@ -37,9 +37,9 @@ export type LocalModel = {
 };
 
 export const localModels: LocalModel[] = [
-  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon — Syag auto-installs ffmpeg (Homebrew) + pip package; toasts show each step" },
-  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build — same auto steps (ffmpeg + pip); step-by-step toasts" },
-  { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "Recommended — model download + whisper-cli setup (build or Homebrew); toasts list progress" },
+  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 Syag auto-installs ffmpeg (Homebrew) + pip package; toasts show each step" },
+  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build \u2014 same auto steps (ffmpeg + pip); step-by-step toasts" },
+  { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "Recommended \u2014 model download + whisper-cli setup (build or Homebrew); toasts list progress" },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM" },
   { id: "phi-3-mini", name: "Phi-3 Mini", size: "2.3 GB", type: "llm", description: "Microsoft's efficient model" },
   { id: "gemma-2-2b", name: "Gemma 2 2B", size: "1.6 GB", type: "llm", description: "Google's lightweight model" },
@@ -91,8 +91,6 @@ interface ModelSettingsContextType {
   getAvailableAIModels: () => { value: string; label: string; group: string }[];
   appleFoundationAvailable: boolean;
   effectiveProviders: ModelProvider[];
-  optionalProviderIds: string[];
-  optionalFetchedModels: Record<string, { models: string[]; sttModels: string[] }>;
 }
 
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
@@ -121,25 +119,9 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
   const [modelsListFetched, setModelsListFetched] = useState(false);
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
-  const [optionalProviders, setOptionalProviders] = useState<{ id: string; name: string; icon: string; supportsStt?: boolean }[]>([]);
-  /** True after main process has responded with optional-provider list (may be empty). */
-  const [optionalProvidersReady, setOptionalProvidersReady] = useState(false);
-  const [optionalFetchedModels, setOptionalFetchedModels] = useState<Record<string, { models: string[]; sttModels: string[] }>>({});
   const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
 
-  const effectiveProviders = useMemo(
-    () => [
-      ...enterpriseProviders,
-      ...optionalProviders.map((p) => ({
-        id: p.id,
-        name: p.name,
-        icon: p.icon,
-        models: [] as string[],
-        supportsStt: p.supportsStt,
-      })),
-    ],
-    [optionalProviders]
-  );
+  const effectiveProviders = enterpriseProviders;
 
   // Apple (on-device) Foundation Model availability
   useEffect(() => {
@@ -147,94 +129,28 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     api.app.isAppleFoundationAvailable().then(setAppleFoundationAvailable).catch(() => setAppleFoundationAvailable(false));
   }, [api]);
 
-  // Optional providers — only when user has the optional-providers files in userData
+  /** Drop AI selection if it references a provider that isn't known. */
   useEffect(() => {
-    if (!api?.app?.getOptionalProviders) {
-      setOptionalProvidersReady(true);
-      return;
-    }
-    api.app
-      .getOptionalProviders()
-      .then(setOptionalProviders)
-      .catch(() => setOptionalProviders([]))
-      .finally(() => setOptionalProvidersReady(true));
-  }, [api]);
-
-  /** Drop AI selection if it references a provider that isn’t built-in and isn’t loaded (e.g. copart without optional bundle). */
-  useEffect(() => {
-    if (!modelsListFetched || !dbSettingsLoaded || !optionalProvidersReady) return;
+    if (!modelsListFetched || !dbSettingsLoaded) return;
     const m = selectedAIModel;
-    if (!m || !m.includes(":")) {
-      return;
-    }
+    if (!m || !m.includes(":")) return;
     const prefix = m.split(":")[0];
     if (prefix === "local" || prefix === "apple") {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
-    const builtInAi = enterpriseProviders.filter((p) => !p.sttOnly).some((p) => p.id === prefix);
-    if (builtInAi) {
-      lastInvalidAiPrefixToastRef.current = null;
-      return;
-    }
-    if (optionalProviders.some((p) => p.id === prefix)) {
+    if (enterpriseProviders.some((p) => p.id === prefix)) {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
     if (lastInvalidAiPrefixToastRef.current === prefix) return;
     lastInvalidAiPrefixToastRef.current = prefix;
     setSelectedAIModel("");
-    toast.error("Previous AI model isn’t available", {
-      description: `“${prefix}” isn’t loaded (optional providers live in Application Support → Syag → optional-providers). Choose another model under Settings → AI Models.`,
+    toast.error("Previous AI model isn't available", {
+      description: `Provider "${prefix}" is not recognized. Choose another model under Settings \u2192 AI Models.`,
       duration: 12_000,
     });
-  }, [
-    selectedAIModel,
-    optionalProviders,
-    optionalProvidersReady,
-    modelsListFetched,
-    dbSettingsLoaded,
-  ]);
-
-  // Load keychain for optional providers when they become available
-  useEffect(() => {
-    if (!api?.keychain || optionalProviders.length === 0) return;
-    for (const p of optionalProviders) {
-      api.keychain.get(p.id).then((key) => {
-        if (key) {
-          setConnectedProviders((prev) => ({
-            ...prev,
-            [p.id]: { connected: true, apiKey: key },
-          }));
-        }
-      });
-    }
-  }, [api, optionalProviders]);
-
-  // Fetch models for each connected optional provider
-  useEffect(() => {
-    if (!api?.app?.invokeOptionalProvider || optionalProviders.length === 0) return;
-    for (const p of optionalProviders) {
-      if (!connectedProviders[p.id]?.connected) continue;
-      api.app.invokeOptionalProvider(p.id, 'listModels').then((res: { models?: { id: string }[]; sttModels?: { id: string }[] }) => {
-        if (res?.models || res?.sttModels) {
-          setOptionalFetchedModels((prev) => ({
-            ...prev,
-            [p.id]: {
-              models: (res.models || []).map((m) => m.id),
-              sttModels: (res.sttModels || []).map((m) => m.id),
-            },
-          }));
-        }
-      }).catch(() => {
-        setOptionalFetchedModels((prev) => {
-          const next = { ...prev };
-          delete next[p.id];
-          return next;
-        });
-      });
-    }
-  }, [api, optionalProviders, connectedProviders]);
+  }, [selectedAIModel, modelsListFetched, dbSettingsLoaded]);
 
   // Sync download states from Electron main process on mount
   useEffect(() => {
@@ -244,10 +160,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       const onDisk = new Set(downloaded);
       setDownloadStates((prev) => {
         const next = { ...prev };
-        // Mark models found on disk as downloaded
         for (const id of downloaded) next[id] = "downloaded";
-        // Clear stale "downloaded" state for binary models NOT on disk
-        // (MLX models are checked separately, so skip those)
         const mlxIds = new Set(['mlx-whisper-large-v3-turbo', 'mlx-whisper-large-v3-turbo-8bit', 'thestage-whisper-apple']);
         for (const lm of localModels) {
           if (!mlxIds.has(lm.id) && !onDisk.has(lm.id) && next[lm.id] === 'downloaded') {
@@ -259,7 +172,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       setModelsListFetched(true);
     });
 
-    // Load API keys from keychain (effectiveProviders includes optional providers when loaded)
     const loadKeychain = (providers: ModelProvider[]) => {
       for (const provider of providers) {
         api.keychain.get(provider.id).then((key) => {
@@ -293,7 +205,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     const cleanupComplete = api.models.onDownloadComplete((data) => {
       if (data.success) {
         setDownloadStates((prev) => ({ ...prev, [data.modelId]: "downloaded" }));
-        // Auto-select default models when installed on first launch
         if (data.modelId === "whisper-large-v3-turbo") {
           setSelectedSTTModel((prev) => (prev === "" ? "local:whisper-large-v3-turbo" : prev));
         }
@@ -309,7 +220,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
               duration: 14_000,
             })
           } else {
-            toast.warning("Model file saved — speech CLI still needed", {
+            toast.warning("Model file saved \u2014 speech CLI still needed", {
               description: desc,
               duration: 22_000,
             })
@@ -486,7 +397,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     });
   }, [api, modelsListFetched, downloadStates, handleDownload]);
 
-  // Only auto-select a local STT model when "Use local by default" is on.
   // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
   useEffect(() => {
     if (!useLocalModels || selectedSTTModel) return;
@@ -497,8 +407,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   }, [useLocalModels, downloadStates, selectedSTTModel]);
 
   // Persist to BOTH localStorage and DB so sync load always works
-  // IMPORTANT: Only persist AFTER initial data has been fully loaded from filesystem + DB
-  // to avoid overwriting saved states with empty defaults on mount
   useEffect(() => {
     if (!modelsListFetched || !dbSettingsLoaded) return;
     const data = { selectedAIModel, selectedSTTModel, useLocalModels, downloadStates, connectedProviders, hiddenLocalModels };
@@ -514,15 +422,12 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       delete next[modelId];
       return next;
     });
-    // If the deleted model was selected for STT or AI, clear selection so we don't keep using it
     setSelectedSTTModel((prev) => (prev === `local:${modelId}` ? "" : prev));
     setSelectedAIModel((prev) => (prev === `local:${modelId}` ? "" : prev));
-    // MLX is re-detected on load; hide it so it doesn't reappear until user downloads again
     if (modelId === 'mlx-whisper-large-v3-turbo' || modelId === 'mlx-whisper-large-v3-turbo-8bit' || modelId === 'thestage-whisper-apple') {
       setHiddenLocalModels((prev) => (prev.includes(modelId) ? prev : [...prev, modelId]));
     }
     if (api) {
-      // MLX models: full uninstall (pip uninstall + remove HuggingFace cache)
       if (modelId === 'mlx-whisper-large-v3-turbo' && api.models.uninstallMLXWhisper) {
         try {
           const result = await api.models.uninstallMLXWhisper();
@@ -614,13 +519,9 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       .forEach(([pid]) => {
         const provider = effectiveProviders.find((p) => p.id === pid);
         if (!provider || provider.sttOnly) return;
-        const fetched = optionalFetchedModels[pid];
-        const aiModels =
-          fetched?.models?.length
-            ? fetched.models
-            : provider.supportsStt
-              ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
-              : provider.models;
+        const aiModels = provider.supportsStt
+          ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
+          : provider.models;
         aiModels.forEach((m) =>
           models.push({ value: `${pid}:${m}`, label: m, group: provider.name })
         );
@@ -641,8 +542,6 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         getActiveAIModelLabel, getAvailableAIModels,
         appleFoundationAvailable,
         effectiveProviders,
-        optionalProviderIds: optionalProviders.map((p) => p.id),
-        optionalFetchedModels,
       }}
     >
       {children}

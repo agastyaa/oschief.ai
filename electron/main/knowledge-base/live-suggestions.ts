@@ -7,7 +7,7 @@
 
 import { searchKB, getChunkCount } from './kb-store'
 import { routeLLM } from '../cloud/router'
-import { getSetting } from '../storage/database'
+import { resolveSelectedAIModel } from '../models/model-resolver'
 
 export interface Suggestion {
   text: string
@@ -47,7 +47,7 @@ export async function getLiveSuggestions(
 ): Promise<Suggestion[]> {
   if (getChunkCount() === 0) return []
 
-  const aiModel = model || getSetting('selected-ai-model')
+  const aiModel = resolveSelectedAIModel(model)
   if (!aiModel) return []
 
   const keyTerms = extractKeyTerms(recentTranscript)

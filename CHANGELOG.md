@@ -4,6 +4,15 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.6.0]
+
+- **Conversation analysis fix:** AI model resolver now reads from both legacy and new settings storage, fixing "conversation analysis didn't complete" errors.
+- **My To-dos:** Commitments page gains a "My" filter showing action items assigned to you, plus a personal to-do input for quick adds.
+- **Editable assignees:** "Me" and "Unassigned" action item assignees are now click-to-edit inline.
+- **Ask Syag improvements:** Recipe chips (TL;DR, Action items, Weekly recap) now send focused prompts; context size bounded to prevent generic responses.
+- **Diarization toggle:** Disabled with "Coming soon" label until backend wiring is complete.
+- **Cleanup:** Removed enterprise provider code from main repo; optional providers can still be loaded from `userData/optional-providers/`.
+
 ## [1.3.2]
 
 - **Action items:** Summaries default to **unassigned** owners; no auto-**Me**/**You** from the model. Optional `accountDisplayName` on summarize for assignee normalization.
@@ -22,24 +31,24 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 - **Screenshot / recording privacy:** Content protection replaced with window hide/show; Syag can be hidden from screen share during recording.
 - **Local Llama:** Summarization and chat when using a local model now use fixed context (8192) and 4 threads to avoid overwhelming the machine.
-- **Optional providers:** Copart removed from the main repo; optional providers (e.g. Copart) can be loaded from `userData/optional-providers/`. See docs for installing optional providers.
+- **Optional providers:** Optional providers can be loaded from `userData/optional-providers/`. See docs for installing optional providers.
 
 ## [1.1.2]
 
 - **Audio reliability & zombie process fix:** Safer cleanup of STT workers and processes.
 - **Safe JSON parse:** More robust parsing for stored transcript/summary data.
 - **UI/data:** Built-in template list and tests added (`src/data/templates.ts`, `src/data/__tests__/templates.test.ts`).
-- **Optional providers:** Generic optional-provider loader; Copart removed from repo (available as optional provider).
+- **Optional providers:** Generic optional-provider loader for add-on integrations.
 
 ## [1.1.1]
 
-- **Same codebase as 1.1.0**, with **Copart built-in** (no optional-provider setup required).
+- **Same codebase as 1.1.0**, with an additional built-in provider (no optional-provider setup required).
 - Tag `v1.1.1` points to the same commit as `v1.1.0` for testing the pre–optional-provider setup.
 
 ## [1.1.0]
 
 - **Read-only Agent API** via Unix domain socket for AI agents and tools to query notes locally.
-- **Copart Genie** built-in for chat and STT when configured in Settings.
+- **Enterprise provider** built-in for chat and STT when configured in Settings.
 - Core meeting notes, summaries, calendar, and coaching features.
 
 ---

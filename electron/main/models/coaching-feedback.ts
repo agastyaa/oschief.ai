@@ -8,7 +8,7 @@
 
 import { routeLLM } from '../cloud/router'
 import { getRoleKB, ROLES } from './coaching-kb'
-import { getSetting } from '../storage/database'
+import { resolveSelectedAIModel } from './model-resolver'
 
 export interface RoleCoachingResult {
   roleInsights: string[]
@@ -30,7 +30,7 @@ export async function generateRoleCoachingInsights(
   roleId: string,
   model?: string
 ): Promise<RoleCoachingResult> {
-  const aiModel = model || getSetting('selected-ai-model')
+  const aiModel = resolveSelectedAIModel(model)
   if (!aiModel) return { roleInsights: [], roleId }
 
   const kb = getRoleKB(roleId)

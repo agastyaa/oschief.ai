@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
+import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
 import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, Filter, ArrowRight, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -9,7 +10,7 @@ import { format, isPast, parseISO, isValid } from "date-fns"
 
 interface Commitment {
   id: string
-  note_id: string
+  note_id?: string | null
   text: string
   owner: string
   assignee_name?: string
@@ -23,7 +24,7 @@ interface Commitment {
   note_date?: string
 }
 
-type FilterStatus = "all" | "open" | "completed" | "overdue"
+type FilterStatus = "all" | "open" | "completed" | "overdue" | "my"
 
 const STATUS_CONFIG = {
   open: { label: "Open", icon: Circle, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -38,8 +39,20 @@ const CommitmentsPage = () => {
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [filter, setFilter] = useState<FilterStatus>("open")
   const [loading, setLoading] = useState(true)
+  const [newTodoText, setNewTodoText] = useState("")
+  const [addingTodo, setAddingTodo] = useState(false)
 
   const api = getElectronAPI()
+  const accountName = useMemo(() => loadAccountFromStorage().name?.trim() || "", [])
+
+  const isMyCommitment = useCallback((c: Commitment) => {
+    const ownerNorm = normalizeForNameCompare(c.owner || "")
+    const assigneeNorm = normalizeForNameCompare(c.assignee_name || "")
+    const accountNorm = normalizeForNameCompare(accountName)
+    const ownerIsMe = ownerNorm === "you" || ownerNorm === "me"
+    const assigneeIsMe = assigneeNorm === "me" || assigneeNorm === "you" || (!!accountNorm && assigneeNorm === accountNorm)
+    return ownerIsMe || assigneeIsMe
+  }, [accountName])
 
   const loadCommitments = useCallback(async () => {
     if (!api?.memory) {
@@ -47,14 +60,13 @@ const CommitmentsPage = () => {
       return
     }
     try {
-      const filters = filter === "all" ? undefined : { status: filter }
-      const result = await api.memory.commitments.getAll(filters)
+      const result = await api.memory.commitments.getAll()
       setCommitments(result || [])
     } catch (err) {
       console.error("Failed to load commitments:", err)
     }
     setLoading(false)
-  }, [api, filter])
+  }, [api])
 
   useEffect(() => {
     loadCommitments()
@@ -75,12 +87,39 @@ const CommitmentsPage = () => {
     open: commitments.filter(c => c.status === "open").length,
     completed: commitments.filter(c => c.status === "completed").length,
     overdue: commitments.filter(c => c.status === "overdue").length,
+    my: commitments.filter(c => isMyCommitment(c) && (c.status === "open" || c.status === "overdue")).length,
   }
 
   const totalOpen = commitments.filter(c => c.status === "open" || c.status === "overdue").length
 
+  const filteredCommitments = useMemo(() => {
+    if (filter === "all") return commitments
+    if (filter === "my") {
+      return commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
+    }
+    return commitments.filter((c) => c.status === filter)
+  }, [commitments, filter, isMyCommitment])
+
+  const handleAddTodo = useCallback(async () => {
+    const text = newTodoText.trim()
+    if (!text || !api?.memory?.commitments?.add || addingTodo) return
+    setAddingTodo(true)
+    try {
+      await api.memory.commitments.add({
+        text,
+        owner: "you",
+      })
+      setNewTodoText("")
+      await loadCommitments()
+    } catch (err) {
+      console.error("Failed to add to-do:", err)
+    } finally {
+      setAddingTodo(false)
+    }
+  }, [newTodoText, api, addingTodo, loadCommitments])
+
   // Group by date for better display
-  const grouped = commitments.reduce<Record<string, Commitment[]>>((acc, c) => {
+  const grouped = filteredCommitments.reduce<Record<string, Commitment[]>>((acc, c) => {
     const key = c.note_date || c.created_at?.split("T")[0] || "Unknown"
     ;(acc[key] = acc[key] || []).push(c)
     return acc
@@ -114,9 +153,35 @@ const CommitmentsPage = () => {
               </div>
             </div>
 
+            {/* Add to-do */}
+            <div className="mb-5 rounded-lg border border-border bg-card/40 p-3">
+              <p className="text-xs text-muted-foreground mb-2">Add a personal to-do</p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={newTodoText}
+                  onChange={(e) => setNewTodoText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      void handleAddTodo()
+                    }
+                  }}
+                  placeholder="Write a to-do..."
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  onClick={() => void handleAddTodo()}
+                  disabled={addingTodo || !newTodoText.trim()}
+                  className="rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addingTodo ? "Adding..." : "Add"}
+                </button>
+              </div>
+            </div>
+
             {/* Filter tabs */}
             <div className="flex items-center gap-1 mb-6 border-b border-border pb-2">
-              {(["open", "completed", "overdue", "all"] as const).map((f) => (
+              {(["my", "open", "completed", "overdue", "all"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -127,12 +192,15 @@ const CommitmentsPage = () => {
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   )}
                 >
-                  {f === "all" ? "All" : STATUS_CONFIG[f].label}
+                  {f === "all" ? "All" : f === "my" ? "My" : STATUS_CONFIG[f].label}
                   {f !== "all" && f === "open" && counts.open > 0 && (
                     <span className="ml-1.5 text-[10px] opacity-60">{counts.open}</span>
                   )}
                   {f === "overdue" && counts.overdue > 0 && (
                     <span className="ml-1.5 text-[10px] opacity-60">{counts.overdue}</span>
+                  )}
+                  {f === "my" && counts.my > 0 && (
+                    <span className="ml-1.5 text-[10px] opacity-60">{counts.my}</span>
                   )}
                 </button>
               ))}
@@ -142,11 +210,12 @@ const CommitmentsPage = () => {
               <div className="text-center py-16">
                 <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
-            ) : commitments.length === 0 ? (
+            ) : filteredCommitments.length === 0 ? (
               <div className="text-center py-16">
                 <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-foreground font-medium mb-1">
-                  {filter === "open" ? "No open commitments" :
+                  {filter === "my" ? "No my to-dos" :
+                   filter === "open" ? "No open commitments" :
                    filter === "completed" ? "No completed commitments" :
                    filter === "overdue" ? "Nothing overdue" :
                    "No commitments yet"}
@@ -209,6 +278,11 @@ const CommitmentsPage = () => {
                                 {c.assignee_name && (
                                   <span className="text-[11px] text-muted-foreground">
                                     → {c.assignee_name}
+                                  </span>
+                                )}
+                                {!c.note_id && (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Personal
                                   </span>
                                 )}
                                 {c.due_date && (

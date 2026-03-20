@@ -7,7 +7,7 @@
  * in the repo; distribute them separately to select users.
  *
  * Unpackaged (dev): also loads from electron/main/cloud/optional-providers-dist/
- * (e.g. Copart) so local copies work without copying to Application Support.
+ * so local copies work without copying to Application Support.
  */
 
 import { app, ipcMain } from 'electron'
@@ -47,8 +47,6 @@ function loadOptionalProvidersFromDir(dir: string, skipIfAlreadyRegistered: bool
     const jsPath = join(dir, `${id}.js`)
     if (!existsSync(jsPath)) continue
     try {
-      // Use createRequire to get a real Node.js require, bypassing Vite's bundled
-      // require which routes through ESM and breaks on optional provider files.
       const nodeRequire = createRequire(join(dir, '_'))
       const mod = nodeRequire(jsPath)
       if (typeof mod.register !== 'function') continue
@@ -76,7 +74,6 @@ export function loadOptionalProviders(): void {
   loadOptionalProvidersFromDir(join(app.getPath('userData'), 'optional-providers'), false)
 
   if (app.isPackaged) {
-    // Packaged builds: check extraResources for bundled optional providers
     const resourceDir = join(process.resourcesPath, 'optional-providers')
     loadOptionalProvidersFromDir(resourceDir, true)
   } else {

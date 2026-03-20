@@ -666,11 +666,13 @@ function CoachingView({
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationFailed, setConversationFailed] = useState(false);
+  const [conversationErrorDetail, setConversationErrorDetail] = useState<string | null>(null);
   const conversationAnalysisStarted = useRef(false);
   const [metricsExpanded, setMetricsExpanded] = useState(false);
 
   useEffect(() => {
     setConversationFailed(false);
+    setConversationErrorDetail(null);
     conversationAnalysisStarted.current = false;
   }, [note.id]);
 
@@ -698,13 +700,18 @@ function CoachingView({
           roleId: accountRoleId,
         });
         if (cancelled) return;
-        if (result) {
-          updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result } });
+        if (result.ok) {
+          updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
+          setConversationErrorDetail(null);
         } else {
           setConversationFailed(true);
+          setConversationErrorDetail(result.message);
         }
       } catch {
-        if (!cancelled) setConversationFailed(true);
+        if (!cancelled) {
+          setConversationFailed(true);
+          setConversationErrorDetail("Conversation analysis failed unexpectedly.");
+        }
       } finally {
         if (!cancelled) setConversationLoading(false);
       }
@@ -894,7 +901,7 @@ function CoachingView({
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
           <p className="text-[11px] text-muted-foreground">
-            Conversation analysis didn’t complete. Check your AI model in Settings, or use Ask → Coach me.
+            {conversationErrorDetail || "Conversation analysis didn’t complete. Check your AI model in Settings, or use Ask → Coach me."}
           </p>
           <button
             type="button"
@@ -912,13 +919,16 @@ function CoachingView({
                   heuristics,
                   roleId: accountRoleId,
                 });
-                if (result) {
-                  updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result } });
+                if (result.ok) {
+                  updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
+                  setConversationErrorDetail(null);
                 } else {
                   setConversationFailed(true);
+                  setConversationErrorDetail(result.message);
                 }
               } catch {
                 setConversationFailed(true);
+                setConversationErrorDetail("Conversation analysis failed unexpectedly.");
               } finally {
                 setConversationLoading(false);
               }

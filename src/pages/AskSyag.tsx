@@ -13,13 +13,13 @@ interface Message {
   role: "user" | "assistant";
   text: string;
   context?: { label: string; detail: string };
-  recipe?: { label: string; color: string };
+  recipe?: { label: string; color: string; prompt: string };
 }
 
 const recipes = [
-  { label: "TL;DR", color: "bg-blue-400/70" },
-  { label: "Action items", color: "bg-emerald-400/70" },
-  { label: "Weekly recap", color: "bg-orange-400/70" },
+  { label: "TL;DR", color: "bg-blue-400/70", prompt: "Give me a concise TL;DR of my most recent meetings. Include top decisions and next steps." },
+  { label: "Action items", color: "bg-emerald-400/70", prompt: "List my open action items across recent meetings, grouped by urgency and owner." },
+  { label: "Weekly recap", color: "bg-orange-400/70", prompt: "Create a weekly recap from recent meetings: wins, risks, blockers, and follow-ups." },
 ];
 
 export default function AskSyag() {
@@ -67,15 +67,20 @@ export default function AskSyag() {
   const buildNotesContext = useCallback(() => {
     if (notes.length === 0) return "";
 
-    const relevantNotes = useTranscripts
-      ? notes.slice(0, 25)
-      : notes;
+    const relevantNotes = (useTranscripts ? notes.slice(0, 25) : notes).slice(0, 25);
+    const NOTE_CHAR_LIMIT = useTranscripts ? 1200 : 700;
+    const TOTAL_CHAR_LIMIT = useTranscripts ? 18000 : 12000;
+    let totalChars = 0;
 
-    return relevantNotes.map((note) => {
+    const chunks: string[] = [];
+    for (const note of relevantNotes) {
       const timeInfo = note.timeRange ? `, ${note.timeRange}` : "";
       const parts = [`## ${note.title} (${note.date}${timeInfo})`];
       if (useTranscripts && note.transcript?.length > 0) {
-        parts.push("Transcript: " + note.transcript.map(t => t.text).join(" "));
+        const transcriptText = note.transcript.map((t) => t.text).join(" ").trim();
+        if (transcriptText) {
+          parts.push("Transcript: " + transcriptText.slice(0, 8500));
+        }
       }
       if (note.summary) {
         parts.push("Summary: " + note.summary.overview);
@@ -86,11 +91,17 @@ export default function AskSyag() {
       if (note.personalNotes) {
         parts.push("Notes: " + note.personalNotes);
       }
-      return parts.join("\n");
-    }).join("\n\n");
+      const noteChunk = parts.join("\n").trim().slice(0, NOTE_CHAR_LIMIT);
+      if (!noteChunk) continue;
+      if (totalChars + noteChunk.length > TOTAL_CHAR_LIMIT) break;
+      chunks.push(noteChunk);
+      totalChars += noteChunk.length;
+    }
+
+    return chunks.join("\n\n");
   }, [notes, useTranscripts]);
 
-  const handleSend = useCallback(async (text?: string, recipe?: { label: string; color: string }) => {
+  const handleSend = useCallback(async (text?: string, recipe?: { label: string; color: string; prompt: string }) => {
     const question = text || input.trim();
     if (!question) return;
     setInput("");
@@ -98,7 +109,7 @@ export default function AskSyag() {
 
     const userMsg: Message = {
       role: "user",
-      text: question,
+      text: recipe ? recipe.label : question,
       context: { label: "My notes", detail: useTranscripts ? "+ Last 25 transcripts" : "All notes" },
       recipe,
     };
@@ -118,7 +129,10 @@ export default function AskSyag() {
 
         const response = await api.llm.chat({
           messages: chatMessages,
-          context: { notes: notesContext },
+          context: {
+            notes: notesContext,
+            mode: "ask-syag",
+          },
           model: selectedAIModel,
         });
 
@@ -249,7 +263,7 @@ export default function AskSyag() {
                 {recipes.map((r) => (
                   <button
                     key={r.label}
-                    onClick={() => handleSend(r.label, r)}
+                    onClick={() => handleSend(r.prompt, r)}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-all hover:shadow-sm hover:border-ring/20"
                   >
                     <span className={cn("h-2.5 w-1 rounded-full", r.color)} />

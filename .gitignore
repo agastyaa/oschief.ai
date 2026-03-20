@@ -39,8 +39,5 @@ keychain.enc
 # External skill/code (optional — remove if you want to track it)
 .claude/
 
-# Optional provider bundles (distribute separately; do not commit)
-electron/main/cloud/optional-providers-dist/
-
 # Cursor IDE
 .cursor/

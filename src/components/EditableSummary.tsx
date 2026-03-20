@@ -598,11 +598,25 @@ export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }
                               onClick={() => handleActionAssigneeChange(rawIndex, "Me")}
                               className="text-[11px] font-medium text-accent hover:underline"
                             >
-                              Assign to me
+                              Me
+                            </button>
+                            <span className="text-muted-foreground/30">|</span>
+                            <button
+                              onClick={() => setEditingField(`action-assignee-${i}`)}
+                              className="text-[11px] font-medium text-accent hover:underline"
+                            >
+                              Other
                             </button>
                           </span>
                         ) : isMe ? (
-                          <span>Me</span>
+                          <span
+                            onClick={() => setEditingField(`action-assignee-${i}`)}
+                            className="cursor-text hover:bg-secondary/30 rounded px-0.5 -mx-0.5 inline-flex items-center gap-0.5"
+                            title="Click to edit assignee"
+                          >
+                            Me
+                            <Pencil className="h-2.5 w-2.5 text-muted-foreground/0 group-hover/action:text-muted-foreground/50 transition-colors" />
+                          </span>
                         ) : (
                           <span
                             onClick={() => setEditingField(`action-assignee-${i}`)}

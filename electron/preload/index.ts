@@ -137,10 +137,6 @@ const electronAPI = {
 
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
-    getOptionalProviders: () =>
-      ipcRenderer.invoke('app:get-optional-providers') as Promise<{ id: string; name: string; icon: string; supportsStt?: boolean }[]>,
-    invokeOptionalProvider: (providerId: string, method: 'test' | 'listModels') =>
-      ipcRenderer.invoke(`${providerId}:${method}`) as Promise<any>,
     /** Fetch URL from main process (bypasses CORS for calendar ICS, e.g. Outlook). Returns { ok, status, body }. */
     fetchUrl: (url: string) =>
       ipcRenderer.invoke('fetch:url', url) as Promise<{ ok: boolean; status: number; body: string }>,
@@ -327,14 +323,21 @@ const electronAPI = {
       ipcRenderer.invoke('coaching:generate-role-insights', metrics, roleId, model) as Promise<{ roleInsights: string[]; roleId: string }>,
     analyzeConversation: (payload: any) =>
       ipcRenderer.invoke('coaching:analyze-conversation', payload) as Promise<{
-        headline: string
-        narrative: string
-        microInsights: { text: string; framework?: string; evidenceQuote?: string; speaker?: string; time?: string }[]
-        habitTags: string[]
-        keyMoments: { title: string; quote: string; speaker: string; time: string }[]
-        generatedAt: string
-        model?: string
-      } | null>,
+        ok: true
+        data: {
+          headline: string
+          narrative: string
+          microInsights: { text: string; framework?: string; evidenceQuote?: string; speaker?: string; time?: string }[]
+          habitTags: string[]
+          keyMoments: { title: string; quote: string; speaker: string; time: string }[]
+          generatedAt: string
+          model?: string
+        }
+      } | {
+        ok: false
+        error: 'no_model' | 'no_transcript' | 'llm_error' | 'invalid_json' | 'invalid_response'
+        message: string
+      }>,
     aggregateInsights: (
       meetings: {
         title: string

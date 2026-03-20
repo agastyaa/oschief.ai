@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { getElectronAPI } from "@/lib/electron-api"
+import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
 import { CheckCircle2, Circle, Clock, AlertTriangle, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -12,9 +13,10 @@ import { isPast, parseISO, isValid, formatDistanceToNow } from "date-fns"
 
 interface Commitment {
   id: string
-  note_id: string
+  note_id?: string | null
   text: string
   owner: string
+  assignee_name?: string
   due_date?: string
   status: string
   note_title?: string
@@ -28,8 +30,17 @@ export function CommitmentsWidget() {
   const loadCommitments = useCallback(async () => {
     if (!api?.memory) return
     try {
+      const accountName = loadAccountFromStorage().name?.trim() || ""
+      const accountNorm = normalizeForNameCompare(accountName)
       const result = await api.memory.commitments.getOpen()
-      setCommitments((result || []).slice(0, 5))
+      const myOnly = (result || []).filter((c: Commitment) => {
+        const ownerNorm = normalizeForNameCompare(c.owner || "")
+        const assigneeNorm = normalizeForNameCompare(c.assignee_name || "")
+        const ownerIsMe = ownerNorm === "you" || ownerNorm === "me"
+        const assigneeIsMe = assigneeNorm === "me" || assigneeNorm === "you" || (!!accountNorm && assigneeNorm === accountNorm)
+        return ownerIsMe || assigneeIsMe
+      })
+      setCommitments(myOnly.slice(0, 5))
     } catch {
       // Silent fail — widget is non-critical
     }
@@ -53,7 +64,7 @@ export function CommitmentsWidget() {
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-display text-base tracking-tight text-foreground flex items-center gap-2">
-          <span>Open commitments</span>
+          <span>My open to-dos</span>
         </h2>
         <button
           onClick={() => navigate("/commitments")}

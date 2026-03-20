@@ -11,7 +11,7 @@ import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useModelSettings, localModels, enterpriseProviders } from "@/contexts/ModelSettingsContext";
+import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import {
   useCalendar,
   GOOGLE_CALENDAR_FEED_ID,
@@ -1059,8 +1059,6 @@ export default function SettingsPage() {
     getAvailableAIModels,
     appleFoundationAvailable,
     effectiveProviders,
-    optionalProviderIds,
-    optionalFetchedModels,
   } = modelSettings;
   const [active, setActive] = useState("account");
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -1150,7 +1148,7 @@ export default function SettingsPage() {
   // AI model options: from context (includes Apple on-device when available, local, connected providers)
   const aiOptions = useMemo(
     () => getAvailableAIModels(),
-    [getAvailableAIModels, appleFoundationAvailable, connectedProviders, downloadStates, optionalFetchedModels]
+    [getAvailableAIModels, appleFoundationAvailable, connectedProviders, downloadStates]
   );
 
   // Build STT model options: local + system (darwin) + connected providers (sttOnly all, supportsStt whisper-only)
@@ -1167,20 +1165,16 @@ export default function SettingsPage() {
       .forEach(([pid]) => {
         const provider = effectiveProviders.find((p) => p.id === pid);
         if (!provider) return;
-        const fetchedStt = optionalFetchedModels[pid];
-        const sttModels =
-          fetchedStt?.sttModels?.length
-            ? fetchedStt.sttModels
-            : provider.sttOnly
-              ? provider.models
-              : provider.models.filter((m) => m.toLowerCase().includes("whisper"));
+        const sttModels = provider.sttOnly
+          ? provider.models
+          : provider.models.filter((m) => m.toLowerCase().includes("whisper"));
         if (sttModels.length === 0) return;
         sttModels.forEach((m) =>
           out.push({ value: `${pid}:${m}`, label: m, group: `${provider.icon} ${provider.name}` })
         );
       });
     return out;
-  }, [connectedProviders, downloadStates, api, optionalFetchedModels, effectiveProviders]);
+  }, [connectedProviders, downloadStates, api, effectiveProviders]);
 
   const selectedAILabel = selectedAIModel ? (aiOptions.find((o) => o.value === selectedAIModel)?.label ?? selectedAIModel) : "";
   const selectedSTTLabel = selectedSTTModel ? (sttOptions.find((o) => o.value === selectedSTTModel)?.label ?? selectedSTTModel) : "";
@@ -1244,25 +1238,6 @@ export default function SettingsPage() {
 
   const handleDisconnectProvider = async (providerId: string) => {
     await disconnectProvider(providerId);
-  };
-
-  const [testingOptionalProviderId, setTestingOptionalProviderId] = useState<string | null>(null);
-  const handleTestOptionalProvider = async (providerId: string, providerName: string) => {
-    const electronApi = getElectronAPI();
-    if (!electronApi?.app?.invokeOptionalProvider) return;
-    setTestingOptionalProviderId(providerId);
-    try {
-      const result = await electronApi.app.invokeOptionalProvider(providerId, "test");
-      if (result?.ok) {
-        toast.success(`${providerName}: connection OK`);
-      } else {
-        toast.error((result as { error?: string })?.error ?? "Connection failed");
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Test failed");
-    } finally {
-      setTestingOptionalProviderId(null);
-    }
   };
 
   return (
@@ -1609,10 +1584,7 @@ export default function SettingsPage() {
                       {effectiveProviders.map((provider) => {
                         const isConnected = connectedProviders[provider.id]?.connected;
                         const isEditing = editingApiKey === provider.id;
-                        const fetched = optionalFetchedModels[provider.id];
-                        const displayModels = optionalProviderIds.includes(provider.id) && fetched?.models?.length
-                          ? fetched.models
-                          : provider.models;
+                        const displayModels = provider.models;
 
                         return (
                           <div key={provider.id} className="rounded-md border border-border bg-card overflow-hidden">
@@ -1626,7 +1598,7 @@ export default function SettingsPage() {
                                   )}
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
-                                  {displayModels.length ? displayModels.join(", ") : (optionalProviderIds.includes(provider.id) ? "Connect to load models" : "")}
+                                  {displayModels.join(", ")}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5">
@@ -1636,16 +1608,6 @@ export default function SettingsPage() {
                                       <Check className="h-3 w-3" />
                                       Connected
                                     </span>
-                                    {optionalProviderIds.includes(provider.id) && (
-                                      <button
-                                        onClick={() => handleTestOptionalProvider(provider.id, provider.name)}
-                                        disabled={testingOptionalProviderId !== null}
-                                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary disabled:opacity-50 transition-colors"
-                                        title={`Test API key with ${provider.name}`}
-                                      >
-                                        {testingOptionalProviderId === provider.id ? "Testing…" : "Test connection"}
-                                      </button>
-                                    )}
                                     <button
                                       onClick={() => handleDisconnectProvider(provider.id)}
                                       className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
@@ -1732,8 +1694,13 @@ export default function SettingsPage() {
                     <SettingRow label="Reduce noise before transcription" description="Apply a noise gate in the app before speech detection. Quiets low-level background noise; use if transcription picks up fan or room noise.">
                       <Toggle enabled={toggles.audioDenoiseBeforeStt} onToggle={() => toggle("audioDenoiseBeforeStt")} />
                     </SettingRow>
-                    <SettingRow label="Speaker diarization (mic only)" description="When only the microphone is used, label who spoke (Speaker 1, 2, …) instead of “You”. Uses on-device speaker embeddings; may add a short delay.">
-                      <Toggle enabled={toggles.useDiarization} onToggle={() => toggle("useDiarization")} />
+                    <SettingRow label="Speaker diarization (mic only)" description="Coming soon. Will label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings.">
+                      <button
+                        className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted cursor-not-allowed opacity-50"
+                        disabled
+                      >
+                        <span className="inline-block h-4 w-4 transform rounded-full bg-muted-foreground/40 transition translate-x-1" />
+                      </button>
                     </SettingRow>
                   </div>
                   <div>

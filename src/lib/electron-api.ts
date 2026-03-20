@@ -1,5 +1,13 @@
 import type { ConversationInsights } from "./coaching-analytics"
 
+type ConversationAnalysisResponse =
+  | { ok: true; data: ConversationInsights }
+  | {
+      ok: false
+      error: 'no_model' | 'no_transcript' | 'llm_error' | 'invalid_json' | 'invalid_response'
+      message: string
+    }
+
 type TranscriptWord = { word: string; start: number; end: number }
 type TranscriptChunk = {
   speaker: string
@@ -102,8 +110,6 @@ type ElectronAPI = {
   }
   app: {
     getVersion: () => Promise<string>
-    getOptionalProviders: () => Promise<{ id: string; name: string; icon: string; supportsStt?: boolean }[]>
-    invokeOptionalProvider: (providerId: string, method: 'test' | 'listModels') => Promise<any>
     getPlatform: () => string
     /** Fetch URL from main process (bypasses CORS for calendar ICS). */
     fetchUrl?: (url: string) => Promise<{ ok: boolean; status: number; body: string }>
@@ -245,7 +251,7 @@ type ElectronAPI = {
       } | null
       roleId: string
       model?: string
-    }) => Promise<ConversationInsights | null>
+    }) => Promise<ConversationAnalysisResponse>
     aggregateInsights: (
       meetings: {
         title: string

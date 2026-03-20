@@ -5,8 +5,8 @@
 
 import { routeLLM } from '../cloud/router'
 import { getRoleKB, ROLES } from './coaching-kb'
-import { getSetting } from '../storage/database'
 import { searchKB, getChunkCount } from '../knowledge-base/kb-store'
+import { resolveSelectedAIModel } from './model-resolver'
 
 export type TranscriptLineInput = { speaker: string; time: string; text: string }
 
@@ -44,6 +44,17 @@ export type ConversationInsightsResult = {
   generatedAt: string
   model?: string
 }
+
+export type ConversationAnalysisErrorCode =
+  | 'no_model'
+  | 'no_transcript'
+  | 'llm_error'
+  | 'invalid_json'
+  | 'invalid_response'
+
+export type ConversationAnalysisResponse =
+  | { ok: true; data: ConversationInsightsResult }
+  | { ok: false; error: ConversationAnalysisErrorCode; message: string }
 
 const MAX_TRANSCRIPT_CHARS = 26000
 const KB_MEETING_MAX = 2200
@@ -125,9 +136,22 @@ export async function analyzeConversationQuality(input: {
   heuristics?: HeuristicsInput | null
   roleId: string
   model?: string
-}): Promise<ConversationInsightsResult | null> {
-  const aiModel = input.model || getSetting('selected-ai-model')
-  if (!aiModel || !input.transcript?.length) return null
+}): Promise<ConversationAnalysisResponse> {
+  const aiModel = resolveSelectedAIModel(input.model)
+  if (!aiModel) {
+    return {
+      ok: false,
+      error: 'no_model',
+      message: 'No AI model selected. Choose one in Settings > AI Models.',
+    }
+  }
+  if (!input.transcript?.length) {
+    return {
+      ok: false,
+      error: 'no_transcript',
+      message: 'No transcript found for this meeting.',
+    }
+  }
 
   const kb = getRoleKB(input.roleId)
   const role = ROLES.find((r) => r.id === input.roleId)
@@ -174,8 +198,23 @@ Produce ${JSON_SHAPE}`
     )
 
     const cleaned = response.replace(/```json?\n?/gi, '').replace(/```/g, '').trim()
-    const parsed = JSON.parse(cleaned) as Record<string, unknown>
-    if (typeof parsed.headline !== 'string' || typeof parsed.narrative !== 'string') return null
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(cleaned) as Record<string, unknown>
+    } catch {
+      return {
+        ok: false,
+        error: 'invalid_json',
+        message: 'Model returned invalid JSON for conversation analysis.',
+      }
+    }
+    if (typeof parsed.headline !== 'string' || typeof parsed.narrative !== 'string') {
+      return {
+        ok: false,
+        error: 'invalid_response',
+        message: 'Model response was missing required analysis fields.',
+      }
+    }
 
     const microInsights = Array.isArray(parsed.microInsights)
       ? (parsed.microInsights as ConversationMicroInsight[])
@@ -194,17 +233,24 @@ Produce ${JSON_SHAPE}`
       : []
 
     return {
-      headline: parsed.headline,
-      narrative: parsed.narrative,
-      microInsights,
-      habitTags,
-      keyMoments,
-      generatedAt: new Date().toISOString(),
-      model: aiModel,
+      ok: true,
+      data: {
+        headline: parsed.headline,
+        narrative: parsed.narrative,
+        microInsights,
+        habitTags,
+        keyMoments,
+        generatedAt: new Date().toISOString(),
+        model: aiModel,
+      },
     }
   } catch (err) {
     console.error('[conversation-coaching] LLM failed:', err)
-    return null
+    return {
+      ok: false,
+      error: 'llm_error',
+      message: err instanceof Error ? err.message : 'Conversation analysis failed.',
+    }
   }
 }
 
@@ -240,7 +286,7 @@ export async function aggregateCrossMeetingInsights(
   focusNext: string
   recurringTags: string[]
 } | null> {
-  const aiModel = model || getSetting('selected-ai-model')
+  const aiModel = resolveSelectedAIModel(model)
   if (!aiModel || meetings.length === 0) return null
 
   const role = ROLES.find((r) => r.id === roleId)
