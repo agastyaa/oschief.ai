@@ -120,13 +120,33 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [modelsListFetched, setModelsListFetched] = useState(false);
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
   const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
+  const [optionalProviders, setOptionalProviders] = useState<ModelProvider[]>([]);
 
-  const effectiveProviders = enterpriseProviders;
+  const effectiveProviders = useMemo(
+    () => [...enterpriseProviders, ...optionalProviders],
+    [optionalProviders]
+  );
 
   // Apple (on-device) Foundation Model availability
   useEffect(() => {
     if (!api?.app?.isAppleFoundationAvailable) return;
     api.app.isAppleFoundationAvailable().then(setAppleFoundationAvailable).catch(() => setAppleFoundationAvailable(false));
+  }, [api]);
+
+  // Load optional providers registered via userData/optional-providers/
+  useEffect(() => {
+    if (!api?.app?.getOptionalProviders) return;
+    api.app.getOptionalProviders().then((list) => {
+      if (!list?.length) return;
+      const mapped: ModelProvider[] = list.map((p) => ({
+        id: p.id,
+        name: p.name,
+        models: [...(p.models || []), ...(p.sttModels || [])],
+        icon: p.icon || "🔶",
+        supportsStt: p.supportsStt,
+      }));
+      setOptionalProviders(mapped);
+    }).catch(() => {});
   }, [api]);
 
   /** Drop AI selection if it references a provider that isn't known. */
@@ -139,7 +159,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
-    if (enterpriseProviders.some((p) => p.id === prefix)) {
+    if (effectiveProviders.some((p) => p.id === prefix)) {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
@@ -150,7 +170,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       description: `Provider "${prefix}" is not recognized. Choose another model under Settings \u2192 AI Models.`,
       duration: 12_000,
     });
-  }, [selectedAIModel, modelsListFetched, dbSettingsLoaded]);
+  }, [selectedAIModel, modelsListFetched, dbSettingsLoaded, effectiveProviders]);
 
   // Sync download states from Electron main process on mount
   useEffect(() => {
@@ -186,6 +206,21 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     };
     loadKeychain(enterpriseProviders);
   }, []);
+
+  // Load keychain for optional providers once they're discovered
+  useEffect(() => {
+    if (!api || optionalProviders.length === 0) return;
+    for (const provider of optionalProviders) {
+      api.keychain.get(provider.id).then((key) => {
+        if (key) {
+          setConnectedProviders((prev) => ({
+            ...prev,
+            [provider.id]: { connected: true, apiKey: key },
+          }));
+        }
+      });
+    }
+  }, [api, optionalProviders]);
 
   // Listen for download progress from main process
   useEffect(() => {

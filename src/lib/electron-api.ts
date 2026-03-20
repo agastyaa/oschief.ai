@@ -110,6 +110,7 @@ type ElectronAPI = {
   }
   app: {
     getVersion: () => Promise<string>
+    getOptionalProviders?: () => Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>
     getPlatform: () => string
     /** Fetch URL from main process (bypasses CORS for calendar ICS). */
     fetchUrl?: (url: string) => Promise<{ ok: boolean; status: number; body: string }>

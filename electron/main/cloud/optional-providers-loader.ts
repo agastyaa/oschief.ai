@@ -12,7 +12,7 @@
 
 import { app, ipcMain } from 'electron'
 import { join, resolve } from 'path'
-import { readdirSync, existsSync } from 'fs'
+import { readdirSync, existsSync, readFileSync } from 'fs'
 import { createRequire } from 'module'
 import {
   registerOptionalProvider,
@@ -64,6 +64,16 @@ function loadOptionalProvidersFromDir(dir: string, skipIfAlreadyRegistered: bool
         anthropic,
       }
       mod.register(api)
+
+      // Enrich meta with models/sttModels from the JSON manifest
+      const handlers = getOptionalProviderHandlers(id)
+      if (handlers?.meta) {
+        try {
+          const jsonData = JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf-8'))
+          if (Array.isArray(jsonData.models)) handlers.meta.models = jsonData.models
+          if (Array.isArray(jsonData.sttModels)) handlers.meta.sttModels = jsonData.sttModels
+        } catch {}
+      }
     } catch (err) {
       console.warn(`[optional-providers] Failed to load ${id} from ${dir}:`, err)
     }

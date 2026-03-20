@@ -10,6 +10,8 @@ export type OptionalProviderMeta = {
   name: string
   icon: string
   supportsStt?: boolean
+  models?: string[]
+  sttModels?: string[]
 }
 
 export type OptionalProviderHandlers = {
@@ -30,12 +32,14 @@ export function getOptionalProviderIds(): string[] {
   return Array.from(optionalProviders.keys())
 }
 
-export function getOptionalProviders(): { id: string; name: string; icon: string; supportsStt?: boolean }[] {
+export function getOptionalProviders(): { id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[] {
   return Array.from(optionalProviders.entries()).map(([id, h]) => ({
     id,
     name: h.meta?.name ?? id,
     icon: h.meta?.icon ?? '🔶',
     supportsStt: h.meta?.supportsStt,
+    models: h.meta?.models,
+    sttModels: h.meta?.sttModels,
   }))
 }
 
