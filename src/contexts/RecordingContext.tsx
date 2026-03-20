@@ -1,24 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
-import { loadPreferences } from "@/pages/SettingsPage";
-import { SYAG_PREFS_UPDATED } from "@/lib/preferences-events";
-
-/** External floating window + in-app pill both respect "Live recording indicator" in Settings. */
-function floatingPayloadForSession(
-  s: { title: string; startTime: number; isRecording: boolean } | null
-): { title: string; startTime: number; isRecording: boolean } | null {
-  if (!s) return null;
-  if (!loadPreferences().showRecordingIndicator) return null;
-  return { title: s.title, startTime: s.startTime, isRecording: s.isRecording };
-}
-
-function pushFloatingMeeting(
-  api: ReturnType<typeof getElectronAPI>,
-  s: { title: string; startTime: number; isRecording: boolean } | null
-): void {
-  api?.floating?.updateMeeting?.(floatingPayloadForSession(s));
-}
 
 interface RecordingSession {
   noteId: string;
@@ -71,7 +53,6 @@ const RecordingContext = createContext<RecordingContextType | undefined>(undefin
 
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<RecordingSession | null>(null);
-  const activeSessionRef = useRef<RecordingSession | null>(null);
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [usingWebSpeech, setUsingWebSpeech] = useState(false);
@@ -89,24 +70,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const sessionScratchRef = useRef<{ personalNotes?: string; title?: string; userEditedTitle?: boolean }>({});
 
   const api = getElectronAPI();
-
-  useEffect(() => {
-    activeSessionRef.current = activeSession;
-  }, [activeSession]);
-
-  /** Re-sync external floating pill when "Live recording indicator" is toggled in Settings. */
-  useEffect(() => {
-    if (!api) return;
-    const onPrefs = () => {
-      const s = activeSessionRef.current;
-      pushFloatingMeeting(
-        api,
-        s ? { title: s.title, startTime: s.startTime, isRecording: s.isRecording } : null
-      );
-    };
-    window.addEventListener(SYAG_PREFS_UPDATED, onPrefs);
-    return () => window.removeEventListener(SYAG_PREFS_UPDATED, onPrefs);
-  }, [api]);
 
   const setSessionScratch = useCallback((scratch: { personalNotes?: string; title?: string; userEditedTitle?: boolean }) => {
     sessionScratchRef.current = { ...sessionScratchRef.current, ...scratch };
@@ -182,7 +145,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setTranscriptLines([]);
     if (api) {
       api.app.updateTrayMeetingInfo?.({ title: "New note", startTime: now });
-      pushFloatingMeeting(api, { title: "New note", startTime: now, isRecording: true });
     }
   }, [api]);
 
@@ -191,7 +153,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setActiveSession({ noteId, title: title || "New note", elapsedSeconds, isRecording: true, startTime });
     if (api) {
       api.app.updateTrayMeetingInfo?.({ title: title || "New note", startTime });
-      pushFloatingMeeting(api, { title: title || "New note", startTime, isRecording: true });
     }
   }, [api]);
 
@@ -201,7 +162,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const next = { ...prev, ...updates };
       if (api && (updates.title || updates.isRecording !== undefined)) {
         api.app.updateTrayMeetingInfo?.({ title: next.title, startTime: next.startTime });
-        pushFloatingMeeting(api, { title: next.title, startTime: next.startTime, isRecording: next.isRecording });
       }
       return next;
     });
@@ -217,7 +177,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     sessionScratchRef.current = {};
     if (api) {
       api.app.updateTrayMeetingInfo?.(null);
-      api.floating?.updateMeeting?.(null); // always clear external pill when session ends
     }
   }, [api]);
 
@@ -232,21 +191,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       elapsedRef.current = 0;
     }
   }, [activeSession?.startTime, activeSession?.isRecording]);
-
-  // Hide window during recording for privacy (prevent accidental screen share)
-  useEffect(() => {
-    if (!api?.window) return;
-
-    if (activeSession?.isRecording) {
-      api.window.hide().catch((err) => {
-        console.warn('[Recording] Failed to hide window:', err);
-      });
-    } else {
-      api.window.show().catch((err) => {
-        console.warn('[Recording] Failed to show window:', err);
-      });
-    }
-  }, [activeSession?.isRecording, api?.window]);
 
   const stopSpeechRecognition = useCallback(() => {
     if (speechRecRef.current) {
@@ -490,7 +434,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
     setActiveSession(prev => {
       if (!prev) return null;
-      pushFloatingMeeting(api, { title: prev.title, startTime: prev.startTime, isRecording: false });
       return { ...prev, isRecording: false };
     });
   }, [api, releaseMediaOnly]);
@@ -507,8 +450,10 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       await acquireMediaAndWorklet(preferredDeviceId);
       await api.recording.resume({ sttModel: sttModel ?? undefined });
       setActiveSession(prev => {
-        if (!prev) return null;
-        pushFloatingMeeting(api, { title: prev.title, startTime: prev.startTime, isRecording: true });
+        if (!prev) {
+          console.warn('resumeAudioCapture: activeSession is null — caller should restore session via resumeSession() first');
+          return null;
+        }
         return { ...prev, isRecording: true };
       });
       if (!sttModel) {

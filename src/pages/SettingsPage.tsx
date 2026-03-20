@@ -868,7 +868,6 @@ function getStoredCalendarProvider(): CalendarProviderId | null {
 interface Preferences {
   showRecordingIndicator: boolean;
   launchOnStartup: boolean;
-  autoReposition: boolean;
   hideFromScreenShare: boolean;
   appearance: "light" | "dark" | "system";
 }
@@ -876,7 +875,6 @@ interface Preferences {
 const defaultPrefs: Preferences = {
   showRecordingIndicator: true,
   launchOnStartup: false,
-  autoReposition: true,
   hideFromScreenShare: false,
   appearance: "light",
 };
@@ -1295,6 +1293,34 @@ export default function SettingsPage() {
   };
 
   const [prefs, setPrefs] = useState<Preferences>(loadPreferences);
+
+  // Align hide-from-screen-share with main process DB (window uses this on startup) and migrate legacy LS-only state.
+  useEffect(() => {
+    if (!api) return;
+    (async () => {
+      try {
+        const v = await api.db.settings.get("hide-from-screen-share");
+        const prev = loadPreferences();
+        let hide = prev.hideFromScreenShare;
+        if (v === "true") hide = true;
+        else if (v === "false") hide = false;
+        else if (v === null && prev.hideFromScreenShare) {
+          await api.db.settings.set("hide-from-screen-share", "true");
+          await api.contentProtection?.set(true);
+          hide = true;
+        }
+        setPrefs((p) => {
+          if (p.hideFromScreenShare === hide) return p;
+          const next = { ...p, hideFromScreenShare: hide };
+          savePreferences(next);
+          return next;
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [api]);
+
   const updatePref = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
     setPrefs((prev) => {
       const next = { ...prev, [key]: value };
@@ -1418,7 +1444,7 @@ export default function SettingsPage() {
         </div>
       )}
       <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
-        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
         </div>
         <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
@@ -1455,14 +1481,11 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <SectionHeader title="Preferences" description="Customize how Syag behaves and appears" />
                   <div className="space-y-2">
-                    <SettingRow label="Live recording indicator" description="Shows a compact pill while transcribing: top-right in the app when Syag is visible and focused, and a small always-on-top pill when the window is minimized, hidden, or in the background. Turn off to hide both. You can still open Syag from the Dock or the menu bar icon.">
+                    <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it. Open Syag from the Dock or menu bar anytime.">
                       <Toggle enabled={prefs.showRecordingIndicator} onToggle={() => updatePref("showRecordingIndicator", !prefs.showRecordingIndicator)} />
                     </SettingRow>
                     <SettingRow label="Launch Syag on startup" description="Syag will open automatically when you log in">
                       <Toggle enabled={prefs.launchOnStartup} onToggle={() => updatePref("launchOnStartup", !prefs.launchOnStartup)} />
-                    </SettingRow>
-                    <SettingRow label="Auto-reposition during meetings" description="Syag will move to the side when you join a meeting, so you can keep taking notes">
-                      <Toggle enabled={prefs.autoReposition} onToggle={() => updatePref("autoReposition", !prefs.autoReposition)} />
                     </SettingRow>
                     <SettingRow label="Hide from screen sharing" description="Prevents the Syag window from appearing in screen shares and recordings — invisible to others on calls">
                       <Toggle enabled={prefs.hideFromScreenShare ?? false} onToggle={() => {

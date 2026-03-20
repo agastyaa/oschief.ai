@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import type { CSSProperties } from "react";
 
-/** Shared time format for in-app and external floating meeting indicators. */
+/** Shared time format for the in-app meeting indicator pill. */
 export function formatMeetingIndicatorTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -34,32 +34,24 @@ export type MeetingIndicatorPillProps = {
   isRecording: boolean;
   elapsedSeconds: number;
   onPillClick: () => void;
-  /** If set, shows the same dismiss control as the in-app indicator. */
+  /** If set, shows a dismiss control. */
   onDismiss?: () => void;
-  /** Merged onto the pill root (e.g. `WebkitAppRegion: "no-drag"` in the floating window). */
-  pillStyleExtra?: CSSProperties;
 };
 
-/**
- * Canonical meeting status pill — used by LiveMeetingIndicator (main window) and FloatingIndicator (overlay window).
- */
+/** Meeting status pill used by LiveMeetingIndicator. */
 export function MeetingIndicatorPill({
   title,
   isRecording,
   elapsedSeconds,
   onPillClick,
   onDismiss,
-  pillStyleExtra,
 }: MeetingIndicatorPillProps) {
   const elapsed = formatMeetingIndicatorTime(elapsedSeconds);
   const displayTitle = title || "Recording";
 
   return (
     <>
-      <div
-        onClick={onPillClick}
-        style={{ ...pillStyle, ...pillStyleExtra }}
-      >
+      <div onClick={onPillClick} style={pillStyle}>
         {isRecording ? (
           <span
             style={{

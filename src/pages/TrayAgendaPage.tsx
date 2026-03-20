@@ -55,6 +55,16 @@ export default function TrayAgendaPage() {
     return t >= tomorrowStart && t < dayAfterTomorrow;
   });
 
+  /** Future events not shown under Next or Tomorrow (e.g. day after tomorrow or later). */
+  const laterList = sorted.filter((e) => {
+    const startT = new Date(e.start).getTime();
+    const endT = new Date(e.end).getTime();
+    if (endT <= now) return false;
+    const inNext = startT >= todayStart && startT < tomorrowStart && endT > now;
+    const inTomorrow = startT >= tomorrowStart && startT < dayAfterTomorrow;
+    return !inNext && !inTomorrow;
+  });
+
   const handleRowClick = async (evt: TrayEvt) => {
     let openMode: "note" | "calendar" = "note";
     try {
@@ -71,14 +81,15 @@ export default function TrayAgendaPage() {
     });
   };
 
-  const Row = ({ evt }: { evt: TrayEvt }) => {
+  const Row = ({ evt, headlineOverride }: { evt: TrayEvt; headlineOverride?: string }) => {
     const start = new Date(evt.start);
     const relative =
-      start.getTime() > now
+      headlineOverride ??
+      (start.getTime() > now
         ? formatDistanceToNow(start, { addSuffix: true })
         : start.getTime() <= now && new Date(evt.end).getTime() > now
           ? "Now"
-          : format(start, "h:mm a");
+          : format(start, "h:mm a"));
     return (
       <button
         type="button"
@@ -145,8 +156,20 @@ export default function TrayAgendaPage() {
                 ))}
               </Section>
             )}
-            {nextRows.length === 0 && tomorrowList.length === 0 && (
-              <p className="text-[12px] text-muted-foreground text-center py-8 px-2">No more events today or tomorrow</p>
+            {laterList.length > 0 && (
+              <Section title="Later">
+                {laterList.map((e) => {
+                  const s = new Date(e.start);
+                  const headline =
+                    s.getTime() > now
+                      ? `${format(s, "EEE, MMM d")} · ${formatDistanceToNow(s, { addSuffix: true })}`
+                      : format(s, "EEE, MMM d");
+                  return <Row key={e.id} evt={e} headlineOverride={headline} />;
+                })}
+              </Section>
+            )}
+            {nextRows.length === 0 && tomorrowList.length === 0 && laterList.length === 0 && (
+              <p className="text-[12px] text-muted-foreground text-center py-8 px-2">No upcoming events</p>
             )}
           </>
         )}

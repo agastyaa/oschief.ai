@@ -269,6 +269,9 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   isPaused = false
   autoPaused = false
   lastSpeechTime = Date.now()
+  // Clear stale dedup window — after a long pause, old entries would cause
+  // false-positive dedup matches against new speech
+  recentEmittedTexts.length = 0
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel
   }

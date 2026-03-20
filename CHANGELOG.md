@@ -6,24 +6,22 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ## [1.8.0] — 2026-03-20
 
-### Added
-- **iCloud Drive sync:** Opt-in sync via iCloud Drive (Settings > Sync). Local-first architecture with JSONL change logs — SQLite never touches iCloud directly, avoiding WAL corruption. Syncs notes, folders, people, commitments, topics, and UI preferences across all your Macs.
-- **Sync status indicator:** Cloud icon in the sidebar header shows real-time sync state (synced, syncing, offline, error). Hidden when sync is disabled.
-- **Sync settings UI:** New "Sync" section in Settings with enable/disable toggle, device count, last sync time, and force-sync button.
-- **Auto-backup on sync toggle:** 3 rolling backups created automatically before enabling or disabling sync.
-- **Device bootstrapping:** New devices joining an existing sync automatically restore from the latest snapshot and replay pending changes.
-- **Dismissable floating indicator:** External recording overlay can now be dismissed; reappears on next meeting or when main window is refocused.
-- **Shared meeting indicator pill:** Extracted `MeetingIndicatorPill` component shared between in-app and floating indicator views.
-- **Preferences event bus:** `preferences-events.ts` dispatches changes so components react instantly when settings toggle (e.g., recording indicator on/off).
-
-### Changed
-- **Sync resource optimization:** Watcher reads JSONL from byte cursor (not full file), caches device file list, and skips reads when file size is unchanged. Logger buffers writes (2s flush interval). Replayer batches seenIds persistence and caches schema version. UI status polling reduced from 30s to 5-min heartbeat. Manifest cached in memory with 60s TTL. Together these cut idle I/O by ~75%.
-- **Recording indicator respects settings:** Floating overlay and in-app pill now check the "Live recording indicator" preference before showing, and update immediately when toggled.
-- **LiveMeetingIndicator simplified:** Refactored to use shared `MeetingIndicatorPill`, reducing duplication.
-- **FloatingIndicator streamlined:** Uses shared pill component and formats; code reduced ~40%.
+Stability release — fixes recording pause/resume, tightens the indicator, and removes the floating overlay.
 
 ### Fixed
-- **Sync change logging:** All data stores (notes, folders, people, commitments, topics, note_people, note_topics, settings) now emit sync change records on every mutation.
+- **Pause/resume recording:** Pausing and resuming no longer wipes the session. Timer continues from where it was, transcript stays intact, title persists, and the tray indicator remains active. Root cause: `generateNotes()` was calling `clearSession()` while paused, destroying all state before the user could resume.
+- **STT continuity after resume:** Speech-to-text context is now preserved across pause/resume cycles. Stale cross-channel dedup window is cleared on resume, preventing false duplicate filtering of new speech.
+- **Auto-summary race on resume:** Clicking resume within the 3-second auto-summary window now cancels the pending timer instead of racing with it.
+- **Recording indicator respects settings:** In-app recording pill now updates instantly when "Live recording indicator" is toggled in Settings, via a new preferences event bus.
+
+### Changed
+- **Recording indicator:** External always-on-top floating overlay removed — in-app pill only. Simpler, less intrusive, no entitlements needed.
+- **LiveMeetingIndicator refactor:** Extracted shared `MeetingIndicatorPill` component used by both the sidebar indicator and the new-note page.
+
+### Internal (not user-facing)
+- iCloud sync infrastructure added behind opt-in toggle (Settings > Sync, disabled by default). Not promoted in this release — pending Apple Developer signing.
+- Preferences event bus (`preferences-events.ts`) for instant cross-component reactivity on settings changes.
+- Database migration v7 adds sync columns (no-op when sync is disabled).
 
 ## [1.7.0]
 

@@ -5,6 +5,9 @@ import { useCalendar } from "@/contexts/CalendarContext";
 import { useNotes } from "@/contexts/NotesContext";
 import type { CalendarEvent } from "@/lib/ics-parser";
 
+/** Upcoming events beyond the today/tomorrow window so the tray can show the next meeting. */
+const TRAY_AGENDA_EXTRA_UPCOMING = 5;
+
 /**
  * Pushes a filtered snapshot of calendar events to the main process for the tray popover.
  */
@@ -50,8 +53,23 @@ export function TrayAgendaSync() {
         return t >= sod.getTime() && t <= windowEnd.getTime();
       });
 
+      const nowMs = now.getTime();
+      const seen = new Set(filtered.map((e) => e.id));
+      const upcomingSorted = [...events]
+        .filter((e) => new Date(e.end).getTime() > nowMs)
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      const merged: CalendarEvent[] = [...filtered];
+      for (const e of upcomingSorted) {
+        if (seen.has(e.id)) continue;
+        merged.push(e);
+        seen.add(e.id);
+        if (merged.length - filtered.length >= TRAY_AGENDA_EXTRA_UPCOMING) break;
+      }
+      merged.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
       const note = findNote;
-      const payload = filtered.map((e) => {
+      const payload = merged.map((e) => {
         const linked = note(e);
         return {
           id: e.id,

@@ -230,18 +230,6 @@ const electronAPI = {
     delete: (id: string) => ipcRenderer.invoke('calendar-local-blocks:delete', id),
   },
 
-  floating: {
-    updateMeeting: (state: { title: string; startTime: number; isRecording: boolean } | null) =>
-      ipcRenderer.send('floating:update-meeting', state),
-    focusMain: () => ipcRenderer.send('floating:focus-main'),
-    userDismiss: () => ipcRenderer.send('floating:user-dismiss'),
-    onState: (callback: (state: { title: string; startTime: number; isRecording: boolean } | null) => void) => {
-      const handler = (_event: any, s: any) => callback(s)
-      ipcRenderer.on('floating:state', handler)
-      return () => ipcRenderer.removeListener('floating:state', handler)
-    },
-  },
-
   trayAgenda: {
     setCache: (events: unknown) => ipcRenderer.invoke('tray-agenda:set-cache', events),
     getCache: () => ipcRenderer.invoke('tray-agenda:get-cache'),

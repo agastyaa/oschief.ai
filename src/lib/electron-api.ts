@@ -152,13 +152,6 @@ type ElectronAPI = {
     add: (block: { id: string; title: string; startIso: string; endIso: string; noteId?: string | null }) => Promise<boolean>
     delete: (id: string) => Promise<boolean>
   }
-  floating?: {
-    updateMeeting: (state: { title: string; startTime: number; isRecording: boolean } | null) => void
-    focusMain: () => void
-    /** Hide the overlay until the user focuses Syag again or meeting state updates. */
-    userDismiss?: () => void
-    onState: (callback: (state: { title: string; startTime: number; isRecording: boolean } | null) => void) => () => void
-  }
   trayAgenda?: {
     setCache: (events: unknown) => Promise<boolean>
     getCache: () => Promise<

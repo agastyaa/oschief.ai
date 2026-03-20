@@ -29,7 +29,6 @@ import PeoplePage from "./pages/PeoplePage";
 import CommitmentsPage from "./pages/CommitmentsPage";
 import NotFound from "./pages/NotFound";
 import TrayAgendaPage from "./pages/TrayAgendaPage";
-import FloatingIndicator from "./pages/FloatingIndicator";
 import { TrayMenu } from "@/components/TrayMenu";
 import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
 import { TrayAgendaSync } from "@/components/TrayAgendaSync";
@@ -132,7 +131,6 @@ function AppContent() {
         <Route path="/people" element={<PeoplePage />} />
         <Route path="/commitments" element={<CommitmentsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/floating-indicator" element={<FloatingIndicator />} />
         <Route path="/tray-preview" element={
           <div className="flex items-center justify-center min-h-screen bg-muted/50">
             <TrayMenu />

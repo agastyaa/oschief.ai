@@ -70,6 +70,23 @@ export function SidebarCollapseButton() {
   );
 }
 
+/**
+ * When the sidebar is collapsed, use this as the left column before `<main>` on Electron so
+ * content clears `titleBarStyle: hiddenInset` traffic lights (top + horizontal inset).
+ */
+export function SidebarCollapseRail({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-shrink-0 flex-col items-center",
+        isElectron ? "w-20 min-w-[5rem] pt-10" : "w-10 pt-2"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();

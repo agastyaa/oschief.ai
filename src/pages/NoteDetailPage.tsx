@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarTopBarLeft } from "@/components/Sidebar";
+import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
@@ -223,11 +223,14 @@ export default function NoteDetailPage() {
           <Sidebar />
         </div>
       ) : (
-        <SidebarCollapseButton />
+        <SidebarCollapseRail>
+          <SidebarCollapseButton />
+        </SidebarCollapseRail>
       )}
       <main className="flex flex-1 flex-col min-w-0">
         <div className={cn(
-          "flex items-center justify-between px-4 pt-3 pb-0",
+          "flex items-center justify-between px-4 pb-0",
+          isElectron ? "pt-10" : "pt-3",
           !sidebarOpen && isElectron && "pl-20"
         )}>
           <SidebarTopBarLeft

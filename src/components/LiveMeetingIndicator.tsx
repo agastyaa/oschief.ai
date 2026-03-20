@@ -2,6 +2,7 @@ import { useRecording } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
+import { SYAG_PREFS_UPDATED } from "@/lib/preferences-events";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { MeetingIndicatorPill } from "@/components/MeetingIndicatorPill";
 
@@ -11,6 +12,13 @@ export function LiveMeetingIndicator() {
   const location = useLocation();
   const [manuallyHidden, setManuallyHidden] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [, prefsBump] = useState(0);
+
+  useEffect(() => {
+    const onPrefs = () => prefsBump((n) => n + 1);
+    window.addEventListener(SYAG_PREFS_UPDATED, onPrefs);
+    return () => window.removeEventListener(SYAG_PREFS_UPDATED, onPrefs);
+  }, []);
 
   const elapsedSeconds = useElapsedTime(
     activeSession?.startTime ?? null,

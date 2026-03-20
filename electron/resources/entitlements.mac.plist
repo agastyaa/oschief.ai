@@ -14,8 +14,7 @@
   <false/>
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
-  <!-- iCloud entitlements — uncomment when code signing with Apple Developer identity is configured.
-       Until then, these must be absent or macOS will refuse to launch the unsigned app.
+  <!-- iCloud entitlements — enable when Apple Developer code signing is configured
   <key>com.apple.developer.icloud-container-identifiers</key>
   <array>
     <string>iCloud.com.syag.notes</string>

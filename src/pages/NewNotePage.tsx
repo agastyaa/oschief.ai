@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarTopBarLeft } from "@/components/Sidebar";
+import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
@@ -336,12 +336,12 @@ export default function NewNotePage() {
 
     const finalTranscript = usingRealAudio ? transcriptRef.current : fakeTranscriptLines;
 
-    // Capture session-derived values and clear session immediately so the floating indicator hides (don't wait for LLM)
+    // Capture session-derived values before async work.
+    // Do NOT call clearSession() here — the session must survive pause so the user
+    // can resume. Session cleanup happens in handleEndMeeting's finally block (explicit stop)
+    // or when navigating to a fresh note.
     const noteIdToSave = override?.noteId ?? noteId;
     const startTimeToUse = activeSession?.startTime;
-    if (activeSession && !activeSession.isRecording) {
-      clearSession();
-    }
 
     let generatedSummary: SummaryData;
     try {
@@ -721,6 +721,13 @@ export default function NewNotePage() {
 
   const handleResume = useCallback(() => {
     userPausedRef.current = false;
+
+    // Cancel any pending auto-summary timer so it doesn't fire after resume
+    if (pauseAutoSummaryTimerRef.current != null) {
+      clearTimeout(pauseAutoSummaryTimerRef.current);
+      pauseAutoSummaryTimerRef.current = null;
+    }
+
     setRecordingState("recording");
     setTranscriptVisible(true);
     if (recordingState === "stopped") {
@@ -733,12 +740,16 @@ export default function NewNotePage() {
         startAudioCapture(selectedSTTModel || '', { meetingTitle }).catch(console.error);
       }
     } else {
+      // Safety: if activeSession was somehow cleared during pause, restore it
+      if (!activeSession) {
+        resumeSession(noteId, title || "New note", elapsedSeconds);
+      }
       setSummary(null);
       if (usingRealAudio) {
         resumeAudioCapture(selectedSTTModel || '').catch(console.error);
       }
     }
-  }, [recordingState, resumeSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel]);
+  }, [recordingState, resumeSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel, activeSession]);
 
   const handleViewModeChange = useCallback(async (mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -905,13 +916,16 @@ export default function NewNotePage() {
           <Sidebar />
         </div>
       ) : (
-        <SidebarCollapseButton />
+        <SidebarCollapseRail>
+          <SidebarCollapseButton />
+        </SidebarCollapseRail>
       )}
 
       <main className="flex flex-1 flex-col min-w-0">
         {/* Top bar — pl-20 clears macOS traffic lights when sidebar is collapsed */}
         <div className={cn(
-          "flex items-center justify-between px-4 pt-3 pb-0",
+          "flex items-center justify-between px-4 pb-0",
+          isElectron ? "pt-10" : "pt-3",
           !sidebarOpen && isElectron && "pl-20"
         )}>
           <SidebarTopBarLeft

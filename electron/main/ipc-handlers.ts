@@ -776,6 +776,7 @@ export function registerIPCHandlers(): void {
 
   // --- Content protection (hide from screen share) ---
   ipcMain.handle('window:set-content-protection', async (_e, enabled: boolean) => {
+    setSetting('hide-from-screen-share', enabled ? 'true' : 'false')
     setContentProtection(enabled)
     return true
   })
