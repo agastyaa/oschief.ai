@@ -4,6 +4,12 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.8.1] — 2026-03-22
+
+- **Apple Developer code signing:** App is now signed with a Developer ID Application certificate. macOS will no longer block the app with "can't be opened" errors.
+- **iCloud entitlements enabled:** iCloud container `iCloud.com.syag.notes` wired into the signed build, enabling cross-device sync for users who opt in via Settings > Sync.
+- **Hardened runtime:** Enabled for macOS security compliance (required for notarization).
+
 ## [1.8.0] — 2026-03-20
 
 Stability release — fixes recording pause/resume, tightens the indicator, and removes the floating overlay.

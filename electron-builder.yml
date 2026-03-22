@@ -29,7 +29,11 @@ mac:
       arch:
         - arm64
   icon: electron/resources/icon.icns
-  identity: null
+  identity: "Developer ID Application: Sagar Adrushappa Kalarkopp (4TF93K384V)"
+  hardenedRuntime: true
+  entitlements: electron/resources/entitlements.mac.plist
+  entitlementsInherit: electron/resources/entitlements.mac.inherit.plist
+  gatekeeperAssess: false
 dmg:
   artifactName: "${productName}-${version}-${arch}.dmg"
   contents:
