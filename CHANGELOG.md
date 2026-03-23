@@ -4,7 +4,7 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
-## [1.10.3] — 2026-03-23
+## [1.10.2] — 2026-03-23
 
 ### Added
 - **Parakeet TDT 0.6B STT:** NVIDIA's top-ranked ASR model (6% WER, beats Whisper Large V3) now available as a local STT option via ONNX. Requires `pip3 install onnx-asr` for inference. Runs on Apple Silicon.
