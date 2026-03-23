@@ -1,91 +1,101 @@
 # Syag
 
-A private, on-device meeting companion for macOS. Syag records your meetings, transcribes them in real time, generates structured summaries, and coaches you to communicate better — all without your data leaving your machine.
+Syag is your personal OS for work — a private, on-device chief of staff for macOS.
+
+It sits beside your calls, transcribes in real time, turns meetings into structured plans, links everything back to people and projects, and exposes it all through a local API for agents and automations. All of this runs on your Mac, by default, not in the cloud.
 
 ---
 
 ## Why Syag?
 
-Most meeting tools send your audio to the cloud, slap a watermark on your transcript, and charge per seat. Syag runs entirely on your Mac. Your recordings, transcripts, and notes never leave your machine unless you explicitly choose a cloud AI provider — and even then, only the text goes out, not the audio.
+Most “AI meeting tools” are narrow and leaky:
+
+- They only think in terms of one call at a time.
+- They ship your audio to someone else’s servers.
+- They lock value inside their UI instead of your workflows.
+
+Syag assumes:
+
+- Your **source of truth should live on your machine**.
+- Meetings are just one surface in a bigger personal OS.
+- The best AI features are ones you can **wire into your own tools**.
+
+Audio is processed locally. Transcripts and notes are written to disk. Cloud models are opt‑in, text‑only, and bring‑your‑own‑keys.
 
 ---
 
-## What it does
+## What Syag does
 
-- **Record & transcribe** — Capture mic and system audio simultaneously with live speaker-labeled transcription ("You" vs "Others"). Works with Zoom, Google Meet, Teams, or any audio source.
+### Meetings as the top-of-funnel
 
-- **AI summaries** — Get a structured summary after each meeting: overview, key points, action items with assignees and due dates, decisions, and open questions. Customize the output with your own prompt templates.
+- **Record & transcribe**  
+  Capture mic + system audio with live, speaker‑labeled transcription (“You” vs “Others”). Works with Zoom, Meet, Teams, or any app that makes sound.
 
-- **Knowledge base** — Point Syag at a folder of your notes or reference docs. During a live call it searches your knowledge base and surfaces relevant talking points in real time.
+- **AI summaries that are actually useful**  
+  After each meeting, Syag produces a structured write‑up: overview, key points, decisions, action items (with owners and due dates), and open questions. You control the format via prompt templates.
 
-- **Work Coach** — Post-meeting behavioral coaching tuned to your role (PM, Engineer, Sales, Founder, Designer …). Qualitative insights drawn from best-practice frameworks by top thought leaders, not just talk-time percentages.
+- **Work Coach**  
+  Post‑meeting coaching tuned to your role (PM, Engineer, Sales, Founder, Designer, …). It looks at how you run meetings and gives qualitative feedback based on real frameworks, not vanity talk‑time stats.
 
-- **People & relationships** — Automatically extracts the people you meet with. View, edit, merge duplicates, and track your meeting history with each person.
+- **Hidden from screen share**  
+  One toggle to keep Syag invisible on screen shares so it never becomes the topic of the meeting.
 
-- **Calendar integration** — Connect Google Calendar or Microsoft 365 to see upcoming meetings and auto-detect when a call starts.
+- **Floating meeting pill**  
+  When minimized, a small always‑on‑top pill shows title + elapsed time. Click to jump back.
 
-- **Floating meeting pill** — A small always-on-top indicator appears when Syag is minimized during an active meeting, showing the meeting title and elapsed time. Click it to jump back.
+### Personal OS layer
 
-- **Agent API** — A read-only local API for AI agents and tools to query your notes programmatically. Token-authenticated, zero network exposure.
+- **Command Center**  
+  A homepage for your workday: upcoming meetings, recent notes, and quick actions in one place. Think “launchpad for your brain,” all local.
 
-- **Hidden from screen share** — One toggle hides Syag from screen sharing so other participants never see it.
+- **Knowledge base search**  
+  Point Syag at a folder of notes or reference docs (Obsidian, Notion exports, markdown, PDFs, etc.). During a call, it live‑searches and surfaces relevant talking points so you sound prepared without context‑switching.
+
+- **People & relationships**  
+  Syag automatically extracts the people you meet with. You can merge, edit, and see your history with each person across meetings — a lightweight relationship graph that actually stays up to date.
+
+- **Calendar integration**  
+  Connect Google Calendar or Microsoft 365. Syag pulls upcoming meetings, auto‑detects when one starts, and suggests recording so nothing slips through.
+
+### For agents & automations
+
+- **Agent API**  
+  A read‑only local API that exposes your meetings, notes, and decisions to AI agents and tools. Token‑authenticated, localhost‑only, zero network exposure by default.
+
+Use it to:
+
+- Generate follow‑up emails.
+- Sync action items into task systems.
+- Run analytics over your conversations.
+- Build your own “staff tools” on top of your own data.
 
 ---
 
-## Privacy
+## Privacy & security
 
-- All data stored locally in `~/Library/Application Support/Syag/`
-- API keys encrypted via macOS Keychain (Electron safeStorage)
-- No telemetry, no analytics, no cloud sync
-- Supports fully local transcription (MLX Whisper / whisper.cpp) and local LLMs (Llama, Phi, Gemma via GGUF)
-- Cloud providers (OpenAI, Anthropic, Groq, Deepgram, etc.) are opt-in — bring your own keys
+Syag is designed to be boring from a security review standpoint:
+
+- All data stored locally at `~/Library/Application Support/Syag/`
+- API keys encrypted via macOS Keychain (`safeStorage`)
+- No telemetry, no analytics, no surprise background sync
+- Fully local transcription via MLX Whisper / `whisper.cpp`
+- Local LLM support (Llama, Phi, Gemma via GGUF, including Ollama routing)
+- Cloud providers (OpenAI, Anthropic, Groq, Deepgram, etc.) are opt‑in and text‑only — audio never leaves your Mac
 
 ---
 
 ## Install
 
-Download the latest DMG from the [Releases](https://github.com/iamsagar125/syag-note/releases) page, open it, and drag Syag to Applications.
+1. Download the latest `.dmg` from the [Releases](https://github.com/iamsagar125/syag-note/releases) page.
+2. Open the DMG and drag **Syag** to **Applications**.
+3. Launch Syag from Applications.
 
-macOS (Apple Silicon) only.
+**Platform:** macOS (Apple Silicon) only.
 
-**If macOS blocks the app:** The DMG is not notarized. Either:
+If macOS blocks the app because it’s not notarized yet:
 
-- **Right-click** Syag in Applications → **Open** → confirm; or
-- In Terminal: `xattr -cr /Applications/Syag.app`
-
----
-
-## Development
+- Right‑click Syag in Applications → **Open** → confirm; or  
+- In Terminal:
 
 ```bash
-# Install dependencies
-npm ci
-
-# Run in dev mode (Electron + Vite hot reload)
-npm run dev:electron
-
-# Run tests
-npm test
-
-# Lint
-npm run lint
-```
-
----
-
-## Build & release
-
-```bash
-npm run build      # Build main + renderer
-npm run package    # Package DMG (macOS, config in package.json)
-```
-
-Output: `dist/` — DMG and zip. Version comes from `package.json`.
-
-Installing a new build over an existing one preserves your notes, API keys, and settings — user data lives in `~/Library/Application Support/Syag/`, not inside the app bundle.
-
----
-
-## License
-
-MIT
+xattr -cr /Applications/Syag.app
