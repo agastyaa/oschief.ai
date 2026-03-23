@@ -4,6 +4,13 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.10.1] — 2026-03-06
+
+### Fixed
+- **Sidebar folder navigation:** Opening a folder no longer violates React’s Rules of Hooks (hooks for the Command Center now run on every render). Clicking a folder reliably shows the folder view instead of breaking the page.
+- **Hide from screen sharing:** Preference is persisted to the app database so it survives restarts and stays in sync with the Settings toggle.
+- **Preferences:** Removed non-functional “Auto-reposition during meetings” toggle.
+
 ## [1.10.0] — 2026-03-23
 
 Command Center homepage + visual identity upgrade + QA fixes.

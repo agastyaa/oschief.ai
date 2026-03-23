@@ -98,6 +98,20 @@ const Index = () => {
   const activeFolderId = searchParams.get("folder");
   const activeFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
 
+  const api = getElectronAPI();
+  const [openCommitments, setOpenCommitments] = useState<any[]>([]);
+  const viewAll = searchParams.get("view") === "all";
+  const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
+
+  useEffect(() => {
+    if (viewAll) setRecentMeetingsExpanded(true);
+  }, [viewAll]);
+
+  useEffect(() => {
+    if (!api?.memory?.commitments) return;
+    api.memory.commitments.getOpen().then(setOpenCommitments).catch(() => {});
+  }, [api, notes.length]);
+
   const grouped = notes.reduce<Record<string, typeof notes>>((acc, n) => {
     (acc[n.date] = acc[n.date] || []).push(n);
     return acc;
@@ -267,23 +281,6 @@ const Index = () => {
 
   const hour = now.getHours();
   const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-
-  // ── Command Center data ──
-  const api = getElectronAPI();
-  const [openCommitments, setOpenCommitments] = useState<any[]>([]);
-  const viewAll = searchParams.get("view") === "all";
-  const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
-
-  // Auto-expand notes when navigating via "All Notes" sidebar link
-  useEffect(() => {
-    if (viewAll) setRecentMeetingsExpanded(true);
-  }, [viewAll]);
-
-  // Fetch open commitments for the command center
-  useEffect(() => {
-    if (!api?.memory?.commitments) return;
-    api.memory.commitments.getOpen().then(setOpenCommitments).catch(() => {});
-  }, [api, notes.length]);
 
   // Next upcoming event for prep card
   const nextEvent = upcomingEventsList.length > 0 ? upcomingEventsList[0] : null;
