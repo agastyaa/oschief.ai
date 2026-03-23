@@ -20,18 +20,6 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     url: 'https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf',
     filename: 'llama-3.2-3b-instruct-q4_k_m.gguf',
   },
-  'phi-3-mini': {
-    url: 'https://huggingface.co/bartowski/Phi-3.1-mini-4k-instruct-GGUF/resolve/main/Phi-3.1-mini-4k-instruct-Q4_K_M.gguf',
-    filename: 'phi-3-mini-q4_k_m.gguf',
-  },
-  'gemma-2-2b': {
-    url: 'https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
-    filename: 'gemma-2-2b-it-q4_k_m.gguf',
-  },
-  'syag-llama-3b': {
-    url: 'https://huggingface.co/syag/syag-llama-3b-GGUF/resolve/main/syag-llama-3b-q4_k_m.gguf',
-    filename: 'syag-llama-3b-q4_k_m.gguf',
-  },
 }
 
 const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()

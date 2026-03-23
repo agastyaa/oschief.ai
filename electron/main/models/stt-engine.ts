@@ -377,6 +377,44 @@ function getEnvPathWithBrew(): string {
   return extra ? `${extra}:${existing}` : existing
 }
 
+/**
+ * PEP 668-safe pip install: tries --user first (works on macOS system Python),
+ * falls back to --break-system-packages if --user fails.
+ * Returns { ok, stderr } so callers can show the last pip output on failure.
+ */
+function pipInstallSafe(packageName: string, extraArgs: string[] = []): Promise<{ ok: boolean; stderr: string }> {
+  const envPath = getEnvPathWithBrew()
+  const tryPip = (args: string[]): Promise<{ ok: boolean; stderr: string }> =>
+    new Promise((resolve) => {
+      const proc = spawn('python3', ['-m', 'pip', 'install', ...args, packageName], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, PATH: envPath },
+      })
+      let stderr = ''
+      proc.stderr?.on('data', (d) => { stderr += d.toString() })
+      proc.on('close', (code) => resolve({ ok: code === 0, stderr: stderr.trim().slice(-600) }))
+      proc.on('error', (err) => resolve({ ok: false, stderr: err.message }))
+    })
+
+  return (async () => {
+    // 1. Try plain install (works in venvs, Homebrew Python, etc.)
+    let result = await tryPip([...extraArgs])
+    if (result.ok) return result
+
+    // 2. If PEP 668 error, try --user (installs to ~/.local)
+    if (result.stderr.includes('externally-managed') || result.stderr.includes('PEP 668')) {
+      console.log(`[pip] PEP 668 detected for ${packageName}, retrying with --user`)
+      result = await tryPip(['--user', ...extraArgs])
+      if (result.ok) return result
+
+      // 3. Last resort: --break-system-packages (user explicitly wants this)
+      console.log(`[pip] --user failed for ${packageName}, trying --break-system-packages`)
+      result = await tryPip(['--break-system-packages', ...extraArgs])
+    }
+    return result
+  })()
+}
+
 /** Install ffmpeg (required for MLX Whisper audio). On macOS runs brew install ffmpeg. */
 export async function installFfmpeg(): Promise<boolean> {
   if (checkFfmpegAvailable()) return true
@@ -660,31 +698,9 @@ export async function installMLXWhisper(): Promise<LocalSetupResult> {
   }
 
   steps.push('Step 2/3 — Python package mlx-whisper (pip; may take several minutes)')
-  let mlxPipStderr = ''
-  const pipOk = await new Promise<boolean>((resolve) => {
-    const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-whisper'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
-    })
-    let stderr = ''
-    proc.stderr?.on('data', (d) => { stderr += d.toString() })
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(true)
-      } else {
-        mlxPipStderr = stderr.trim().slice(-600)
-        console.warn('[MLX] pip install failed:', code, stderr.slice(-500))
-        resolve(false)
-      }
-    })
-    proc.on('error', (err) => {
-      console.warn('[MLX] pip spawn error:', err.message)
-      steps.push(`pip could not run: ${err.message}`)
-      resolve(false)
-    })
-  })
-  if (!pipOk) {
-    if (mlxPipStderr) steps.push(`Last pip output: ${mlxPipStderr}`)
+  const pipResult = await pipInstallSafe('mlx-whisper')
+  if (!pipResult.ok) {
+    if (pipResult.stderr) steps.push(`Last pip output: ${pipResult.stderr}`)
     return {
       ok: false,
       steps,
@@ -968,30 +984,9 @@ export async function installMLXWhisper8Bit(): Promise<LocalSetupResult> {
   }
 
   steps.push('Step 2/3 — Python package mlx-audio-plus (pip; may take several minutes)')
-  let mlx8PipStderr = ''
-  const pipOk = await new Promise<boolean>((resolve) => {
-    const proc = spawn('python3', ['-m', 'pip', 'install', 'mlx-audio-plus'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
-    })
-    let stderr = ''
-    proc.stderr?.on('data', (d) => { stderr += d.toString() })
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(true)
-      } else {
-        mlx8PipStderr = stderr.trim().slice(-600)
-        console.warn('[MLX 8-bit] pip install failed:', code, stderr.slice(-500))
-        resolve(false)
-      }
-    })
-    proc.on('error', (err) => {
-      steps.push(`pip could not run: ${err.message}`)
-      resolve(false)
-    })
-  })
-  if (!pipOk) {
-    if (mlx8PipStderr) steps.push(`Last pip output: ${mlx8PipStderr}`)
+  const pipResult8 = await pipInstallSafe('mlx-audio-plus')
+  if (!pipResult8.ok) {
+    if (pipResult8.stderr) steps.push(`Last pip output: ${pipResult8.stderr}`)
     return {
       ok: false,
       steps,
@@ -1074,28 +1069,9 @@ async function processWithMLXWhisper8Bit(wavBuffer: Buffer, customVocabulary?: s
 
 // ─── Repair functions ────────────────────────────────────────────────────────
 
-/** Force-reinstall a pip package (with --force-reinstall --no-cache-dir) */
+/** Force-reinstall a pip package (PEP 668-safe with --force-reinstall --no-cache-dir) */
 function forceInstallPip(packageName: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const proc = spawn('python3', ['-m', 'pip', 'install', '--force-reinstall', '--no-cache-dir', packageName], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
-    })
-    let stderr = ''
-    proc.stderr?.on('data', (d) => { stderr += d.toString() })
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(true)
-      } else {
-        console.warn(`[STT] pip install ${packageName} failed:`, code, stderr.slice(-500))
-        resolve(false)
-      }
-    })
-    proc.on('error', (err) => {
-      console.warn(`[STT] pip spawn error for ${packageName}:`, err.message)
-      resolve(false)
-    })
-  })
+  return pipInstallSafe(packageName, ['--force-reinstall', '--no-cache-dir']).then(r => r.ok)
 }
 
 /**

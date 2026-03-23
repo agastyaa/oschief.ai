@@ -4,6 +4,24 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.9.2] — 2026-03-22
+
+AI Models page cleanup and reliability.
+
+### Fixed
+- **MLX Whisper install on macOS:** pip install now handles PEP 668 (externally-managed Python). Tries `--user` flag first, then `--break-system-packages` as fallback. No more manual Terminal workarounds needed on stock macOS.
+- **MLX Whisper 8-bit install:** Same PEP 668 fix applied to mlx-audio-plus package.
+- **Repair function:** Force-reinstall now uses the same PEP 668-safe install path.
+
+### Removed
+- **Syag Llama 3B:** Removed — HuggingFace repo doesn't exist yet (placeholder URL returned 401).
+- **Phi-3 Mini:** Removed from model list — consolidating to one local LLM option.
+- **Gemma 2 2B:** Removed from model list — consolidating to one local LLM option.
+
+### Changed
+- **Local LLM options simplified:** Only Llama 3.2 3B remains as the local LLM. Use Ollama for more model choices.
+- **Model descriptions updated:** Clearer descriptions for all remaining models.
+
 ## [1.9.1] — 2026-03-22
 
 ### Fixed

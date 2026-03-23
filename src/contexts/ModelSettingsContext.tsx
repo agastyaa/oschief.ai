@@ -37,13 +37,10 @@ export type LocalModel = {
 };
 
 export const localModels: LocalModel[] = [
-  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 Syag auto-installs ffmpeg (Homebrew) + pip package; toasts show each step" },
-  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build \u2014 same auto steps (ffmpeg + pip); step-by-step toasts" },
-  { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "Recommended \u2014 model download + whisper-cli setup (build or Homebrew); toasts list progress" },
-  { id: "syag-llama-3b", name: "Syag Llama 3B", size: "~2 GB", type: "llm", description: "Recommended \u2014 fine-tuned for meeting notes, best local quality" },
-  { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM" },
-  { id: "phi-3-mini", name: "Phi-3 Mini", size: "2.3 GB", type: "llm", description: "Microsoft's efficient model" },
-  { id: "gemma-2-2b", name: "Gemma 2 2B", size: "1.6 GB", type: "llm", description: "Google's lightweight model" },
+  { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 auto-installs ffmpeg + pip package; best quality on-device STT" },
+  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build \u2014 same auto steps (ffmpeg + pip); faster, less RAM" },
+  { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
+  { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "On-device LLM for summarization and chat (no internet needed)" },
 ];
 
 type DownloadState = "idle" | "downloading" | "downloaded";
