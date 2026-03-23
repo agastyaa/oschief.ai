@@ -40,6 +40,7 @@ export const localModels: LocalModel[] = [
   { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 Syag auto-installs ffmpeg (Homebrew) + pip package; toasts show each step" },
   { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build \u2014 same auto steps (ffmpeg + pip); step-by-step toasts" },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "Recommended \u2014 model download + whisper-cli setup (build or Homebrew); toasts list progress" },
+  { id: "syag-llama-3b", name: "Syag Llama 3B", size: "~2 GB", type: "llm", description: "Recommended \u2014 fine-tuned for meeting notes, best local quality" },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM" },
   { id: "phi-3-mini", name: "Phi-3 Mini", size: "2.3 GB", type: "llm", description: "Microsoft's efficient model" },
   { id: "gemma-2-2b", name: "Gemma 2 2B", size: "1.6 GB", type: "llm", description: "Google's lightweight model" },
@@ -71,6 +72,15 @@ function saveToStorage(data: {
   } catch {}
 }
 
+export type OllamaStatus = {
+  available: boolean;
+  models: string[];
+  recommendedTier: { tag: string; label: string; size: string } | null;
+  ramGB: number;
+  pulling: string | null;
+  pullPercent: number;
+};
+
 interface ModelSettingsContextType {
   selectedAIModel: string;
   setSelectedAIModel: (model: string) => void;
@@ -91,6 +101,9 @@ interface ModelSettingsContextType {
   getAvailableAIModels: () => { value: string; label: string; group: string }[];
   appleFoundationAvailable: boolean;
   effectiveProviders: ModelProvider[];
+  ollamaStatus: OllamaStatus;
+  refreshOllama: () => Promise<void>;
+  pullOllamaModel: (modelTag: string) => Promise<void>;
 }
 
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
@@ -121,6 +134,14 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
   const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
   const [optionalProviders, setOptionalProviders] = useState<ModelProvider[]>([]);
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>({
+    available: false,
+    models: [],
+    recommendedTier: null,
+    ramGB: 0,
+    pulling: null,
+    pullPercent: 0,
+  });
 
   const effectiveProviders = useMemo(
     () => [...enterpriseProviders, ...optionalProviders],
@@ -149,13 +170,68 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, [api]);
 
+  // Detect Ollama availability on mount
+  const refreshOllama = useCallback(async () => {
+    if (!api?.ollama) return;
+    try {
+      const [detection, tierInfo] = await Promise.all([
+        api.ollama.detect(),
+        api.ollama.recommendedTier(),
+      ]);
+      setOllamaStatus((prev) => ({
+        ...prev,
+        available: detection.available,
+        models: detection.models,
+        recommendedTier: tierInfo.tier,
+        ramGB: tierInfo.ramGB,
+      }));
+    } catch {
+      setOllamaStatus((prev) => ({ ...prev, available: false, models: [] }));
+    }
+  }, [api]);
+
+  useEffect(() => {
+    refreshOllama();
+  }, [refreshOllama]);
+
+  // Listen for Ollama pull progress
+  useEffect(() => {
+    if (!api?.ollama) return;
+    const cleanup = api.ollama.onPullProgress((progress) => {
+      setOllamaStatus((prev) => ({
+        ...prev,
+        pulling: progress.modelTag,
+        pullPercent: progress.percent,
+      }));
+      if (progress.status === 'success' || progress.percent >= 100) {
+        setOllamaStatus((prev) => ({ ...prev, pulling: null, pullPercent: 0 }));
+        refreshOllama();
+      }
+    });
+    return cleanup;
+  }, [api, refreshOllama]);
+
+  const pullOllamaModel = useCallback(async (modelTag: string) => {
+    if (!api?.ollama) return;
+    setOllamaStatus((prev) => ({ ...prev, pulling: modelTag, pullPercent: 0 }));
+    try {
+      await api.ollama.pull(modelTag);
+      toast.success(`Model "${modelTag}" pulled successfully`);
+      await refreshOllama();
+    } catch (err: any) {
+      toast.error(`Failed to pull "${modelTag}": ${err?.message ?? err}`);
+    } finally {
+      setOllamaStatus((prev) => ({ ...prev, pulling: null, pullPercent: 0 }));
+    }
+  }, [api, refreshOllama]);
+
   /** Drop AI selection if it references a provider that isn't known. */
   useEffect(() => {
     if (!modelsListFetched || !dbSettingsLoaded) return;
     const m = selectedAIModel;
     if (!m || !m.includes(":")) return;
     const prefix = m.split(":")[0];
-    if (prefix === "local" || prefix === "apple") {
+    if (prefix === "local" || prefix === "apple" || prefix === "ollama") {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
@@ -412,6 +488,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   }, [api]);
 
   // Install default local STT + LLM on first launch after onboarding (Quill-style).
+  // If Ollama is available with a model, prefer it over the small GGUF default.
   const DEFAULT_STT = "whisper-large-v3-turbo";
   const DEFAULT_LLM = "gemma-2-2b";
   useEffect(() => {
@@ -422,15 +499,21 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       if (flag === "true") return;
       const hasSTT = localModels.some((m) => m.type === "stt" && downloadStates[m.id] === "downloaded");
       const hasLLM = localModels.some((m) => m.type === "llm" && downloadStates[m.id] === "downloaded");
-      if (hasSTT && hasLLM) return;
+      const hasOllamaLLM = ollamaStatus.available && ollamaStatus.models.length > 0;
+      if (hasSTT && (hasLLM || hasOllamaLLM)) return;
 
       api.db.settings.set("default-local-models-install-started", "true").then(() => {
         setUseLocalModels(true);
         if (!hasSTT) handleDownload(DEFAULT_STT);
-        if (!hasLLM) handleDownload(DEFAULT_LLM);
+        // If Ollama is available with a model, auto-select it instead of downloading gemma-2-2b
+        if (hasOllamaLLM) {
+          setSelectedAIModel(`ollama:${ollamaStatus.models[0]}`);
+        } else if (!hasLLM) {
+          handleDownload(DEFAULT_LLM);
+        }
       });
     });
-  }, [api, modelsListFetched, downloadStates, handleDownload]);
+  }, [api, modelsListFetched, downloadStates, handleDownload, ollamaStatus]);
 
   // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
   useEffect(() => {
@@ -527,6 +610,10 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   const getActiveAIModelLabel = (): string => {
     if (selectedAIModel.startsWith("apple:")) return "Apple (on-device)";
+    if (selectedAIModel.startsWith("ollama:")) {
+      const tag = selectedAIModel.replace("ollama:", "");
+      return `${tag} (Ollama)`;
+    }
     if (selectedAIModel.startsWith("local:")) {
       const id = selectedAIModel.replace("local:", "");
       const m = localModels.find((lm) => lm.id === id);
@@ -545,6 +632,12 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       models.push({ value: "apple:foundation", label: "Apple (on-device)", group: "System" });
     } else if (isDarwin) {
       models.push({ value: "apple:foundation", label: "Apple (on-device) (requires macOS 26+)", group: "System" });
+    }
+    // Ollama models (on-device, larger models)
+    if (ollamaStatus.available && ollamaStatus.models.length > 0) {
+      for (const tag of ollamaStatus.models) {
+        models.push({ value: `ollama:${tag}`, label: `${tag}`, group: "Ollama (Local)" });
+      }
     }
     localModels
       .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
@@ -577,6 +670,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         getActiveAIModelLabel, getAvailableAIModels,
         appleFoundationAvailable,
         effectiveProviders,
+        ollamaStatus, refreshOllama, pullOllamaModel,
       }}
     >
       {children}

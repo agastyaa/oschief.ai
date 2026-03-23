@@ -11,6 +11,7 @@ import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
 import { setupPowerMonitor } from './power-manager'
 import { startApiServer, stopApiServer, getApiToken } from './api/server'
 import { loadOptionalProviders } from './cloud/optional-providers-loader'
+import { setupAutoUpdater } from './auto-updater'
 
 app.setName('Syag')
 
@@ -100,6 +101,11 @@ app.whenReady().then(async () => {
   setupTray(mainWindow)
   startMeetingDetection(mainWindow)
   setupPowerMonitor(mainWindow)
+
+  // Auto-updates (skip in dev)
+  if (app.isPackaged) {
+    setupAutoUpdater(mainWindow)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

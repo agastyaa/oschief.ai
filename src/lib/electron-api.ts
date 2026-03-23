@@ -53,6 +53,14 @@ type ElectronAPI = {
       getAll: () => Promise<Record<string, string>>
     }
   }
+  ollama?: {
+    detect: () => Promise<{ available: boolean; models: string[] }>
+    models: () => Promise<{ value: string; label: string; size: number }[]>
+    recommendedTier: () => Promise<{ tier: { tag: string; label: string; size: string; contextCap: number; minRamGB: number } | null; ramGB: number }>
+    pull: (modelTag: string) => Promise<boolean>
+    health: () => Promise<boolean>
+    onPullProgress: (callback: (progress: { modelTag: string; status: string; completed: number; total: number; percent: number }) => void) => () => void
+  }
   models: {
     download: (modelId: string) => Promise<boolean>
     cancelDownload: (modelId: string) => Promise<boolean>
@@ -133,6 +141,10 @@ type ElectronAPI = {
     onPowerModeChanged?: (callback: (data: { onBattery: boolean }) => void) => () => void
     setCalendarEvents?: (events: Array<{ id: string; title: string; start: number; end: number; joinLink?: string }>) => Promise<boolean>
     updateTrayMeetingInfo?: (info: { title: string; startTime: number } | null) => Promise<void>
+    checkForUpdates?: () => Promise<any>
+    installUpdate?: () => Promise<void>
+    onUpdateAvailable?: (callback: (version: string) => void) => () => void
+    onUpdateDownloaded?: (callback: (version: string) => void) => () => void
   }
   export?: {
     toDocx: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>

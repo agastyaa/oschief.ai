@@ -28,6 +28,10 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     url: 'https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
     filename: 'gemma-2-2b-it-q4_k_m.gguf',
   },
+  'syag-llama-3b': {
+    url: 'https://huggingface.co/syag/syag-llama-3b-GGUF/resolve/main/syag-llama-3b-q4_k_m.gguf',
+    filename: 'syag-llama-3b-q4_k_m.gguf',
+  },
 }
 
 const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()

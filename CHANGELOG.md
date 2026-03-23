@@ -4,11 +4,23 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
-## [1.8.1] — 2026-03-22
+## [1.9.0] — 2026-03-22
 
-- **Apple Developer code signing:** App is now signed with a Developer ID Application certificate. macOS will no longer block the app with "can't be opened" errors.
-- **iCloud entitlements enabled:** iCloud container `iCloud.com.syag.notes` wired into the signed build, enabling cross-device sync for users who opt in via Settings > Sync.
-- **Hardened runtime:** Enabled for macOS security compliance (required for notarization).
+Code signing, notarization, Ollama integration, and auto-update support.
+
+### Added
+- **Apple Developer code signing + notarization:** App is signed with Developer ID Application certificate and notarized by Apple. macOS Gatekeeper no longer blocks the app with "can't be opened" errors — it just works for any user who downloads the DMG.
+- **Ollama integration:** Connect to a local Ollama server for LLM inference. Supports model discovery, health checks, and routing through the existing LLM pipeline. Configure in Settings > AI Models.
+- **Auto-updater:** In-app update notifications via electron-updater. Checks for new GitHub releases and prompts the user to install.
+- **GitHub publish pipeline:** electron-builder now publishes releases directly to GitHub via `--publish always`, replacing the two-job workflow.
+- **Notarization script:** `scripts/notarize.js` for manual notarization workflows outside electron-builder.
+- **Model evaluation script:** `scripts/eval-model.ts` for benchmarking local model quality against cloud baselines.
+- **Fine-tuning script:** `scripts/fine-tune.py` for fine-tuning local Llama models on meeting note data.
+
+### Changed
+- **iCloud entitlements removed:** Removed iCloud container entitlements from the plist. File-based iCloud Drive sync (`~/Library/Mobile Documents/`) works without them — entitlements are only needed for CloudKit, which Syag doesn't use.
+- **electron-builder config:** Added `identity`, `hardenedRuntime`, `notarize.teamId`, and `publish` settings for signed + notarized distribution.
+- **Release workflow simplified:** Single `build-and-release` job replaces the previous two-job `build-mac` + `release` workflow.
 
 ## [1.8.0] — 2026-03-20
 

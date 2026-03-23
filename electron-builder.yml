@@ -1,5 +1,9 @@
 appId: com.syag.notes
 productName: Syag
+publish:
+  provider: github
+  owner: iamsagar125
+  repo: syag-note
 directories:
   buildResources: electron/resources
   output: dist
@@ -17,6 +21,8 @@ asarUnpack:
   - "node_modules/node-llama-cpp/**"
 mac:
   category: public.app-category.productivity
+  notarize:
+    teamId: "4TF93K384V"
   extendInfo:
     NSSpeechRecognitionUsageDescription: "Syag uses speech recognition to transcribe your meetings when you choose Apple Speech. Audio is processed on your device or by Apple's service."
   extraResources:
@@ -26,6 +32,9 @@ mac:
       to: tray-icon-template-2x.png
   target:
     - target: dmg
+      arch:
+        - arm64
+    - target: zip
       arch:
         - arm64
   icon: electron/resources/icon.icns

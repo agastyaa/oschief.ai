@@ -140,6 +140,33 @@ export function registerIPCHandlers(): void {
     const { uninstallMLXWhisper8Bit } = await import('./models/stt-engine')
     return uninstallMLXWhisper8Bit()
   })
+
+  // --- Ollama ---
+  ipcMain.handle('ollama:detect', async () => {
+    const { detectOllama } = await import('./models/ollama-manager')
+    return detectOllama()
+  })
+  ipcMain.handle('ollama:models', async () => {
+    const { getOllamaModelsForPicker } = await import('./models/ollama-manager')
+    return getOllamaModelsForPicker()
+  })
+  ipcMain.handle('ollama:recommended-tier', async () => {
+    const { getRecommendedTier, getSystemRAMGB } = await import('./models/ollama-manager')
+    return { tier: getRecommendedTier(), ramGB: getSystemRAMGB() }
+  })
+  ipcMain.handle('ollama:pull', async (_e, modelTag: string) => {
+    const { pullOllamaModel } = await import('./models/ollama-manager')
+    const sender = _e.sender
+    await pullOllamaModel(modelTag, (progress) => {
+      sender.send('ollama:pull-progress', { modelTag, ...progress })
+    })
+    return true
+  })
+  ipcMain.handle('ollama:health', async () => {
+    const { ollamaHealthCheck } = await import('./models/ollama-manager')
+    return ollamaHealthCheck()
+  })
+
   // --- Tray / Meeting ---
   ipcMain.handle('tray:update-recording', (_e, isRecording: boolean) => {
     updateTrayRecordingState(isRecording)
@@ -822,5 +849,20 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
     return true
+  })
+
+  // --- Auto-updates ---
+  ipcMain.handle('app:check-for-updates', async () => {
+    try {
+      const { autoUpdater } = await import('electron-updater')
+      const result = await autoUpdater.checkForUpdates()
+      return result?.updateInfo ?? null
+    } catch {
+      return null
+    }
+  })
+  ipcMain.handle('app:install-update', async () => {
+    const { autoUpdater } = await import('electron-updater')
+    autoUpdater.quitAndInstall(false, true)
   })
 }

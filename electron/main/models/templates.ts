@@ -299,11 +299,34 @@ export function getTemplate(templateId: string): MeetingTemplate {
 // Prompt builder — assembles the full prompt sent to the LLM
 // ---------------------------------------------------------------------------
 
+/** Few-shot output example for local models that need extra formatting guidance. */
+const FEW_SHOT_EXAMPLE = `
+EXAMPLE OUTPUT (follow this format exactly):
+
+**Weekly Product Sync** — Mon, Mar 17, 2026
+
+**TL;DR:** Pushed v2.1 launch to April 4; onboarding redesign approved; hired senior BE.
+
+**Launch Timeline**
+- v2.1 pushed two weeks to April 4 — QA found auth edge cases in SSO flow
+  - Affects enterprise pilot with Acme Corp; Sarah will notify their team
+→ Fix SSO token refresh by March 28
+→ **Decision:** Ship without SAML support; add in v2.2
+
+**Onboarding Redesign**
+- New 3-step flow approved — removes company-size step, adds role picker
+- A/B test showed 22% completion lift in prototype
+→ **Maya** to finalize Figma by Friday
+→ Ship behind feature flag by April 1
+`
+
 export function buildPrompt(
   template: MeetingTemplate,
   context: MeetingContext,
   userNotes: string,
   transcript: string,
+  /** Include few-shot example for local/Ollama models that benefit from format guidance. */
+  includeFewShot?: boolean,
 ): string {
   const preamble = SYSTEM_PREAMBLE
     .replaceAll('{{USER_NAME}}', context.user.name)
@@ -312,8 +335,10 @@ export function buildPrompt(
     ? `\nVOCABULARY (spell these correctly): ${context.vocabulary.join(', ')}`
     : ''
 
-  return `${preamble}
+  const fewShotSection = includeFewShot ? FEW_SHOT_EXAMPLE : ''
 
+  return `${preamble}
+${fewShotSection}
 TEMPLATE-SPECIFIC INSTRUCTIONS
 ${template.prompt}
 

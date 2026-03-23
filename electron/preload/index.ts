@@ -71,6 +71,19 @@ const electronAPI = {
     uninstallMLXWhisper8Bit: () => ipcRenderer.invoke('models:uninstall-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
   },
 
+  ollama: {
+    detect: () => ipcRenderer.invoke('ollama:detect') as Promise<{ available: boolean; models: string[] }>,
+    models: () => ipcRenderer.invoke('ollama:models') as Promise<{ value: string; label: string; size: number }[]>,
+    recommendedTier: () => ipcRenderer.invoke('ollama:recommended-tier') as Promise<{ tier: { tag: string; label: string; size: string; contextCap: number; minRamGB: number } | null; ramGB: number }>,
+    pull: (modelTag: string) => ipcRenderer.invoke('ollama:pull', modelTag),
+    health: () => ipcRenderer.invoke('ollama:health') as Promise<boolean>,
+    onPullProgress: (callback: (progress: { modelTag: string; status: string; completed: number; total: number; percent: number }) => void) => {
+      const handler = (_event: any, progress: any) => callback(progress)
+      ipcRenderer.on('ollama:pull-progress', handler)
+      return () => ipcRenderer.removeListener('ollama:pull-progress', handler)
+    },
+  },
+
   recording: {
     start: (options: { sttModel: string; deviceId?: string; meetingTitle?: string; vocabulary?: string[] }) =>
       ipcRenderer.invoke('recording:start', options),
@@ -200,6 +213,18 @@ const electronAPI = {
       const handler = (_event: any, data: { onBattery: boolean }) => callback(data)
       ipcRenderer.on('power:mode-changed', handler)
       return () => ipcRenderer.removeListener('power:mode-changed', handler)
+    },
+    checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
+    installUpdate: () => ipcRenderer.invoke('app:install-update'),
+    onUpdateAvailable: (callback: (version: string) => void) => {
+      const handler = (_event: any, version: string) => callback(version)
+      ipcRenderer.on('update-available', handler)
+      return () => ipcRenderer.removeListener('update-available', handler)
+    },
+    onUpdateDownloaded: (callback: (version: string) => void) => {
+      const handler = (_event: any, version: string) => callback(version)
+      ipcRenderer.on('update-downloaded', handler)
+      return () => ipcRenderer.removeListener('update-downloaded', handler)
     },
   },
 

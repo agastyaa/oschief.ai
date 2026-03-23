@@ -1224,9 +1224,13 @@ export default function SettingsPage() {
     getAvailableAIModels,
     appleFoundationAvailable,
     effectiveProviders,
+    ollamaStatus,
+    refreshOllama,
+    pullOllamaModel,
   } = modelSettings;
   const [active, setActive] = useState("account");
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null);
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({ ...DEFAULT_TOGGLES });
   const [togglesLoaded, setTogglesLoaded] = useState(false);
@@ -1260,6 +1264,12 @@ export default function SettingsPage() {
     if (api?.app?.getVersion) {
       api.app.getVersion().then(setAppVersion).catch(() => setAppVersion(null));
     }
+  }, [api]);
+
+  useEffect(() => {
+    if (!api?.app?.onUpdateDownloaded) return;
+    const unsub = api.app.onUpdateDownloaded((version) => setUpdateDownloaded(version));
+    return unsub;
   }, [api]);
 
   // Load all toggle values from DB on mount
@@ -1762,6 +1772,137 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Ollama (larger local models via Ollama) */}
+                  {isElectron && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                          <Monitor className="h-3.5 w-3.5" />
+                          Ollama
+                          {!ollamaStatus.available && (
+                            <span className="text-[10px] font-normal text-muted-foreground">(not running)</span>
+                          )}
+                        </h3>
+                        {ollamaStatus.available && (
+                          <button
+                            onClick={() => refreshOllama()}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Refresh
+                          </button>
+                        )}
+                      </div>
+
+                      {!ollamaStatus.available ? (
+                        <div className="rounded-md border border-border bg-muted/40 p-3">
+                          <p className="text-[11px] text-muted-foreground">
+                            Run larger AI models locally for better quality notes.{" "}
+                            <a
+                              href="https://ollama.com"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent hover:underline inline-flex items-center gap-0.5"
+                            >
+                              Install Ollama
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                            , then restart Syag.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Recommended model: Llama 3.1 8B */}
+                          {(() => {
+                            const RECOMMENDED_TAG = "llama3.1:8b";
+                            const RECOMMENDED_NAME = "Llama 3.1 8B";
+                            const RECOMMENDED_SIZE = "~5 GB";
+                            const isAlreadyPulled = ollamaStatus.models.some(
+                              (m) => m.includes("llama3.1") || m.includes("llama3.1:8b")
+                            );
+                            const isPulling = ollamaStatus.pulling === RECOMMENDED_TAG;
+                            const lowRam = ollamaStatus.ramGB > 0 && ollamaStatus.ramGB < 16;
+
+                            return (
+                              <div className="space-y-1.5">
+                                <div className="rounded-md border border-border bg-card overflow-hidden">
+                                  <div className="flex items-center justify-between p-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[13px] font-medium text-foreground">{RECOMMENDED_NAME}</span>
+                                        <span className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase bg-primary/10 text-primary">
+                                          LLM
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Recommended local model for meeting notes · {RECOMMENDED_SIZE}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {isAlreadyPulled ? (
+                                        <span className="flex items-center gap-1 text-[11px] text-accent font-medium">
+                                          <Check className="h-3 w-3" />
+                                          Ready
+                                        </span>
+                                      ) : isPulling ? (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-muted-foreground">
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                          {ollamaStatus.pullPercent > 0 ? `${ollamaStatus.pullPercent}%` : "Starting..."}
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => pullOllamaModel(RECOMMENDED_TAG)}
+                                          disabled={lowRam}
+                                          className={cn(
+                                            "flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                                            lowRam
+                                              ? "text-muted-foreground cursor-not-allowed opacity-50"
+                                              : "text-foreground hover:bg-secondary"
+                                          )}
+                                        >
+                                          <Download className="h-3 w-3" />
+                                          Pull
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {isPulling && ollamaStatus.pullPercent > 0 && (
+                                    <div className="px-3 pb-3">
+                                      <div className="w-full h-1 rounded-full bg-secondary overflow-hidden">
+                                        <div
+                                          className="h-full bg-accent rounded-full transition-all duration-300"
+                                          style={{ width: `${ollamaStatus.pullPercent}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {lowRam && (
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Your Mac has {ollamaStatus.ramGB}GB RAM. Ollama models work best with 16GB+. You can still use the lightweight local models above.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Already-pulled Ollama models */}
+                          {ollamaStatus.models.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {ollamaStatus.models.length} model{ollamaStatus.models.length !== 1 ? "s" : ""} available: {ollamaStatus.models.join(", ")}
+                            </p>
+                          )}
+
+                          <p className="text-[10px] text-muted-foreground">
+                            Want other models? Run{" "}
+                            <code className="rounded bg-muted px-1 py-0.5 text-[9px]">ollama pull &lt;model&gt;</code>{" "}
+                            in Terminal — they'll appear in the model picker automatically.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {/* Enterprise / Cloud Providers */}
                   <div className="space-y-3 pt-2">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -2109,6 +2250,14 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     {appVersion != null && (
                       <p className="text-[13px] text-muted-foreground">Version {appVersion}</p>
+                    )}
+                    {updateDownloaded && (
+                      <button
+                        onClick={() => api?.app?.installUpdate?.()}
+                        className="text-[13px] text-accent hover:underline"
+                      >
+                        Update to v{updateDownloaded} — restart to apply
+                      </button>
                     )}
                     <p className="text-[13px] text-muted-foreground">
                       Installers contain no API keys or user data. Your keys, notes, and calendar stay on your machine.

@@ -1,7 +1,7 @@
 {
   "name": "syag",
   "private": true,
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "AI-powered meeting notes and audio transcription for macOS",
   "author": "Syag",
   "type": "module",
@@ -62,6 +62,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "docx": "^9.6.1",
+    "electron-updater": "^6.8.3",
     "embla-carousel-react": "^8.6.0",
     "geist": "^1.7.0",
     "input-otp": "^1.4.2",
@@ -125,7 +126,11 @@
   "build": {
     "appId": "com.syag.app",
     "productName": "Syag",
-    "publish": null,
+    "publish": {
+      "provider": "github",
+      "owner": "iamsagar125",
+      "repo": "syag-note"
+    },
     "directories": {
       "buildResources": "electron/resources"
     },

@@ -1,6 +1,8 @@
 import { getModelPath } from './manager'
 import { routeLLM } from '../cloud/router'
 import { chatApple } from '../cloud/apple-llm'
+import { chatOllama } from '../cloud/ollama'
+import { getContextCap } from './ollama-manager'
 import {
   getTemplate,
   detectMeetingTypeFromContent,
@@ -190,7 +192,12 @@ export async function summarize(
 
   const templatePrompt = customPrompt ? `${template.prompt}\n\n${customPrompt}` : template.prompt
   const effectiveTemplate = { ...template, prompt: templatePrompt }
-  const userInput = buildPrompt(effectiveTemplate, context, personalNotes, transcriptText)
+  const isLocalModel = model.startsWith('ollama:') || model.startsWith('local:')
+  const userInput = buildPrompt(effectiveTemplate, context, personalNotes, transcriptText, isLocalModel)
+
+  if (model.startsWith('ollama:')) {
+    return summarizeWithOllama(userInput, model.replace('ollama:', ''), template, assigneeNormName)
+  }
 
   if (model.startsWith('local:')) {
     return summarizeWithLocal(userInput, model.replace('local:', ''), template, assigneeNormName)
@@ -225,6 +232,10 @@ export async function chat(
     ...messages.map((m: any) => ({ role: m.role, content: m.text || m.content })),
   ]
 
+  if (model.startsWith('ollama:')) {
+    return chatOllama(llmMessages, model.replace('ollama:', ''), onChunk)
+  }
+
   if (model.startsWith('local:')) {
     return chatWithLocal(llmMessages, model.replace('local:', ''), onChunk)
   }
@@ -234,6 +245,34 @@ export async function chat(
   }
 
   return routeLLM(llmMessages, model, onChunk)
+}
+
+// ─── Ollama (on-device, larger models) ──────────────────────────────────────
+
+async function summarizeWithOllama(
+  userInput: string,
+  modelName: string,
+  template: MeetingTemplate,
+  userDisplayName?: string,
+): Promise<MeetingSummary> {
+  try {
+    const response = await chatOllama(
+      [{ role: 'user', content: userInput }],
+      modelName
+    )
+    const parsed = parseEnhancedNotes(response)
+    const title = extractTitleFromResponse(response)
+    return parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
+  } catch (err: any) {
+    const msg = err?.message ?? String(err)
+    if (msg.includes('Cannot reach Ollama') || msg.includes('ECONNREFUSED')) {
+      throw new Error('Ollama is not running. Start it with `ollama serve` or open the Ollama app, then try again.')
+    }
+    if (msg.includes('not found')) {
+      throw new Error(`Model "${modelName}" is not available in Ollama. Pull it from Settings or run: ollama pull ${modelName}`)
+    }
+    throw new Error(`Ollama summarization failed: ${msg.slice(0, 120)}`)
+  }
 }
 
 // ─── Apple (on-device) ───────────────────────────────────────────────────────
