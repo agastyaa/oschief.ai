@@ -44,23 +44,21 @@ export function isSyncEnabled(): boolean {
 
 export function getICloudContainerPath(): string | null {
   const mobileDocsDir = join(app.getPath('home'), 'Library', 'Mobile Documents')
-  const containerPath = join(mobileDocsDir, ICLOUD_CONTAINER_ID, 'Documents', SYNC_DIR_NAME)
 
-  // Check if parent iCloud container exists (iCloud must be signed in)
-  const parentDir = join(mobileDocsDir, ICLOUD_CONTAINER_ID)
-  if (!existsSync(mobileDocsDir) || !existsSync(parentDir)) {
+  // Mobile Documents must exist (iCloud Drive enabled in System Settings)
+  if (!existsSync(mobileDocsDir)) {
     return null
   }
 
-  return containerPath
+  // Without iCloud entitlements, macOS won't auto-create the container dir.
+  // We create it ourselves — iCloud Drive syncs any subdirectory of Mobile Documents.
+  const containerDir = join(mobileDocsDir, ICLOUD_CONTAINER_ID, 'Documents', SYNC_DIR_NAME)
+  return containerDir
 }
 
 export function isICloudAvailable(): boolean {
-  const containerPath = getICloudContainerPath()
-  if (!containerPath) return false
-  // The parent container dir must exist (created by macOS when iCloud is active)
-  const parentDir = join(containerPath, '..')
-  return existsSync(parentDir)
+  const mobileDocsDir = join(app.getPath('home'), 'Library', 'Mobile Documents')
+  return existsSync(mobileDocsDir)
 }
 
 export function getDeviceId(): string {

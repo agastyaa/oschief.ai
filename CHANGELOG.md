@@ -4,6 +4,12 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.9.1] — 2026-03-22
+
+### Fixed
+- **Auto-updater crash on launch:** Fixed `SyntaxError: Named export 'autoUpdater' not found` — electron-updater is CommonJS and needs a default import.
+- **iCloud sync toggle not working:** "Enable Sync" button in Settings did nothing because the code required `~/Library/Mobile Documents/iCloud~com~syag~notes/` to already exist. Without iCloud entitlements, macOS never creates it. Now the app creates the directory itself — iCloud Drive syncs any subdirectory under `Mobile Documents`.
+
 ## [1.9.0] — 2026-03-22
 
 Code signing, notarization, Ollama integration, and auto-update support.
