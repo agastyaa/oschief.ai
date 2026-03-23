@@ -36,16 +36,11 @@ import {
 
 const sections = [
   { icon: User, label: "Account", id: "account" },
-  { icon: Sliders, label: "Preferences", id: "preferences" },
   { icon: Sparkles, label: "AI Models", id: "ai-models" },
-  { icon: Mic, label: "Transcription", id: "transcription" },
-  { icon: FileText, label: "Templates", id: "templates" },
-  { icon: Calendar, label: "Calendar", id: "calendar" },
-  { icon: Bell, label: "Notifications", id: "notifications" },
-  { icon: Globe, label: "Integrations", id: "integrations" },
+  { icon: FileText, label: "Meeting", id: "meeting" },
+  { icon: Globe, label: "Connections", id: "connections" },
   { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
-  { icon: Cloud, label: "Sync", id: "sync" },
-  { icon: Terminal, label: "Agent API", id: "agent-api" },
+  { icon: Sliders, label: "Advanced", id: "advanced" },
   { icon: Info, label: "About", id: "about" },
 ];
 
@@ -1487,9 +1482,9 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "preferences" && (
+              {active === "meeting" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Preferences" description="Customize how Syag behaves and appears" />
+                  <SectionHeader title="Meeting & Preferences" description="Recording behavior, templates, and appearance" />
                   <div className="space-y-2">
                     <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it. Open Syag from the Dock or menu bar anytime.">
                       <Toggle enabled={prefs.showRecordingIndicator} onToggle={() => updatePref("showRecordingIndicator", !prefs.showRecordingIndicator)} />
@@ -2003,7 +1998,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "transcription" && (
+              {active === "transcription-MERGED" && (
                 <div className="space-y-5">
                   <SectionHeader title="Transcription" description="Control how Syag listens and transcribes your meetings" />
                   <div className="space-y-2">
@@ -2056,13 +2051,13 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "templates" && (
+              {active === "templates-MERGED" && (
                 <TemplatesSection />
               )}
 
-              {active === "calendar" && (
+              {active === "connections" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Calendar" description="Manage your calendar connections and meeting preferences" />
+                  <SectionHeader title="Connections" description="Calendar, integrations, and sync" />
                   <SettingRow label="Sync calendar" description="Keep your meetings synced with your calendar">
                     <Toggle enabled={toggles.calendarSync} onToggle={() => toggle("calendarSync")} />
                   </SettingRow>
@@ -2193,9 +2188,9 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "notifications" && (
+              {active === "advanced" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Notifications" description="Choose what you'd like to be notified about" />
+                  <SectionHeader title="Advanced" description="Notifications, Agent API, and developer settings" />
                   <div className="space-y-2">
                     <SettingRow label="Meeting summary ready" description="Get notified when AI finishes generating a summary">
                       <Toggle enabled={toggles.summaryReady} onToggle={() => toggle("summaryReady")} />
@@ -2210,7 +2205,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "integrations" && (
+              {active === "integrations-MERGED" && (
                 <div className="space-y-5">
                   <SectionHeader title="Integrations" description="Connect third-party tools to enhance your workflow" />
                   <div className="space-y-2">
@@ -2236,32 +2231,74 @@ export default function SettingsPage() {
                 <KnowledgeBaseSection api={api} />
               )}
 
-              {active === "sync" && (
+              {active === "sync-MERGED" && (
                 <SyncSection api={api} />
               )}
 
-              {active === "agent-api" && (
+              {active === "agent-api-MERGED" && (
                 <AgentApiSection api={api} />
               )}
 
               {active === "about" && (
                 <div className="space-y-5">
-                  <SectionHeader title="About" description="Version and privacy" />
-                  <div className="space-y-3">
-                    {appVersion != null && (
-                      <p className="text-[13px] text-muted-foreground">Version {appVersion}</p>
-                    )}
-                    {updateDownloaded && (
-                      <button
-                        onClick={() => api?.app?.installUpdate?.()}
-                        className="text-[13px] text-accent hover:underline"
-                      >
-                        Update to v{updateDownloaded} — restart to apply
-                      </button>
-                    )}
-                    <p className="text-[13px] text-muted-foreground">
-                      Installers contain no API keys or user data. Your keys, notes, and calendar stay on your machine.
-                    </p>
+                  <SectionHeader title="About Syag" description="Your private, on-device meeting companion" />
+
+                  {/* Version + Update */}
+                  <div className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[14px] font-semibold text-foreground">Syag {appVersion ?? ''}</p>
+                        <p className="text-[11px] text-muted-foreground">macOS (Apple Silicon)</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {updateDownloaded ? (
+                          <button
+                            onClick={() => api?.app?.installUpdate?.()}
+                            className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:opacity-90"
+                          >
+                            Update to v{updateDownloaded}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { api?.app?.checkForUpdates?.(); toast.info("Checking for updates..."); }}
+                            className="rounded-md border border-border px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50"
+                          >
+                            Check for updates
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What Syag does */}
+                  <div className="space-y-2">
+                    <h3 className="text-[13px] font-semibold text-foreground">What Syag does</h3>
+                    <div className="text-[12px] text-muted-foreground space-y-1.5 leading-relaxed">
+                      <p><strong className="text-foreground">Record & transcribe</strong> — Capture mic and system audio with live speaker-labeled transcription. Works with Zoom, Meet, Teams, or any audio source.</p>
+                      <p><strong className="text-foreground">AI summaries</strong> — Structured notes after each meeting: overview, key points, action items, decisions, and open questions.</p>
+                      <p><strong className="text-foreground">Work Coach</strong> — Post-meeting behavioral coaching tuned to your role, grounded in transcript evidence.</p>
+                      <p><strong className="text-foreground">People & relationships</strong> — Automatically extracts and tracks the people you meet with.</p>
+                      <p><strong className="text-foreground">Knowledge base</strong> — Point Syag at a folder of docs. During calls, it surfaces relevant talking points in real time.</p>
+                    </div>
+                  </div>
+
+                  {/* Privacy */}
+                  <div className="space-y-2">
+                    <h3 className="text-[13px] font-semibold text-foreground">Privacy</h3>
+                    <div className="text-[12px] text-muted-foreground space-y-1 leading-relaxed">
+                      <p>All data stored locally in <code className="text-[11px] bg-muted px-1 rounded">~/Library/Application Support/Syag/</code></p>
+                      <p>API keys encrypted via macOS Keychain</p>
+                      <p>No telemetry, no analytics, no cloud sync by default</p>
+                      <p>Supports fully local transcription (MLX Whisper / whisper.cpp) and local LLMs (via Ollama)</p>
+                      <p>Cloud providers are opt-in — bring your own keys</p>
+                    </div>
+                  </div>
+
+                  {/* Links */}
+                  <div className="flex gap-3 text-[12px]">
+                    <a href="https://github.com/iamsagar125/syag-note" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
+                    <a href="https://github.com/iamsagar125/syag-note/releases" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Releases</a>
+                    <span className="text-muted-foreground">MIT License</span>
                   </div>
                 </div>
               )}

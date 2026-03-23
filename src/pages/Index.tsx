@@ -329,23 +329,34 @@ const Index = () => {
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body">
 
-            {/* ── Morning Briefing Header ── */}
+            {/* ── Header ── */}
             <div className="mb-6">
-              <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
-                Good {timeOfDay}.
-              </h1>
-              {(todayEvents.length > 0 || openCommitments.length > 0) && (
-                <p className="text-[13px] text-muted-foreground mt-1">
-                  {[
-                    todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`,
-                    overdue.length > 0 && `${overdue.length} overdue`,
-                    dueToday.length > 0 && `${dueToday.length} due today`,
-                    openCommitments.length > 0 && !overdue.length && !dueToday.length && `${openCommitments.length} open commitments`,
-                  ].filter(Boolean).join(' · ')}
-                </p>
+              {viewAll ? (
+                <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
+                  All Notes
+                  {notes.length > 0 && <span className="text-muted-foreground font-normal ml-2 text-[14px]">{notes.length}</span>}
+                </h1>
+              ) : (
+                <>
+                  <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
+                    Good {timeOfDay}.
+                  </h1>
+                  {(todayEvents.length > 0 || openCommitments.length > 0) && (
+                    <p className="text-[13px] text-muted-foreground mt-1">
+                      {[
+                        todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`,
+                        overdue.length > 0 && `${overdue.length} overdue`,
+                        dueToday.length > 0 && `${dueToday.length} due today`,
+                        openCommitments.length > 0 && !overdue.length && !dueToday.length && `${openCommitments.length} open commitments`,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
+            {/* ── Command Center sections (hidden in All Notes view) ── */}
+            {!viewAll && (<>
             {/* ── Prep Card (next meeting) ── */}
             <div className="mb-4">
               <PrepCard
@@ -411,8 +422,9 @@ const Index = () => {
                 </div>
               </div>
             )}
+            </>)}
 
-            {/* ── Recent Meetings (collapsible) ── */}
+            {/* ── Recent Meetings (collapsible on homepage, always-expanded in All Notes) ── */}
             {notes.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
@@ -431,17 +443,19 @@ const Index = () => {
               </div>
             ) : (
               <div>
-                <button
-                  onClick={() => setRecentMeetingsExpanded(!recentMeetingsExpanded)}
-                  className="flex items-center gap-1.5 mb-2 group"
-                >
-                  <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
-                    Recent meetings
-                  </h2>
-                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", recentMeetingsExpanded && "rotate-180")} />
-                  <span className="text-[10px] text-muted-foreground">{notes.length}</span>
-                </button>
-                {recentMeetingsExpanded && (
+                {!viewAll && (
+                  <button
+                    onClick={() => setRecentMeetingsExpanded(!recentMeetingsExpanded)}
+                    className="flex items-center gap-1.5 mb-2 group"
+                  >
+                    <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                      Recent meetings
+                    </h2>
+                    <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", recentMeetingsExpanded && "rotate-180")} />
+                    <span className="text-[10px] text-muted-foreground">{notes.length}</span>
+                  </button>
+                )}
+                {(viewAll || recentMeetingsExpanded) && (
                   <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
                     {Object.entries(grouped).map(([date, items]) => (
                       <div key={date}>
