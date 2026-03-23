@@ -20,53 +20,57 @@
 
 @layer base {
   :root {
-    /* ── Cool Slate + Indigo palette ── */
-    --background: 220 14% 97%;
-    --foreground: 222 22% 10%;
+    /* ── Premium Slate + Indigo palette ── */
+    --background: 220 16% 95%;
+    --foreground: 222 25% 8%;
 
     --card: 220 14% 99%;
-    --card-foreground: 222 22% 10%;
+    --card-foreground: 222 25% 8%;
 
     --popover: 220 14% 99%;
-    --popover-foreground: 222 22% 10%;
+    --popover-foreground: 222 25% 8%;
 
-    --primary: 230 65% 55%;
+    --primary: 230 70% 52%;
     --primary-foreground: 220 14% 98%;
 
-    --secondary: 220 14% 93%;
-    --secondary-foreground: 222 18% 18%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222 20% 16%;
 
-    --muted: 218 12% 93%;
-    --muted-foreground: 218 10% 50%;
+    --muted: 218 12% 92%;
+    --muted-foreground: 220 15% 35%;
 
-    --accent: 230 65% 55%;
+    --accent: 230 70% 52%;
     --accent-foreground: 220 14% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 220 14% 98%;
 
-    --border: 220 13% 89%;
-    --input: 220 13% 89%;
-    --ring: 230 65% 55%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 230 70% 52%;
 
-    --radius: 0.375rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 222 16% 95%;
-    --sidebar-foreground: 222 10% 40%;
-    --sidebar-primary: 230 65% 55%;
+    --sidebar-background: 222 18% 94%;
+    --sidebar-foreground: 222 12% 38%;
+    --sidebar-primary: 230 70% 52%;
     --sidebar-primary-foreground: 220 14% 98%;
-    --sidebar-accent: 230 65% 55%;
+    --sidebar-accent: 230 70% 52%;
     --sidebar-accent-foreground: 220 14% 98%;
-    --sidebar-border: 220 13% 89%;
-    --sidebar-ring: 230 65% 55%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 230 70% 52%;
 
     /* ── Semantic tokens ── */
-    --indigo: 230 65% 55%;
+    --indigo: 230 70% 52%;
     --indigo-light: 230 40% 90%;
-    --indigo-muted: 230 20% 58%;
-    --slate: 222 22% 10%;
-    --surface: 220 14% 97%;
+    --indigo-muted: 230 20% 55%;
+    --slate: 222 25% 8%;
+    --surface: 220 16% 95%;
     --canvas: 220 14% 99%;
+
+    /* ── Card elevation ── */
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 2px 8px rgba(0,0,0,0.06);
 
     /* ── State colors ── */
     --recording: 4 80% 58%;
@@ -76,50 +80,54 @@
   }
 
   .dark {
-    --background: 222 18% 8%;
-    --foreground: 220 14% 90%;
+    --background: 222 20% 7%;
+    --foreground: 220 14% 92%;
 
-    --card: 222 14% 12%;
-    --card-foreground: 220 14% 90%;
+    --card: 222 18% 11%;
+    --card-foreground: 220 14% 92%;
 
-    --popover: 222 14% 12%;
-    --popover-foreground: 220 14% 90%;
+    --popover: 222 18% 11%;
+    --popover-foreground: 220 14% 92%;
 
-    --primary: 230 60% 65%;
-    --primary-foreground: 222 18% 8%;
+    --primary: 230 62% 65%;
+    --primary-foreground: 222 20% 7%;
 
-    --secondary: 222 10% 16%;
+    --secondary: 222 12% 15%;
     --secondary-foreground: 220 14% 85%;
 
-    --muted: 222 10% 18%;
-    --muted-foreground: 220 8% 58%;
+    --muted: 222 12% 16%;
+    --muted-foreground: 220 10% 55%;
 
-    --accent: 230 58% 58%;
+    --accent: 230 60% 60%;
     --accent-foreground: 220 14% 98%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 220 14% 98%;
 
-    --border: 222 10% 22%;
-    --input: 222 10% 22%;
-    --ring: 230 58% 58%;
+    --border: 222 12% 20%;
+    --input: 222 12% 20%;
+    --ring: 230 60% 60%;
 
-    --sidebar-background: 222 20% 6%;
-    --sidebar-foreground: 220 10% 58%;
-    --sidebar-primary: 230 58% 62%;
-    --sidebar-primary-foreground: 222 18% 8%;
-    --sidebar-accent: 230 55% 52%;
+    --sidebar-background: 222 22% 5%;
+    --sidebar-foreground: 220 10% 55%;
+    --sidebar-primary: 230 60% 64%;
+    --sidebar-primary-foreground: 222 20% 7%;
+    --sidebar-accent: 230 55% 55%;
     --sidebar-accent-foreground: 220 14% 98%;
-    --sidebar-border: 222 10% 18%;
-    --sidebar-ring: 230 58% 58%;
+    --sidebar-border: 222 12% 16%;
+    --sidebar-ring: 230 60% 60%;
 
     /* ── Semantic tokens (dark) ── */
-    --indigo: 230 60% 65%;
-    --indigo-light: 230 12% 18%;
-    --indigo-muted: 230 14% 42%;
-    --slate: 220 14% 90%;
-    --surface: 222 18% 8%;
-    --canvas: 222 14% 12%;
+    --indigo: 230 62% 65%;
+    --indigo-light: 230 14% 16%;
+    --indigo-muted: 230 16% 40%;
+    --slate: 220 14% 92%;
+    --surface: 222 20% 7%;
+    --canvas: 222 18% 11%;
+
+    /* ── Card elevation (dark) ── */
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    --card-shadow-hover: 0 2px 8px rgba(0,0,0,0.3);
 
     --recording: 4 72% 55%;
     --ai-active: 230 70% 65%;

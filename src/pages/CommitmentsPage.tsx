@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, Filter, ArrowRight, XCircle } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, Filter, ArrowRight, XCircle, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
+import { toast } from "sonner"
 
 interface Commitment {
   id: string
@@ -82,6 +83,32 @@ const CommitmentsPage = () => {
       console.error("Failed to update commitment:", err)
     }
   }, [api, loadCommitments])
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
+  const editInputRef = useRef<HTMLInputElement>(null)
+
+  const startEditing = useCallback((c: Commitment) => {
+    setEditingId(c.id)
+    setEditText(c.text)
+    setTimeout(() => editInputRef.current?.focus(), 50)
+  }, [])
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!api?.memory || !editingId || !editText.trim()) {
+      setEditingId(null)
+      return
+    }
+    try {
+      await api.memory.commitments.update(editingId, { text: editText.trim() })
+      loadCommitments()
+      toast.success("Commitment updated")
+    } catch (err) {
+      console.error("Failed to update commitment:", err)
+      toast.error("Failed to update")
+    }
+    setEditingId(null)
+  }, [api, editingId, editText, loadCommitments])
 
   const counts = {
     open: commitments.filter(c => c.status === "open").length,
@@ -263,12 +290,30 @@ const CommitmentsPage = () => {
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">
-                              <p className={cn(
-                                "text-sm text-foreground",
-                                c.status === "completed" && "line-through opacity-60"
-                              )}>
-                                {c.text}
-                              </p>
+                              {editingId === c.id ? (
+                                <input
+                                  ref={editInputRef}
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleSaveEdit()
+                                    if (e.key === "Escape") setEditingId(null)
+                                  }}
+                                  onBlur={handleSaveEdit}
+                                  className="w-full text-sm text-foreground bg-transparent border-b border-primary focus:outline-none py-0.5"
+                                />
+                              ) : (
+                                <p
+                                  className={cn(
+                                    "text-sm text-foreground cursor-pointer hover:text-primary transition-colors",
+                                    c.status === "completed" && "line-through opacity-60"
+                                  )}
+                                  onClick={() => startEditing(c)}
+                                  title="Click to edit"
+                                >
+                                  {c.text}
+                                </p>
+                              )}
                               <div className="flex items-center gap-3 mt-1">
                                 {c.owner && c.owner !== "you" && (
                                   <span className="text-[11px] text-muted-foreground">

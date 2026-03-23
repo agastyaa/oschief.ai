@@ -142,6 +142,18 @@ export function Sidebar() {
           <Home className="h-3.5 w-3.5" />
           Home
         </button>
+        <button
+          onClick={() => navigate("/?view=all")}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+            location.search.includes("view=all")
+              ? "bg-secondary font-medium text-foreground"
+              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          )}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          All Notes
+        </button>
       </nav>
 
       {/* Folders */}

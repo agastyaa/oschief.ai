@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { isElectron } from "@/lib/electron-api";
+import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, Link2, List, Mic, Check, X } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -17,6 +17,9 @@ import { CalendarEvent } from "@/lib/ics-parser";
 import { format, parse, isToday as isTodayFn, isAfter, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CommitmentsWidget } from "@/components/CommitmentsWidget";
+import { PrepCard } from "@/components/PrepCard";
+import { CommitmentsDueCard } from "@/components/CommitmentsDueCard";
+import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 
 function accentFromId(id: string): string {
   let h = 0;
@@ -265,6 +268,44 @@ const Index = () => {
   const hour = now.getHours();
   const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 
+  // ── Command Center data ──
+  const api = getElectronAPI();
+  const [openCommitments, setOpenCommitments] = useState<any[]>([]);
+  const viewAll = searchParams.get("view") === "all";
+  const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
+
+  // Auto-expand notes when navigating via "All Notes" sidebar link
+  useEffect(() => {
+    if (viewAll) setRecentMeetingsExpanded(true);
+  }, [viewAll]);
+
+  // Fetch open commitments for the command center
+  useEffect(() => {
+    if (!api?.memory?.commitments) return;
+    api.memory.commitments.getOpen().then(setOpenCommitments).catch(() => {});
+  }, [api, notes.length]);
+
+  // Next upcoming event for prep card
+  const nextEvent = upcomingEventsList.length > 0 ? upcomingEventsList[0] : null;
+  const nextEventForPrep = nextEvent ? {
+    id: nextEvent.id,
+    title: nextEvent.title,
+    startTime: nextEvent.start,
+    endTime: nextEvent.end,
+    attendees: nextEvent.attendees,
+  } : null;
+
+  // Today's stats for the briefing header
+  const todayEvents = displayEvents.filter((e) => isTodayFn(new Date(e.start)));
+  const dueToday = openCommitments.filter(c => {
+    if (!c.due_date) return false;
+    try { return new Date(c.due_date).toDateString() === now.toDateString(); } catch { return false; }
+  });
+  const overdue = openCommitments.filter(c => {
+    if (!c.due_date) return false;
+    try { const d = new Date(c.due_date); const t = new Date(); t.setHours(0,0,0,0); return d < t; } catch { return false; }
+  });
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
@@ -288,139 +329,139 @@ const Index = () => {
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body">
 
-            {/* Greeting */}
+            {/* ── Morning Briefing Header ── */}
             <div className="mb-6">
-              <h1 className="font-display text-lg text-foreground tracking-tight">
+              <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
                 Good {timeOfDay}.
               </h1>
-            </div>
-
-            {/* Coming up */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Coming up</h2>
-                <div className="flex items-center gap-2">
-                  {icsSource && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => navigate("/calendar?view=list")}
-                          className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        >
-                          <List className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Calendar list view</TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
-
-              {icsSource && upcomingDateKeys.length > 0 ? (
-                <div className="space-y-6">
-                  {upcomingDateKeys.map((dateKey) => {
-                    const dayEvents = upcomingByDate[dateKey];
-                    const dateObj = new Date(dateKey + "T00:00:00");
-                    const dayIsToday = isTodayFn(dateObj);
-                    return (
-                      <div key={dateKey} className="flex gap-5 items-stretch">
-                        <div className="flex flex-col items-center min-w-[54px] pt-0.5">
-                          <span className="font-display text-3xl font-bold text-foreground tabular-nums leading-none">
-                            {format(dateObj, "d")}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
-                            {format(dateObj, "MMM")}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground/60">
-                            {format(dateObj, "EEE")}
-                          </span>
-                          {dayIsToday && (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
-                          )}
-                        </div>
-                        <div className="border-l-[3px] border-primary/40 pl-3 ml-4 mb-3 space-y-0.5">
-                          {dayEvents.map((evt) => {
-                            const start = new Date(evt.start);
-                            const end = new Date(evt.end);
-                            const timeStr = evt.isAllDay
-                              ? "All day"
-                              : `${format(start, "h:mm")} – ${format(end, "h:mm a")}`;
-                            return (
-                              <button
-                                key={evt.id}
-                                onClick={() => setSelectedEvent(evt)}
-                                className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-secondary/70 transition-all cursor-pointer rounded-r"
-                              >
-                                <p className="text-sm font-medium text-foreground truncate w-full">{evt.title}</p>
-                                <p className="text-[11px] text-muted-foreground">{timeStr}</p>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : icsSource ? (
-                <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-card/30 px-4 py-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">No upcoming events</p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIcsOpen(true)}
-                  className="flex w-full items-center gap-3 rounded-lg border border-dashed border-border bg-card/30 px-4 py-3 text-left hover:bg-card/50 hover:border-primary/30 transition-all"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0">
-                    <Link2 className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Link your calendar</p>
-                    <p className="text-[11px] text-muted-foreground">Import an .ics feed to see upcoming meetings</p>
-                  </div>
-                </button>
+              {(todayEvents.length > 0 || openCommitments.length > 0) && (
+                <p className="text-[13px] text-muted-foreground mt-1">
+                  {[
+                    todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`,
+                    overdue.length > 0 && `${overdue.length} overdue`,
+                    dueToday.length > 0 && `${dueToday.length} due today`,
+                    openCommitments.length > 0 && !overdue.length && !dueToday.length && `${openCommitments.length} open commitments`,
+                  ].filter(Boolean).join(' · ')}
+                </p>
               )}
             </div>
 
-            {/* Notes list */}
+            {/* ── Prep Card (next meeting) ── */}
+            <div className="mb-4">
+              <PrepCard
+                event={nextEventForPrep}
+                onStartNote={(evt) => {
+                  const calEvt = displayEvents.find(e => e.id === evt.id || e.title === evt.title);
+                  if (calEvt) {
+                    handleStartNotesForEvent(calEvt);
+                  } else {
+                    navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } });
+                  }
+                }}
+                onConnectCalendar={() => setIcsOpen(true)}
+              />
+            </div>
+
+            {/* ── Commitments Due ── */}
+            {openCommitments.length > 0 && (
+              <div className="mb-4">
+                <CommitmentsDueCard commitments={openCommitments} />
+              </div>
+            )}
+
+            {/* ── Coming Up (calendar, compact) ── */}
+            {icsSource && upcomingDateKeys.length > 0 && (
+              <div className="mb-4">
+                <div
+                  className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-[var(--card-shadow-hover)]"
+                  style={{ boxShadow: "var(--card-shadow)" }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      Schedule
+                    </h3>
+                    <button
+                      onClick={() => navigate("/calendar?view=list")}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Full calendar
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {upcomingEventsList.slice(0, 4).map((evt) => {
+                      const start = new Date(evt.start);
+                      const end = new Date(evt.end);
+                      const timeStr = evt.isAllDay ? "All day" : `${format(start, "h:mm")} – ${format(end, "h:mm a")}`;
+                      const isToday = isTodayFn(start);
+                      return (
+                        <button
+                          key={evt.id}
+                          onClick={() => setSelectedEvent(evt)}
+                          className="flex w-full items-center gap-3 px-2 py-1.5 text-left hover:bg-secondary/50 rounded transition-colors"
+                        >
+                          <span className={cn("text-[11px] tabular-nums min-w-[52px]", isToday ? "text-primary font-medium" : "text-muted-foreground")}>
+                            {isToday ? timeStr.split(" – ")[0] : format(start, "EEE h:mm")}
+                          </span>
+                          <span className="text-[13px] text-foreground truncate">{evt.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Recent Meetings (collapsible) ── */}
             {notes.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
                   <Mic className="h-5 w-5" />
                 </div>
-                <h2 className="font-display text-sm text-foreground mb-1">No meetings recorded yet</h2>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto mb-4">
-                  Start a recording to capture your first meeting.
+                <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
+                <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
+                  Syag captures, transcribes, and summarizes your meetings automatically.
                 </p>
                 <button
                   onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                  className="rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground transition-all hover:opacity-90"
+                  className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
                 >
                   Quick Note
                 </button>
               </div>
             ) : (
               <div>
-                <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Recent meetings</h2>
-                <div className="space-y-5">
-                  {Object.entries(grouped).map(([date, items]) => (
-                    <div key={date}>
-                      <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5 px-1">
-                        {(() => {
-                          try {
-                            const parsed = parse(date, "MMM d, yyyy", new Date());
-                            return isValid(parsed) ? format(parsed, "EEE, MMM d") : date;
-                          } catch {
-                            return date;
-                          }
-                        })()}
-                      </h3>
-                      <div className="space-y-[2px]">
-                        {items.map((n) => <NoteRow key={n.id} n={n} />)}
+                <button
+                  onClick={() => setRecentMeetingsExpanded(!recentMeetingsExpanded)}
+                  className="flex items-center gap-1.5 mb-2 group"
+                >
+                  <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                    Recent meetings
+                  </h2>
+                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", recentMeetingsExpanded && "rotate-180")} />
+                  <span className="text-[10px] text-muted-foreground">{notes.length}</span>
+                </button>
+                {recentMeetingsExpanded && (
+                  <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {Object.entries(grouped).map(([date, items]) => (
+                      <div key={date}>
+                        <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5 px-1">
+                          {(() => {
+                            try {
+                              const parsed = parse(date, "MMM d, yyyy", new Date());
+                              return isValid(parsed) ? format(parsed, "EEE, MMM d") : date;
+                            } catch {
+                              return date;
+                            }
+                          })()}
+                        </h3>
+                        <div className="space-y-[2px]">
+                          {items.map((n) => <NoteRow key={n.id} n={n} />)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

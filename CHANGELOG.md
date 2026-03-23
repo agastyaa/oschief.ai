@@ -4,6 +4,24 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.10.0] — 2026-03-23
+
+Command Center homepage + visual identity upgrade + QA fixes.
+
+### Added
+- **Command Center homepage:** Morning briefing replaces the old meeting-notes list as the first thing you see. Shows next-meeting prep card, open commitments, compact schedule, and collapsible recent meetings.
+- **"All Notes" sidebar link:** Quick access to the full notes list (was hidden behind collapsible section).
+- **PrepCard component:** Shows next meeting with time countdown, attendees, and "Connect calendar" CTA when no calendar is linked.
+- **CommitmentsDueCard component:** Surfaces overdue and due-today commitments on the homepage.
+- **IntelligenceFeed component:** Coaching insights, today's people, and relationship decay signals (renders when data is available).
+- **DESIGN.md:** Full design system documentation — color tokens, typography scale, spacing, card patterns, icon sizes, dark mode strategy.
+- **Commitment inline editing:** Click any commitment text to edit it inline (Enter to save, Escape to cancel).
+
+### Changed
+- **Visual identity upgrade:** Deeper, more premium color palette. Background shifted from 97% to 95% lightness (light) and 8% to 7% (dark). Primary accent saturated from 65% to 70%. Card shadows added. Border-radius increased to 0.5rem.
+- **Homepage information architecture:** Homepage now leads with intelligence (prep, commitments, schedule) instead of a calendar events list. Recent meetings are collapsible, not the hero content.
+- **Removed redundant "Connect calendar" CTA:** Single entry point via PrepCard instead of two overlapping CTAs.
+
 ## [1.9.3] — 2026-03-23
 
 Local model quality parity — all LLM flows now work with Ollama.
