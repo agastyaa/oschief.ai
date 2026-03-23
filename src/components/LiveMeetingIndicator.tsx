@@ -45,6 +45,7 @@ export function LiveMeetingIndicator() {
 
   if (
     !activeSession ||
+    !activeSession.isRecording ||
     location.pathname === "/new-note" ||
     !prefs.showRecordingIndicator ||
     manuallyHidden
