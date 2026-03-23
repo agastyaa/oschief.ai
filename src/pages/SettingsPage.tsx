@@ -33,6 +33,10 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const AI_MODELS_SUB_QUERY = "aiSub";
+type AiModelsSubTab = "models" | "transcription";
 
 const sections = [
   { icon: User, label: "Account", id: "account" },
@@ -1201,7 +1205,7 @@ function TemplatesSection() {
 }
 
 export default function SettingsPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const modelSettings = useModelSettings();
   const { icsFeeds, removeCalendarFeed, clearCalendar } = useCalendar();
   const [calendarProvider, setCalendarProvider] = useState<CalendarProviderId | null>(getStoredCalendarProvider);
@@ -1224,10 +1228,12 @@ export default function SettingsPage() {
     pullOllamaModel,
   } = modelSettings;
   const [active, setActive] = useState("account");
+  const [aiModelsTab, setAiModelsTab] = useState<AiModelsSubTab>("models");
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateResult, setUpdateResult] = useState<string | null>(null);
+  const [updateErrorDetail, setUpdateErrorDetail] = useState<string | null>(null);
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({ ...DEFAULT_TOGGLES });
   const [togglesLoaded, setTogglesLoaded] = useState(false);
@@ -1239,7 +1245,22 @@ export default function SettingsPage() {
   useEffect(() => {
     const sec = searchParams.get("section");
     if (sec && sections.some((s) => s.id === sec)) setActive(sec);
+    if (sec === "ai-models") {
+      const sub = searchParams.get(AI_MODELS_SUB_QUERY);
+      setAiModelsTab(sub === "transcription" ? "transcription" : "models");
+    }
   }, [searchParams]);
+
+  const handleAiModelsTabChange = (value: string) => {
+    const v: AiModelsSubTab = value === "transcription" ? "transcription" : "models";
+    setAiModelsTab(v);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("section", "ai-models");
+      p.set(AI_MODELS_SUB_QUERY, v);
+      return p;
+    });
+  };
 
   useEffect(() => {
     if (!api) return;
@@ -1269,8 +1290,18 @@ export default function SettingsPage() {
       setUpdateDownloaded(version);
       setUpdateChecking(false);
       setUpdateResult(null);
+      setUpdateErrorDetail(null);
     });
     return unsub;
+  }, [api]);
+
+  useEffect(() => {
+    if (!api?.app?.onUpdateError) return;
+    return api.app.onUpdateError((message) => {
+      setUpdateChecking(false);
+      setUpdateResult("error");
+      setUpdateErrorDetail(message);
+    });
   }, [api]);
 
   // Load all toggle values from DB on mount
@@ -1557,6 +1588,17 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                  <Tabs value={aiModelsTab} onValueChange={handleAiModelsTabChange} className="w-full">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:inline-flex sm:h-10 sm:w-auto">
+                      <TabsTrigger value="models" className="text-[13px]">
+                        Models &amp; providers
+                      </TabsTrigger>
+                      <TabsTrigger value="transcription" className="text-[13px]">
+                        Transcription
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="models" className="mt-4 space-y-6 focus-visible:outline-none">
                   {/* Default Model Selection */}
                   <div className="space-y-3">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -1649,17 +1691,15 @@ export default function SettingsPage() {
 
                   {/* Local Models Section */}
                   <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
                         <HardDrive className="h-3.5 w-3.5" />
                         Local Models
                       </h3>
-                      <SettingRow label="" description="">
-                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <span>Use local by default</span>
-                          <Toggle enabled={useLocalModels} onToggle={() => setUseLocalModels(!useLocalModels)} />
-                        </div>
-                      </SettingRow>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
+                        <span>Use local by default</span>
+                        <Toggle enabled={useLocalModels} onToggle={() => setUseLocalModels(!useLocalModels)} />
+                      </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground -mt-2">Download models to run entirely on your device. With local models, transcription and summaries stay on this device.</p>
 
@@ -2001,11 +2041,9 @@ export default function SettingsPage() {
                       })}
                     </div>
                   </div>
-                </div>
-              )}
+                    </TabsContent>
 
-              {active === "ai-models" && (
-                <div className="space-y-5">
+                    <TabsContent value="transcription" className="mt-4 space-y-5 focus-visible:outline-none">
                   <SectionHeader title="Transcription" description="Control how Syag listens and transcribes your meetings" />
                   <div className="space-y-2">
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
@@ -2054,6 +2092,8 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <AudioTestPanel selectedDeviceId={selectedDeviceId} />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -2266,20 +2306,48 @@ export default function SettingsPage() {
                             {updateResult === "latest" && (
                               <span className="text-[11px] text-green-600 dark:text-green-400">You're on the latest version</span>
                             )}
+                            {updateResult === "downloading" && (
+                              <span className="text-[11px] text-muted-foreground max-w-[200px] text-right">
+                                Downloading update… the Install button appears when ready.
+                              </span>
+                            )}
                             {updateResult === "error" && (
-                              <span className="text-[11px] text-destructive">Update check failed</span>
+                              <div className="text-right max-w-[240px]">
+                                <span className="text-[11px] text-destructive block">Update check failed</span>
+                                {updateErrorDetail && (
+                                  <span className="text-[10px] text-muted-foreground break-words block mt-0.5" title={updateErrorDetail}>
+                                    {updateErrorDetail}
+                                  </span>
+                                )}
+                              </div>
                             )}
                             <button
                               disabled={updateChecking}
-                              onClick={() => {
+                              onClick={async () => {
+                                if (!api?.app?.checkForUpdates) return;
                                 setUpdateChecking(true);
                                 setUpdateResult(null);
-                                api?.app?.checkForUpdates?.();
-                                // Timeout: if no update event in 15s, assume latest
-                                setTimeout(() => {
+                                setUpdateErrorDetail(null);
+                                try {
+                                  const res = await api.app.checkForUpdates();
+                                  if (!res.ok) {
+                                    setUpdateChecking(false);
+                                    setUpdateResult("error");
+                                    setUpdateErrorDetail(res.error);
+                                    return;
+                                  }
+                                  if (res.isUpdateAvailable) {
+                                    setUpdateResult("downloading");
+                                    setUpdateChecking(false);
+                                    return;
+                                  }
                                   setUpdateChecking(false);
-                                  setUpdateResult(prev => prev ?? "latest");
-                                }, 15000);
+                                  setUpdateResult("latest");
+                                } catch (e) {
+                                  setUpdateChecking(false);
+                                  setUpdateResult("error");
+                                  setUpdateErrorDetail(e instanceof Error ? e.message : String(e));
+                                }
                               }}
                               className="rounded-md border border-border px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >

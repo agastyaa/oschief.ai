@@ -845,6 +845,7 @@ export function registerIPCHandlers(): void {
 
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())
+  ipcMain.handle('app:get-arch', () => process.arch)
   ipcMain.handle('app:apple-foundation-available', () => checkAppleFoundationAvailable())
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
     app.setLoginItemSettings({ openAtLogin: enabled })
@@ -856,9 +857,19 @@ export function registerIPCHandlers(): void {
     try {
       const { autoUpdater } = await import('electron-updater')
       const result = await autoUpdater.checkForUpdates()
-      return result?.updateInfo ?? null
-    } catch {
-      return null
+      const info = result?.updateInfo
+      const isUpdateAvailable =
+        typeof result?.isUpdateAvailable === 'boolean'
+          ? result.isUpdateAvailable
+          : !!(info?.version && info.version !== app.getVersion())
+      return {
+        ok: true as const,
+        isUpdateAvailable,
+        version: info?.version ?? null,
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      return { ok: false as const, error: message }
     }
   })
   ipcMain.handle('app:install-update', async () => {

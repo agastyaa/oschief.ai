@@ -150,6 +150,7 @@ const electronAPI = {
 
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
+    getArch: () => ipcRenderer.invoke('app:get-arch') as Promise<string>,
     getOptionalProviders: () => ipcRenderer.invoke('app:get-optional-providers') as Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>,
     /** Fetch URL from main process (bypasses CORS for calendar ICS, e.g. Outlook). Returns { ok, status, body }. */
     fetchUrl: (url: string) =>
@@ -225,6 +226,15 @@ const electronAPI = {
       const handler = (_event: any, version: string) => callback(version)
       ipcRenderer.on('update-downloaded', handler)
       return () => ipcRenderer.removeListener('update-downloaded', handler)
+    },
+    onUpdateNotAvailable: (callback: () => void) => {
+      ipcRenderer.on('update-not-available', callback)
+      return () => ipcRenderer.removeListener('update-not-available', callback)
+    },
+    onUpdateError: (callback: (message: string) => void) => {
+      const handler = (_event: any, message: string) => callback(message)
+      ipcRenderer.on('update-error', handler)
+      return () => ipcRenderer.removeListener('update-error', handler)
     },
   },
 

@@ -27,4 +27,17 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
       mainWindow.webContents.send('update-downloaded', info.version)
     }
   })
+
+  autoUpdater.on('update-not-available', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-not-available')
+    }
+  })
+
+  autoUpdater.on('error', (err) => {
+    if (!mainWindow.isDestroyed()) {
+      const message = err instanceof Error ? err.message : String(err)
+      mainWindow.webContents.send('update-error', message)
+    }
+  })
 }

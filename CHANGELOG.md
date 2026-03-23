@@ -4,6 +4,17 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [Unreleased]
+
+## [1.10.3] — 2026-03-24
+
+### Fixed
+- **GitHub / in-app auto-update:** “Check for updates” (Settings → About) now **awaits** the updater, shows **Downloading…** when an update is available, and shows **real error messages** instead of hanging on “Checking…” or assuming “latest” after a timeout. The main process forwards `update-error` from electron-updater when checks or downloads fail.
+- **Release artifacts:** Documented that **electron-updater** needs **`latest-mac.yml`** and the **arm64 `.zip`** on each GitHub release (from `electron-builder --mac --publish always` or CI). Releases that only attach a **DMG** do not enable in-app updates until those files are published.
+
+### Added
+- **`docs/RELEASE.md`:** Maintainer checklist for tagging, CI, and fixing incomplete releases.
+
 ## [1.10.2] — 2026-03-23
 
 ### Added

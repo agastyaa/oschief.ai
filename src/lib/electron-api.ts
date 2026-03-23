@@ -118,6 +118,8 @@ type ElectronAPI = {
   }
   app: {
     getVersion: () => Promise<string>
+    /** Main process `process.arch` (e.g. arm64, x64). */
+    getArch?: () => Promise<string>
     getOptionalProviders?: () => Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>
     getPlatform: () => string
     /** Fetch URL from main process (bypasses CORS for calendar ICS). */
@@ -141,10 +143,15 @@ type ElectronAPI = {
     onPowerModeChanged?: (callback: (data: { onBattery: boolean }) => void) => () => void
     setCalendarEvents?: (events: Array<{ id: string; title: string; start: number; end: number; joinLink?: string }>) => Promise<boolean>
     updateTrayMeetingInfo?: (info: { title: string; startTime: number } | null) => Promise<void>
-    checkForUpdates?: () => Promise<any>
+    checkForUpdates?: () => Promise<
+      | { ok: true; isUpdateAvailable: boolean; version: string | null }
+      | { ok: false; error: string }
+    >
     installUpdate?: () => Promise<void>
     onUpdateAvailable?: (callback: (version: string) => void) => () => void
     onUpdateDownloaded?: (callback: (version: string) => void) => () => void
+    onUpdateNotAvailable?: (callback: () => void) => () => void
+    onUpdateError?: (callback: (message: string) => void) => () => void
   }
   export?: {
     toDocx: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
