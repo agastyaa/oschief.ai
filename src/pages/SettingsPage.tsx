@@ -1998,7 +1998,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "transcription-MERGED" && (
+              {active === "ai-models" && (
                 <div className="space-y-5">
                   <SectionHeader title="Transcription" description="Control how Syag listens and transcribes your meetings" />
                   <div className="space-y-2">
@@ -2051,8 +2051,10 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "templates-MERGED" && (
-                <TemplatesSection />
+              {active === "meeting" && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <TemplatesSection />
+                </div>
               )}
 
               {active === "connections" && (
@@ -2205,23 +2207,14 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "integrations-MERGED" && (
-                <div className="space-y-5">
-                  <SectionHeader title="Integrations" description="Connect third-party tools to enhance your workflow" />
+              {active === "connections" && (
+                <div className="space-y-5 mt-6 border-t border-border pt-5">
+                  <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
                   <div className="space-y-2">
-                    {/* Jira — functional */}
                     <JiraIntegrationRow />
-
-                    {/* Google Calendar */}
                     <GoogleCalendarIntegrationRow />
-
-                    {/* Microsoft Teams / Outlook Calendar */}
                     <MicrosoftCalendarIntegrationRow />
-
-                    {/* Slack */}
                     <SlackIntegrationRow />
-
-                    {/* Microsoft Teams */}
                     <TeamsIntegrationRow />
                   </div>
                 </div>
@@ -2231,12 +2224,16 @@ export default function SettingsPage() {
                 <KnowledgeBaseSection api={api} />
               )}
 
-              {active === "sync-MERGED" && (
-                <SyncSection api={api} />
+              {active === "connections" && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <SyncSection api={api} />
+                </div>
               )}
 
-              {active === "agent-api-MERGED" && (
-                <AgentApiSection api={api} />
+              {active === "advanced" && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <AgentApiSection api={api} />
+                </div>
               )}
 
               {active === "about" && (
