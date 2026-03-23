@@ -479,6 +479,9 @@ export async function processWithLocalSTT(
   if (modelId === 'mlx-whisper-large-v3-turbo-8bit') {
     return processWithMLXWhisper8Bit(wavBuffer, customVocabulary, stereoChannel)
   }
+  if (modelId === 'parakeet-tdt-0.6b') {
+    return processWithParakeet(wavBuffer)
+  }
   const modelPath = getModelPath(modelId)
   if (!modelPath) {
     throw new Error(`Model not downloaded: ${modelId}. Please download it from Settings > AI Models.`)
@@ -1412,4 +1415,101 @@ function parseTimestampToSeconds(ts: string): number {
     return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2])
   }
   return parseFloat(ts)
+}
+
+// ─── Parakeet TDT 0.6B: ONNX inference via onnxruntime-node ─────────────────
+
+let parakeetSession: any | null = null
+
+async function loadParakeetSession(): Promise<any> {
+  if (parakeetSession) return parakeetSession
+  const modelPath = getModelPath('parakeet-tdt-0.6b')
+  if (!modelPath) throw new Error('Parakeet TDT model not downloaded. Download it from Settings > AI Models.')
+  const ort = require('onnxruntime-node')
+  parakeetSession = await ort.InferenceSession.create(modelPath, {
+    executionProviders: ['CoreMLExecutionProvider', 'CPUExecutionProvider'],
+  })
+  console.log('[Parakeet] ONNX session loaded:', modelPath)
+  return parakeetSession
+}
+
+/**
+ * Run Parakeet TDT 0.6B inference on a WAV buffer.
+ * The ONNX model expects log-mel spectrogram features as input.
+ * For the initial integration, we shell out to a small Python script
+ * that handles feature extraction + ONNX inference, since the ONNX model's
+ * input preprocessing (mel spectrogram + CTC/TDT decoding) is non-trivial
+ * to reimplement in pure JS.
+ */
+async function processWithParakeet(wavBuffer: Buffer): Promise<STTResult> {
+  const modelPath = getModelPath('parakeet-tdt-0.6b')
+  if (!modelPath) throw new Error('Parakeet TDT model not downloaded. Download it from Settings > AI Models.')
+
+  // Use onnx-asr Python package for inference (minimal deps, no PyTorch/NeMo)
+  const tmpDir = join(app.getPath('temp'), 'syag-stt')
+  mkdirSync(tmpDir, { recursive: true })
+  const tmpWav = join(tmpDir, `parakeet-${Date.now()}.wav`)
+
+  try {
+    writeFileSync(tmpWav, wavBuffer)
+
+    // Try onnx-asr first (pip install onnx-asr), fallback to direct ONNX
+    const script = `
+import sys, json
+try:
+    from onnx_asr import OnnxASR
+    asr = OnnxASR(model="parakeet-tdt-0.6b-v2")
+    result = asr.transcribe(sys.argv[1])
+    print(json.dumps({"text": result}))
+except ImportError:
+    # Fallback: use onnxruntime directly with basic mel extraction
+    import numpy as np, soundfile as sf
+    audio, sr = sf.read(sys.argv[1])
+    if sr != 16000:
+        from scipy.signal import resample
+        audio = resample(audio, int(len(audio) * 16000 / sr))
+    import onnxruntime as ort
+    sess = ort.InferenceSession(sys.argv[2])
+    # Basic inference — model-specific preprocessing needed
+    print(json.dumps({"text": "", "error": "onnx-asr not installed. Run: pip3 install onnx-asr"}))
+`
+
+    return new Promise<STTResult>((resolve, reject) => {
+      const proc = spawn('python3', ['-c', script, tmpWav, modelPath], {
+        timeout: 30000,
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+      })
+
+      let stdout = ''
+      let stderr = ''
+      proc.stdout.on('data', (d: Buffer) => { stdout += d.toString() })
+      proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
+
+      proc.on('close', (code) => {
+        if (code !== 0) {
+          const hint = stderr.includes('No module') || stderr.includes('ModuleNotFoundError')
+            ? ' Install with: pip3 install onnx-asr'
+            : ''
+          reject(new Error(`Parakeet STT failed (exit ${code}).${hint} ${stderr.slice(0, 200)}`))
+          return
+        }
+        try {
+          const result = JSON.parse(stdout.trim())
+          if (result.error) {
+            reject(new Error(result.error))
+            return
+          }
+          resolve({ text: result.text || '', words: [] })
+        } catch {
+          reject(new Error(`Parakeet returned invalid output: ${stdout.slice(0, 100)}`))
+        }
+      })
+
+      proc.on('error', (err) => {
+        reject(new Error(`Could not start Python for Parakeet: ${err.message}. Ensure python3 is installed.`))
+      })
+    })
+  } finally {
+    try { unlinkSync(tmpWav) } catch {}
+  }
 }

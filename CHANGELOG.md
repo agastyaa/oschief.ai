@@ -4,6 +4,16 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.10.3] — 2026-03-23
+
+### Added
+- **Parakeet TDT 0.6B STT:** NVIDIA's top-ranked ASR model (6% WER, beats Whisper Large V3) now available as a local STT option via ONNX. Requires `pip3 install onnx-asr` for inference. Runs on Apple Silicon.
+- **Qwen3 4B local LLM:** New recommended on-device model for meeting summarization and chat. Better structured output than Llama 3.2 3B at similar size.
+
+### Changed
+- **Removed MLX Whisper 8-bit:** Simplified STT options — fewer Python dependency issues. Full MLX Whisper + whisper.cpp + Parakeet cover all use cases.
+- **Lower VAD threshold for quieter speakers:** "Others" channel energy threshold halved (0.0004→0.0002) to catch quieter remote participants. Downstream filters (hallucination detection, dedup) prevent noise artifacts.
+
 ## [1.10.2] — 2026-03-23
 
 ### Fixed

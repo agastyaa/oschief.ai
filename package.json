@@ -1,7 +1,7 @@
 {
   "name": "syag",
   "private": true,
-  "version": "1.10.2",
+  "version": "1.10.3",
   "description": "AI-powered meeting notes and audio transcription for macOS",
   "author": "Syag",
   "type": "module",

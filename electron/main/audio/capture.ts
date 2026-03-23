@@ -81,8 +81,8 @@ const EARLY_TRIGGER_SAMPLES = 16000 * 4  // 4s: faster first result, ~1s snappie
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
-const MIN_ENERGY_BY_CHANNEL = [0.0004, 0.0001] as const   // You: stricter so muted mic doesn't produce segments
-const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0012, 0.0004] as const
+const MIN_ENERGY_BY_CHANNEL = [0.0004, 0.00005] as const   // You: stricter so muted mic doesn't produce segments; Others: lowered for quieter speakers
+const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0012, 0.0002] as const  // Others: halved to catch quieter remote participants
 // You: slightly relaxed so short phrases right after un-muting in the meeting app are less likely to be skipped
 const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.55, 0.5] as const
 

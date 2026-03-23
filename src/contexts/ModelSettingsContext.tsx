@@ -38,9 +38,10 @@ export type LocalModel = {
 
 export const localModels: LocalModel[] = [
   { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 auto-installs ffmpeg + pip package; best quality on-device STT" },
-  { id: "mlx-whisper-large-v3-turbo-8bit", name: "MLX Whisper Large V3 Turbo (8-bit)", size: "~864 MB", type: "stt", description: "Smaller MLX build \u2014 same auto steps (ffmpeg + pip); faster, less RAM" },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
-  { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "On-device LLM for summarization and chat (no internet needed)" },
+  { id: "parakeet-tdt-0.6b", name: "Parakeet TDT 0.6B", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via ONNX \u2014 fast, accurate (6% WER), runs on Apple Silicon" },
+  { id: "qwen3-4b", name: "Qwen3 4B", size: "~2.5 GB", type: "llm", description: "Recommended \u2014 best quality local LLM for meeting notes (no internet needed)" },
+  { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM \u2014 lighter alternative if RAM is limited" },
 ];
 
 type DownloadState = "idle" | "downloading" | "downloaded";
@@ -127,6 +128,10 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [connectedProviders, setConnectedProviders] = useState<Record<string, { connected: boolean; apiKey: string }>>(init.connectedProviders);
   const [hiddenLocalModels, setHiddenLocalModels] = useState<string[]>(init.hiddenLocalModels ?? []);
   const [appleFoundationAvailable, setAppleFoundationAvailable] = useState(false);
+  /** False until `isAppleFoundationAvailable()` finishes (avoids downloading GGUF before we know Apple AI exists). */
+  const [appleFoundationChecked, setAppleFoundationChecked] = useState(false);
+  /** Main process arch; null until fetched. */
+  const [machineArch, setMachineArch] = useState<string | null>(null);
   const [modelsListFetched, setModelsListFetched] = useState(false);
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
   const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
@@ -147,8 +152,28 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
 
   // Apple (on-device) Foundation Model availability
   useEffect(() => {
-    if (!api?.app?.isAppleFoundationAvailable) return;
-    api.app.isAppleFoundationAvailable().then(setAppleFoundationAvailable).catch(() => setAppleFoundationAvailable(false));
+    if (!api?.app?.isAppleFoundationAvailable) {
+      setAppleFoundationChecked(true);
+      return;
+    }
+    setAppleFoundationChecked(false);
+    api.app
+      .isAppleFoundationAvailable!()
+      .then(setAppleFoundationAvailable)
+      .catch(() => setAppleFoundationAvailable(false))
+      .finally(() => setAppleFoundationChecked(true));
+  }, [api]);
+
+  useEffect(() => {
+    if (!api?.app?.getArch) {
+      setMachineArch("x64");
+      return;
+    }
+    setMachineArch(null);
+    api.app
+      .getArch()
+      .then(setMachineArch)
+      .catch(() => setMachineArch("x64"));
   }, [api]);
 
   // Load optional providers registered via userData/optional-providers/
@@ -316,8 +341,8 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         if (data.modelId === "whisper-large-v3-turbo") {
           setSelectedSTTModel((prev) => (prev === "" ? "local:whisper-large-v3-turbo" : prev));
         }
-        if (data.modelId === "gemma-2-2b") {
-          setSelectedAIModel((prev) => (prev === "" ? "local:gemma-2-2b" : prev));
+        if (data.modelId === "llama-3.2-3b") {
+          setSelectedAIModel((prev) => (prev === "" ? "local:llama-3.2-3b" : prev));
         }
         if (data.modelId === "whisper-large-v3-turbo" && data.whisperCli) {
           const r = data.whisperCli
@@ -484,12 +509,13 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [api]);
 
-  // Install default local STT + LLM on first launch after onboarding (Quill-style).
-  // If Ollama is available with a model, prefer it over the small GGUF default.
-  const DEFAULT_STT = "whisper-large-v3-turbo";
-  const DEFAULT_LLM = "gemma-2-2b";
+  // Install default local STT + LLM on first launch after onboarding.
+  // Apple Silicon: MLX Whisper 8-bit; else whisper.cpp. LLM: Ollama > Apple Foundation > Llama 3.2 3B GGUF.
+  const DEFAULT_STT_WHISPER_CPP = "whisper-large-v3-turbo";
+  const DEFAULT_STT_MLX = "mlx-whisper-large-v3-turbo-8bit";
+  const DEFAULT_LLM = "llama-3.2-3b";
   useEffect(() => {
-    if (!api || !modelsListFetched) return;
+    if (!api || !modelsListFetched || !appleFoundationChecked || machineArch === null) return;
     if (typeof localStorage !== "undefined" && localStorage.getItem("syag-onboarding-complete") !== "true") return;
 
     api.db.settings.get("default-local-models-install-started").then((flag) => {
@@ -499,20 +525,39 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       const hasOllamaLLM = ollamaStatus.available && ollamaStatus.models.length > 0;
       if (hasSTT && (hasLLM || hasOllamaLLM)) return;
 
+      const preferMlxStt = api.app.getPlatform() === "darwin" && machineArch === "arm64";
+      const defaultSttId = preferMlxStt ? DEFAULT_STT_MLX : DEFAULT_STT_WHISPER_CPP;
+
       api.db.settings.set("default-local-models-install-started", "true").then(() => {
         setUseLocalModels(true);
-        if (!hasSTT) handleDownload(DEFAULT_STT);
-        // If Ollama is available with a model, auto-select it instead of downloading gemma-2-2b
+        toast.info("Setting up on-device speech and AI", {
+          description: "Downloading or installing models in the background. You can keep using Syag.",
+          duration: 6000,
+        });
+        if (!hasSTT) handleDownload(defaultSttId);
         if (hasOllamaLLM) {
           setSelectedAIModel(`ollama:${ollamaStatus.models[0]}`);
         } else if (!hasLLM) {
-          handleDownload(DEFAULT_LLM);
+          if (appleFoundationAvailable) {
+            setSelectedAIModel("apple:foundation");
+          } else {
+            handleDownload(DEFAULT_LLM);
+          }
         }
       });
     });
-  }, [api, modelsListFetched, downloadStates, handleDownload, ollamaStatus]);
+  }, [
+    api,
+    modelsListFetched,
+    downloadStates,
+    handleDownload,
+    ollamaStatus,
+    appleFoundationAvailable,
+    appleFoundationChecked,
+    machineArch,
+  ]);
 
-  // Prefer whisper.cpp models over MLX (MLX uses a Python worker that often times out).
+  // Prefer whisper.cpp over MLX when both exist (MLX Python path can be flaky). If only MLX/TheStage, use that.
   useEffect(() => {
     if (!useLocalModels || selectedSTTModel) return;
     const downloadedSTT = localModels.filter(m => m.type === 'stt' && downloadStates[m.id] === 'downloaded');
@@ -520,6 +565,15 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     const preferWhisperCpp = downloadedSTT.find(m => m.id !== 'mlx-whisper-large-v3-turbo' && m.id !== 'mlx-whisper-large-v3-turbo-8bit' && m.id !== 'thestage-whisper-apple') ?? downloadedSTT[0];
     setSelectedSTTModel(`local:${preferWhisperCpp.id}`);
   }, [useLocalModels, downloadStates, selectedSTTModel]);
+
+  // If GGUF finished downloading but AI selection is still empty, select local Llama (e.g. after restore).
+  useEffect(() => {
+    if (!useLocalModels || !modelsListFetched || !dbSettingsLoaded) return;
+    if (selectedAIModel) return;
+    if (downloadStates["llama-3.2-3b"] === "downloaded") {
+      setSelectedAIModel("local:llama-3.2-3b");
+    }
+  }, [useLocalModels, selectedAIModel, downloadStates, modelsListFetched, dbSettingsLoaded]);
 
   // Persist to BOTH localStorage and DB so sync load always works
   useEffect(() => {
