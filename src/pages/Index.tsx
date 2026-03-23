@@ -403,7 +403,7 @@ const Index = () => {
                     {upcomingEventsList.slice(0, 4).map((evt) => {
                       const start = new Date(evt.start);
                       const end = new Date(evt.end);
-                      const timeStr = evt.isAllDay ? "All day" : `${format(start, "h:mm")} – ${format(end, "h:mm a")}`;
+                      const timeStr = evt.isAllDay ? "All day" : `${format(start, "h:mm a")} – ${format(end, "h:mm a")}`;
                       const isToday = isTodayFn(start);
                       return (
                         <button
@@ -411,8 +411,8 @@ const Index = () => {
                           onClick={() => setSelectedEvent(evt)}
                           className="flex w-full items-center gap-3 px-2 py-1.5 text-left hover:bg-secondary/50 rounded transition-colors"
                         >
-                          <span className={cn("text-[11px] tabular-nums min-w-[52px]", isToday ? "text-primary font-medium" : "text-muted-foreground")}>
-                            {isToday ? timeStr.split(" – ")[0] : format(start, "EEE h:mm")}
+                          <span className={cn("text-[11px] tabular-nums min-w-[70px]", isToday ? "text-primary font-medium" : "text-muted-foreground")}>
+                            {isToday ? format(start, "h:mm a") : format(start, "EEE h:mm a")}
                           </span>
                           <span className="text-[13px] text-foreground truncate">{evt.title}</span>
                         </button>

@@ -1226,6 +1226,8 @@ export default function SettingsPage() {
   const [active, setActive] = useState("account");
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateResult, setUpdateResult] = useState<string | null>(null);
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({ ...DEFAULT_TOGGLES });
   const [togglesLoaded, setTogglesLoaded] = useState(false);
@@ -1263,7 +1265,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!api?.app?.onUpdateDownloaded) return;
-    const unsub = api.app.onUpdateDownloaded((version) => setUpdateDownloaded(version));
+    const unsub = api.app.onUpdateDownloaded((version) => {
+      setUpdateDownloaded(version);
+      setUpdateChecking(false);
+      setUpdateResult(null);
+    });
     return unsub;
   }, [api]);
 
@@ -2256,12 +2262,30 @@ export default function SettingsPage() {
                             Update to v{updateDownloaded}
                           </button>
                         ) : (
-                          <button
-                            onClick={() => { api?.app?.checkForUpdates?.(); toast.info("Checking for updates..."); }}
-                            className="rounded-md border border-border px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50"
-                          >
-                            Check for updates
-                          </button>
+                          <>
+                            {updateResult === "latest" && (
+                              <span className="text-[11px] text-green-600 dark:text-green-400">You're on the latest version</span>
+                            )}
+                            {updateResult === "error" && (
+                              <span className="text-[11px] text-destructive">Update check failed</span>
+                            )}
+                            <button
+                              disabled={updateChecking}
+                              onClick={() => {
+                                setUpdateChecking(true);
+                                setUpdateResult(null);
+                                api?.app?.checkForUpdates?.();
+                                // Timeout: if no update event in 15s, assume latest
+                                setTimeout(() => {
+                                  setUpdateChecking(false);
+                                  setUpdateResult(prev => prev ?? "latest");
+                                }, 15000);
+                              }}
+                              className="rounded-md border border-border px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {updateChecking ? "Checking..." : "Check for updates"}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
