@@ -18,7 +18,7 @@ Used for Apple Silicon–optimized inference via Python.
 
 1. **ffmpeg** — Syag checks first; on macOS it may run **`brew install ffmpeg`** for you.
 2. **pip** — Syag runs `python3 -m pip install mlx-whisper` or `mlx-audio-plus`.
-3. **Verify** — Syag imports the package to confirm it works.
+3. **Verify** — Syag runs `python3 -c "import …"` with the same PATH as pip (includes common Homebrew bin dirs) so the check uses the same interpreter that received the package.
 
 **You need:** **Python 3** with a working `pip`, and usually **Homebrew** for ffmpeg. If the app’s automatic steps fail, run the same commands in **Terminal** (the toast shows the exact suggestion).
 

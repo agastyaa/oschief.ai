@@ -378,17 +378,24 @@ function getEnvPathWithBrew(): string {
 }
 
 /**
+ * Env for MLX-related Python/pip subprocesses. GUI Electron often has a minimal PATH, so `python3`
+ * would otherwise resolve to system Python while `python3 -m pip` (with brew PATH) installed into Homebrew Python.
+ */
+function getMlxChildEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, PATH: getEnvPathWithBrew() }
+}
+
+/**
  * PEP 668-safe pip install: tries --user first (works on macOS system Python),
  * falls back to --break-system-packages if --user fails.
  * Returns { ok, stderr } so callers can show the last pip output on failure.
  */
 function pipInstallSafe(packageName: string, extraArgs: string[] = []): Promise<{ ok: boolean; stderr: string }> {
-  const envPath = getEnvPathWithBrew()
   const tryPip = (args: string[]): Promise<{ ok: boolean; stderr: string }> =>
     new Promise((resolve) => {
       const proc = spawn('python3', ['-m', 'pip', 'install', ...args, packageName], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, PATH: envPath },
+        env: getMlxChildEnv(),
       })
       let stderr = ''
       proc.stderr?.on('data', (d) => { stderr += d.toString() })
@@ -561,7 +568,7 @@ function ensureMLXWorker(): Promise<void> {
     console.log('[MLX] Spawning Python worker (python3 -c mlx_whisper)...')
     mlxWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_WORKER_SCRIPT], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
+      env: getMlxChildEnv(),
     })
 
     let resolved = false
@@ -659,7 +666,11 @@ export function killMLXWorker(): void {
 export async function checkMLXWhisperAvailable(): Promise<boolean> {
   if (mlxWhisperAvailable !== null) return mlxWhisperAvailable
   try {
-    execSync('python3 -c "import mlx_whisper"', { stdio: 'pipe', timeout: 10000 })
+    execSync('python3 -c "import mlx_whisper"', {
+      stdio: 'pipe',
+      timeout: 10000,
+      env: getMlxChildEnv(),
+    })
     mlxWhisperAvailable = true
   } catch {
     mlxWhisperAvailable = false
@@ -892,7 +903,7 @@ function ensureMLX8BitWorker(): Promise<void> {
     mlx8BitWorkerReady = false
     mlx8BitWorker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', MLX_8BIT_WORKER_SCRIPT], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
+      env: getMlxChildEnv(),
     })
     let resolved = false
     let stderrBuf = ''
@@ -950,7 +961,11 @@ export async function checkMLXWhisper8BitAvailable(): Promise<boolean> {
     return false
   }
   try {
-    execSync('python3 -c "from mlx_audio.stt import load; from mlx_audio.stt.utils import load_audio"', { stdio: 'pipe', timeout: 10000 })
+    execSync('python3 -c "from mlx_audio.stt import load; from mlx_audio.stt.utils import load_audio"', {
+      stdio: 'pipe',
+      timeout: 10000,
+      env: getMlxChildEnv(),
+    })
     mlx8BitAvailable = true
   } catch {
     mlx8BitAvailable = false
@@ -1121,7 +1136,7 @@ function pipUninstall(packageName: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const proc = spawn('python3', ['-m', 'pip', 'uninstall', '-y', packageName], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: getEnvPathWithBrew() },
+      env: getMlxChildEnv(),
     })
     proc.on('close', (code) => resolve(code === 0))
     proc.on('error', () => resolve(false))

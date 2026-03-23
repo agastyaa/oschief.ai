@@ -4,6 +4,11 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.10.2] — 2026-03-23
+
+### Fixed
+- **MLX Whisper install verification:** Import checks for `mlx-whisper` and `mlx-audio-plus` now use the same `PATH` as pip and the MLX workers (Homebrew `/opt/homebrew/bin` and `/usr/local/bin` prepended). Fixes “pip install finished” then “Python import check failed” when GUI Electron resolved a different `python3` than Terminal/Homebrew.
+
 ## [1.10.1] — 2026-03-06
 
 ### Fixed
