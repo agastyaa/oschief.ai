@@ -71,13 +71,13 @@ const recentEmittedTexts: Array<{ text: string; time: number; channel: number }>
 const DEDUP_WINDOW_MS = 12000 // 12s window — if same/similar text was emitted recently, skip
 const FUZZY_DEDUP_THRESHOLD = 0.75 // Jaccard word-overlap threshold for cross-channel echo suppression
 
-// Near real-time: process every 2.5s when active, 15s when idle; 1s minimum buffer for faster first result
-const CHUNK_INTERVAL_ACTIVE_MS = 5000
+// Near real-time: process every 4s when active, 15s when idle
+const CHUNK_INTERVAL_ACTIVE_MS = 4000
 const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
 // Auto-pause on silence disabled — user manually pauses and uses "Generate summary" button
 const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (more context = fewer word errors)
-const EARLY_TRIGGER_SAMPLES = 16000 * 5  // 5s: slightly longer buffers reduce cut-off mid-sentence vs 4s
+const EARLY_TRIGGER_SAMPLES = 16000 * 4  // 4s: faster first result, ~1s snappier than 5s; quality neutral
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
@@ -386,9 +386,10 @@ async function processBufferedAudio(): Promise<void> {
           if (winEnergy < minWindowEnergy) minWindowEnergy = winEnergy
         }
         const ambientEnergy = minWindowEnergy === Infinity ? 0 : minWindowEnergy
+        // VAD thresholds: lowered slightly to catch quieter speakers; energy gates + hallucination filter prevent noise
         const vadThreshold = channel === 0
-          ? Math.max(0.45, Math.min(0.65, 0.50 + ambientEnergy * 100))
-          : Math.max(0.40, Math.min(0.60, 0.45 + ambientEnergy * 100))
+          ? Math.max(0.40, Math.min(0.60, 0.45 + ambientEnergy * 100))
+          : Math.max(0.35, Math.min(0.55, 0.40 + ambientEnergy * 100))
 
         const vadSegments = await runVAD(merged, SAMPLE_RATE, { threshold: vadThreshold })
         if (vadSegments.length === 0) {
