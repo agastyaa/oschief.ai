@@ -193,7 +193,25 @@ export async function summarize(
   const templatePrompt = customPrompt ? `${template.prompt}\n\n${customPrompt}` : template.prompt
   const effectiveTemplate = { ...template, prompt: templatePrompt }
   const isLocalModel = model.startsWith('ollama:') || model.startsWith('local:')
-  const userInput = buildPrompt(effectiveTemplate, context, personalNotes, transcriptText, isLocalModel)
+
+  // Smart transcript truncation for Ollama: use tier-specific context caps
+  let finalTranscriptText = transcriptText
+  if (model.startsWith('ollama:')) {
+    const modelName = model.replace('ollama:', '')
+    const contextCap = getContextCap(modelName)
+    // Reserve ~3K tokens for system prompt + template + few-shot + meeting context
+    const transcriptBudgetChars = (contextCap - 3000) * 4  // 1 token ≈ 4 chars
+    if (transcriptText.length > transcriptBudgetChars && transcriptBudgetChars > 0) {
+      // Keep first 40% + last 40%, drop middle (preserves meeting open + close)
+      const keepChars = Math.floor(transcriptBudgetChars * 0.4)
+      const head = transcriptText.slice(0, keepChars)
+      const tail = transcriptText.slice(-keepChars)
+      finalTranscriptText = `${head}\n\n[... transcript trimmed — middle portion omitted for context limit ...]\n\n${tail}`
+      console.log(`[LLM] Ollama transcript truncated: ${transcriptText.length} → ${finalTranscriptText.length} chars (budget: ${transcriptBudgetChars}, cap: ${contextCap} tokens)`)
+    }
+  }
+
+  const userInput = buildPrompt(effectiveTemplate, context, personalNotes, finalTranscriptText, isLocalModel)
 
   if (model.startsWith('ollama:')) {
     return summarizeWithOllama(userInput, model.replace('ollama:', ''), template, assigneeNormName)
@@ -262,7 +280,9 @@ async function summarizeWithOllama(
     )
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
-    return parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
+    const summary = parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
+    // Output repair for local models: fill gaps that small/medium models sometimes leave
+    return repairLocalSummary(summary, response)
   } catch (err: any) {
     const msg = err?.message ?? String(err)
     if (msg.includes('Cannot reach Ollama') || msg.includes('ECONNREFUSED')) {
@@ -273,6 +293,59 @@ async function summarizeWithOllama(
     }
     throw new Error(`Ollama summarization failed: ${msg.slice(0, 120)}`)
   }
+}
+
+// ─── Output Repair (local/Ollama models) ────────────────────────────────────
+
+/**
+ * Fix common structural issues in local model output.
+ * Small/medium models sometimes miss fields or produce slightly off-format output.
+ * This never runs for cloud models — their output is reliable enough.
+ */
+function repairLocalSummary(summary: MeetingSummary, rawResponse: string): MeetingSummary {
+  const repaired = { ...summary }
+
+  // 1. Missing overview → extract from raw response (first non-title paragraph)
+  if (!repaired.overview || repaired.overview.length < 10) {
+    const lines = rawResponse.split('\n').filter(l => l.trim() && !l.startsWith('**'))
+    if (lines.length > 0) {
+      repaired.overview = lines[0].replace(/^TL;DR:\s*/i, '').trim()
+    }
+  }
+
+  // 2. Missing key points → extract bullet points from raw response
+  if (!repaired.keyPoints || repaired.keyPoints.length === 0) {
+    const bullets = rawResponse.match(/^- .+/gm)
+    if (bullets && bullets.length > 0) {
+      repaired.keyPoints = bullets.slice(0, 6).map(b => b.replace(/^- /, '').trim())
+    }
+  }
+
+  // 3. Missing action items → extract → lines from raw response
+  if (!repaired.nextSteps || repaired.nextSteps.length === 0) {
+    const actions = rawResponse.match(/^→ .+/gm)
+    if (actions && actions.length > 0) {
+      repaired.nextSteps = actions.map(a => {
+        const text = a.replace(/^→ /, '').trim()
+        const assigneeMatch = text.match(/^\*\*(\w+)\*\*\s+to\s+/)
+        return {
+          text: assigneeMatch ? text.replace(assigneeMatch[0], '') : text,
+          assignee: assigneeMatch?.[1] || '',
+          done: false,
+        }
+      })
+    }
+  }
+
+  // 4. Missing decisions → extract → **Decision:** lines
+  if (!repaired.decisions || repaired.decisions.length === 0) {
+    const decisions = rawResponse.match(/→ \*\*Decision:\*\* .+/gm)
+    if (decisions && decisions.length > 0) {
+      repaired.decisions = decisions.map(d => d.replace(/^→ \*\*Decision:\*\* /, '').trim())
+    }
+  }
+
+  return repaired
 }
 
 // ─── Apple (on-device) ───────────────────────────────────────────────────────
@@ -385,7 +458,8 @@ async function summarizeWithLocal(
 
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
-    return parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
+    const summary = parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
+    return repairLocalSummary(summary, response)
   } catch (err: any) {
     if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {
       throw new Error('Local LLM requires node-llama-cpp. It is not bundled with the app. Use a cloud model (e.g. OpenAI, Groq) in Settings, or install node-llama-cpp in development.')

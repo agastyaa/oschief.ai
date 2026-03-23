@@ -4,6 +4,18 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.9.3] — 2026-03-23
+
+Local model quality parity — all LLM flows now work with Ollama.
+
+### Added
+- **Ollama routing for all LLM flows:** Entity extraction, conversation coaching, live suggestions, and any future LLM call now route through Ollama when an `ollama:*` model is selected. Previously only summarization and chat supported Ollama — coaching, entity extraction, and live suggestions silently failed or fell back to cloud.
+- **Smart transcript truncation for Ollama:** Long meeting transcripts are now intelligently truncated to fit the model's context window. Keeps first 40% + last 40% of the transcript (preserving meeting open and close), drops the middle. Logged when truncation occurs.
+- **Output repair for local models:** Lightweight post-processing fixes common structural issues in local model output: missing overview, missing key points, missing action items, missing decisions. Extracts these from the raw markdown when the parser misses them. Only runs for `local:` and `ollama:` models.
+
+### Changed
+- **`routeLLM()` handles Ollama natively:** The central LLM router now recognizes the `ollama:` prefix and routes directly to `chatOllama()` — no API key needed. This means every caller of `routeLLM()` automatically gets Ollama support without code changes.
+
 ## [1.9.2] — 2026-03-22
 
 AI Models page cleanup and reliability.

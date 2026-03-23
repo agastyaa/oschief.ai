@@ -3,6 +3,7 @@ import { chatOpenAI, sttOpenAI } from './openai'
 import { chatAnthropic } from './anthropic'
 import { chatGoogle } from './google'
 import { sttDeepgram } from './deepgram'
+import { chatOllama } from './ollama'
 import { sttAssemblyAI } from './assemblyai'
 import { chatGroq, sttGroq } from './groq'
 
@@ -84,6 +85,11 @@ export async function routeLLM(
 ): Promise<string> {
   const [providerId, ...rest] = model.split(':')
   const modelName = rest.join(':')
+
+  // Ollama runs locally — no API key needed, route directly
+  if (providerId === 'ollama') {
+    return chatOllama(messages, modelName, onChunk)
+  }
 
   const optional = optionalProviders.get(providerId)
   if (optional?.chat) {
