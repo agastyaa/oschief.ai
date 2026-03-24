@@ -491,6 +491,33 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (modelId === 'parakeet-tdt-0.6b' && api) {
+      try {
+        const result = api.models.installParakeet ? await api.models.installParakeet() : { ok: false, error: "Not available" };
+        if (result.ok) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("Parakeet TDT 0.6B ready", {
+            description: "NVIDIA Parakeet STT installed via onnx-asr. Fast, accurate (6% WER).",
+            duration: 8_000,
+          });
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("Parakeet install failed", {
+            description: result.error || "Ensure Python 3 and pip are available.",
+            duration: 12_000,
+          });
+        }
+      } catch (err) {
+        console.error('Parakeet install failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("Parakeet install failed", {
+          description: err instanceof Error ? err.message : "Ensure Python 3 and pip are available.",
+          duration: 12_000,
+        });
+      }
+      return;
+    }
 
     if (api) {
       api.models.download(modelId).catch((err) => {

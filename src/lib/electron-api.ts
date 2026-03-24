@@ -90,6 +90,8 @@ type ElectronAPI = {
     repairMLXWhisper8Bit: () => Promise<{ ok: boolean; error?: string }>
     uninstallMLXWhisper: () => Promise<{ ok: boolean; error?: string }>
     uninstallMLXWhisper8Bit: () => Promise<{ ok: boolean; error?: string }>
+    checkParakeet: () => Promise<boolean>
+    installParakeet: () => Promise<{ ok: boolean; steps?: any[]; error?: string }>
   }
   recording: {
     start: (options: { sttModel: string; deviceId?: string; meetingTitle?: string; vocabulary?: string[]; sampleRate?: number }) => Promise<boolean>

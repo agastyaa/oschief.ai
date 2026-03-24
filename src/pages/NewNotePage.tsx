@@ -890,7 +890,11 @@ export default function NewNotePage() {
       "## Next Steps",
       ...(summary.nextSteps ?? summary.actionItems ?? []).map((s) => `${s.done ? "✓" : "○"} ${s.text} — ${s.assignee}`),
     ].join("\n");
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Copied to clipboard");
+    }).catch(() => {
+      toast.error("Failed to copy");
+    });
     setShowMoreMenu(false);
   };
 
@@ -1291,7 +1295,7 @@ export default function NewNotePage() {
                       <button
                         onClick={() => {
                           const text = currentTranscript.map((l) => `[${l.time}] ${l.speaker}: ${l.text}`).join("\n");
-                          void (navigator.clipboard?.writeText(text) ?? Promise.resolve());
+                          navigator.clipboard.writeText(text).then(() => toast.success("Transcript copied")).catch(() => toast.error("Failed to copy"));
                         }}
                         className="rounded p-1 text-muted-foreground hover:text-foreground"
                         title="Copy all"
@@ -1392,7 +1396,7 @@ export default function NewNotePage() {
                                   })
                                   .filter(Boolean)
                                   .join("\n");
-                                void (navigator.clipboard?.writeText(t) ?? Promise.resolve());
+                                navigator.clipboard.writeText(t).then(() => toast.success("Copied")).catch(() => toast.error("Failed to copy"));
                               }}
                               className="rounded p-1 text-muted-foreground hover:text-foreground"
                               title="Copy"

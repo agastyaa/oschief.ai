@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, Trash2, FolderOpen, Share2, Plus, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
+import { toast } from "sonner";
 
 interface NoteCardMenuProps {
   noteId: string;
@@ -62,7 +63,7 @@ export function NoteCardMenu({ noteId, currentFolderId, onDelete, onMoveToFolder
                 {currentFolderId ? "Move to folder" : "Add to folder"}
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(noteId); setOpen(false); }}
+                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(noteId).then(() => toast.success("Note ID copied")).catch(() => toast.error("Failed to copy")); setOpen(false); }}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
               >
                 <Share2 className="h-3.5 w-3.5 text-muted-foreground" />

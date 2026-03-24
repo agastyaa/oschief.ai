@@ -69,6 +69,8 @@ const electronAPI = {
     repairMLXWhisper8Bit: () => ipcRenderer.invoke('models:repair-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
     uninstallMLXWhisper: () => ipcRenderer.invoke('models:uninstall-mlx-whisper') as Promise<{ ok: boolean; error?: string }>,
     uninstallMLXWhisper8Bit: () => ipcRenderer.invoke('models:uninstall-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
+    checkParakeet: () => ipcRenderer.invoke('models:check-parakeet') as Promise<boolean>,
+    installParakeet: () => ipcRenderer.invoke('models:install-parakeet') as Promise<{ ok: boolean; steps?: any[]; error?: string }>,
   },
 
   setup: {
