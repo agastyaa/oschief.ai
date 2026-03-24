@@ -927,6 +927,12 @@ export function registerIPCHandlers(): void {
     const { archiveProject } = await import('./memory/project-store')
     return archiveProject(id)
   })
+  ipcMain.handle('memory:projects-create', async (_e, name: string) => {
+    const { upsertProject, confirmProject } = await import('./memory/project-store')
+    const project = upsertProject(name)
+    if (project) confirmProject(project.id) // User-created = immediately active
+    return project
+  })
   ipcMain.handle('memory:projects-update', async (_e, id: string, data: any) => {
     const { updateProject } = await import('./memory/project-store')
     return updateProject(id, data)

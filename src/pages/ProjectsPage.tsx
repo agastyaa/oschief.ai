@@ -3,7 +3,7 @@ import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { FolderKanban, Search, Check, Archive, Trash2, X } from "lucide-react"
+import { FolderKanban, Search, Check, Archive, Trash2, X, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -28,6 +28,8 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tab, setTab] = useState<Tab>("active")
   const [search, setSearch] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState("")
 
   const loadProjects = async () => {
     if (!api?.memory?.projects) return
@@ -36,6 +38,16 @@ export default function ProjectsPage() {
   }
 
   useEffect(() => { loadProjects() }, [api])
+
+  const handleCreateProject = async () => {
+    if (!newName.trim() || !api?.memory?.projects) return
+    await (api.memory.projects as any).create?.(newName.trim())
+    toast.success(`Project "${newName.trim()}" created`)
+    setNewName("")
+    setCreating(false)
+    setTab("active")
+    loadProjects()
+  }
 
   const filtered = projects
     .filter(p => {
@@ -82,7 +94,31 @@ export default function ProjectsPage() {
             {!sidebarOpen && <SidebarCollapseButton />}
             <FolderKanban className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="text-xl font-semibold">Projects</h1>
+            <div className="flex-1" />
+            {!creating && (
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Project
+              </button>
+            )}
           </div>
+          {creating && (
+            <div className="flex items-center gap-2 mb-4 mt-2">
+              <input
+                autoFocus
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); if (e.key === 'Escape') { setCreating(false); setNewName("") } }}
+                placeholder="Project name..."
+                className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+              <button onClick={handleCreateProject} className="p-2 rounded-md bg-primary text-primary-foreground hover:opacity-90"><Check className="h-3.5 w-3.5" /></button>
+              <button onClick={() => { setCreating(false); setNewName("") }} className="p-2 rounded-md hover:bg-secondary text-muted-foreground"><X className="h-3.5 w-3.5" /></button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mb-6">
             Work streams detected from your meetings. Confirm suggested projects to track them.
           </p>

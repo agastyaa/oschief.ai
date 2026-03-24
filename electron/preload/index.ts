@@ -351,6 +351,7 @@ const electronAPI = {
       getAll: (filters?: { status?: string }) => ipcRenderer.invoke('memory:projects-get-all', filters) as Promise<any[]>,
       get: (id: string) => ipcRenderer.invoke('memory:projects-get', id) as Promise<any>,
       forNote: (noteId: string) => ipcRenderer.invoke('memory:projects-for-note', noteId) as Promise<any[]>,
+      create: (name: string) => ipcRenderer.invoke('memory:projects-create', name) as Promise<any>,
       confirm: (id: string) => ipcRenderer.invoke('memory:projects-confirm', id) as Promise<boolean>,
       archive: (id: string) => ipcRenderer.invoke('memory:projects-archive', id) as Promise<boolean>,
       update: (id: string, data: any) => ipcRenderer.invoke('memory:projects-update', id, data) as Promise<boolean>,
