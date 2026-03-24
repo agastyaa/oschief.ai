@@ -87,6 +87,14 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
   );
 }
 
+// Calendar icon (inline SVG — matches existing style)
+const calendarIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "h-3.5 w-3.5"} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="3" width="12" height="11" rx="1.5" />
+    <path d="M2 6.5h12M5.5 2v2M10.5 2v2" />
+  </svg>
+);
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,6 +105,28 @@ export function Sidebar() {
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  // Reusable nav item — reduces 15 lines per button to 1
+  const NavItem = ({ icon: Icon, label, to, onClick, active, iconClass }: {
+    icon: any; label: string; to?: string; onClick?: () => void;
+    active?: boolean; iconClass?: string;
+  }) => {
+    const isItemActive = active ?? (to ? isActive(to) : false);
+    return (
+      <button
+        onClick={onClick || (() => to && navigate(to))}
+        className={cn(
+          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+          isItemActive
+            ? "bg-secondary text-foreground font-medium"
+            : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+        )}
+      >
+        <Icon className={cn("h-3.5 w-3.5", iconClass)} />
+        {label}
+      </button>
+    );
+  };
 
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
@@ -128,7 +158,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Nav */}
+      {/* Home */}
       <nav className="flex flex-col gap-0.5 px-3 mt-1">
         <button
           onClick={() => navigate("/")}
@@ -141,30 +171,6 @@ export function Sidebar() {
         >
           <Home className="h-3.5 w-3.5" />
           Home
-        </button>
-        <button
-          onClick={() => navigate("/?view=all")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            location.search.includes("view=all")
-              ? "bg-secondary font-medium text-foreground"
-              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <FileText className="h-3.5 w-3.5" />
-          All Notes
-        </button>
-        <button
-          onClick={() => navigate("/series")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/series")
-              ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <Repeat className="h-3.5 w-3.5" />
-          Series
         </button>
       </nav>
 
@@ -246,132 +252,50 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Meetings section */}
+      <div className="mt-4 px-3">
+        <div className="flex items-center px-2 mb-1">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Meetings</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <NavItem icon={FileText} label="All Notes" onClick={() => navigate("/?view=all")} active={location.search.includes("view=all")} />
+          <NavItem icon={Repeat} label="Series" to="/series" />
+          <NavItem icon={calendarIcon} label="Calendar" to="/calendar" />
+        </div>
+      </div>
+
+      {/* Work Graph section */}
+      <div className="mt-4 px-3">
+        <div className="flex items-center px-2 mb-1">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Your Work</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <NavItem icon={Contact} label="People" to="/people" />
+          <NavItem icon={FolderKanban} label="Projects" to="/projects" active={isActive("/projects") || isActive("/project/")} />
+          <NavItem icon={CheckCircle2} label="Commitments" to="/commitments" />
+          <NavItem icon={Gavel} label="Decisions" to="/decisions" />
+        </div>
+      </div>
+
       {/* Intelligence section */}
       <div className="mt-4 px-3">
         <div className="flex items-center px-2 mb-1">
           <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Intelligence</span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <button
-            onClick={() => navigate("/ask")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/ask")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-accent/90" />
-            Ask Syag
-          </button>
-          <button
-            onClick={() => navigate("/coaching")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/coaching")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Coaching
-          </button>
-          <button
-            onClick={() => navigate("/routines")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/routines")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <Zap className="h-3.5 w-3.5" />
-            Routines
-          </button>
-          <button
-            onClick={() => navigate("/people")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/people")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <Contact className="h-3.5 w-3.5" />
-            People
-          </button>
-          <button
-            onClick={() => navigate("/commitments")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/commitments")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Commitments
-          </button>
-          <button
-            onClick={() => navigate("/projects")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/projects") || isActive("/project/")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <FolderKanban className="h-3.5 w-3.5" />
-            Projects
-          </button>
-          <button
-            onClick={() => navigate("/decisions")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-              isActive("/decisions")
-                ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
-                : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-            )}
-          >
-            <Gavel className="h-3.5 w-3.5" />
-            Decisions
-          </button>
+          <NavItem icon={Sparkles} label="Ask Syag" to="/ask" iconClass="text-accent/90" />
+          <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
+          <NavItem icon={Zap} label="Routines" to="/routines" />
         </div>
       </div>
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom — Calendar + Settings */}
+      {/* Bottom — Settings only (Calendar moved to Meetings group) */}
       <div className="flex flex-col gap-0.5 px-3 pb-2">
         <div className="h-px bg-border mx-2 mb-1" />
-        <button
-          onClick={() => navigate("/calendar")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/calendar")
-              ? "bg-secondary text-foreground font-medium"
-              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="2" y="3" width="12" height="11" rx="1.5" />
-            <path d="M2 6.5h12M5.5 2v2M10.5 2v2" />
-          </svg>
-          Calendar
-        </button>
-        <button
-          onClick={() => navigate("/settings")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/settings")
-              ? "bg-secondary text-foreground font-medium"
-              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <Settings className="h-3.5 w-3.5" />
-          Settings
-        </button>
+        <NavItem icon={Settings} label="Settings" to="/settings" />
       </div>
 
       <div className="h-2" />
