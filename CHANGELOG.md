@@ -1,6 +1,57 @@
 # Changelog
 
-All notable changes to Syag are documented here. **Keep this file updated with every release** so you can see which release had what changes.
+All notable changes to OSChief are documented here. **Keep this file updated with every release** so you can see which release had what changes.
+
+---
+
+## [2.0.0] — 2026-03-24
+
+**The "chief of staff" release.** OSChief stops being a meeting recorder and becomes your on-device work OS. New brand, new identity, new data model.
+
+### Brand
+- **Renamed from Syag to OSChief** (oschief.ai) — every user-visible string, system prompt, vault tag, and document updated
+
+### Added
+- **Obsidian Vault Writer** — "Export to Vault" writes structured markdown with YAML frontmatter, `[[wikilinks]]` to people and projects, conflict detection, and `obsidian://` deep links
+- **People & Project Markdown** — Auto-generates `people/{Name}.md` and `projects/{Name}.md` in your vault with meeting backlinks (preserves user edits)
+- **Projects & Decisions** — New data model tracks work streams and decisions across meetings. Auto-detected from calendar titles and LLM extraction
+- **Projects Page** — Browse active/suggested/archived projects with meeting counts, inline editing, create/confirm/merge/dismiss
+- **Project Detail Page** — Timeline of meetings, decisions, people involved, and action items per project
+- **Decisions Page** — All decisions across meetings, filterable by project and person
+- **Meeting Series Page** — Group recurring meetings by title, see trends across weekly 1:1s and standups
+- **Command Center Panel** — During recording, collapsible sidebar shows previous meetings with attendees, open commitments, related notes, and project context
+- **Meeting Prep Briefs** — Contextual briefing assembled from people graph, commitments, and Gmail threads
+- **Smart Notifications** — macOS notification 5 minutes before meetings with prep brief context (attendee history, overdue commitments, project info)
+- **Context-Aware Work Coach** — Coaching page redesigned to lead with substance ("you committed to X without checking with engineering") instead of talk-time metrics
+- **Per-Meeting Coaching** — Coaching tab on each note shows conversation analysis, habit tags, micro-insights, and coaching narrative
+- **Privacy & Data Controls** — Anonymize attendee names in cloud LLM prompts, per-person "Forget" cascade delete, data retention settings
+- **Contacts Import** — Bootstrap your people graph from VCF (vCard) files
+- **Gmail Integration** — Read-only email access for meeting prep context (OAuth, bring-your-own-key)
+- **Routines Engine** — Scheduled prompts against the meeting graph (daily brief, weekly digest, monthly retrospective)
+- **Expanded Chat** — "Ask OSChief" queries the full professional graph: people, projects, decisions, commitments
+- **Calendar Event-Note Linking** — Recordings linked to calendar events for series tracking
+- **Homepage Revamp** — Command center layout with prep cards, active projects, coaching summary, commitments due
+- **Keyboard Shortcuts** — Cmd+N (quick note), Cmd+Shift+P (projects), Cmd+Shift+D (decisions), Cmd+, (settings)
+- **Sidebar Reorganization** — Grouped by mental model: MEETINGS / YOUR WORK / INTELLIGENCE
+
+### Changed
+- Primary color: saturated indigo (#3B5EDB) → slate navy (#2E3F8F) — calmer, more executive
+- Entity extraction now detects projects and decisions automatically (extended LLM prompt + retry path)
+- Export markdown refactored with shared `buildMarkdownBody()` function
+- Coaching uses same AI model as summaries (was hardcoded to "local")
+
+### Fixed
+- **Copy text button** now uses Electron's native clipboard (reliable in dropdown context)
+- Vault export button works (was silently failing due to missing IPC wiring)
+- Coaching model properly reads from settings instead of defaulting to "local"
+
+### Infrastructure
+- Migration v8: projects, note_projects, decisions, decision_people tables
+- Migration v9: calendar_event_id, calendar_event_title on notes
+- Migration v10: routines, routine_runs tables
+- 158 tests passing (15 test files)
+- Shared fuzzy-match utility extracted from people-store (DRY fix)
+- OSChiefLogo component replaces SyagLogo
 
 ---
 
