@@ -9,11 +9,17 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 ## [1.10.3] — 2026-03-24
 
 ### Fixed
-- **GitHub / in-app auto-update:** “Check for updates” (Settings → About) now **awaits** the updater, shows **Downloading…** when an update is available, and shows **real error messages** instead of hanging on “Checking…” or assuming “latest” after a timeout. The main process forwards `update-error` from electron-updater when checks or downloads fail.
-- **Release artifacts:** Documented that **electron-updater** needs **`latest-mac.yml`** and the **arm64 `.zip`** on each GitHub release (from `electron-builder --mac --publish always` or CI). Releases that only attach a **DMG** do not enable in-app updates until those files are published.
+- **GitHub / in-app auto-update:** “Check for updates” (Settings → About) now **awaits** the updater, shows **Downloading…** when an update is available, and shows **real error messages** instead of hanging on “Checking…” or assuming “latest” after a timeout. Main process forwards `update-error` from electron-updater when checks or downloads fail.
+- **Updater artifacts:** Documented that **electron-updater** requires **`latest-mac.yml`** plus the **arm64 `.zip`** on each GitHub release (from `electron-builder --mac --publish always` or CI). DMG-only uploads do not enable in-app updates.
 
 ### Added
 - **`docs/RELEASE.md`:** Maintainer checklist for tagging, CI, and fixing incomplete releases.
+- **Recording & summarization motion:** Shimmer **summary skeleton** (`SummarySkeleton`), **transcript panel** slide-in, subtle **recording ring** on AskBar while recording, **`CoachLoadingLine`** for coaching/analysis loading; global **`prefers-reduced-motion`** handling in CSS.
+- **Ask Syag polish:** Shared **`ask-syag-styles`** shells for inputs and chat panel; **Sparkles** branding on the meeting/home **AskBar** and full **Ask Syag** page; clearer chat bubbles and loading states; sidebar entry renamed to **Ask Syag**.
+- **Slash (`/`) quick prompts:** **Icons** and one-line **descriptions**, grouped (**In the moment** / **Catch up** / **Level up**), **Arrow keys + Enter** navigation, hover sync, scroll-into-view for long lists.
+
+### Changed
+- **Settings → AI Models:** **Tabs** for “Models & providers” vs “Transcription”; optional URL deep link `?section=ai-models&aiSub=transcription|models`; **“Use local by default”** toggle layout cleanup.
 
 ## [1.10.2] — 2026-03-23
 
