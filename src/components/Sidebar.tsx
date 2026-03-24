@@ -174,60 +174,80 @@ export function Sidebar() {
         </button>
       </nav>
 
-      {/* Folders */}
+      {/* Meetings section — includes All Notes, folders nested underneath, Series, Calendar */}
       <div className="mt-4 px-3">
-        <div className="flex items-center justify-between px-2 mb-1">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Folders</span>
-          <button
-            onClick={() => setCreatingFolder(true)}
-            className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
+        <div className="flex items-center px-2 mb-1">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Meetings</span>
         </div>
         <div className="flex flex-col gap-0.5">
-          {folders.map((f) => {
-            const Icon = iconMap[f.icon] || FolderOpen;
-            return (
-              <div
-                key={f.id}
-                className={cn(
-                  "group/folder flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-                  new URLSearchParams(location.search).get("folder") === f.id
-                    ? "bg-secondary text-foreground font-medium"
-                    : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-                )}
-              >
-                <button
-                  onClick={() => navigate(`/?folder=${f.id}`)}
-                  className="flex flex-1 items-center gap-2.5 min-w-0"
-                >
-                  <div className={cn("flex h-4 w-4 items-center justify-center rounded flex-shrink-0", f.color)}>
-                    <Icon className="h-2.5 w-2.5" />
+          {/* All Notes with create folder button */}
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate("/?view=all")}
+              className={cn(
+                "flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+                location.search.includes("view=all")
+                  ? "bg-secondary text-foreground font-medium"
+                  : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              All Notes
+            </button>
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="rounded p-1 text-muted-foreground hover:text-foreground mr-1"
+              title="New folder"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+
+          {/* Folders nested under All Notes */}
+          {folders.length > 0 && (
+            <div className="flex flex-col gap-0.5 ml-3 border-l border-border/50 pl-2">
+              {folders.map((f) => {
+                const Icon = iconMap[f.icon] || FolderOpen;
+                return (
+                  <div
+                    key={f.id}
+                    className={cn(
+                      "group/folder flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors",
+                      new URLSearchParams(location.search).get("folder") === f.id
+                        ? "bg-secondary text-foreground font-medium"
+                        : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+                    )}
+                  >
+                    <button
+                      onClick={() => navigate(`/?folder=${f.id}`)}
+                      className="flex flex-1 items-center gap-2 min-w-0"
+                    >
+                      <div className={cn("flex h-3.5 w-3.5 items-center justify-center rounded flex-shrink-0", f.color)}>
+                        <Icon className="h-2 w-2" />
+                      </div>
+                      <span className="truncate">{f.name}</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteFolder(f.id);
+                        if (new URLSearchParams(location.search).get("folder") === f.id) navigate("/");
+                      }}
+                      className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
                   </div>
-                  <span className="truncate">{f.name}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteFolder(f.id);
-                    if (new URLSearchParams(location.search).get("folder") === f.id) {
-                      navigate("/");
-                    }
-                  }}
-                  className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
 
           {/* Inline create folder */}
           {creatingFolder && (
-            <div className="flex items-center gap-1 px-2 py-1">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-accent/20 text-accent flex-shrink-0">
-                <FolderOpen className="h-2.5 w-2.5" />
+            <div className="flex items-center gap-1 ml-3 pl-2 border-l border-border/50 px-2 py-1">
+              <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-accent/20 text-accent flex-shrink-0">
+                <FolderOpen className="h-2 w-2" />
               </div>
               <input
                 autoFocus
@@ -238,27 +258,17 @@ export function Sidebar() {
                   if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
                 }}
                 placeholder="Folder name"
-                className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="flex-1 min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
               <button onClick={handleCreateFolder} className="rounded p-0.5 text-accent hover:text-accent/80">
-                <Check className="h-3 w-3" />
+                <Check className="h-2.5 w-2.5" />
               </button>
               <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground">
-                <X className="h-3 w-3" />
+                <X className="h-2.5 w-2.5" />
               </button>
             </div>
           )}
 
-        </div>
-      </div>
-
-      {/* Meetings section */}
-      <div className="mt-4 px-3">
-        <div className="flex items-center px-2 mb-1">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Meetings</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <NavItem icon={FileText} label="All Notes" onClick={() => navigate("/?view=all")} active={location.search.includes("view=all")} />
           <NavItem icon={Repeat} label="Series" to="/series" />
           <NavItem icon={calendarIcon} label="Calendar" to="/calendar" />
         </div>

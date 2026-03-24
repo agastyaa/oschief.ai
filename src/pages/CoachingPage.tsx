@@ -158,10 +158,17 @@ export default function CoachingPage() {
     if (latestInsights) {
       return { headline: latestInsights.headline, body: latestInsights.narrative, type: "latest" };
     }
+    if (meetings.length > 0 && latestScore >= 85) {
+      return {
+        headline: "Strong meeting performance",
+        body: `Your last meeting scored ${latestScore}/100. You were prepared, asked the right questions, and drove clear outcomes. Keep this energy — consistency is what separates good from great.`,
+        type: "metrics",
+      };
+    }
     if (meetings.length > 0) {
       return {
         headline: "Generate your first coaching analysis",
-        body: "Open any meeting below and click the Coaching tab. I'll analyze what you said, what you committed to, and how it aligns with your role — not just how fast you talked.",
+        body: "Open any meeting below and click the Coaching tab. I\u2019ll analyze what you said, what you committed to, and how it aligns with your role — not just how fast you talked.",
         type: "metrics",
       };
     }
