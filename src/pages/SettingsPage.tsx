@@ -44,7 +44,7 @@ const sections = [
   { icon: FileText, label: "Meeting", id: "meeting" },
   { icon: Globe, label: "Connections", id: "connections" },
   { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
-  { icon: BookOpen, label: "Obsidian Vault", id: "vault" },
+  { icon: HardDrive, label: "Obsidian Vault", id: "vault" },
   { icon: Sliders, label: "Advanced", id: "advanced" },
   { icon: Info, label: "About", id: "about" },
 ];
