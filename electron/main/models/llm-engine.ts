@@ -229,13 +229,25 @@ export async function summarize(
     return summarizeWithApple(userInput, template, assigneeNormName)
   }
 
+  // Cloud LLM: apply anonymization if enabled
+  const { isAnonymizationEnabled, buildAnonymizationMap, anonymize, deanonymize } = await import('../memory/anonymizer')
+  let anonMap: ReturnType<typeof buildAnonymizationMap> | null = null
+  let cloudInput = userInput
+  if (isAnonymizationEnabled() && attendees?.length) {
+    anonMap = buildAnonymizationMap(attendees)
+    cloudInput = anonymize(userInput, anonMap)
+    console.log('[LLM] Anonymization active: replaced attendee names in cloud prompt')
+  }
+
   const response = await routeLLM(
-    [{ role: 'user', content: userInput }],
+    [{ role: 'user', content: cloudInput }],
     model
   )
 
-  const parsed = parseEnhancedNotes(response)
-  const title = extractTitleFromResponse(response)
+  // Restore real names in the response
+  const finalResponse = anonMap ? deanonymize(response, anonMap) : response
+  const parsed = parseEnhancedNotes(finalResponse)
+  const title = extractTitleFromResponse(finalResponse)
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
 

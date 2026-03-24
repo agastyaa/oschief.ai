@@ -75,6 +75,12 @@ app.whenReady().then(async () => {
     startSync()
   }
 
+  // Schedule routines (daily brief, weekly recap, etc.)
+  import('./routines/routines-engine').then(({ scheduleAllRoutines }) => {
+    scheduleAllRoutines()
+    console.log('[routines] Scheduled all enabled routines on app start')
+  }).catch(() => {})
+
   // Zero-config auto-setup: download best STT + LLM models on first launch
   import('./models/auto-setup').then(({ runAutoSetup, isSetupComplete }) => {
     if (isSetupComplete()) return

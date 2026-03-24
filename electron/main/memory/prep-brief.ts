@@ -93,6 +93,24 @@ export async function generatePrepBrief(
     }
   }
 
+  // Include recent Gmail threads with attendees (if Gmail is connected)
+  try {
+    const { getSetting } = await import('../storage/database')
+    const gmailToken = getSetting('google-access-token')
+    if (gmailToken && attendeeEmails.length > 0) {
+      const { fetchGmailThreads } = await import('../integrations/google-gmail')
+      const result = await fetchGmailThreads(gmailToken, attendeeEmails, 3)
+      if (result.ok && result.threads.length > 0) {
+        contextParts.push('Recent email threads with attendees:')
+        for (const t of result.threads) {
+          contextParts.push(`  - "${t.subject}" (${t.date}): ${t.snippet}`)
+        }
+      }
+    }
+  } catch {
+    // Gmail not connected or error — skip silently
+  }
+
   // Generate brief via LLM
   let summary: string
   try {
