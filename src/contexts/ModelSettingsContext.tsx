@@ -39,7 +39,8 @@ export type LocalModel = {
 export const localModels: LocalModel[] = [
   { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 auto-installs ffmpeg + pip package; best quality on-device STT" },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
-  { id: "parakeet-tdt-0.6b", name: "Parakeet TDT 0.6B", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via onnx-asr \u2014 fast, accurate (6% WER); auto-installs via pip" },
+  { id: "parakeet-coreml", name: "Parakeet CoreML (Apple Silicon)", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via CoreML — fastest on Mac (110x RTF), 6% WER, no Python needed. English only." },
+  { id: "parakeet-tdt-0.6b", name: "Parakeet TDT 0.6B (ONNX)", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via onnx-asr — requires Python 3 + pip" },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM for summarization and chat (no internet needed)" },
 ];
 
@@ -488,6 +489,34 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         console.error('TheStage Whisper install failed:', err);
         setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
         toast.error("TheStage Whisper install failed. Ensure Python 3 is installed (macOS only).");
+      }
+      return;
+    }
+    if (modelId === 'parakeet-coreml' && api) {
+      try {
+        // CoreML Parakeet: build Swift binary + download models
+        const result = api.models.installParakeetCoreML ? await api.models.installParakeetCoreML() : { ok: false, error: "Not available" };
+        if (result.ok) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("Parakeet CoreML ready", {
+            description: "Apple Neural Engine STT — fastest on Mac, no Python needed.",
+            duration: 8_000,
+          });
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("Parakeet CoreML setup failed", {
+            description: result.error || "Requires macOS 14+ and Swift 6. Try Whisper instead.",
+            duration: 12_000,
+          });
+        }
+      } catch (err) {
+        console.error('Parakeet CoreML setup failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("Parakeet CoreML setup failed", {
+          description: err instanceof Error ? err.message : "Build error — check Swift installation.",
+          duration: 12_000,
+        });
       }
       return;
     }

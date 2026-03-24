@@ -92,6 +92,8 @@ type ElectronAPI = {
     uninstallMLXWhisper8Bit: () => Promise<{ ok: boolean; error?: string }>
     checkParakeet: () => Promise<boolean>
     installParakeet: () => Promise<{ ok: boolean; steps?: any[]; error?: string }>
+    checkParakeetCoreML: () => Promise<boolean>
+    installParakeetCoreML: () => Promise<{ ok: boolean; error?: string }>
   }
   recording: {
     start: (options: { sttModel: string; deviceId?: string; meetingTitle?: string; vocabulary?: string[]; sampleRate?: number }) => Promise<boolean>

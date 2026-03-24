@@ -215,6 +215,31 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- CoreML Parakeet ---
+  ipcMain.handle('models:check-parakeet-coreml', async () => {
+    try {
+      const { isParakeetCoreMLAvailable } = await import('./audio/stt-parakeet-coreml')
+      return await isParakeetCoreMLAvailable()
+    } catch {
+      return false
+    }
+  })
+  ipcMain.handle('models:install-parakeet-coreml', async () => {
+    try {
+      const { buildParakeetCoreML, downloadParakeetCoreMLModels } = await import('./audio/stt-parakeet-coreml')
+      // Step 1: Build the Swift binary
+      console.log('[parakeet-coreml] Building Swift binary...')
+      const buildResult = await buildParakeetCoreML()
+      if (!buildResult.ok) return { ok: false, error: `Build failed: ${buildResult.error}` }
+      // Step 2: Download CoreML models
+      console.log('[parakeet-coreml] Downloading CoreML models...')
+      const dlResult = await downloadParakeetCoreMLModels()
+      return dlResult
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'CoreML Parakeet setup failed' }
+    }
+  })
+
   // --- Ollama ---
   ipcMain.handle('ollama:detect', async () => {
     const { detectOllama } = await import('./models/ollama-manager')

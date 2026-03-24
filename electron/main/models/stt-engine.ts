@@ -382,7 +382,13 @@ function getEnvPathWithBrew(): string {
  * would otherwise resolve to system Python while `python3 -m pip` (with brew PATH) installed into Homebrew Python.
  */
 function getMlxChildEnv(): NodeJS.ProcessEnv {
-  return { ...process.env, PATH: getEnvPathWithBrew() }
+  const pathWithBrew = getEnvPathWithBrew()
+  // If a Syag venv exists, prepend its bin/ so python3/pip3 resolve to the venv
+  const venvDir = process.env.SYAG_VENV_PATH
+  if (venvDir && existsSync(join(venvDir, 'bin', 'python3'))) {
+    return { ...process.env, PATH: `${join(venvDir, 'bin')}:${pathWithBrew}`, VIRTUAL_ENV: venvDir }
+  }
+  return { ...process.env, PATH: pathWithBrew }
 }
 
 /** First `python3` on PATH with brew bins (same as pip / MLX worker). */
@@ -547,12 +553,57 @@ function pipInstallSafe(packageName: string, extraArgs: string[] = []): Promise<
       result = await tryPip(['--user', ...extraArgs])
       if (result.ok) return result
 
-      // 3. Last resort: --break-system-packages (user explicitly wants this)
+      // 3. Try --break-system-packages
       console.log(`[pip] --user failed for ${packageName}, trying --break-system-packages`)
       result = await tryPip(['--break-system-packages', ...extraArgs])
+      if (result.ok) return result
+
+      // 4. Last resort: create a venv and install there
+      console.log(`[pip] All standard pip methods failed for ${packageName}, trying venv`)
+      result = await tryVenvInstall(packageName)
     }
     return result
   })()
+}
+
+/**
+ * Create a venv at ~/Library/Application Support/Syag/python-venv/ and install there.
+ * This handles PEP 668 on macOS where system Python refuses all installs.
+ */
+function tryVenvInstall(packageName: string): Promise<{ ok: boolean; stderr: string }> {
+  return new Promise(async (resolve) => {
+    try {
+      const venvDir = join(app.getPath('userData'), 'python-venv')
+      const venvPython = join(venvDir, 'bin', 'python3')
+      const venvPip = join(venvDir, 'bin', 'pip3')
+
+      // Create venv if it doesn't exist
+      if (!existsSync(venvPython)) {
+        console.log(`[pip] Creating venv at ${venvDir}`)
+        execSync(`python3 -m venv "${venvDir}"`, { timeout: 30000, env: getMlxChildEnv() })
+      }
+
+      // Install in the venv
+      const proc = spawn(venvPip, ['install', packageName], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...getMlxChildEnv(), VIRTUAL_ENV: venvDir, PATH: `${join(venvDir, 'bin')}:${getEnvPathWithBrew()}` },
+      })
+      let stderr = ''
+      proc.stderr?.on('data', (d) => { stderr += d.toString() })
+      proc.on('close', (code) => {
+        if (code === 0) {
+          // Update the PATH for future child processes to find the venv
+          process.env.SYAG_VENV_PATH = venvDir
+          console.log(`[pip] Successfully installed ${packageName} in venv`)
+        }
+        resolve({ ok: code === 0, stderr: stderr.trim().slice(-600) })
+      })
+      proc.on('error', (err) => resolve({ ok: false, stderr: err.message }))
+    } catch (err: any) {
+      resolve({ ok: false, stderr: `venv creation failed: ${err.message}` })
+    }
+  })
+}
 }
 
 /** Install ffmpeg (required for MLX Whisper audio). On macOS runs brew install ffmpeg. */
@@ -614,6 +665,9 @@ export async function processWithLocalSTT(
   }
   if (modelId === 'parakeet-tdt-0.6b') {
     return processWithParakeet(wavBuffer)
+  }
+  if (modelId === 'parakeet-coreml') {
+    return processWithParakeetCoreML(wavBuffer)
   }
   const modelPath = getModelPath(modelId)
   if (!modelPath) {
@@ -1635,5 +1689,16 @@ except ImportError:
     })
   } finally {
     try { unlinkSync(tmpWav) } catch {}
+  }
+}
+
+// ── CoreML Parakeet (Apple Neural Engine — no Python needed) ────────
+
+async function processWithParakeetCoreML(wavBuffer: Buffer): Promise<STTResult> {
+  const { transcribeWithParakeetCoreML } = await import('../audio/stt-parakeet-coreml')
+  const text = await transcribeWithParakeetCoreML(wavBuffer)
+  return {
+    text,
+    words: [],  // CoreML Parakeet returns full text, not word-level timestamps
   }
 }
