@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Sparkles, FileText, ArrowRight, Check, ShieldCheck, AlertCircle, Monitor } from "lucide-react";
+import { Mic, Sparkles, FileText, ArrowRight, Check, ShieldCheck, AlertCircle, Monitor, Calendar, Briefcase, Users as UsersIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 
@@ -17,25 +17,40 @@ export function completeOnboarding() {
 const featureSteps = [
   {
     icon: Mic,
-    title: "Record your meetings",
-    description: "Hit record and Syag captures everything — voice, context, and key moments in real time.",
+    title: "Your on-device chief of staff",
+    description: "Syag sits beside your calls, captures everything, and builds a living memory of your work — all on your Mac.",
   },
   {
     icon: Sparkles,
-    title: "AI-powered summaries",
-    description: "Get instant, editable summaries with key points and action items extracted automatically.",
+    title: "Meetings become structured memory",
+    description: "Every meeting produces summaries, decisions, action items, and project connections — automatically linked to people and work streams.",
   },
   {
     icon: FileText,
-    title: "Your notes, organized",
-    description: "All your meeting notes in one place. Search, edit, and revisit any conversation anytime.",
+    title: "Your data stays under your control",
+    description: "Everything lives on your machine. Cloud AI is opt-in, bring-your-own-keys, and you can anonymize names before sending.",
   },
 ];
 
-const TOTAL_DOTS = isElectron ? 6 : 5;
+const TOTAL_DOTS = isElectron ? 8 : 7;
 const MIC_STEP = 3;
 const SCREEN_STEP = isElectron ? 4 : -1;
 const NAME_STEP = isElectron ? 5 : 4;
+const ROLE_STEP = isElectron ? 6 : 5;
+const CALENDAR_STEP = isElectron ? 7 : 6;
+
+const ROLES = [
+  { id: "product-manager", label: "Product Manager" },
+  { id: "engineering-manager", label: "Engineering Manager" },
+  { id: "engineer", label: "Software Engineer" },
+  { id: "founder-ceo", label: "Founder / CEO" },
+  { id: "designer", label: "Designer" },
+  { id: "sales", label: "Sales" },
+  { id: "marketing", label: "Marketing" },
+  { id: "operations", label: "Operations" },
+  { id: "data", label: "Data / Analytics" },
+  { id: "people-hr", label: "People / HR" },
+];
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -44,6 +59,8 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [micStatus, setMicStatus] = useState<"idle" | "granted" | "denied">("idle");
   const [screenStatus, setScreenStatus] = useState<"idle" | "granted" | "denied">("idle");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [calendarConnected, setCalendarConnected] = useState(false);
 
   const handleNext = () => {
     setCurrentStep((s) => s + 1);
@@ -94,17 +111,37 @@ export default function OnboardingPage() {
         const existing = localStorage.getItem("syag-account");
         const account = existing ? JSON.parse(existing) : {};
         account.name = name.trim();
+        if (selectedRole) account.role = selectedRole;
         localStorage.setItem("syag-account", JSON.stringify(account));
+        // Also save role to settings DB
+        if (selectedRole && api?.db?.settings?.set) {
+          api.db.settings.set("user-role", selectedRole);
+        }
       } catch {}
     }
     completeOnboarding();
     navigate("/");
   };
 
+  const connectGoogleCalendar = async () => {
+    try {
+      if (api?.google?.startAuth) {
+        await api.google.startAuth();
+        setCalendarConnected(true);
+        setTimeout(() => setCurrentStep(s => s + 1), 800);
+      }
+    } catch {
+      // Skip — user can connect later in settings
+      setCurrentStep(s => s + 1);
+    }
+  };
+
   const isFeatureStep = currentStep < featureSteps.length;
   const isMicStep = currentStep === MIC_STEP;
   const isScreenStep = currentStep === SCREEN_STEP;
   const isNameStep = currentStep === NAME_STEP;
+  const isRoleStep = currentStep === ROLE_STEP;
+  const isCalendarStep = currentStep === CALENDAR_STEP;
   const isLastFeatureStep = currentStep === featureSteps.length - 1;
 
   return (
@@ -274,25 +311,115 @@ export default function OnboardingPage() {
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleFinish()}
+              onKeyDown={(e) => e.key === "Enter" && handleNext()}
               placeholder="Your name"
               className="w-full max-w-xs mx-auto block rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent mb-6"
             />
             <div className="flex items-center justify-center gap-3">
               <button
-                onClick={handleFinish}
+                onClick={handleNext}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Skip
               </button>
               <button
-                onClick={handleFinish}
+                onClick={handleNext}
                 className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
               >
-                Get started
+                Next
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
+          </div>
+        )}
+
+        {isRoleStep && (
+          <div className="text-center animate-fade-in" key="role">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
+              <Briefcase className="h-7 w-7" />
+            </div>
+            <h1 className="font-display text-2xl text-foreground mb-2">
+              What&apos;s your role?
+            </h1>
+            <p className="text-[15px] text-muted-foreground mb-6">
+              Syag tailors coaching and insights to how you work.
+            </p>
+            <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-6">
+              {ROLES.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedRole(r.id)}
+                  className={cn(
+                    "px-3 py-2 rounded-lg border text-sm text-left transition-all",
+                    selectedRole === r.id
+                      ? "border-accent bg-accent/10 text-foreground font-medium"
+                      : "border-border bg-card text-muted-foreground hover:border-accent/40"
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={handleNext}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleNext}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isCalendarStep && (
+          <div className="text-center animate-fade-in" key="calendar">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
+              {calendarConnected ? <Check className="h-7 w-7" /> : <Calendar className="h-7 w-7" />}
+            </div>
+            <h1 className="font-display text-2xl text-foreground mb-2">
+              {calendarConnected ? "Calendar connected!" : "Connect your calendar"}
+            </h1>
+            <p className="text-[15px] text-muted-foreground mb-8">
+              {calendarConnected
+                ? "Syag will auto-detect meetings and prep you before each one."
+                : "Syag uses your calendar to detect meetings, show attendee context, and send prep briefs before each call."}
+            </p>
+            {!calendarConnected && (
+              <div className="flex flex-col items-center gap-3 mb-6">
+                <button
+                  onClick={connectGoogleCalendar}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Connect Google Calendar
+                </button>
+                <button
+                  onClick={() => navigate("/settings?section=connections")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Or connect Outlook / ICS in Settings
+                </button>
+              </div>
+            )}
+            <button
+              onClick={handleFinish}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all hover:opacity-90",
+                calendarConnected
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-card border border-border text-foreground"
+              )}
+            >
+              {calendarConnected ? "Get started" : "Skip — I'll do this later"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>
