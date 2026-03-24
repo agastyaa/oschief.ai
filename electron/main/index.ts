@@ -75,6 +75,20 @@ app.whenReady().then(async () => {
     startSync()
   }
 
+  // Auto-pull recommended Ollama model in background (silent, non-blocking)
+  import('./models/ollama-manager').then(({ autoSetupOllamaModel }) => {
+    autoSetupOllamaModel((progress) => {
+      const win = getMainWindow()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('ollama:pull-progress', progress)
+      }
+    }).then((result) => {
+      if (result.pulled) {
+        console.log(`[Ollama] Auto-pulled ${result.model} on startup`)
+      }
+    }).catch(() => {})
+  }).catch(() => {})
+
   // Start Agent API if enabled and token exists
   if (getSetting('api-enabled') === 'true' && getApiToken()) {
     startApiServer().catch(err => console.error('[api] Failed to start:', err))

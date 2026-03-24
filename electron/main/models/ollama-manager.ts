@@ -13,7 +13,8 @@ export type OllamaModelTier = {
  * Context caps prevent OOM from KV cache on consumer hardware.
  */
 export const MODEL_TIERS: OllamaModelTier[] = [
-  { tag: 'llama3.1:8b', label: 'Llama 3.1 8B', size: '~5 GB', contextCap: 16384, minRamGB: 16 },
+  { tag: 'qwen3:4b', label: 'Qwen3 4B', size: '~2.5 GB', contextCap: 32768, minRamGB: 10 },
+  { tag: 'qwen3:8b', label: 'Qwen3 8B', size: '~5 GB', contextCap: 32768, minRamGB: 16 },
   { tag: 'qwen2.5:32b', label: 'Qwen 2.5 32B', size: '~20 GB', contextCap: 16384, minRamGB: 32 },
   { tag: 'llama3.3:70b', label: 'Llama 3.3 70B', size: '~40 GB', contextCap: 8192, minRamGB: 64 },
 ]
@@ -84,6 +85,38 @@ export async function pullOllamaModel(
   signal?: AbortSignal
 ): Promise<void> {
   return ollamaPullModel(modelTag, onProgress, signal)
+}
+
+/**
+ * Auto-setup: if Ollama is running but no recommended model is pulled,
+ * automatically pull the best model for this machine's RAM.
+ * Runs silently in background on app launch — doesn't block startup.
+ */
+export async function autoSetupOllamaModel(
+  onProgress?: (progress: { status: string; completed: number; total: number; percent: number }) => void
+): Promise<{ pulled: boolean; model?: string; error?: string }> {
+  try {
+    const { available, models } = await detectOllama()
+    if (!available) return { pulled: false }
+
+    const tier = getRecommendedTier()
+    if (!tier) return { pulled: false }
+
+    // Check if any recommended model is already pulled
+    const hasRecommended = MODEL_TIERS.some(t =>
+      models.some(m => m.startsWith(t.tag.split(':')[0]))
+    )
+    if (hasRecommended) return { pulled: false }
+
+    // No recommended model found — auto-pull the best one for this machine
+    console.log(`[Ollama] Auto-pulling recommended model: ${tier.tag}`)
+    await pullOllamaModel(tier.tag, onProgress)
+    console.log(`[Ollama] Auto-pull complete: ${tier.tag}`)
+    return { pulled: true, model: tier.tag }
+  } catch (err: any) {
+    console.warn('[Ollama] Auto-setup failed (non-blocking):', err.message?.slice(0, 100))
+    return { pulled: false, error: err.message }
+  }
 }
 
 /** Re-export for convenience. */
