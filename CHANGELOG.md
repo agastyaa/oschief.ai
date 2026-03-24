@@ -6,10 +6,19 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ## [1.10.4] — 2026-03-24
 
+Stability and UI polish release. Focus: homepage layout, Quick Prompts overlay, export reliability, dark mode.
+
 ### Fixed
-- **Export buttons now work:** Added proper error logging and toast feedback to Word, PDF, and Obsidian export handlers. Previously clicking export items did nothing with no error — now shows clear error messages if export fails.
-- **Quick Prompts overlay no longer blocks content:** Added a click-away backdrop behind the slash menu popup. Clicking outside the menu dismisses it. Previously the popup overlapped calendar events.
-- **Homepage section order:** Schedule card now appears before Commitments (time-sensitive first). Capped to 3 events for tighter layout.
+- **Quick Prompts overlay properly blocks content:** Now uses `createPortal` to render a full-page backdrop (z-999) at `document.body` level with 80% background opacity + backdrop blur. Previously the overlay rendered inside the AskBar's CSS stacking context and leaked through to calendar events.
+- **Export buttons show clear errors:** Word, PDF, and Obsidian export handlers now have try/catch with descriptive toast messages. Previously clicking export items did nothing with no visible error.
+- **PrepCard time overflow:** Events 24h+ away now show "Tomorrow" or "in N days" instead of "in 459h 59m".
+- **PrepCard dark mode badge:** "HAPPENING NOW" amber badge now readable in dark mode (`dark:text-amber-400 dark:bg-amber-500/20`).
+- **Chat response spacing:** Tightened prose margins for markdown content (headings, paragraphs, lists, code blocks, horizontal rules) so AI responses feel denser and more scannable.
+- **AskBar placeholder consistency:** Active state placeholder now reads "Ask Syag anything… type / for prompts" (was "Ask anything…").
+- **PrepCard icon size:** ChevronRight reduced from h-4 to h-3.5 to match other icons in the card.
+
+### Changed
+- **Homepage section order:** Schedule card now appears before Commitments (time-sensitive before persistent). Schedule capped to 3 events for tighter layout.
 
 ## [1.10.3] — 2026-03-24
 

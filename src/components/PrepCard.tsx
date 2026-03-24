@@ -51,6 +51,10 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
       if (diffMin === 0) return { timeStr: "Starting now", isHappening: true };
       if (diffMin < 60) return { timeStr: `in ${diffMin} min`, isHappening: false };
       const hours = Math.floor(diffMin / 60);
+      if (hours >= 24) {
+        const days = Math.floor(hours / 24);
+        return { timeStr: days === 1 ? "Tomorrow" : `in ${days} days`, isHappening: false };
+      }
       return { timeStr: `in ${hours}h ${diffMin % 60}m`, isHappening: false };
     } catch { return { timeStr: "", isHappening: false }; }
   })();
@@ -64,7 +68,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", isHappening ? "text-amber-700 bg-amber-500/15" : "text-primary bg-primary/10")}>
+            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", isHappening ? "text-amber-700 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20" : "text-primary bg-primary/10")}>
               {isHappening ? "HAPPENING NOW" : "NEXT UP"}
             </span>
             {timeStr && <span className="text-[12px] text-muted-foreground">{timeStr}</span>}
@@ -77,7 +81,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
             </div>
           )}
         </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0" />
       </div>
 
       {(lastMeetingNotes || (openCommitments && openCommitments.length > 0)) && (
