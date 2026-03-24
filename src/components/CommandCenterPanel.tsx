@@ -191,7 +191,7 @@ export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
                     <div className="text-[10px] text-muted-foreground">{p.meetingCount} meetings</div>
                   </div>
                   <span className={cn(
-                    "px-1.5 py-0 rounded-full text-[9px] font-medium",
+                    "px-1.5 py-0 rounded-full text-[11px] font-medium",
                     p.status === "active"
                       ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                       : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"

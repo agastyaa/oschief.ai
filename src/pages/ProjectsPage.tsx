@@ -136,7 +136,7 @@ export default function ProjectsPage() {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {t} {tabCounts[t] > 0 && <span className="ml-1 text-xs opacity-60">({tabCounts[t]})</span>}
+                {t} {tabCounts[t] > 0 && <span className="ml-1 text-xs text-muted-foreground">({tabCounts[t]})</span>}
               </button>
             ))}
           </div>

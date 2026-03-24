@@ -218,7 +218,7 @@ export default function ProjectDetailPage() {
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">{icon}<span className="text-[10px] uppercase tracking-wide font-medium">{label}</span></div>
+      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">{icon}<span className="text-xs uppercase tracking-wider font-medium">{label}</span></div>
       <div className="text-lg font-semibold">{value}</div>
     </div>
   )
@@ -227,7 +227,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-2">
+      <div className="text-xs uppercase tracking-wider font-medium text-muted-foreground mb-2">
         {title} <span className="opacity-60">({count})</span>
       </div>
       <div className="rounded-lg border border-border bg-card divide-y divide-border">

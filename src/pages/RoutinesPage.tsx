@@ -192,7 +192,7 @@ export default function RoutinesPage() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <Clock className="h-3 w-3" />
                         {scheduleLabel(r)}
-                        {r.builtin_type && <span className="px-1.5 py-0 rounded-full bg-secondary text-[10px]">built-in</span>}
+                        {r.builtin_type && <span className="px-2 py-0.5 rounded-full bg-secondary text-[11px] font-medium">built-in</span>}
                       </div>
                     </div>
                     <button
