@@ -835,6 +835,38 @@ export function registerIPCHandlers(): void {
     const { deletePerson } = await import('./memory/people-store')
     return deletePerson(id)
   })
+  // Full "Forget this person" — cascade delete from all tables + vault
+  ipcMain.handle('memory:people-forget', async (_e, id: string) => {
+    try {
+      const { getPerson, deletePerson } = await import('./memory/people-store')
+      const person = getPerson(id)
+      if (!person) return false
+      // Delete from decisions
+      const { getDb } = await import('./storage/database')
+      const db = getDb()
+      db.prepare('DELETE FROM decision_people WHERE person_id = ?').run(id)
+      // Delete vault people file if it exists
+      try {
+        const { getVaultPath } = await import('./vault/vault-config')
+        const { existsSync, unlinkSync } = await import('fs')
+        const { join } = await import('path')
+        const { homedir } = await import('os')
+        const vaultPath = getVaultPath()
+        if (vaultPath) {
+          const resolved = vaultPath.startsWith('~') ? vaultPath.replace('~', homedir()) : vaultPath
+          const filePath = join(resolved, 'people', `${person.name.replace(/[/\\?%*:|"<>]/g, '-')}.md`)
+          if (existsSync(filePath)) unlinkSync(filePath)
+        }
+      } catch { /* vault not configured — ok */ }
+      // Delete the person (cascades note_people, nulls commitments.assignee_id)
+      deletePerson(id)
+      console.log(`[privacy] Forgot person: ${person.name} (${id})`)
+      return true
+    } catch (err: any) {
+      console.error('[privacy:forget]', err)
+      return false
+    }
+  })
   ipcMain.handle('memory:people-merge', async (_e, keepId: string, mergeId: string) => {
     const { mergePeople } = await import('./memory/people-store')
     return mergePeople(keepId, mergeId)

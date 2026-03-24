@@ -44,3 +44,4 @@ electron/main/cloud/optional-providers-dist/
 
 # Cursor IDE
 .cursor/
+.gstack/

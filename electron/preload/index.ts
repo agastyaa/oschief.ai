@@ -325,6 +325,7 @@ const electronAPI = {
       get: (id: string) => ipcRenderer.invoke('memory:people-get', id),
       upsert: (data: any) => ipcRenderer.invoke('memory:people-upsert', data),
       delete: (id: string) => ipcRenderer.invoke('memory:people-delete', id) as Promise<boolean>,
+      forget: (id: string) => ipcRenderer.invoke('memory:people-forget', id) as Promise<boolean>,
       merge: (keepId: string, mergeId: string) => ipcRenderer.invoke('memory:people-merge', keepId, mergeId),
       getMeetings: (personId: string) => ipcRenderer.invoke('memory:people-get-meetings', personId),
       forNote: (noteId: string) => ipcRenderer.invoke('memory:people-for-note', noteId),
