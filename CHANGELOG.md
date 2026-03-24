@@ -4,7 +4,12 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
-## [Unreleased]
+## [1.10.4] — 2026-03-24
+
+### Fixed
+- **Export buttons now work:** Added proper error logging and toast feedback to Word, PDF, and Obsidian export handlers. Previously clicking export items did nothing with no error — now shows clear error messages if export fails.
+- **Quick Prompts overlay no longer blocks content:** Added a click-away backdrop behind the slash menu popup. Clicking outside the menu dismisses it. Previously the popup overlapped calendar events.
+- **Homepage section order:** Schedule card now appears before Commitments (time-sensitive first). Capped to 3 events for tighter layout.
 
 ## [1.10.3] — 2026-03-24
 

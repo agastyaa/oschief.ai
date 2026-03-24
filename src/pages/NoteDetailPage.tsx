@@ -4,6 +4,7 @@ import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft 
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
+import { SummarySkeleton, CoachLoadingLine } from "@/components/SummarySkeleton";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -262,13 +263,18 @@ export default function NoteDetailPage() {
                 <DropdownMenuItem
                   onClick={async () => {
                     if (!note) return;
-                    const api = isElectron() ? getElectronAPI() : null;
-                    if (api?.export?.toDocx) {
-                      const result = await api.export.toDocx(note);
-                      if (result.ok) toast.success("Word document saved");
-                      else toast.error(result.error || "Export failed");
-                    } else {
-                      toast.error("Word export requires the desktop app");
+                    try {
+                      if (api?.export?.toDocx) {
+                        const result = await api.export.toDocx(note);
+                        if (result.ok) toast.success("Word document saved");
+                        else toast.error(result.error || "Export failed");
+                      } else {
+                        console.error('[export] api.export.toDocx not available. isElectron:', isElectron, 'api.export:', api?.export);
+                        toast.error("Word export requires the desktop app");
+                      }
+                    } catch (err: any) {
+                      console.error('[export:docx]', err);
+                      toast.error(`Export failed: ${err.message?.slice(0, 80) || 'Unknown error'}`);
                     }
                   }}
                 >
@@ -278,13 +284,18 @@ export default function NoteDetailPage() {
                 <DropdownMenuItem
                   onClick={async () => {
                     if (!note) return;
-                    const api = isElectron() ? getElectronAPI() : null;
-                    if (api?.export?.toPdf) {
-                      const result = await api.export.toPdf(note);
-                      if (result.ok) toast.success("PDF saved");
-                      else toast.error(result.error || "Export failed");
-                    } else {
-                      toast.error("PDF export requires the desktop app");
+                    try {
+                      if (api?.export?.toPdf) {
+                        const result = await api.export.toPdf(note);
+                        if (result.ok) toast.success("PDF saved");
+                        else toast.error(result.error || "Export failed");
+                      } else {
+                        console.error('[export] api.export.toPdf not available');
+                        toast.error("PDF export requires the desktop app");
+                      }
+                    } catch (err: any) {
+                      console.error('[export:pdf]', err);
+                      toast.error(`Export failed: ${err.message?.slice(0, 80) || 'Unknown error'}`);
                     }
                   }}
                 >
@@ -294,13 +305,18 @@ export default function NoteDetailPage() {
                 <DropdownMenuItem
                   onClick={async () => {
                     if (!note) return;
-                    const api = isElectron() ? getElectronAPI() : null;
-                    if (api?.export?.toObsidian) {
-                      const result = await api.export.toObsidian(note);
-                      if (result.ok) toast.success("Saved to Obsidian vault");
-                      else if (result.error !== "Cancelled") toast.error(result.error || "Export failed");
-                    } else {
-                      toast.error("Obsidian export requires the desktop app");
+                    try {
+                      if (api?.export?.toObsidian) {
+                        const result = await api.export.toObsidian(note);
+                        if (result.ok) toast.success("Saved to Obsidian vault");
+                        else if (result.error !== "Cancelled") toast.error(result.error || "Export failed");
+                      } else {
+                        console.error('[export] api.export.toObsidian not available');
+                        toast.error("Obsidian export requires the desktop app");
+                      }
+                    } catch (err: any) {
+                      console.error('[export:obsidian]', err);
+                      toast.error(`Export failed: ${err.message?.slice(0, 80) || 'Unknown error'}`);
                     }
                   }}
                 >
@@ -432,21 +448,25 @@ export default function NoteDetailPage() {
 
                 {viewMode === "ai-notes" ? (
                   <>
-                    {note.summary ? (
-                      <EditableSummary
-                        summary={{
-                          ...note.summary,
-                          actionItems: note.summary.actionItems?.map((item: any) => ({
-                            ...item,
-                            priority: (["high", "medium", "low"].includes(item.priority) ? item.priority : "medium") as "high" | "medium" | "low",
-                          })),
-                        }}
-                        onUpdate={(updated) => {
-                          if (id) updateNote(id, { summary: updated });
-                        }}
-                        meetingTitle={note.title}
-                        meetingDate={note.date}
-                      />
+                    {isSummarizing ? (
+                      <SummarySkeleton />
+                    ) : note.summary ? (
+                      <div className="animate-fade-in">
+                        <EditableSummary
+                          summary={{
+                            ...note.summary,
+                            actionItems: note.summary.actionItems?.map((item: any) => ({
+                              ...item,
+                              priority: (["high", "medium", "low"].includes(item.priority) ? item.priority : "medium") as "high" | "medium" | "low",
+                            })),
+                          }}
+                          onUpdate={(updated) => {
+                            if (id) updateNote(id, { summary: updated });
+                          }}
+                          meetingTitle={note.title}
+                          meetingDate={note.date}
+                        />
+                      </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">No AI summary available for this note.</p>
                     )}
@@ -512,7 +532,7 @@ export default function NoteDetailPage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (note.transcript.length > 0 || newLines.length > 0) && (
-            <div className="w-[27rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl">
+            <div className="w-[27rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl animate-slide-in-right">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Transcript</span>
@@ -554,11 +574,15 @@ export default function NoteDetailPage() {
                     const prevGroup = groupIdx > 0 ? groups[groupIdx - 1] : null;
                     const showLabel = !prevGroup || prevGroup.speaker !== group.speaker;
                     const anchorIndex = group.indices[0];
+                    const isLastGroup = groupIdx === groups.length - 1;
                     return (
                       <div
                         key={group.indices.join("-")}
                         id={anchorIndex !== undefined ? `syag-transcript-line-${anchorIndex}` : undefined}
-                        className={isNew ? "animate-fade-in scroll-mt-4" : "scroll-mt-4"}
+                        className={cn(
+                          "scroll-mt-4",
+                          isNew && (isLastGroup ? "animate-slide-in-right" : "animate-fade-in")
+                        )}
                       >
                         {showLabel ? (
                           <div className="flex items-center gap-1.5 mb-0.5">
@@ -790,7 +814,7 @@ function CoachingView({
             </p>
           </div>
           {conversationLoading && !conv ? (
-            <p className="text-[12px] text-muted-foreground animate-pulse">Analyzing transcript against your role and knowledge base…</p>
+            <CoachLoadingLine message="Analyzing transcript against your role and knowledge base…" />
           ) : conv ? (
             <>
               <div>
@@ -956,7 +980,7 @@ function CoachingView({
             From talk-time and filler metrics. Prefer <span className="font-medium text-foreground">Meeting effectiveness</span> above when present.
           </p>
           {insightsLoading && roleInsights.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground animate-pulse">Generating coaching insights...</p>
+            <CoachLoadingLine />
           ) : (
             <ul className="space-y-1.5">
               {roleInsights.map((insight, i) => (

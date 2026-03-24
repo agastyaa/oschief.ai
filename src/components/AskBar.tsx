@@ -1,6 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, X, FileText, Play, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowUp,
+  X,
+  Play,
+  Eye,
+  EyeOff,
+  Loader2,
+  Sparkles,
+  MessageCircle,
+  ScrollText,
+  MessagesSquare,
+  ScanEye,
+  Lightbulb,
+  Target,
+  CalendarCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { askSyagInputShell, askSyagPanelShell, askSyagPanelHeader } from "@/lib/ask-syag-styles";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { getElectronAPI, isElectron } from "@/lib/electron-api";
 import { ChatMessageContent } from "@/components/ChatMessageContent";
@@ -8,6 +25,77 @@ import { ChatMessageContent } from "@/components/ChatMessageContent";
 /** Used for one-click “You were mentioned” and / menu — sent with full note context. */
 export const WHAT_SHOULD_I_SAY_PROMPT =
   "What should I say next? Using this meeting’s transcript and notes, give 2–4 short, concrete things I could say. If I was just mentioned by name, address that first.";
+
+type SlashPromptGroup = "live" | "catch_up" | "growth";
+
+export type SlashPromptDefinition = {
+  label: string;
+  prompt: string;
+  description: string;
+  icon: LucideIcon;
+  group: SlashPromptGroup;
+};
+
+const SLASH_GROUP_LABEL: Record<SlashPromptGroup, string> = {
+  live: "In the moment",
+  catch_up: "Catch up",
+  growth: "Level up",
+};
+
+/** Slash-menu entries (also referenced for `isSlashPrompt` in handleSend). */
+export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
+  {
+    label: "What should I say?",
+    description: "Next lines to say from transcript & notes",
+    icon: MessageCircle,
+    group: "live",
+    prompt: WHAT_SHOULD_I_SAY_PROMPT,
+  },
+  {
+    label: "TL;DR",
+    description: "Short summary of what matters",
+    icon: ScrollText,
+    group: "catch_up",
+    prompt: "Give me a brief TL;DR of these notes.",
+  },
+  {
+    label: "What is being discussed",
+    description: "Main topics on the table",
+    icon: MessagesSquare,
+    group: "catch_up",
+    prompt: "What are the main topics being discussed?",
+  },
+  {
+    label: "What did I miss",
+    description: "Key points you should know",
+    icon: ScanEye,
+    group: "catch_up",
+    prompt: "What did I miss? Summarize the key points I should know.",
+  },
+  {
+    label: "How can I look smart",
+    description: "Takeaways & talking points for follow-up",
+    icon: Lightbulb,
+    group: "growth",
+    prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?",
+  },
+  {
+    label: "Coach me",
+    description: "Feedback tied to your transcript & metrics",
+    icon: Target,
+    group: "growth",
+    prompt:
+      "Based on this meeting, give me personalized coaching tips. How did I do? What could I improve? Reference specific moments from the transcript and my coaching metrics if available.",
+  },
+  {
+    label: "Prep for follow-up",
+    description: "Who to ping, what to bring, frameworks",
+    icon: CalendarCheck,
+    group: "growth",
+    prompt:
+      "Help me prepare for a follow-up to this meeting. What should I bring up, who should I follow up with, and what frameworks should I apply?",
+  },
+] as const;
 
 interface AskBarProps {
   context?: "home" | "meeting";
@@ -41,6 +129,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; displayText?: string }[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [slashHighlightIndex, setSlashHighlightIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,16 +137,17 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
   const hasInput = input.trim().length > 0;
   const contextLabel = context === "meeting" ? meetingTitle || "This note" : "All notes";
 
-  const SLASH_PROMPTS = [
-    { label: "What should I say?", prompt: WHAT_SHOULD_I_SAY_PROMPT },
-    { label: "TL;DR", prompt: "Give me a brief TL;DR of these notes." },
-    { label: "What is being discussed", prompt: "What are the main topics being discussed?" },
-    { label: "What did I miss", prompt: "What did I miss? Summarize the key points I should know." },
-    { label: "How can I look smart", prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?" },
-    { label: "Coach me", prompt: "Based on this meeting, give me personalized coaching tips. How did I do? What could I improve? Reference specific moments from the transcript and my coaching metrics if available." },
-    { label: "Prep for follow-up", prompt: "Help me prepare for a follow-up to this meeting. What should I bring up, who should I follow up with, and what frameworks should I apply?" },
-  ];
   const showSlashMenu = isActive && input === "/";
+
+  useEffect(() => {
+    if (showSlashMenu) setSlashHighlightIndex(0);
+  }, [showSlashMenu]);
+
+  useEffect(() => {
+    if (!showSlashMenu) return;
+    const el = document.querySelector(`[data-slash-index="${slashHighlightIndex}"]`);
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [slashHighlightIndex, showSlashMenu]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -89,7 +179,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    const isSlashPrompt = SLASH_PROMPTS.some(s => s.prompt === q);
+    const isSlashPrompt = SLASH_PROMPT_ITEMS.some((s) => s.prompt === q);
 
     if (api && selectedAIModel) {
       try {
@@ -155,6 +245,24 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
   }, [input, messages, api, selectedAIModel, noteContext, getActiveAIModelLabel]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showSlashMenu) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashHighlightIndex((i) => Math.min(i + 1, SLASH_PROMPT_ITEMS.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashHighlightIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const item = SLASH_PROMPT_ITEMS[slashHighlightIndex];
+        if (item) handleSlashSelect(item.prompt, item.label);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -189,41 +297,56 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
     <div ref={barRef} className="px-4 pb-3 pt-2 pointer-events-none relative">
       <div className="mx-auto max-w-2xl pointer-events-auto">
         {showChat && messages.length > 0 && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full">
-            <div className="rounded-lg border border-border/60 backdrop-blur-xl bg-card/90 shadow-lg overflow-hidden">
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-[12px] text-muted-foreground">
-                    Context: <span className="text-foreground font-medium">{contextLabel}</span>
+          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full animate-fade-in">
+            <div className={askSyagPanelShell}>
+              <div className={cn("flex items-center justify-between px-4 py-2.5", askSyagPanelHeader)}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent shadow-sm">
+                    <Sparkles className="h-4 w-4" aria-hidden />
                   </span>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-foreground leading-tight">Ask Syag</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      <span className="font-medium text-foreground/80">{contextLabel}</span>
+                      {getActiveAIModelLabel() ? (
+                        <span className="text-muted-foreground/90"> · {getActiveAIModelLabel()}</span>
+                      ) : null}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={handleCloseChat}
-                  className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                  aria-label="Close chat"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div ref={scrollRef} className="h-[28rem] max-h-[75vh] overflow-y-auto px-3.5 py-3 space-y-2.5">
+              <div ref={scrollRef} className="h-[28rem] max-h-[75vh] overflow-y-auto px-4 py-4 space-y-3 bg-gradient-to-b from-muted/20 via-transparent to-transparent">
                 {messages.map((msg, i) => (
-                  <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  <div key={i} className={cn("flex animate-fade-in", msg.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[88%] rounded-lg px-3 py-2.5 text-[13px] leading-relaxed",
+                        "max-w-[90%] text-[13px] leading-relaxed shadow-sm",
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-foreground"
+                          ? "rounded-2xl bg-accent text-accent-foreground px-3.5 py-2.5"
+                          : "rounded-2xl border border-border/50 bg-card/90 px-3.5 py-3 text-foreground"
                       )}
                     >
-                      {msg.role === "user" ? (msg.displayText || msg.text) : <ChatMessageContent text={msg.text} />}
+                      {msg.role === "user" ? (
+                        <span className="font-medium">{msg.displayText || msg.text}</span>
+                      ) : (
+                        <ChatMessageContent text={msg.text} className="text-[13px]" />
+                      )}
                     </div>
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-secondary rounded-lg px-3 py-2">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="rounded-2xl border border-border/50 bg-muted/40 px-4 py-3 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse [animation-delay:150ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse [animation-delay:300ms]" />
                     </div>
                   </div>
                 )}
@@ -309,7 +432,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                 className={cn(
                   "flex items-center gap-1.5 rounded-lg border backdrop-blur-md shadow-sm px-3 py-2 transition-colors",
                   recordingState === "recording"
-                    ? "border-border/60 bg-card/80 text-muted-foreground hover:text-foreground"
+                    ? "border-border/60 bg-card/80 text-muted-foreground hover:text-foreground animate-recording-ring"
                     : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
                 )}
                 title={recordingState === "recording" ? "Pause recording" : "Resume recording"}
@@ -345,28 +468,81 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
           <div
             onClick={handleBarClick}
             className={cn(
-              "flex flex-1 items-center rounded-lg border backdrop-blur-md bg-card/80 px-3.5 py-2 cursor-text relative min-w-[140px] transition-all",
-              isLoading
-                ? "border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)] ring-1 ring-primary/20"
-                : "border-border/60 hover:border-muted-foreground/30 shadow-sm"
+              "flex flex-1 items-center gap-2 rounded-2xl border backdrop-blur-md px-3.5 py-2.5 cursor-text relative min-w-[140px]",
+              askSyagInputShell,
+              isLoading && "border-accent/45 ring-2 ring-accent/20",
+              !isLoading && "hover:border-border"
             )}
           >
             {showSlashMenu && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border/60 backdrop-blur-xl bg-card/90 shadow-md overflow-hidden z-50">
-                {SLASH_PROMPTS.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleSlashSelect(item.prompt, item.label); }}
-                    className="w-full px-3.5 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
-                  >
-                    {item.label}
-                  </button>
-                ))}
+              <>
+              <div
+                className="fixed inset-0 z-40 bg-black/5"
+                onClick={() => { setInput(""); }}
+                aria-hidden
+              />
+              <div
+                className="absolute bottom-full left-0 right-0 mb-2 z-50 max-h-[min(420px,55vh)] flex flex-col rounded-2xl border border-border/60 bg-card/98 backdrop-blur-xl shadow-xl ring-1 ring-black/[0.05] dark:ring-white/[0.08] overflow-hidden animate-fade-in"
+                role="listbox"
+                aria-label="Quick prompts"
+              >
+                <div className="px-4 py-2.5 border-b border-border/60 bg-gradient-to-r from-accent/[0.07] via-transparent to-primary/[0.05] shrink-0">
+                  <p className="text-[11px] font-semibold text-foreground">Quick prompts</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">↑↓ to move · Enter to run · Esc to close</p>
+                </div>
+                <div className="overflow-y-auto py-1.5 px-1.5">
+                  {SLASH_PROMPT_ITEMS.map((item, index) => {
+                    const Icon = item.icon;
+                    const prev = index > 0 ? SLASH_PROMPT_ITEMS[index - 1] : null;
+                    const showGroup = !prev || prev.group !== item.group;
+                    const isActiveRow = index === slashHighlightIndex;
+                    return (
+                      <div key={item.label}>
+                        {showGroup && (
+                          <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/90">
+                            {SLASH_GROUP_LABEL[item.group]}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={isActiveRow}
+                          data-slash-index={index}
+                          onMouseEnter={() => setSlashHighlightIndex(index)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSlashSelect(item.prompt, item.label);
+                          }}
+                          className={cn(
+                            "w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                            isActiveRow
+                              ? "bg-accent/14 ring-1 ring-accent/20"
+                              : "hover:bg-muted/60"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                              isActiveRow ? "bg-accent/20 text-accent" : "bg-muted/80 text-muted-foreground"
+                            )}
+                          >
+                            <Icon className="h-4 w-4" aria-hidden />
+                          </span>
+                          <span className="min-w-0 pt-0.5">
+                            <span className="block text-[13px] font-medium text-foreground leading-snug">{item.label}</span>
+                            <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{item.description}</span>
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+              </>
             )}
             {isActive ? (
               <>
+                <Sparkles className="h-3.5 w-3.5 text-accent/70 shrink-0" aria-hidden />
                 <input
                   ref={inputRef}
                   value={input}
@@ -378,14 +554,23 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                 {hasInput && !showSlashMenu && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSend(); }}
-                    className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:brightness-110 ml-2 flex-shrink-0"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                    aria-label="Send"
                   >
-                    <ArrowUp className="h-3 w-3" />
+                    <ArrowUp className="h-3.5 w-3.5" />
                   </button>
                 )}
               </>
             ) : (
-              <span className="text-sm text-muted-foreground/60">Ask anything…</span>
+              <>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent shrink-0">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  <span className="text-foreground/90 font-medium">Ask Syag</span>
+                  <span className="text-muted-foreground/80"> — your notes &amp; meeting</span>
+                </span>
+              </>
             )}
           </div>
         </div>

@@ -20,6 +20,7 @@ import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
 import { CommitmentsDueCard } from "@/components/CommitmentsDueCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
+import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 
 function accentFromId(id: string): string {
   let h = 0;
@@ -79,7 +80,7 @@ const Index = () => {
     },
     [deleteNote, activeSession?.noteId, clearSession]
   );
-  const { displayEvents, icsSource } = useCalendar();
+  const { displayEvents, icsSource, calendarViewId } = useCalendar();
   const [icsOpen, setIcsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
@@ -88,13 +89,6 @@ const Index = () => {
     .filter((e) => isAfter(new Date(e.end), now))
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);
-  const upcomingByDate = upcomingEventsList.reduce<Record<string, CalendarEvent[]>>((acc, evt) => {
-    const key = format(new Date(evt.start), "yyyy-MM-dd");
-    (acc[key] = acc[key] || []).push(evt);
-    return acc;
-  }, {});
-  const upcomingDateKeys = Object.keys(upcomingByDate).sort();
-
   const activeFolderId = searchParams.get("folder");
   const activeFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
 
@@ -370,15 +364,8 @@ const Index = () => {
               />
             </div>
 
-            {/* ── Commitments Due ── */}
-            {openCommitments.length > 0 && (
-              <div className="mb-4">
-                <CommitmentsDueCard commitments={openCommitments} />
-              </div>
-            )}
-
-            {/* ── Coming Up (calendar, compact) ── */}
-            {icsSource && upcomingDateKeys.length > 0 && (
+            {/* ── Schedule (calendar, compact) — time-sensitive, shown first ── */}
+            {icsSource && upcomingEventsList.length > 0 && (
               <div className="mb-4">
                 <div
                   className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-[var(--card-shadow-hover)]"
@@ -396,27 +383,22 @@ const Index = () => {
                       Full calendar
                     </button>
                   </div>
-                  <div className="space-y-1">
-                    {upcomingEventsList.slice(0, 4).map((evt) => {
-                      const start = new Date(evt.start);
-                      const end = new Date(evt.end);
-                      const timeStr = evt.isAllDay ? "All day" : `${format(start, "h:mm a")} – ${format(end, "h:mm a")}`;
-                      const isToday = isTodayFn(start);
-                      return (
-                        <button
-                          key={evt.id}
-                          onClick={() => setSelectedEvent(evt)}
-                          className="flex w-full items-center gap-3 px-2 py-1.5 text-left hover:bg-secondary/50 rounded transition-colors"
-                        >
-                          <span className={cn("text-[11px] tabular-nums min-w-[70px]", isToday ? "text-primary font-medium" : "text-muted-foreground")}>
-                            {isToday ? format(start, "h:mm a") : format(start, "EEE h:mm a")}
-                          </span>
-                          <span className="text-[13px] text-foreground truncate">{evt.title}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <CalendarAgendaList
+                    events={upcomingEventsList.slice(0, 3)}
+                    onEventClick={(evt) => setSelectedEvent(evt)}
+                    findNoteForEvent={findNoteForEvent}
+                    calendarViewId={calendarViewId}
+                    variant="compact"
+                    hideDayEventCount
+                  />
                 </div>
+              </div>
+            )}
+
+            {/* ── Commitments Due ── */}
+            {openCommitments.length > 0 && (
+              <div className="mb-4">
+                <CommitmentsDueCard commitments={openCommitments} />
               </div>
             )}
             </>)}
