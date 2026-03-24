@@ -2,10 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
-import { SetupProgressCard, type SetupPhase } from "@/components/SetupProgressCard";
-import { OllamaUpgradeCard } from "@/components/OllamaUpgradeCard";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -24,9 +22,10 @@ import { CommitmentsDueCard } from "@/components/CommitmentsDueCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 
-function accentFromId(_id: string): string {
-  // Monochrome: subtle muted bar instead of rainbow per-note colors
-  return `hsl(var(--muted-foreground) / 0.25)`;
+function accentFromId(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 38% 52%)`;
 }
 
 const Index = () => {
@@ -95,33 +94,10 @@ const Index = () => {
 
   const api = getElectronAPI();
   const [openCommitments, setOpenCommitments] = useState<any[]>([]);
+  const [activeProjects, setActiveProjects] = useState<any[]>([]);
+  const [latestCoachingHeadline, setLatestCoachingHeadline] = useState<string | null>(null);
   const viewAll = searchParams.get("view") === "all";
   const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
-
-  // Auto-setup progress tracking
-  const [setupPhase, setSetupPhase] = useState<SetupPhase | null>(null);
-  const [setupMessage, setSetupMessage] = useState("");
-  const [setupPercent, setSetupPercent] = useState(0);
-  const [setupComplete, setSetupComplete] = useState(true); // assume complete until checked
-
-  useEffect(() => {
-    if (!api?.setup) return;
-    // Check if setup is already complete
-    api.setup.isComplete().then((complete) => {
-      setSetupComplete(complete);
-      if (!complete) setSetupPhase('detecting');
-    }).catch(() => {});
-    // Listen for progress events
-    const cleanup = api.setup.onProgress((status) => {
-      setSetupPhase(status.phase as SetupPhase);
-      setSetupMessage(status.message);
-      setSetupPercent(status.percent);
-      if (status.phase === 'ready') {
-        setSetupComplete(true);
-      }
-    });
-    return cleanup;
-  }, [api]);
 
   useEffect(() => {
     if (viewAll) setRecentMeetingsExpanded(true);
@@ -130,7 +106,14 @@ const Index = () => {
   useEffect(() => {
     if (!api?.memory?.commitments) return;
     api.memory.commitments.getOpen().then(setOpenCommitments).catch(() => {});
+    api?.memory?.projects?.getAll({ status: 'active' }).then(p => setActiveProjects(p?.slice(0, 3) || [])).catch(() => {});
   }, [api, notes.length]);
+
+  // Latest coaching headline from most recent note with insights
+  useEffect(() => {
+    const latest = notes.find(n => n.coachingMetrics?.conversationInsights?.headline);
+    if (latest) setLatestCoachingHeadline(latest.coachingMetrics!.conversationInsights!.headline);
+  }, [notes]);
 
   const grouped = notes.reduce<Record<string, typeof notes>>((acc, n) => {
     (acc[n.date] = acc[n.date] || []).push(n);
@@ -383,9 +366,9 @@ const Index = () => {
               )}
             </div>
 
-            {/* ── Command Center sections (hidden in All Notes view) ── */}
+            {/* ── Command Center v2 (hidden in All Notes view) ── */}
             {!viewAll && (<>
-            {/* ── Prep Card (next meeting) ── */}
+            {/* ── Next Meeting + Prep ── */}
             <div className="mb-4">
               <PrepCard
                 event={nextEventForPrep}
@@ -409,23 +392,21 @@ const Index = () => {
               />
             </div>
 
-            {/* ── Coming Up (calendar, compact Granola-style) ── */}
-            {icsSource && upcomingEventsList.length > 0 && (
-              <div className="mb-5">
-                <div className="px-1">
+            {/* ── Schedule (skip first event to avoid duplication with Prep Card) ── */}
+            {icsSource && upcomingEventsList.length > 1 && (
+              <div className="mb-4">
+                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Coming up
+                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      Coming Up
                     </h3>
-                    <button
-                      onClick={() => navigate("/calendar?view=list")}
-                      className="text-[11px] text-primary hover:underline"
-                    >
+                    <button onClick={() => navigate("/calendar?view=list")} className="text-[11px] text-primary hover:underline">
                       Full calendar
                     </button>
                   </div>
                   <CalendarAgendaList
-                    events={upcomingEventsList.slice(0, 5)}
+                    events={upcomingEventsList.slice(1, 4)}
                     onEventClick={(evt) => setSelectedEvent(evt)}
                     findNoteForEvent={findNoteForEvent}
                     calendarViewId={calendarViewId}
@@ -433,6 +414,45 @@ const Index = () => {
                     hideDayEventCount
                   />
                 </div>
+              </div>
+            )}
+
+            {/* ── Active Projects + Coaching + Routines (compact row) ── */}
+            {(activeProjects.length > 0 || latestCoachingHeadline || openCommitments.length > 0) && (
+              <div className="grid grid-cols-1 gap-3 mb-4">
+                {/* Projects */}
+                {activeProjects.length > 0 && (
+                  <button onClick={() => navigate("/projects")} className="rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Projects</span>
+                      </div>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {activeProjects.map((p: any) => (
+                        <span key={p.id} className="text-[13px] text-foreground">
+                          {p.name} <span className="text-xs text-muted-foreground">({p.meetingCount || 0})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                )}
+
+                {/* Coaching summary */}
+                {latestCoachingHeadline && (
+                  <button onClick={() => navigate("/coaching")} className="rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Coach</span>
+                      </div>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <p className="text-[13px] text-foreground mt-1.5 truncate">{latestCoachingHeadline}</p>
+                  </button>
+                )}
               </div>
             )}
 
@@ -446,35 +466,20 @@ const Index = () => {
 
             {/* ── Recent Meetings (collapsible on homepage, always-expanded in All Notes) ── */}
             {notes.length === 0 ? (
-              <div className="space-y-4">
-                {/* Show setup progress if auto-setup is running */}
-                {!setupComplete && setupPhase && (
-                  <SetupProgressCard phase={setupPhase} message={setupMessage} percent={setupPercent} />
-                )}
-
-                {/* Show "Record your first meeting" after setup or if already set up */}
-                {setupComplete && (
-                  <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
-                      <Mic className="h-5 w-5" />
-                    </div>
-                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
-                    <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
-                      Syag captures, transcribes, and summarizes your meetings automatically.
-                    </p>
-                    <button
-                      onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                      className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
-                    >
-                      Quick Note
-                    </button>
-                  </div>
-                )}
-
-                {/* Show Ollama upgrade prompt if using bundled models */}
-                {setupComplete && !viewAll && (
-                  <OllamaUpgradeCard />
-                )}
+              <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
+                  <Mic className="h-5 w-5" />
+                </div>
+                <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
+                <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
+                  Syag captures, transcribes, and summarizes your meetings automatically.
+                </p>
+                <button
+                  onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                  className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                >
+                  Quick Note
+                </button>
               </div>
             ) : (
               <div>
