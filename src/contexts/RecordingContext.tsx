@@ -323,8 +323,14 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     };
 
     try {
+      // Read noise suppression preference from DB (default: ON)
+      let useNoiseSuppression = true;
+      try {
+        const noisePref = await api.db.settings.get('audio-noise-suppression');
+        if (noisePref === 'false') useNoiseSuppression = false;
+      } catch {}
       const audioConstraints: MediaTrackConstraints = {
-        sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true,
+        sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: useNoiseSuppression,
       };
       if (preferredDeviceId) {
         audioConstraints.deviceId = { exact: preferredDeviceId };

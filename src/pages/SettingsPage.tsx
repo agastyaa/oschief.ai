@@ -2049,11 +2049,19 @@ export default function SettingsPage() {
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
                       <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />
                     </SettingRow>
-                    <SettingRow label="Real-time transcription" description="Show live transcript during recording">
-                      <Toggle enabled={toggles.realTimeTranscribe} onToggle={() => toggle("realTimeTranscribe")} />
-                    </SettingRow>
-                    <SettingRow label="Transcribe when recording stops" description="Run transcription once after you stop recording instead of live (privacy-friendly, works well with local models)">
-                      <Toggle enabled={toggles.transcribeWhenStopped} onToggle={() => toggle("transcribeWhenStopped")} />
+                    <SettingRow label="Live transcription" description="Transcribe speech in real-time during recording. Turn off for privacy-friendly batch mode (transcribes after you stop).">
+                      <Toggle enabled={!toggles.transcribeWhenStopped} onToggle={() => {
+                        const nowDeferred = !toggles.transcribeWhenStopped;
+                        // Toggle both: they're mutually exclusive
+                        setToggles(prev => {
+                          const next = { ...prev, transcribeWhenStopped: !nowDeferred, realTimeTranscribe: nowDeferred };
+                          if (api) {
+                            api.db.settings.set('transcribe-when-stopped', JSON.stringify(!nowDeferred)).catch(console.error);
+                            api.db.settings.set('real-time-transcription', JSON.stringify(nowDeferred)).catch(console.error);
+                          }
+                          return next;
+                        });
+                      }} />
                     </SettingRow>
                     <SettingRow label="Enhance transcript with AI" description="Use your AI model to fix grammar, punctuation, and proper nouns in real-time. Requires a cloud AI model.">
                       <Toggle enabled={toggles.llmPostProcess} onToggle={() => toggle("llmPostProcess")} />
@@ -2064,9 +2072,8 @@ export default function SettingsPage() {
                     <SettingRow label="Browser noise suppression" description="Use the browser’s built-in noise suppression on the microphone. Turn off if it causes artifacts or cuts speech.">
                       <Toggle enabled={toggles.audioNoiseSuppression} onToggle={() => toggle("audioNoiseSuppression")} />
                     </SettingRow>
-                    <SettingRow label="Reduce noise before transcription" description="Apply a noise gate in the app before speech detection. Quiets low-level background noise; use if transcription picks up fan or room noise.">
-                      <Toggle enabled={toggles.audioDenoiseBeforeStt} onToggle={() => toggle("audioDenoiseBeforeStt")} />
-                    </SettingRow>
+                    {/* "Reduce noise before transcription" removed — not wired to backend.
+                        VAD energy thresholds in capture.ts handle this automatically. */}
                     <SettingRow label="Speaker diarization (mic only)" description="Coming soon. Will label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings.">
                       <button
                         className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted cursor-not-allowed opacity-50"

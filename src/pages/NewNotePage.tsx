@@ -452,7 +452,8 @@ export default function NewNotePage() {
       recordingState !== "paused" ||
       hasReal ||
       isSummarizing ||
-      !userPausedRef.current
+      !userPausedRef.current ||
+      !autoGenerateNotes
     ) {
       return clearPauseTimer;
     }
