@@ -105,6 +105,7 @@ type ElectronAPI = {
     summarize: (data: { transcript: any[]; personalNotes: string; model: string; meetingTemplateId?: string; customPrompt?: string; meetingTitle?: string; meetingDuration?: string | null; attendees?: string[]; accountDisplayName?: string }) => Promise<any>
     chat: (data: { messages: any[]; context: any; model: string }) => Promise<string>
     onChatChunk: (callback: (chunk: { text: string; done: boolean }) => void) => () => void
+    buildGraphContext: () => Promise<string>
   }
   audio: {
     getDevices: () => Promise<any[]>
@@ -166,6 +167,28 @@ type ElectronAPI = {
   vault?: {
     getConfig: () => Promise<{ configured: boolean; path: string | null; vaultName: string | null; validation: any }>
     setPath: (path: string) => Promise<{ ok: boolean; error?: string; warning?: string }>
+    pickFolder: () => Promise<{ ok: boolean; path?: string; vaultName?: string; error?: string; warning?: string }>
+  }
+  routines?: {
+    getAll: () => Promise<any[]>
+    get: (id: string) => Promise<any>
+    create: (data: any) => Promise<any>
+    update: (id: string, data: any) => Promise<boolean>
+    delete: (id: string) => Promise<boolean>
+    toggle: (id: string, enabled: boolean) => Promise<boolean>
+    runNow: (id: string) => Promise<any>
+    getRuns: (routineId: string, limit?: number) => Promise<any[]>
+    onResult: (callback: (result: any) => void) => () => void
+  }
+  contacts?: {
+    importVCF: () => Promise<{ ok: boolean; total?: number; imported?: number; skipped?: number; errors?: number; error?: string }>
+  }
+  context?: {
+    assemble: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) => Promise<any>
+  }
+  prep?: {
+    generate: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string; model: string }) => Promise<any>
+    notify: (data: { title: string; body: string }) => Promise<boolean>
   }
   slack?: {
     testWebhook: (webhookUrl: string) => Promise<{ ok: boolean; error?: string }>
@@ -229,6 +252,7 @@ type ElectronAPI = {
       get: (id: string) => Promise<any | null>
       upsert: (data: any) => Promise<any>
       delete: (id: string) => Promise<boolean>
+      forget: (id: string) => Promise<boolean>
       merge: (keepId: string, mergeId: string) => Promise<boolean>
       getMeetings: (personId: string) => Promise<any[]>
       forNote: (noteId: string) => Promise<any[]>
@@ -251,7 +275,24 @@ type ElectronAPI = {
       unlinkFromNote: (noteId: string, topicId: string) => Promise<boolean>
       updateLabel: (id: string, label: string) => Promise<boolean>
     }
-    extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[] }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>
+    projects: {
+      getAll: (filters?: { status?: string }) => Promise<any[]>
+      get: (id: string) => Promise<any>
+      forNote: (noteId: string) => Promise<any[]>
+      create: (name: string) => Promise<any>
+      confirm: (id: string) => Promise<boolean>
+      archive: (id: string) => Promise<boolean>
+      update: (id: string, data: any) => Promise<boolean>
+      delete: (id: string) => Promise<boolean>
+      merge: (keepId: string, mergeId: string) => Promise<boolean>
+      timeline: (projectId: string) => Promise<any>
+    }
+    decisions: {
+      forNote: (noteId: string) => Promise<any[]>
+      forProject: (projectId: string) => Promise<any[]>
+      getAll: (filters?: any) => Promise<any[]>
+    }
+    extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>
   }
   sync?: {
     getStatus: () => Promise<{

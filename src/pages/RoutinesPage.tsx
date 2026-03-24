@@ -61,7 +61,7 @@ export default function RoutinesPage() {
   const [newHour, setNewHour] = useState(9)
 
   const loadRoutines = async () => {
-    const all = await (api as any)?.routines?.getAll?.()
+    const all = await api?.routines?.getAll?.()
     if (all) setRoutines(all)
   }
 
@@ -70,7 +70,7 @@ export default function RoutinesPage() {
   const handleRunNow = async (id: string) => {
     setRunning(id)
     try {
-      const result = await (api as any)?.routines?.runNow?.(id)
+      const result = await api?.routines?.runNow?.(id)
       if (result?.ok) {
         toast.success("Routine completed")
         loadRuns(id)
@@ -82,13 +82,13 @@ export default function RoutinesPage() {
   }
 
   const handleToggle = async (id: string, enabled: boolean) => {
-    await (api as any)?.routines?.toggle?.(id, !enabled)
+    await api?.routines?.toggle?.(id, !enabled)
     loadRoutines()
   }
 
   const handleCreate = async () => {
     if (!newName.trim() || !newPrompt.trim()) return
-    await (api as any)?.routines?.create?.({
+    await api?.routines?.create?.({
       name: newName.trim(),
       prompt: newPrompt.trim(),
       schedule_type: newSchedule,
@@ -101,13 +101,13 @@ export default function RoutinesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    await (api as any)?.routines?.delete?.(id)
+    await api?.routines?.delete?.(id)
     toast.success("Routine deleted")
     loadRoutines()
   }
 
   const loadRuns = async (routineId: string) => {
-    const r = await (api as any)?.routines?.getRuns?.(routineId, 5)
+    const r = await api?.routines?.getRuns?.(routineId, 5)
     if (r) setRuns(prev => ({ ...prev, [routineId]: r }))
   }
 

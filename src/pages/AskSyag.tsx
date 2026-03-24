@@ -124,7 +124,7 @@ export default function AskSyag() {
       try {
         const notesContext = buildNotesContext();
         // Fetch full graph context (people, projects, decisions, commitments)
-        const graphContext = await (api.llm as any).buildGraphContext?.() || '';
+        const graphContext = await api.llm.buildGraphContext?.() || '';
         const chatMessages = [...messages, userMsg].map(m => ({
           role: m.role,
           content: m.recipe?.prompt || m.text,

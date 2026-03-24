@@ -575,7 +575,7 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 
   const handlePickFolder = async () => {
     if (!api?.vault) return;
-    const result = await (api.vault as any).pickFolder?.();
+    const result = await api.vault.pickFolder?.();
     if (result?.ok) {
       setVaultPath(result.path);
       setVaultName(result.vaultName);

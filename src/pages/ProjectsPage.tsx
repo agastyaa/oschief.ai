@@ -41,7 +41,7 @@ export default function ProjectsPage() {
 
   const handleCreateProject = async () => {
     if (!newName.trim() || !api?.memory?.projects) return
-    await (api.memory.projects as any).create?.(newName.trim())
+    await api?.memory?.projects?.create?.(newName.trim())
     toast.success(`Project "${newName.trim()}" created`)
     setNewName("")
     setCreating(false)

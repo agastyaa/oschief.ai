@@ -369,7 +369,7 @@ const PeoplePage = () => {
               </div>
               <button
                 onClick={async () => {
-                  const result = await (api as any)?.contacts?.importVCF?.();
+                  const result = await api?.contacts?.importVCF?.();
                   if (result?.ok) {
                     toast.success(`Imported ${result.imported} contacts (${result.skipped} already existed)`);
                     loadPeople();
