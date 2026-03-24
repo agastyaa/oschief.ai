@@ -375,7 +375,7 @@ export default function NoteDetailPage() {
                   <h1
                     onClick={() => setIsEditingTitle(true)}
                     className={cn(
-                      "mb-3 font-display text-2xl cursor-text transition-colors leading-tight",
+                      "mb-2 font-display text-[22px] font-semibold cursor-text transition-colors leading-snug tracking-tight",
                       (note.title || "").trim() ? "text-foreground hover:text-foreground/80" : "text-foreground/40 hover:text-foreground/60"
                     )}
                   >
@@ -383,13 +383,14 @@ export default function NoteDetailPage() {
                   </h1>
                 )}
 
-                {/* Meta chips — date, time, then My note / AI + template (only when summary exists and not regenerating) */}
-                <div className="flex items-center gap-2 mb-6 flex-wrap">
-                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                {/* Meta line — clean inline text, not chip pills */}
+                <div className="flex items-center gap-3 mb-5 text-[12px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {note.date}
                   </span>
-                  <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground">
+                  <span className="text-border">·</span>
+                  <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {note.timeRange ?? note.duration}
                   </span>
@@ -445,6 +446,8 @@ export default function NoteDetailPage() {
 
                 {/* People, Company, Tags */}
                 {id && <MeetingMetadata noteId={id} />}
+
+                <div className="border-t border-border/50 my-4" />
 
                 {viewMode === "ai-notes" ? (
                   <>
