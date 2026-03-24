@@ -575,15 +575,16 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 
   const handlePickFolder = async () => {
     if (!api?.vault) return;
-    // Use the IPC dialog to pick a folder
-    const result = await (api as any).export?.toObsidian?.({ title: '__vault_config__' });
-    // Actually, let's use the vault:set-path approach via a dialog
-    // For now, trigger the export flow which will prompt for vault selection
-    api.vault.getConfig().then((config) => {
-      setVaultPath(config.path);
-      setVaultName(config.vaultName);
-      setConfigured(config.configured);
-    });
+    const result = await (api.vault as any).pickFolder?.();
+    if (result?.ok) {
+      setVaultPath(result.path);
+      setVaultName(result.vaultName);
+      setConfigured(true);
+      setWarning(result.warning || null);
+      toast.success(`Vault connected: ${result.vaultName || result.path}`);
+    } else if (result?.error && result.error !== 'Cancelled') {
+      toast.error(result.error);
+    }
   };
 
   return (
@@ -613,6 +614,12 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
               <span>⚠</span> {warning}
             </div>
           )}
+          <button
+            onClick={handlePickFolder}
+            className="w-full flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+          >
+            {configured ? "Change Vault Folder" : "Connect Obsidian Vault"}
+          </button>
           <div className="text-xs text-muted-foreground">
             When you export a note, Syag writes structured markdown with YAML frontmatter, [[wikilinks]] to people and projects, and updates people files automatically.
           </div>

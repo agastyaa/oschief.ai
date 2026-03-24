@@ -619,6 +619,29 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  ipcMain.handle('vault:pick-folder', async () => {
+    try {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { ok: false, error: 'No active window' }
+      const { dialog } = await import('electron')
+      const { getVaultPath, setVaultPath, validateVaultPath, getVaultName } = await import('./vault/vault-config')
+      const currentPath = getVaultPath()
+      const result = await dialog.showOpenDialog(win, {
+        title: 'Select Obsidian Vault Folder',
+        defaultPath: currentPath || app.getPath('home'),
+        properties: ['openDirectory'],
+      })
+      if (result.canceled || !result.filePaths.length) return { ok: false, error: 'Cancelled' }
+      const chosenPath = result.filePaths[0]
+      const validation = validateVaultPath(chosenPath)
+      if (!validation.valid) return { ok: false, error: validation.error }
+      setVaultPath(chosenPath)
+      return { ok: true, path: chosenPath, vaultName: getVaultName(), warning: validation.warning }
+    } catch (err: any) {
+      return { ok: false, error: err.message }
+    }
+  })
+
   ipcMain.handle('vault:set-path', async (_e, path: string) => {
     const { setVaultPath, validateVaultPath } = await import('./vault/vault-config')
     const validation = validateVaultPath(path)

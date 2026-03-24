@@ -257,6 +257,7 @@ const electronAPI = {
   vault: {
     getConfig: () => ipcRenderer.invoke('vault:get-config') as Promise<{ configured: boolean; path: string | null; vaultName: string | null; validation: any }>,
     setPath: (path: string) => ipcRenderer.invoke('vault:set-path', path) as Promise<{ ok: boolean; error?: string; warning?: string }>,
+    pickFolder: () => ipcRenderer.invoke('vault:pick-folder') as Promise<{ ok: boolean; path?: string; vaultName?: string; error?: string; warning?: string }>,
   },
 
   slack: {
