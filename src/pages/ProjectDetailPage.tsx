@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
@@ -24,6 +24,17 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<any>(null)
   const [timeline, setTimeline] = useState<ProjectTimeline | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [editingDesc, setEditingDesc] = useState(false)
+  const [draftName, setDraftName] = useState("")
+  const [draftDesc, setDraftDesc] = useState("")
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  const saveField = async (field: "name" | "description", value: string) => {
+    if (!id || !api?.memory?.projects) return
+    await api.memory.projects.update(id, { [field]: value })
+    setProject((p: any) => p ? { ...p, [field]: value } : p)
+  }
 
   useEffect(() => {
     if (!id || !api?.memory?.projects) return
@@ -60,13 +71,53 @@ export default function ProjectDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </button>
             <FolderKanban className="h-4.5 w-4.5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">{project.name}</h1>
+            {editingName ? (
+              <input
+                ref={nameRef}
+                autoFocus
+                value={draftName}
+                onChange={e => setDraftName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { saveField("name", draftName); setEditingName(false) }
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+                onBlur={() => { if (draftName.trim() && draftName !== project.name) saveField("name", draftName); setEditingName(false) }}
+                className="text-xl font-semibold bg-transparent border-b border-primary/40 outline-none px-0.5"
+              />
+            ) : (
+              <h1
+                className="text-xl font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => { setDraftName(project.name); setEditingName(true) }}
+                title="Click to edit"
+              >
+                {project.name}
+              </h1>
+            )}
             <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-medium ml-2", statusStyles[project.status] || statusStyles.archived)}>
               {project.status}
             </span>
           </div>
-          {project.description && (
-            <p className="text-sm text-muted-foreground mb-6 ml-8">{project.description}</p>
+          {editingDesc ? (
+            <input
+              autoFocus
+              value={draftDesc}
+              onChange={e => setDraftDesc(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { saveField("description", draftDesc); setEditingDesc(false) }
+                if (e.key === 'Escape') setEditingDesc(false)
+              }}
+              onBlur={() => { saveField("description", draftDesc); setEditingDesc(false) }}
+              placeholder="Add a description..."
+              className="text-sm text-muted-foreground mb-6 ml-8 bg-transparent border-b border-border outline-none w-full max-w-md"
+            />
+          ) : (
+            <p
+              className="text-sm text-muted-foreground mb-6 ml-8 cursor-pointer hover:text-foreground/70 transition-colors"
+              onClick={() => { setDraftDesc(project.description || ""); setEditingDesc(true) }}
+              title="Click to edit"
+            >
+              {project.description || <span className="italic opacity-50">Add a description...</span>}
+            </p>
           )}
 
           {/* Stats */}
