@@ -124,8 +124,8 @@
     "whatwg-encoding": "^3.1.0"
   },
   "build": {
-    "appId": "com.syag.app",
-    "productName": "Syag",
+    "appId": "com.oschief.app",
+    "productName": "OSChief",
     "publish": {
       "provider": "github",
       "owner": "iamsagar125",
