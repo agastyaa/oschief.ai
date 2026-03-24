@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
+import { useCalendar } from "@/contexts/CalendarContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
 import { SummarySkeleton } from "@/components/SummarySkeleton";
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KBSuggestionsPanel, type KBSuggestion } from "@/components/KBSuggestionsPanel";
+import CommandCenterPanel from "@/components/CommandCenterPanel";
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -139,7 +141,7 @@ export default function NewNotePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const eventState = location.state as { eventTitle?: string; eventId?: string; joinLink?: string; startFresh?: boolean; triggerPauseAndSummarize?: boolean } | null;
-  const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture, setSessionScratch, getSessionScratch } = useRecording();
+  const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture, setSessionScratch, getSessionScratch, meetingContext, setMeetingContext } = useRecording();
   const { selectedSTTModel, selectedAIModel, useLocalModels } = useModelSettings();
   const api = getElectronAPI();
 
@@ -150,6 +152,7 @@ export default function NewNotePage() {
   const startFresh = eventState?.startFresh === true || startFreshFromUrl;
 
   const { sidebarOpen } = useSidebarVisibility();
+  const { events: calendarEvents } = useCalendar();
   const [recordingState, setRecordingState] = useState<RecordingState>(() => {
     if (isReturning && activeSession) {
       return activeSession.isRecording ? "recording" : "paused";
@@ -209,6 +212,27 @@ export default function NewNotePage() {
     const custom = customTemplates.map(ct => ({ id: ct.id, name: ct.name, icon: "📝" }));
     return [...BUILTIN_TEMPLATES, ...custom];
   }, [customTemplates]);
+
+  // Command Center: assemble context when recording starts, using calendar attendees
+  useEffect(() => {
+    if (!isCapturing || !api?.context?.assemble) return;
+    const eventTitle = eventState?.eventTitle || title || undefined;
+    // Find matching calendar event to extract attendees
+    const now = Date.now();
+    const matchedEvent = calendarEvents.find(e => {
+      const start = new Date(e.start).getTime();
+      const end = new Date(e.end).getTime();
+      return now >= start - 15 * 60 * 1000 && now <= end + 5 * 60 * 1000;
+    });
+    const attendeeNames = (matchedEvent?.attendees || []).map(a => a.name).filter(Boolean) as string[];
+    const attendeeEmails = (matchedEvent?.attendees || []).map(a => a.email).filter(Boolean) as string[];
+    api.context.assemble({ attendeeNames, attendeeEmails, eventTitle }).then(ctx => {
+      if (ctx) setMeetingContext(ctx);
+    }).catch(err => {
+      console.error('[command-center] Context assembly failed:', err);
+    });
+    return () => { setMeetingContext(null); };
+  }, [isCapturing]);
 
   const activeSTTLabel = useMemo(() => {
     if (!selectedSTTModel) return null;
@@ -1430,6 +1454,9 @@ export default function NewNotePage() {
         )}
 
       </main>
+
+      {/* Command Center — context panel during recording */}
+      {isCapturing && <CommandCenterPanel context={meetingContext} />}
     </div>
   );
 }

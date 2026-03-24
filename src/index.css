@@ -30,7 +30,7 @@
     --popover: 220 14% 99%;
     --popover-foreground: 222 25% 8%;
 
-    --primary: 230 70% 52%;
+    --primary: 229 51% 37%;
     --primary-foreground: 220 14% 98%;
 
     --secondary: 220 14% 92%;
@@ -39,7 +39,7 @@
     --muted: 218 12% 92%;
     --muted-foreground: 220 15% 35%;
 
-    --accent: 230 70% 52%;
+    --accent: 229 51% 37%;
     --accent-foreground: 220 14% 98%;
 
     --destructive: 0 72% 51%;
@@ -47,23 +47,23 @@
 
     --border: 220 13% 88%;
     --input: 220 13% 88%;
-    --ring: 230 70% 52%;
+    --ring: 229 51% 37%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 222 18% 94%;
     --sidebar-foreground: 222 12% 38%;
-    --sidebar-primary: 230 70% 52%;
+    --sidebar-primary: 229 51% 37%;
     --sidebar-primary-foreground: 220 14% 98%;
-    --sidebar-accent: 230 70% 52%;
+    --sidebar-accent: 229 51% 37%;
     --sidebar-accent-foreground: 220 14% 98%;
     --sidebar-border: 220 13% 88%;
-    --sidebar-ring: 230 70% 52%;
+    --sidebar-ring: 229 51% 37%;
 
     /* ── Semantic tokens ── */
-    --indigo: 230 70% 52%;
-    --indigo-light: 230 40% 90%;
-    --indigo-muted: 230 20% 55%;
+    --indigo: 229 51% 37%;
+    --indigo-light: 229 30% 88%;
+    --indigo-muted: 229 25% 50%;
     --slate: 222 25% 8%;
     --surface: 220 16% 95%;
     --canvas: 220 14% 99%;
@@ -74,7 +74,7 @@
 
     /* ── State colors ── */
     --recording: 4 80% 58%;
-    --ai-active: 230 80% 60%;
+    --ai-active: 229 55% 55%;
 
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   }
@@ -89,7 +89,7 @@
     --popover: 222 18% 11%;
     --popover-foreground: 220 14% 92%;
 
-    --primary: 230 62% 65%;
+    --primary: 229 45% 60%;
     --primary-foreground: 222 20% 7%;
 
     --secondary: 222 12% 15%;
@@ -98,7 +98,7 @@
     --muted: 222 12% 16%;
     --muted-foreground: 220 10% 55%;
 
-    --accent: 230 60% 60%;
+    --accent: 229 45% 60%;
     --accent-foreground: 220 14% 98%;
 
     --destructive: 0 72% 55%;
@@ -106,21 +106,21 @@
 
     --border: 222 12% 20%;
     --input: 222 12% 20%;
-    --ring: 230 60% 60%;
+    --ring: 229 45% 60%;
 
     --sidebar-background: 222 22% 5%;
     --sidebar-foreground: 220 10% 55%;
-    --sidebar-primary: 230 60% 64%;
+    --sidebar-primary: 229 45% 60%;
     --sidebar-primary-foreground: 222 20% 7%;
-    --sidebar-accent: 230 55% 55%;
+    --sidebar-accent: 229 40% 50%;
     --sidebar-accent-foreground: 220 14% 98%;
     --sidebar-border: 222 12% 16%;
-    --sidebar-ring: 230 60% 60%;
+    --sidebar-ring: 229 45% 60%;
 
     /* ── Semantic tokens (dark) ── */
-    --indigo: 230 62% 65%;
-    --indigo-light: 230 14% 16%;
-    --indigo-muted: 230 16% 40%;
+    --indigo: 229 45% 60%;
+    --indigo-light: 229 14% 16%;
+    --indigo-muted: 229 20% 40%;
     --slate: 220 14% 92%;
     --surface: 222 20% 7%;
     --canvas: 222 18% 11%;
@@ -130,7 +130,7 @@
     --card-shadow-hover: 0 2px 8px rgba(0,0,0,0.3);
 
     --recording: 4 72% 55%;
-    --ai-active: 230 70% 65%;
+    --ai-active: 229 50% 60%;
   }
 }
 

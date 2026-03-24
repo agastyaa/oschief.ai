@@ -27,6 +27,8 @@ import NoteDetailPage from "./pages/NoteDetailPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PeoplePage from "./pages/PeoplePage";
 import CommitmentsPage from "./pages/CommitmentsPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import NotFound from "./pages/NotFound";
 import TrayAgendaPage from "./pages/TrayAgendaPage";
 import { TrayMenu } from "@/components/TrayMenu";
@@ -130,6 +132,8 @@ function AppContent() {
         <Route path="/coaching" element={<CoachingPage />} />
         <Route path="/people" element={<PeoplePage />} />
         <Route path="/commitments" element={<CommitmentsPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/project/:id" element={<ProjectDetailPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/tray-preview" element={
           <div className="flex items-center justify-center min-h-screen bg-muted/50">

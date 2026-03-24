@@ -1,3 +1,9 @@
+export interface CalendarAttendee {
+  email: string;
+  name?: string;
+  role?: string;  // e.g. "REQ-PARTICIPANT", "OPT-PARTICIPANT", "CHAIR"
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -17,6 +23,8 @@ export interface CalendarEvent {
   calendarFeedId?: string;
   /** Human-readable calendar name for UI */
   calendarName?: string;
+  /** Meeting attendees extracted from ATTENDEE fields, Google/Microsoft API, or ICS */
+  attendees?: CalendarAttendee[];
 }
 
 // ── Join-link extraction ────────────────────────────────────────────────
@@ -233,6 +241,7 @@ interface RawEvent {
   rrule?: string
   exdates: Date[]
   recurrenceId?: Date
+  attendees?: CalendarAttendee[]
 }
 
 /**
@@ -275,6 +284,7 @@ export function parseICS(
           rrule: current.rrule,
           exdates: current.exdates ?? [],
           recurrenceId: current.recurrenceId,
+          attendees: current.attendees,
         })
       }
     } else if (inEvent) {
@@ -325,6 +335,35 @@ export function parseICS(
         case 'RECURRENCE-ID':
           current.recurrenceId = parseICSDate(value, tzid)
           break
+        case 'ATTENDEE': {
+          // Parse: ATTENDEE;CN=Jane Doe;ROLE=REQ-PARTICIPANT:mailto:jane@acme.com
+          const email = value.replace(/^mailto:/i, '').trim().toLowerCase()
+          if (email && email.includes('@')) {
+            const cnMatch = fullProp.match(/CN=([^;:]+)/i)
+            const roleMatch = fullProp.match(/ROLE=([^;:]+)/i)
+            if (!current.attendees) current.attendees = []
+            current.attendees.push({
+              email,
+              name: cnMatch ? unescapeICS(cnMatch[1].replace(/^"(.*)"$/, '$1')) : undefined,
+              role: roleMatch ? roleMatch[1] : undefined,
+            })
+          }
+          break
+        }
+        case 'ORGANIZER': {
+          // Parse: ORGANIZER;CN=Boss Name:mailto:boss@acme.com
+          const orgEmail = value.replace(/^mailto:/i, '').trim().toLowerCase()
+          if (orgEmail && orgEmail.includes('@')) {
+            const cnMatch = fullProp.match(/CN=([^;:]+)/i)
+            if (!current.attendees) current.attendees = []
+            current.attendees.push({
+              email: orgEmail,
+              name: cnMatch ? unescapeICS(cnMatch[1].replace(/^"(.*)"$/, '$1')) : undefined,
+              role: 'CHAIR',
+            })
+          }
+          break
+        }
       }
     }
   }
@@ -387,6 +426,7 @@ export function parseICS(
           description: evt.description,
           joinLink: extractJoinLink(evt.description ?? '') || extractJoinLink(evt.location ?? '') || extractJoinLink(evt.url ?? ''),
           isAllDay: evt.isAllDay,
+          attendees: evt.attendees,
         })
       }
     }
@@ -408,6 +448,7 @@ function buildCalendarEvent(evt: RawEvent, idOverride?: string): CalendarEvent {
     description: evt.description,
     joinLink: extractJoinLink(desc) || extractJoinLink(loc) || extractJoinLink(url),
     isAllDay: evt.isAllDay,
+    attendees: evt.attendees,
   }
 }
 

@@ -44,6 +44,7 @@ const sections = [
   { icon: FileText, label: "Meeting", id: "meeting" },
   { icon: Globe, label: "Connections", id: "connections" },
   { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
+  { icon: BookOpen, label: "Obsidian Vault", id: "vault" },
   { icon: Sliders, label: "Advanced", id: "advanced" },
   { icon: Info, label: "About", id: "about" },
 ];
@@ -447,6 +448,70 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
+  const [vaultPath, setVaultPath] = useState<string | null>(null);
+  const [vaultName, setVaultName] = useState<string | null>(null);
+  const [configured, setConfigured] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    api?.vault?.getConfig().then((config) => {
+      setVaultPath(config.path);
+      setVaultName(config.vaultName);
+      setConfigured(config.configured);
+      if (config.validation?.warning) setWarning(config.validation.warning);
+    });
+  }, [api]);
+
+  const handlePickFolder = async () => {
+    if (!api?.vault) return;
+    // Use the IPC dialog to pick a folder
+    const result = await (api as any).export?.toObsidian?.({ title: '__vault_config__' });
+    // Actually, let's use the vault:set-path approach via a dialog
+    // For now, trigger the export flow which will prompt for vault selection
+    api.vault.getConfig().then((config) => {
+      setVaultPath(config.path);
+      setVaultName(config.vaultName);
+      setConfigured(config.configured);
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Obsidian Vault" description="Connect your Obsidian vault to export meeting notes with rich metadata, people links, and project connections" />
+      <div className="space-y-4">
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">Vault Location</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {configured ? (
+                  <span className="font-mono">{vaultPath}</span>
+                ) : (
+                  "No vault configured — export a note to set it up"
+                )}
+              </div>
+            </div>
+            {configured && vaultName && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                {vaultName}
+              </span>
+            )}
+          </div>
+          {warning && (
+            <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <span>⚠</span> {warning}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground">
+            When you export a note, Syag writes structured markdown with YAML frontmatter, [[wikilinks]] to people and projects, and updates people files automatically.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2319,6 +2384,10 @@ export default function SettingsPage() {
 
               {active === "knowledge-base" && (
                 <KnowledgeBaseSection api={api} />
+              )}
+
+              {active === "vault" && (
+                <VaultSection api={api} />
               )}
 
               {active === "connections" && (

@@ -4,6 +4,13 @@
  */
 import { netFetch } from '../cloud/net-request'
 
+export interface GoogleCalendarAttendee {
+  email: string
+  name?: string
+  responseStatus?: string  // "accepted" | "declined" | "tentative" | "needsAction"
+  self?: boolean
+}
+
 export interface GoogleCalendarEvent {
   id: string
   title: string
@@ -13,6 +20,7 @@ export interface GoogleCalendarEvent {
   location?: string
   description?: string
   isAllDay: boolean
+  attendees?: GoogleCalendarAttendee[]
 }
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
@@ -89,6 +97,16 @@ export async function fetchGoogleCalendarEvents(
       joinLink = descMatch?.[0] || locMatch?.[0]
     }
 
+    // Extract attendees
+    const attendees: GoogleCalendarAttendee[] = (item.attendees || [])
+      .filter((a: any) => a.email)
+      .map((a: any) => ({
+        email: a.email,
+        name: a.displayName || undefined,
+        responseStatus: a.responseStatus,
+        self: a.self || false,
+      }))
+
     return {
       id: item.id,
       title: item.summary || 'Untitled Event',
@@ -98,6 +116,7 @@ export async function fetchGoogleCalendarEvents(
       location: item.location,
       description: item.description,
       isAllDay,
+      attendees: attendees.length > 0 ? attendees : undefined,
     }
   })
 

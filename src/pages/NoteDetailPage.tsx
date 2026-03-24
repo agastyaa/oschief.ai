@@ -305,23 +305,40 @@ export default function NoteDetailPage() {
                 <DropdownMenuItem
                   onClick={async () => {
                     if (!note) return;
-                    try {
-                      if (api?.export?.toObsidian) {
-                        const result = await api.export.toObsidian(note);
-                        if (result.ok) toast.success("Saved to Obsidian vault");
-                        else if (result.error !== "Cancelled") toast.error(result.error || "Export failed");
-                      } else {
-                        console.error('[export] api.export.toObsidian not available');
-                        toast.error("Obsidian export requires the desktop app");
+                    if (api?.export?.toObsidian) {
+                      const result = await api.export.toObsidian(note);
+                      if (result.ok && !result.skipped) {
+                        const obsidianUri = result.obsidianUri;
+                        toast.success(
+                          <div className="flex items-center gap-2">
+                            <span>Saved to vault{result.conflict ? " (as new version)" : ""}</span>
+                            {obsidianUri && (
+                              <button
+                                className="text-primary font-medium hover:underline"
+                                onClick={() => {
+                                  const shellApi = api as any;
+                                  if (shellApi?.app?.openExternal) shellApi.app.openExternal(obsidianUri);
+                                  else window.open(obsidianUri, '_blank');
+                                }}
+                              >
+                                Open in Obsidian
+                              </button>
+                            )}
+                          </div>,
+                          { duration: 5000 }
+                        );
+                      } else if (result.ok && result.skipped) {
+                        toast.success("Already in vault — no changes needed");
+                      } else if (result.error !== "Cancelled") {
+                        toast.error(result.error || "Export failed");
                       }
-                    } catch (err: any) {
-                      console.error('[export:obsidian]', err);
-                      toast.error(`Export failed: ${err.message?.slice(0, 80) || 'Unknown error'}`);
+                    } else {
+                      toast.error("Obsidian export requires the desktop app");
                     }
                   }}
                 >
                   <BookOpen className="mr-2 h-3.5 w-3.5" />
-                  Export to Obsidian
+                  Export to Vault
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {

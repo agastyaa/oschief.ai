@@ -5,6 +5,13 @@ import { netFetch } from '../cloud/net-request'
 
 const GRAPH_CALENDAR_URL = 'https://graph.microsoft.com/v1.0/me/calendarview'
 
+export interface MicrosoftCalendarAttendee {
+  email: string
+  name?: string
+  type?: string  // "required" | "optional" | "resource"
+  responseStatus?: string
+}
+
 export interface MicrosoftCalendarEvent {
   id: string
   title: string
@@ -13,6 +20,7 @@ export interface MicrosoftCalendarEvent {
   joinLink?: string
   location?: string
   isAllDay: boolean
+  attendees?: MicrosoftCalendarAttendee[]
 }
 
 export interface MicrosoftCalendarFetchRange {
@@ -34,7 +42,7 @@ export async function fetchMicrosoftCalendarEvents(
   const start = new Date(now.getTime() - daysPast * 24 * 60 * 60 * 1000)
   const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 
-  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body`
+  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body,attendees`
 
   const { statusCode, data } = await netFetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -49,6 +57,16 @@ export async function fetchMicrosoftCalendarEvents(
 
   for (const evt of result.value || []) {
     const joinLink = extractJoinLink(evt)
+    // Extract attendees from Microsoft Graph response
+    const attendees: MicrosoftCalendarAttendee[] = (evt.attendees || [])
+      .filter((a: any) => a.emailAddress?.address)
+      .map((a: any) => ({
+        email: a.emailAddress.address,
+        name: a.emailAddress.name || undefined,
+        type: a.type || undefined,
+        responseStatus: a.status?.response || undefined,
+      }))
+
     events.push({
       id: evt.id,
       title: evt.subject || 'Untitled',
@@ -57,6 +75,7 @@ export async function fetchMicrosoftCalendarEvents(
       joinLink,
       location: evt.location?.displayName || undefined,
       isAllDay: evt.isAllDay || false,
+      attendees: attendees.length > 0 ? attendees : undefined,
     })
   }
 

@@ -410,6 +410,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
             joinLink: e.joinLink,
             location: e.location,
             isAllDay: e.isAllDay,
+            attendees: e.attendees?.map((a: any) => ({ email: a.email, name: a.name || a.displayName })),
           }));
           mergeFeedEvents(GOOGLE_CALENDAR_FEED_ID, "Google Calendar", mapped);
         }
@@ -453,6 +454,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
             joinLink: e.joinLink,
             location: e.location,
             isAllDay: e.isAllDay,
+            attendees: e.attendees?.map((a: any) => ({ email: a.email, name: a.name })),
           }));
           mergeFeedEvents(MICROSOFT_CALENDAR_FEED_ID, "Microsoft Outlook", mapped);
         }

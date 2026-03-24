@@ -144,6 +144,58 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `ALTER TABLE topics ADD COLUMN sync_change_id TEXT`,
     ]
   },
+  {
+    version: 8,
+    up: [
+      // Projects table — tracks work streams across meetings
+      `CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'suggested',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        sync_device_origin TEXT,
+        sync_change_id TEXT
+      )`,
+      // Junction: notes ↔ projects
+      `CREATE TABLE IF NOT EXISTS note_projects (
+        note_id TEXT REFERENCES notes(id) ON DELETE CASCADE,
+        project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        PRIMARY KEY (note_id, project_id)
+      )`,
+      // Decisions — structured, relational (canonical over summary.decisions)
+      `CREATE TABLE IF NOT EXISTS decisions (
+        id TEXT PRIMARY KEY,
+        note_id TEXT REFERENCES notes(id) ON DELETE SET NULL,
+        project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+        text TEXT NOT NULL,
+        context TEXT,
+        date TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        sync_device_origin TEXT,
+        sync_change_id TEXT
+      )`,
+      // Junction: decisions ↔ people
+      `CREATE TABLE IF NOT EXISTS decision_people (
+        decision_id TEXT REFERENCES decisions(id) ON DELETE CASCADE,
+        person_id TEXT REFERENCES people(id) ON DELETE CASCADE,
+        PRIMARY KEY (decision_id, person_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_note_projects_project ON note_projects(project_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_decisions_project ON decisions(project_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_decisions_note ON decisions(note_id)`,
+    ]
+  },
+  {
+    version: 9,
+    up: [
+      // Calendar event-note linking — enables "all meetings for this event series"
+      `ALTER TABLE notes ADD COLUMN calendar_event_id TEXT`,
+      `ALTER TABLE notes ADD COLUMN calendar_event_title TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_calendar_event ON notes(calendar_event_id)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

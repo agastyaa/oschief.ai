@@ -251,7 +251,12 @@ const electronAPI = {
   export: {
     toDocx: (noteData: any) => ipcRenderer.invoke('export:docx', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
     toPdf: (noteData: any) => ipcRenderer.invoke('export:pdf', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
-    toObsidian: (noteData: any) => ipcRenderer.invoke('export:obsidian', noteData) as Promise<{ ok: boolean; path?: string; error?: string }>,
+    toObsidian: (noteData: any) => ipcRenderer.invoke('export:obsidian', noteData) as Promise<{ ok: boolean; path?: string; obsidianUri?: string; error?: string; conflict?: boolean; skipped?: boolean }>,
+  },
+
+  vault: {
+    getConfig: () => ipcRenderer.invoke('vault:get-config') as Promise<{ configured: boolean; path: string | null; vaultName: string | null; validation: any }>,
+    setPath: (path: string) => ipcRenderer.invoke('vault:set-path', path) as Promise<{ ok: boolean; error?: string; warning?: string }>,
   },
 
   slack: {
@@ -342,8 +347,24 @@ const electronAPI = {
       unlinkFromNote: (noteId: string, topicId: string) => ipcRenderer.invoke('memory:topics-unlink-from-note', noteId, topicId),
       updateLabel: (id: string, label: string) => ipcRenderer.invoke('memory:topics-update-label', id, label),
     },
-    extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[] }) =>
-      ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; error?: string }>,
+    projects: {
+      getAll: (filters?: { status?: string }) => ipcRenderer.invoke('memory:projects-get-all', filters) as Promise<any[]>,
+      get: (id: string) => ipcRenderer.invoke('memory:projects-get', id) as Promise<any>,
+      forNote: (noteId: string) => ipcRenderer.invoke('memory:projects-for-note', noteId) as Promise<any[]>,
+      confirm: (id: string) => ipcRenderer.invoke('memory:projects-confirm', id) as Promise<boolean>,
+      archive: (id: string) => ipcRenderer.invoke('memory:projects-archive', id) as Promise<boolean>,
+      update: (id: string, data: any) => ipcRenderer.invoke('memory:projects-update', id, data) as Promise<boolean>,
+      delete: (id: string) => ipcRenderer.invoke('memory:projects-delete', id) as Promise<boolean>,
+      merge: (keepId: string, mergeId: string) => ipcRenderer.invoke('memory:projects-merge', keepId, mergeId) as Promise<boolean>,
+      timeline: (projectId: string) => ipcRenderer.invoke('memory:projects-timeline', projectId) as Promise<any>,
+    },
+    decisions: {
+      forNote: (noteId: string) => ipcRenderer.invoke('memory:decisions-for-note', noteId) as Promise<any[]>,
+      forProject: (projectId: string) => ipcRenderer.invoke('memory:decisions-for-project', projectId) as Promise<any[]>,
+      getAll: (filters?: any) => ipcRenderer.invoke('memory:decisions-get-all', filters) as Promise<any[]>,
+    },
+    extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
+      ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
   },
 
   sync: {
@@ -365,6 +386,18 @@ const electronAPI = {
       ipcRenderer.on('sync:data-changed', handler)
       return () => ipcRenderer.removeListener('sync:data-changed', handler)
     },
+  },
+
+  context: {
+    assemble: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) =>
+      ipcRenderer.invoke('context:assemble', data) as Promise<any>,
+  },
+
+  prep: {
+    generate: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string; model: string }) =>
+      ipcRenderer.invoke('prep:generate', data) as Promise<any>,
+    notify: (data: { title: string; body: string }) =>
+      ipcRenderer.invoke('notify:meeting-prep', data) as Promise<boolean>,
   },
 
   agentApi: {

@@ -47,6 +47,9 @@ interface RecordingContextType {
   /** Scratch for current session (personalNotes, title, userEditedTitle) so indicator pause-and-summarize can restore state when navigating back. */
   setSessionScratch: (scratch: { personalNotes?: string; title?: string; userEditedTitle?: boolean }) => void;
   getSessionScratch: () => { personalNotes?: string; title?: string; userEditedTitle?: boolean };
+  /** Meeting context assembled by Command Center for the current recording session. */
+  meetingContext: any | null;
+  setMeetingContext: (ctx: any | null) => void;
 }
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
@@ -56,6 +59,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [usingWebSpeech, setUsingWebSpeech] = useState(false);
+  const [meetingContext, setMeetingContext] = useState<any | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [sttStatus, setSttStatus] = useState<'idle' | 'processing' | 'error'>('idle');
   const [sttErrorMessage, setSttErrorMessage] = useState<string | null>(null);
@@ -492,7 +496,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError,
       sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime,
       startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture,
-      setSessionScratch, getSessionScratch
+      setSessionScratch, getSessionScratch,
+      meetingContext, setMeetingContext
     }}>
       {children}
     </RecordingContext.Provider>

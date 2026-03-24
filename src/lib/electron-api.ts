@@ -161,7 +161,11 @@ type ElectronAPI = {
   export?: {
     toDocx: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
     toPdf: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
-    toObsidian: (noteData: any) => Promise<{ ok: boolean; path?: string; error?: string }>
+    toObsidian: (noteData: any) => Promise<{ ok: boolean; path?: string; obsidianUri?: string; error?: string; conflict?: boolean; skipped?: boolean }>
+  }
+  vault?: {
+    getConfig: () => Promise<{ configured: boolean; path: string | null; vaultName: string | null; validation: any }>
+    setPath: (path: string) => Promise<{ ok: boolean; error?: string; warning?: string }>
   }
   slack?: {
     testWebhook: (webhookUrl: string) => Promise<{ ok: boolean; error?: string }>

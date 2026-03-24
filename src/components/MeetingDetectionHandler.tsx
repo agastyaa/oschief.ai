@@ -30,6 +30,7 @@ export function MeetingDetectionHandler() {
       start: new Date(e.start).getTime(),
       end: new Date(e.end).getTime(),
       joinLink: e.joinLink,
+      attendees: e.attendees?.map(a => ({ email: a.email, name: a.name })),
     }));
     api.app.setCalendarEvents?.(mapped);
   }, [events, api]);

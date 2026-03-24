@@ -415,89 +415,216 @@ export function registerIPCHandlers(): void {
     }
   })
 
-  // --- Obsidian export ---
+  // --- Obsidian vault export ---
+  // v2: Enhanced vault writer with YAML frontmatter, wikilinks, people markdown,
+  //     conflict detection, and obsidian:// deep links.
+  //
+  //  VAULT WRITE FLOW:
+  //  noteData ──▶ validate vault path ──▶ build frontmatter + body
+  //       │              │                        │
+  //       ▼              ▼                        ▼
+  //  [no vault?]   [invalid?]              write meetings/{file}.md
+  //  show dialog   show error                     │
+  //                                    ┌──────────┴──────────┐
+  //                                    ▼                     ▼
+  //                              [no conflict]         [conflict]
+  //                              write directly       write as -v2
+  //                                    │                     │
+  //                                    └──────────┬──────────┘
+  //                                               ▼
+  //                                  update people/*.md files
+  //                                               │
+  //                                               ▼
+  //                                  return { ok, path, obsidianUri }
   ipcMain.handle('export:obsidian', async (_e, noteData: any) => {
     try {
-      const win = BrowserWindow.getFocusedWindow()
-      if (!win) return { ok: false, error: 'No active window' }
-      const { dialog } = await import('electron')
-      const savedVault = getSetting('obsidian-vault-path') ?? app.getPath('home')
-      const result = await dialog.showSaveDialog(win, {
-        title: 'Export to Obsidian Vault',
-        defaultPath: join(savedVault, `${(noteData.title || 'Meeting Notes').replace(/[/\\?%*:|"<>]/g, '-')}.md`),
-        filters: [{ name: 'Markdown', extensions: ['md'] }],
-      })
-      if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled' }
-      setSetting('obsidian-vault-path', dirname(result.filePath))
+      const { getVaultPath, setVaultPath, validateVaultPath, isVaultConfigured, buildVaultNotePath, buildObsidianUri } = await import('./vault/vault-config')
+      const { updatePeopleMdForNote } = await import('./vault/people-md')
+      const { updateProjectMd } = await import('./vault/projects-md')
+      const { getNotePeople } = await import('./memory/people-store')
+      const { getProjectsForNote } = await import('./memory/project-store')
+      const { createHash } = await import('crypto')
+      const { homedir } = await import('os')
 
-      const lines: string[] = []
-      lines.push('---')
-      lines.push(`title: "${(noteData.title || 'Untitled Meeting').replace(/"/g, '\\"')}"`)
-      if (noteData.date) lines.push(`date: ${noteData.date}`)
-      if (noteData.duration) lines.push(`duration: "${noteData.duration}"`)
-      lines.push('tags: [meeting-notes, syag]')
-      lines.push('---')
-      lines.push('')
-      lines.push(`# ${noteData.title || 'Untitled Meeting'}`)
-      lines.push('')
+      let vaultPath = getVaultPath()
 
+      // If no vault configured, or vault path invalid, show folder picker
+      if (!vaultPath || !validateVaultPath(vaultPath).valid) {
+        const win = BrowserWindow.getFocusedWindow()
+        if (!win) return { ok: false, error: 'No active window' }
+        const { dialog } = await import('electron')
+        const result = await dialog.showOpenDialog(win, {
+          title: 'Select Obsidian Vault Folder',
+          defaultPath: vaultPath || app.getPath('home'),
+          properties: ['openDirectory'],
+        })
+        if (result.canceled || !result.filePaths.length) return { ok: false, error: 'Cancelled' }
+        vaultPath = result.filePaths[0]
+        const validation = validateVaultPath(vaultPath)
+        if (!validation.valid) return { ok: false, error: validation.error }
+        setVaultPath(vaultPath)
+      }
+
+      // Resolve ~ in vault path
+      const resolvedVault = vaultPath.startsWith('~') ? vaultPath.replace('~', homedir()) : vaultPath
+
+      // Build relative path for the note
+      const noteDate = noteData.date || new Date().toISOString().slice(0, 10)
+      const noteTitle = noteData.title || 'Untitled Meeting'
+      const noteId = noteData.id || 'unknown'
+      const relativePath = buildVaultNotePath(noteDate, noteTitle, noteId)
+      const absolutePath = join(resolvedVault, relativePath)
+
+      // Ensure meetings/ directory exists
+      mkdirSync(dirname(absolutePath), { recursive: true })
+
+      // Build YAML frontmatter with wikilinks
+      const people = noteData.id ? getNotePeople(noteData.id) : []
+      const peopleWikilinks = people.map((p: any) => `  - "[[${p.name}]]"`)
+      const noteProjects = noteData.id ? getProjectsForNote(noteData.id) : []
+
+      const frontmatter: string[] = []
+      frontmatter.push('---')
+      frontmatter.push(`id: syag-${(noteId).slice(0, 12)}`)
+      frontmatter.push(`date: ${noteDate}`)
+      if (noteData.time) frontmatter.push(`time: "${noteData.time}"`)
+      frontmatter.push(`title: "${noteTitle.replace(/"/g, '\\"')}"`)
+      if (noteData.duration) frontmatter.push(`duration: "${noteData.duration}"`)
+      if (peopleWikilinks.length > 0) {
+        frontmatter.push('people:')
+        frontmatter.push(...peopleWikilinks)
+      }
+      if (noteProjects.length > 0) {
+        frontmatter.push(`project: "[[${noteProjects[0].name}]]"`)
+      }
+      frontmatter.push('tags: [meeting, syag]')
+      frontmatter.push('---')
+
+      // Build markdown body using shared function
+      // We construct a minimal note-like object for buildMarkdownBody
+      const bodyParts: string[] = []
       const summary = noteData.summary
       if (summary) {
-        if (summary.overview) { lines.push('## Summary', summary.overview, '') }
+        if (summary.overview) { bodyParts.push('## Summary', '', summary.overview) }
         if (summary.keyPoints?.length) {
-          lines.push('## Key Points')
-          summary.keyPoints.forEach((kp: string) => lines.push(`- ${kp}`))
-          lines.push('')
+          bodyParts.push('', '## Key Points')
+          summary.keyPoints.forEach((kp: string) => bodyParts.push(`- ${kp}`))
         }
         if (summary.discussionTopics?.length) {
-          lines.push('## Discussion Topics')
+          bodyParts.push('', '## Discussion Topics')
           for (const topic of summary.discussionTopics) {
-            lines.push(`### ${topic.topic}`)
-            if (topic.speakers?.length) lines.push(`*Speakers: ${topic.speakers.join(', ')}*`)
-            if (topic.summary) lines.push(topic.summary)
-            lines.push('')
+            bodyParts.push(`### ${topic.topic}`)
+            if (topic.speakers?.length) bodyParts.push(`*Speakers: ${topic.speakers.join(', ')}*`)
+            if (topic.summary) bodyParts.push(topic.summary)
           }
         }
         if (summary.decisions?.length) {
-          lines.push('## Decisions')
-          summary.decisions.forEach((d: string) => lines.push(`- ${d}`))
-          lines.push('')
+          bodyParts.push('', '## Decisions')
+          summary.decisions.forEach((d: string) => bodyParts.push(`- ${d}`))
         }
         const actionItems = summary.actionItems || summary.nextSteps
         if (actionItems?.length) {
-          lines.push('## Action Items')
+          bodyParts.push('', '## Action Items')
           for (const ai of actionItems) {
             const check = ai.done ? '[x]' : '[ ]'
             const assignee = ai.assignee && ai.assignee !== 'Unassigned' ? ` — ${ai.assignee}` : ''
-            const due = ai.dueDate ? ` 📅 ${ai.dueDate}` : ''
-            lines.push(`- ${check} ${ai.text}${assignee}${due}`)
+            const due = ai.dueDate ? ` (by ${ai.dueDate})` : ''
+            bodyParts.push(`- ${check} ${ai.text}${assignee}${due}`)
           }
-          lines.push('')
         }
         if (summary.questionsAndOpenItems?.length) {
-          lines.push('## Open Questions')
-          summary.questionsAndOpenItems.forEach((q: string) => lines.push(`- ${q}`))
-          lines.push('')
+          bodyParts.push('', '## Open Questions')
+          summary.questionsAndOpenItems.forEach((q: string) => bodyParts.push(`- ${q}`))
         }
         if (summary.keyQuotes?.length) {
-          lines.push('## Key Quotes')
-          summary.keyQuotes.forEach((q: any) => lines.push(`> "${q.text}" — *${q.speaker}*`, ''))
+          bodyParts.push('', '## Key Quotes')
+          summary.keyQuotes.forEach((q: any) => bodyParts.push(`> "${q.text}" — *${q.speaker}*`, ''))
         }
       }
       if (noteData.personalNotes?.trim()) {
-        lines.push('## Personal Notes', noteData.personalNotes.trim(), '')
+        bodyParts.push('', '## Personal Notes', noteData.personalNotes.trim())
       }
       if (noteData.transcript?.length) {
-        lines.push('## Transcript')
-        for (const t of noteData.transcript) { lines.push(`**[${t.time}] ${t.speaker}:** ${t.text}`, '') }
+        bodyParts.push('', '## Transcript')
+        for (const t of noteData.transcript) { bodyParts.push(`**[${t.time}] ${t.speaker}:** ${t.text}`, '') }
       }
 
-      writeFileSync(result.filePath, lines.join('\n'), 'utf-8')
-      return { ok: true, path: result.filePath }
+      const fullContent = frontmatter.join('\n') + '\n\n' + bodyParts.join('\n')
+
+      // Conflict detection
+      let finalPath = absolutePath
+      if (existsSync(absolutePath)) {
+        const existingContent = readFileSync(absolutePath, 'utf-8')
+        const existingHash = createHash('sha256').update(existingContent).digest('hex')
+        const newHash = createHash('sha256').update(fullContent).digest('hex')
+        if (existingHash === newHash) {
+          // Idempotent — content unchanged, return success without rewriting
+          const obsidianUri = buildObsidianUri(relativePath)
+          return { ok: true, path: absolutePath, obsidianUri, skipped: true }
+        }
+        // Conflict: different content — write as -v2
+        finalPath = absolutePath.replace(/\.md$/, '-v2.md')
+        // If -v2 also exists, find next available suffix
+        let suffix = 2
+        while (existsSync(finalPath)) {
+          suffix++
+          finalPath = absolutePath.replace(/\.md$/, `-v${suffix}.md`)
+        }
+      }
+
+      writeFileSync(finalPath, fullContent, 'utf-8')
+
+      // Update people markdown files
+      const meeting = { date: noteDate, title: noteTitle }
+      if (people.length > 0) {
+        updatePeopleMdForNote(
+          people.map((p: any) => ({ name: p.name, email: p.email, company: p.company, role: p.role })),
+          meeting
+        )
+      }
+
+      // Update project markdown files
+      if (noteData.id) {
+        try {
+          const projects = getProjectsForNote(noteData.id)
+          for (const proj of projects) {
+            updateProjectMd({ name: proj.name, description: proj.description, status: proj.status }, meeting)
+          }
+        } catch (err) {
+          console.error('[export:obsidian] Project vault files failed:', err)
+        }
+      }
+
+      // Build obsidian URI
+      const finalRelativePath = finalPath.slice(resolvedVault.length + 1)
+      const obsidianUri = buildObsidianUri(finalRelativePath)
+
+      console.log(`[export:obsidian] Wrote vault note: ${finalPath}`)
+      return { ok: true, path: finalPath, obsidianUri, conflict: finalPath !== absolutePath }
     } catch (err: any) {
       console.error('[export:obsidian]', err)
       return { ok: false, error: err.message || 'Export failed' }
     }
+  })
+
+  // --- Vault config ---
+  ipcMain.handle('vault:get-config', async () => {
+    const { getVaultPath, isVaultConfigured, getVaultName, validateVaultPath } = await import('./vault/vault-config')
+    const path = getVaultPath()
+    return {
+      configured: isVaultConfigured(),
+      path,
+      vaultName: getVaultName(),
+      validation: path ? validateVaultPath(path) : null,
+    }
+  })
+
+  ipcMain.handle('vault:set-path', async (_e, path: string) => {
+    const { setVaultPath, validateVaultPath } = await import('./vault/vault-config')
+    const validation = validateVaultPath(path)
+    if (!validation.valid) return { ok: false, error: validation.error }
+    setVaultPath(path)
+    return { ok: true, warning: validation.warning }
   })
 
   // --- Slack ---
@@ -779,15 +906,111 @@ export function registerIPCHandlers(): void {
     const { updateTopicLabel } = await import('./memory/topic-store')
     return updateTopicLabel(id, label)
   })
-  ipcMain.handle('memory:extract-entities', async (_e, data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[] }) => {
+  // --- Projects ---
+  ipcMain.handle('memory:projects-get-all', async (_e, filters?: { status?: string }) => {
+    const { getAllProjects } = await import('./memory/project-store')
+    return getAllProjects(filters)
+  })
+  ipcMain.handle('memory:projects-get', async (_e, id: string) => {
+    const { getProject } = await import('./memory/project-store')
+    return getProject(id)
+  })
+  ipcMain.handle('memory:projects-for-note', async (_e, noteId: string) => {
+    const { getProjectsForNote } = await import('./memory/project-store')
+    return getProjectsForNote(noteId)
+  })
+  ipcMain.handle('memory:projects-confirm', async (_e, id: string) => {
+    const { confirmProject } = await import('./memory/project-store')
+    return confirmProject(id)
+  })
+  ipcMain.handle('memory:projects-archive', async (_e, id: string) => {
+    const { archiveProject } = await import('./memory/project-store')
+    return archiveProject(id)
+  })
+  ipcMain.handle('memory:projects-update', async (_e, id: string, data: any) => {
+    const { updateProject } = await import('./memory/project-store')
+    return updateProject(id, data)
+  })
+  ipcMain.handle('memory:projects-delete', async (_e, id: string) => {
+    const { deleteProject } = await import('./memory/project-store')
+    return deleteProject(id)
+  })
+  ipcMain.handle('memory:projects-merge', async (_e, keepId: string, mergeId: string) => {
+    const { mergeProjects } = await import('./memory/project-store')
+    return mergeProjects(keepId, mergeId)
+  })
+  ipcMain.handle('memory:projects-timeline', async (_e, projectId: string) => {
+    const { getProjectTimeline } = await import('./memory/project-store')
+    return getProjectTimeline(projectId)
+  })
+
+  // --- Decisions ---
+  ipcMain.handle('memory:decisions-for-note', async (_e, noteId: string) => {
+    const { getDecisionsForNote } = await import('./memory/decision-store')
+    return getDecisionsForNote(noteId)
+  })
+  ipcMain.handle('memory:decisions-for-project', async (_e, projectId: string) => {
+    const { getDecisionsForProject } = await import('./memory/decision-store')
+    return getDecisionsForProject(projectId)
+  })
+  ipcMain.handle('memory:decisions-get-all', async (_e, filters?: any) => {
+    const { getAllDecisions } = await import('./memory/decision-store')
+    return getAllDecisions(filters)
+  })
+
+  ipcMain.handle('memory:extract-entities', async (_e, data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) => {
     try {
       const { extractEntities, storeExtractedEntities } = await import('./memory/entity-extractor')
       const entities = await extractEntities(data.summary, data.transcript, data.model, data.calendarAttendees?.map((a: any) => a.email).filter(Boolean))
-      const result = await storeExtractedEntities(data.noteId, entities, data.calendarAttendees)
+      const result = await storeExtractedEntities(data.noteId, entities, data.calendarAttendees, data.calendarTitle)
       return { ok: true, ...result }
     } catch (err: any) {
       console.error('[memory:extract-entities]', err)
       return { ok: false, error: err.message || 'Entity extraction failed' }
+    }
+  })
+
+  // --- Context Assembly (Command Center) ---
+  ipcMain.handle('context:assemble', async (_e, data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) => {
+    try {
+      const { assembleContext } = await import('./memory/context-assembler')
+      return await assembleContext(data.attendeeNames, data.attendeeEmails, data.eventTitle)
+    } catch (err: any) {
+      console.error('[context:assemble]', err)
+      return null
+    }
+  })
+
+  // --- Prep Briefs ---
+  ipcMain.handle('prep:generate', async (_e, data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string; model: string }) => {
+    try {
+      const { generatePrepBrief } = await import('./memory/prep-brief')
+      return await generatePrepBrief(data.attendeeNames, data.attendeeEmails, data.eventTitle, data.model)
+    } catch (err: any) {
+      console.error('[prep:generate]', err)
+      return null
+    }
+  })
+
+  // --- Smart Notification (5min before meeting) ---
+  ipcMain.handle('notify:meeting-prep', async (_e, data: { title: string; body: string }) => {
+    try {
+      const { Notification } = await import('electron')
+      if (!Notification.isSupported()) return false
+      const notif = new Notification({
+        title: data.title,
+        body: data.body,
+        silent: false,
+      })
+      notif.on('click', () => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) { win.show(); win.focus() }
+      })
+      notif.show()
+      return true
+    } catch (err: any) {
+      console.error('[notify:meeting-prep]', err)
+      return false
     }
   })
 

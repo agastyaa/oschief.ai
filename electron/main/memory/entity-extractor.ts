@@ -28,6 +28,11 @@ export interface ExtractedEntities {
     dueDate?: string  // ISO date or natural language
   }>
   topics: string[]  // topic labels
+  project?: string  // primary project discussed
+  decisions?: Array<{
+    text: string
+    context?: string
+  }>
 }
 
 const EXTRACTION_PROMPT = `You are an entity extraction system. Given a meeting summary and transcript excerpt, extract structured data.
@@ -40,17 +45,23 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
   "commitments": [
     {"text": "What was promised", "owner": "you|Person Name", "assignee": "Person Name or null", "dueDate": "2024-03-20 or by Friday or null"}
   ],
-  "topics": ["Topic 1", "Topic 2"]
+  "topics": ["Topic 1", "Topic 2"],
+  "project": "Project Name or null",
+  "decisions": [
+    {"text": "What was decided", "context": "Brief context for the decision or null"}
+  ]
 }
 
 Rules:
 - For people: extract everyone mentioned by name. If email is available from context, include it. Infer company/role from context when clear.
 - For commitments: extract any promise, action item, follow-up, or deliverable. "I'll send the report" = owner: "you". "Sarah will prepare the deck" = owner: "Sarah", assignee: "Sarah".
 - For topics: extract 2-5 high-level themes (e.g., "Q3 Budget", "Hiring Pipeline", "Product Roadmap"). Be specific, not generic.
+- For project: identify the primary project or work stream discussed. Use the most specific name (e.g., "ACME Enterprise Tier" not "project"). If no clear project, set to null.
+- For decisions: extract any agreed-upon decision, resolution, or conclusion. Include brief context if available. If none, return empty array.
 - Use "you" for the meeting recorder/note-taker. Use actual names for others.
 - If a due date is mentioned (even implicitly like "by end of week" or "before the next standup"), include it.
 - Do NOT include the meeting recorder as a person entry (they are implicit).
-- Return empty arrays if nothing found for a category.`
+- Return empty arrays if nothing found for a category. Return null for project if none detected.`
 
 /**
  * Extract entities from a meeting summary and transcript.
@@ -88,9 +99,9 @@ export async function extractEntities(
   } catch (err) {
     console.error('[entity-extractor] First attempt failed:', err)
     
-    // Retry with simpler prompt
+    // Retry with simpler prompt (includes project + decisions fields)
     try {
-      const simplePrompt = `Extract people names, action items, and discussion topics from this meeting summary. Return JSON: {"people": [{"name": "..."}], "commitments": [{"text": "...", "owner": "you"}], "topics": ["..."]}\n\n${summaryText}`
+      const simplePrompt = `Extract people names, action items, discussion topics, project name, and decisions from this meeting summary. Return JSON: {"people": [{"name": "..."}], "commitments": [{"text": "...", "owner": "you"}], "topics": ["..."], "project": "name or null", "decisions": [{"text": "..."}]}\n\n${summaryText}`
       const response = await routeLLM(
         [{ role: 'user', content: simplePrompt }],
         model
@@ -98,7 +109,7 @@ export async function extractEntities(
       return parseExtractionResponse(response)
     } catch (retryErr) {
       console.error('[entity-extractor] Retry failed:', retryErr)
-      return { people: [], commitments: [], topics: [] }
+      return { people: [], commitments: [], topics: [], decisions: [] }
     }
   }
 }
@@ -145,10 +156,12 @@ function parseExtractionResponse(response: string): ExtractedEntities {
       people: Array.isArray(parsed.people) ? parsed.people.filter((p: any) => p?.name) : [],
       commitments: Array.isArray(parsed.commitments) ? parsed.commitments.filter((c: any) => c?.text) : [],
       topics: Array.isArray(parsed.topics) ? parsed.topics.filter((t: any) => typeof t === 'string' && t.trim()) : [],
+      project: typeof parsed.project === 'string' && parsed.project.trim() ? parsed.project.trim() : undefined,
+      decisions: Array.isArray(parsed.decisions) ? parsed.decisions.filter((d: any) => d?.text) : [],
     }
   } catch {
     console.error('[entity-extractor] JSON parse failed for:', jsonStr.slice(0, 200))
-    return { people: [], commitments: [], topics: [] }
+    return { people: [], commitments: [], topics: [], decisions: [] }
   }
 }
 
@@ -159,24 +172,28 @@ function parseExtractionResponse(response: string): ExtractedEntities {
 export async function storeExtractedEntities(
   noteId: string,
   entities: ExtractedEntities,
-  calendarAttendees?: Array<{ name?: string; email?: string }>
-): Promise<{ peopleCount: number; commitmentCount: number; topicCount: number }> {
+  calendarAttendees?: Array<{ name?: string; email?: string }>,
+  calendarTitle?: string
+): Promise<{ peopleCount: number; commitmentCount: number; topicCount: number; projectId?: string; decisionCount: number }> {
   // Lazy import stores to avoid circular deps
   const { upsertPerson, linkPersonToNote } = await import('./people-store')
   const { addCommitment } = await import('./commitment-store')
   const { upsertTopic, linkTopicToNote } = await import('./topic-store')
+  const { upsertProject, linkProjectToNote, parseProjectFromCalendarTitle } = await import('./project-store')
+  const { addDecision, linkDecisionToPeople } = await import('./decision-store')
 
   let peopleCount = 0
   let commitmentCount = 0
   let topicCount = 0
+  let decisionCount = 0
+  let projectId: string | undefined
 
-  // Map of name -> personId for commitment assignee linking
+  // Map of name -> personId for commitment/decision linking
   const nameToPersonId: Record<string, string> = {}
 
   // 1. Process people
   for (const p of entities.people) {
     try {
-      // Cross-reference with calendar attendees for email matching
       let email = p.email
       if (!email && calendarAttendees?.length) {
         const attendee = calendarAttendees.find(
@@ -192,7 +209,7 @@ export async function storeExtractedEntities(
         role: p.role,
         relationship: p.relationship,
       })
-      
+
       if (person) {
         linkPersonToNote(noteId, person.id, 'attendee')
         nameToPersonId[p.name.toLowerCase()] = person.id
@@ -203,10 +220,24 @@ export async function storeExtractedEntities(
     }
   }
 
-  // 2. Process commitments
+  // 2. Process project (calendar title takes priority over LLM-extracted)
+  try {
+    const calendarProject = calendarTitle ? parseProjectFromCalendarTitle(calendarTitle) : null
+    const projectName = calendarProject || entities.project
+    if (projectName) {
+      const project = upsertProject(projectName)
+      if (project) {
+        linkProjectToNote(noteId, project.id)
+        projectId = project.id
+      }
+    }
+  } catch (err) {
+    console.error('[entity-extractor] Failed to store project:', err)
+  }
+
+  // 3. Process commitments
   for (const c of entities.commitments) {
     try {
-      // Resolve assignee to person ID
       let assigneeId: string | undefined
       if (c.assignee) {
         assigneeId = nameToPersonId[c.assignee.toLowerCase()]
@@ -225,7 +256,29 @@ export async function storeExtractedEntities(
     }
   }
 
-  // 3. Process topics
+  // 4. Process decisions
+  for (const d of entities.decisions || []) {
+    try {
+      const decision = addDecision({
+        noteId,
+        projectId,
+        text: d.text,
+        context: d.context,
+      })
+      if (decision) {
+        // Link all meeting attendees to the decision
+        const personIds = Object.values(nameToPersonId)
+        if (personIds.length > 0) {
+          linkDecisionToPeople(decision.id, personIds)
+        }
+        decisionCount++
+      }
+    } catch (err) {
+      console.error('[entity-extractor] Failed to store decision:', err)
+    }
+  }
+
+  // 5. Process topics
   for (const label of entities.topics) {
     try {
       const topic = upsertTopic(label)
@@ -238,6 +291,6 @@ export async function storeExtractedEntities(
     }
   }
 
-  console.log(`[entity-extractor] Stored entities for note ${noteId}: ${peopleCount} people, ${commitmentCount} commitments, ${topicCount} topics`)
-  return { peopleCount, commitmentCount, topicCount }
+  console.log(`[entity-extractor] Stored entities for note ${noteId}: ${peopleCount} people, ${commitmentCount} commitments, ${topicCount} topics, project=${projectId ? 'yes' : 'no'}, ${decisionCount} decisions`)
+  return { peopleCount, commitmentCount, topicCount, projectId, decisionCount }
 }

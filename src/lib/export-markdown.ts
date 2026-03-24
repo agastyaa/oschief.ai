@@ -1,6 +1,85 @@
 import type { SavedNote } from '@/contexts/NotesContext'
 import type { SummaryData } from '@/components/EditableSummary'
 
+// ── Shared markdown body (used by noteToMarkdown + vault writer) ────────
+
+/**
+ * Build the markdown body sections from a note.
+ * Returns an array of section strings (summary, key points, transcript, etc.)
+ * without title or metadata — the caller adds those.
+ */
+export function buildMarkdownBody(note: SavedNote): string[] {
+  const parts: string[] = []
+  const summary = note.summary as SummaryData | null
+
+  if (summary) {
+    if (summary.overview) {
+      parts.push('## Summary')
+      parts.push(summary.overview)
+    }
+
+    if (summary.keyPoints?.length) {
+      parts.push('## Key Points')
+      parts.push(summary.keyPoints.map(kp => `- ${kp}`).join('\n'))
+    }
+
+    if (summary.discussionTopics?.length) {
+      parts.push('## Discussion Topics')
+      for (const topic of summary.discussionTopics) {
+        parts.push(`### ${topic.topic}`)
+        if (topic.speakers?.length) parts.push(`*Speakers: ${topic.speakers.join(', ')}*`)
+        if (topic.summary) parts.push(topic.summary)
+      }
+    }
+
+    if (summary.decisions?.length) {
+      parts.push('## Decisions')
+      parts.push(summary.decisions.map(d => `- ${d}`).join('\n'))
+    }
+
+    const actionItems = summary.actionItems || summary.nextSteps
+    if (actionItems?.length) {
+      parts.push('## Action Items')
+      parts.push(actionItems.map(ai => {
+        const check = ai.done ? '[x]' : '[ ]'
+        const assignee = ai.assignee && ai.assignee !== 'Unassigned' ? ` — ${ai.assignee}` : ''
+        const due = (ai as any).dueDate ? ` (by ${(ai as any).dueDate})` : ''
+        const priority = (ai as any).priority && (ai as any).priority !== 'medium' ? ` [${(ai as any).priority}]` : ''
+        return `- ${check} ${ai.text}${assignee}${due}${priority}`
+      }).join('\n'))
+    }
+
+    if (summary.questionsAndOpenItems?.length) {
+      parts.push('## Open Questions')
+      parts.push(summary.questionsAndOpenItems.map(q => `- ${q}`).join('\n'))
+    }
+
+    if (summary.followUps?.length) {
+      parts.push('## Follow-Ups')
+      parts.push(summary.followUps.map(f => `- ${f}`).join('\n'))
+    }
+
+    if (summary.keyQuotes?.length) {
+      parts.push('## Key Quotes')
+      parts.push(summary.keyQuotes.map(q => `> "${q.text}" — *${q.speaker}*`).join('\n\n'))
+    }
+  }
+
+  if (note.personalNotes?.trim()) {
+    parts.push('## Personal Notes')
+    parts.push(note.personalNotes.trim())
+  }
+
+  if (note.transcript?.length) {
+    parts.push('## Transcript')
+    parts.push(note.transcript.map(t =>
+      `**[${t.time}] ${t.speaker}:** ${t.text}`
+    ).join('\n\n'))
+  }
+
+  return parts
+}
+
 // ── Full note → Markdown ────────────────────────────────────────────────
 
 /**
@@ -20,82 +99,7 @@ export function noteToMarkdown(note: SavedNote): string {
   if (note.timeRange) meta.push(`**Time:** ${note.timeRange}`)
   if (meta.length > 0) parts.push(meta.join(' | '))
 
-  const summary = note.summary as SummaryData | null
-
-  if (summary) {
-    // Overview
-    if (summary.overview) {
-      parts.push('## Summary')
-      parts.push(summary.overview)
-    }
-
-    // Key Points
-    if (summary.keyPoints?.length) {
-      parts.push('## Key Points')
-      parts.push(summary.keyPoints.map(kp => `- ${kp}`).join('\n'))
-    }
-
-    // Discussion Topics
-    if (summary.discussionTopics?.length) {
-      parts.push('## Discussion Topics')
-      for (const topic of summary.discussionTopics) {
-        parts.push(`### ${topic.topic}`)
-        if (topic.speakers?.length) parts.push(`*Speakers: ${topic.speakers.join(', ')}*`)
-        if (topic.summary) parts.push(topic.summary)
-      }
-    }
-
-    // Decisions
-    if (summary.decisions?.length) {
-      parts.push('## Decisions')
-      parts.push(summary.decisions.map(d => `- ${d}`).join('\n'))
-    }
-
-    // Action Items
-    const actionItems = summary.actionItems || summary.nextSteps
-    if (actionItems?.length) {
-      parts.push('## Action Items')
-      parts.push(actionItems.map(ai => {
-        const check = ai.done ? '[x]' : '[ ]'
-        const assignee = ai.assignee && ai.assignee !== 'Unassigned' ? ` — ${ai.assignee}` : ''
-        const due = (ai as any).dueDate ? ` (by ${(ai as any).dueDate})` : ''
-        const priority = (ai as any).priority && (ai as any).priority !== 'medium' ? ` [${(ai as any).priority}]` : ''
-        return `- ${check} ${ai.text}${assignee}${due}${priority}`
-      }).join('\n'))
-    }
-
-    // Questions & Open Items
-    if (summary.questionsAndOpenItems?.length) {
-      parts.push('## Open Questions')
-      parts.push(summary.questionsAndOpenItems.map(q => `- ${q}`).join('\n'))
-    }
-
-    // Follow-Ups
-    if (summary.followUps?.length) {
-      parts.push('## Follow-Ups')
-      parts.push(summary.followUps.map(f => `- ${f}`).join('\n'))
-    }
-
-    // Key Quotes
-    if (summary.keyQuotes?.length) {
-      parts.push('## Key Quotes')
-      parts.push(summary.keyQuotes.map(q => `> "${q.text}" — *${q.speaker}*`).join('\n\n'))
-    }
-  }
-
-  // Personal Notes
-  if (note.personalNotes?.trim()) {
-    parts.push('## Personal Notes')
-    parts.push(note.personalNotes.trim())
-  }
-
-  // Transcript
-  if (note.transcript?.length) {
-    parts.push('## Transcript')
-    parts.push(note.transcript.map(t =>
-      `**[${t.time}] ${t.speaker}:** ${t.text}`
-    ).join('\n\n'))
-  }
+  parts.push(...buildMarkdownBody(note))
 
   return parts.join('\n\n')
 }
