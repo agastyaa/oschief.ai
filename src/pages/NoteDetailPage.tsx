@@ -872,7 +872,7 @@ function CoachingView({
                       )}
                       {m.evidenceQuote && (
                         <blockquote className="mt-1 text-[11px] text-muted-foreground italic border-l border-border pl-2">
-                          “{m.evidenceQuote}”
+                          "{m.evidenceQuote}"
                           {(m.speaker || m.time) && (
                             <span className="not-italic text-[10px] block mt-0.5">
                               {[m.speaker, m.time].filter(Boolean).join(" · ")}
@@ -900,7 +900,7 @@ function CoachingView({
                         >
                           <div className="min-w-0 flex-1">
                             <p className="text-[11px] font-medium text-foreground">{km.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">“{km.quote}”</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">"{km.quote}"</p>
                             <p className="text-[9px] text-muted-foreground mt-0.5">
                               {km.speaker} · {km.time}
                             </p>
@@ -926,30 +926,30 @@ function CoachingView({
         </div>
       )}
 
-      {/* Heuristic coaching — shown prominently when LLM analysis hasn’t run or failed */}
+      {/* Heuristic coaching — shown prominently when LLM analysis hasn't run or failed */}
       {heuristics && !conv && (
         <div className="rounded-xl border border-border bg-card px-4 py-3.5 space-y-3">
           <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
           <div className="space-y-2">
             {heuristics.questionRatioYou < 0.15 && (
               <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
-                You didn’t ask many questions — only {Math.round(heuristics.questionRatioYou * 100)}% of your {heuristics.yourTurns} turns were questions.
-                {accountRoleId === ‘pm’ || accountRoleId === ‘founder-ceo’ ? " For a PM or founder, discovery conversations should be 60-70% questions." : " Try opening with a question to draw out the other person’s perspective."}
+                You didn&apos;t ask many questions — only {Math.round(heuristics.questionRatioYou * 100)}% of your {heuristics.yourTurns} turns were questions.
+                {accountRoleId === 'pm' || accountRoleId === 'founder-ceo' ? " For a PM or founder, discovery conversations should be 60-70% questions." : " Try opening with a question to draw out the other person's perspective."}
               </p>
             )}
             {heuristics.longestYouMonologueWords > 150 && (
               <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
-                Your longest uninterrupted run was {heuristics.longestYouMonologueWords} words. That’s a monologue — most people stop listening after 60 seconds. Break it up with check-in questions.
+                Your longest uninterrupted run was {heuristics.longestYouMonologueWords} words. That's a monologue — most people stop listening after 60 seconds. Break it up with check-in questions.
               </p>
             )}
             {heuristics.questionRatioYou >= 0.3 && (
               <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-emerald-400 pl-3">
-                Good question ratio — {Math.round(heuristics.questionRatioYou * 100)}% of your turns were questions. That’s solid discovery behavior.
+                Good question ratio — {Math.round(heuristics.questionRatioYou * 100)}% of your turns were questions. That's solid discovery behavior.
               </p>
             )}
             {heuristics.yourTurns < 3 && (
               <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-muted-foreground pl-3">
-                You only spoke {heuristics.yourTurns} time{heuristics.yourTurns === 1 ? "" : "s"} in this meeting. Either it was a listening session or the transcript didn’t capture you well.
+                You only spoke {heuristics.yourTurns} time{heuristics.yourTurns === 1 ? "" : "s"} in this meeting. Either it was a listening session or the transcript didn&apos;t capture you well.
               </p>
             )}
           </div>
@@ -977,7 +977,7 @@ function CoachingView({
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
           <p className="text-[11px] text-foreground">
-            Connect an AI model in <button onClick={() => window.location.href = ‘/settings?section=ai-models’} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
+            Connect an AI model in <button onClick={() => window.location.href = '/settings?section=ai-models'} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
           </p>
           <button
             type="button"
@@ -1015,7 +1015,7 @@ function CoachingView({
         </div>
       )}
 
-      {/* Metrics-only coaching — fallback when transcript analysis isn’t available or failed */}
+      {/* Metrics-only coaching — fallback when transcript analysis isn't available or failed */}
       {(roleInsights.length > 0 || insightsLoading) && !conv && !conversationLoading && (
         <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-2">
           <h4 className="text-xs font-medium text-accent uppercase tracking-wider flex items-center gap-1.5">
