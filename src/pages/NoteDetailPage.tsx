@@ -926,37 +926,58 @@ function CoachingView({
         </div>
       )}
 
-      {/* Supporting signals (turns, questions, monologue) — context for the analysis above */}
-      {heuristics && (
-        <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-2">
-          <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Supporting signals</h4>
-          <p className="text-[10px] text-muted-foreground/90 -mt-1">Quick counts; the main coaching is transcript + role above.</p>
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Your turns: {heuristics.yourTurns}
-            </span>
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Questions (you): {Math.round(heuristics.questionRatioYou * 100)}% of turns
-            </span>
-            <span className="rounded-md bg-background border border-border px-2 py-0.5 text-[10px] text-foreground">
-              Longest run (you): {heuristics.longestYouMonologueWords} words
-            </span>
-            {heuristics.suggestedHabitTags.map((t) => (
-              <span
-                key={t}
-                className="rounded-md bg-accent/10 border border-accent/25 px-2 py-0.5 text-[10px] text-accent font-medium"
-              >
-                {t.replace(/_/g, " ")}
-              </span>
-            ))}
+      {/* Heuristic coaching — shown prominently when LLM analysis hasn’t run or failed */}
+      {heuristics && !conv && (
+        <div className="rounded-xl border border-border bg-card px-4 py-3.5 space-y-3">
+          <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
+          <div className="space-y-2">
+            {heuristics.questionRatioYou < 0.15 && (
+              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+                You didn’t ask many questions — only {Math.round(heuristics.questionRatioYou * 100)}% of your {heuristics.yourTurns} turns were questions.
+                {accountRoleId === ‘pm’ || accountRoleId === ‘founder-ceo’ ? " For a PM or founder, discovery conversations should be 60-70% questions." : " Try opening with a question to draw out the other person’s perspective."}
+              </p>
+            )}
+            {heuristics.longestYouMonologueWords > 150 && (
+              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+                Your longest uninterrupted run was {heuristics.longestYouMonologueWords} words. That’s a monologue — most people stop listening after 60 seconds. Break it up with check-in questions.
+              </p>
+            )}
+            {heuristics.questionRatioYou >= 0.3 && (
+              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-emerald-400 pl-3">
+                Good question ratio — {Math.round(heuristics.questionRatioYou * 100)}% of your turns were questions. That’s solid discovery behavior.
+              </p>
+            )}
+            {heuristics.yourTurns < 3 && (
+              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-muted-foreground pl-3">
+                You only spoke {heuristics.yourTurns} time{heuristics.yourTurns === 1 ? "" : "s"} in this meeting. Either it was a listening session or the transcript didn’t capture you well.
+              </p>
+            )}
           </div>
+          {heuristics.suggestedHabitTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {heuristics.suggestedHabitTags.map((t) => (
+                <span key={t} className="rounded-full bg-accent/10 border border-accent/25 px-2.5 py-0.5 text-[10px] text-accent font-medium">
+                  {t.replace(/_/g, " ")}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compact heuristics when LLM analysis IS present (supplementary) */}
+      {heuristics && conv && (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="rounded-md bg-muted/50 border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+            {heuristics.yourTurns} turns · {Math.round(heuristics.questionRatioYou * 100)}% questions · longest run {heuristics.longestYouMonologueWords}w
+          </span>
         </div>
       )}
 
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">
-            {conversationErrorDetail || "Conversation analysis didn’t complete. Check your AI model in Settings, or use Ask → Coach me."}
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
+          <p className="text-[11px] text-foreground">
+            Connect an AI model in <button onClick={() => window.location.href = ‘/settings?section=ai-models’} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
           </p>
           <button
             type="button"
