@@ -79,48 +79,43 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
           const dayIsTomorrow = isTomorrow(dateObj);
           return (
             <div key={dateKey} className="mb-2">
-              <div
-                className={cn(
-                  "sticky top-0 z-10 flex items-center gap-3 rounded-lg mb-1 bg-background border-b border-border/50",
-                  isCompact ? "px-2 py-1.5 gap-2" : "px-3 py-2 gap-3",
-                  dayIsToday ? "text-accent" : ""
-                )}
-              >
+              {isCompact ? (
+                /* Compact: single-line day label */
+                <div className="flex items-center gap-2 px-1 py-1 mb-1">
+                  <span className={cn(
+                    "text-[11px] font-semibold uppercase tracking-wider",
+                    dayIsToday ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    {dayIsToday ? "Today" : dayIsTomorrow ? "Tomorrow" : format(dateObj, "EEE, MMM d")}
+                  </span>
+                </div>
+              ) : (
+                /* Full: date box + label */
                 <div
-                  className={cn(
-                    "flex flex-shrink-0 flex-col items-center justify-center rounded-lg text-center",
-                    isCompact ? "h-9 w-9" : "h-10 w-10",
-                    dayIsToday ? "bg-accent text-accent-foreground" : "bg-card border border-border"
-                  )}
+                  className="sticky top-0 z-10 flex items-center gap-3 rounded-lg mb-1 px-3 py-2 bg-background border-b border-border/50"
                 >
-                  <span className="text-[10px] font-medium leading-none">{format(dateObj, "EEE")}</span>
-                  <span
+                  <div
                     className={cn(
-                      "font-semibold leading-none mt-0.5",
-                      isCompact ? "text-base" : "text-lg"
+                      "flex flex-shrink-0 flex-col items-center justify-center rounded-lg text-center h-10 w-10",
+                      dayIsToday ? "bg-accent text-accent-foreground" : "bg-card border border-border"
                     )}
                   >
-                    {format(dateObj, "d")}
-                  </span>
+                    <span className="text-[10px] font-medium leading-none">{format(dateObj, "EEE")}</span>
+                    <span className="text-lg font-semibold leading-none mt-0.5">{format(dateObj, "d")}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-sm font-medium truncate", dayIsToday ? "text-accent" : "text-foreground")}>
+                      {dayIsToday ? "Today" : dayIsTomorrow ? "Tomorrow" : format(dateObj, "EEEE")}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{format(dateObj, "MMMM d, yyyy")}</p>
+                  </div>
+                  {!hideDayEventCount && (
+                    <span className="flex-shrink-0 text-[11px] text-muted-foreground">
+                      {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "font-medium truncate",
-                      isCompact ? "text-[13px]" : "text-sm",
-                      dayIsToday ? "text-accent" : "text-foreground"
-                    )}
-                  >
-                    {dayIsToday ? "Today" : dayIsTomorrow ? "Tomorrow" : format(dateObj, "EEEE")}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{format(dateObj, "MMMM d, yyyy")}</p>
-                </div>
-                {!hideDayEventCount && (
-                  <span className="flex-shrink-0 text-[11px] text-muted-foreground">
-                    {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
+              )}
 
               <div
                 className={cn(

@@ -1058,6 +1058,9 @@ export default function NewNotePage() {
                                   setMeetingTemplate(t.id);
                                   meetingTemplateRef.current = t.id;
                                   setShowTemplateMenu(false);
+                                  // Clear summary so skeleton shimmer shows during regeneration
+                                  setSummary(null);
+                                  toast.info(`Regenerating with ${t.name} template...`);
                                   generateNotes().catch((err) => {
                                     console.error("Summary failed:", err);
                                     toast.error("Summary failed. Try again.");
