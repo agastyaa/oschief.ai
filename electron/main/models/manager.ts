@@ -20,12 +20,9 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     url: 'https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf',
     filename: 'llama-3.2-3b-instruct-q4_k_m.gguf',
   },
-  'qwen3-4b': {
-    url: 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
-    filename: 'Qwen3-4B-Q4_K_M.gguf',
-  },
-  // Parakeet TDT is multi-file (encoder, decoder, vocab) — installed via `pip3 install onnx-asr` which auto-downloads.
-  // No direct download URL; the install flow handles model management like MLX Whisper.
+  // Qwen3-4B removed: node-llama-cpp@3.17 doesn't support Qwen3 architecture (garbled output).
+  // Use Qwen3 via Ollama instead (ollama pull qwen3:4b). Revisit when node-llama-cpp updates.
+  // Parakeet TDT: multi-file model installed via `pip3 install onnx-asr` (not a direct download).
 }
 
 const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()
