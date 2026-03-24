@@ -309,8 +309,19 @@ const Index = () => {
     title: nextEvent.title,
     startTime: nextEvent.start,
     endTime: nextEvent.end,
-    attendees: nextEvent.attendees,
+    attendees: nextEvent.attendees?.map((a: any) => a.name || a.email),
   } : null;
+
+  // Prep brief: fetch context for the next meeting's attendees
+  const [prepBrief, setPrepBrief] = useState<{ previousMeetings: any[]; openCommitments: any[] } | null>(null);
+  useEffect(() => {
+    if (!nextEvent?.attendees?.length || !api?.context?.assemble) { setPrepBrief(null); return }
+    const names = nextEvent.attendees.map((a: any) => a.name).filter(Boolean);
+    const emails = nextEvent.attendees.map((a: any) => a.email).filter(Boolean);
+    api.context.assemble({ attendeeNames: names, attendeeEmails: emails, eventTitle: nextEvent.title })
+      .then(ctx => { if (ctx) setPrepBrief(ctx) })
+      .catch(() => {});
+  }, [nextEvent?.id, api]);
 
   // Today's stats for the briefing header
   const todayEvents = displayEvents.filter((e) => isTodayFn(new Date(e.start)));
@@ -378,11 +389,20 @@ const Index = () => {
             <div className="mb-4">
               <PrepCard
                 event={nextEventForPrep}
-                onStartNote={() => {
-                  // Use canonical `nextEvent` from the calendar list — not PrepCard's mapped shape —
-                  // so event id/title always match `findNoteForEvent` / stored `calendarEventId`.
-                  if (nextEvent) {
-                    handleStartNotesForEvent(nextEvent);
+                lastMeetingNotes={prepBrief?.previousMeetings?.[0]?.meetings?.[0] ? {
+                  title: prepBrief.previousMeetings[0].meetings[0].title,
+                  keyPoints: [`Last met ${prepBrief.previousMeetings[0].personName} on ${prepBrief.previousMeetings[0].meetings[0].date}`],
+                } : undefined}
+                openCommitments={prepBrief?.openCommitments?.slice(0, 3).map((c: any) => ({
+                  text: c.text,
+                  assigneeName: c.owner === 'you' ? undefined : c.assignee || c.owner,
+                }))}
+                onStartNote={(evt) => {
+                  const calEvt = displayEvents.find(e => e.id === evt.id || e.title === evt.title);
+                  if (calEvt) {
+                    handleStartNotesForEvent(calEvt);
+                  } else {
+                    navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } });
                   }
                 }}
                 onConnectCalendar={() => setIcsOpen(true)}
