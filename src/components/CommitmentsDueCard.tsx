@@ -40,7 +40,20 @@ export function CommitmentsDueCard({ commitments }: CommitmentsDueCardProps) {
   const dueToday = commitments.filter(c => isDueToday(c.due_date) && !isOverdue(c.due_date));
   const urgent = [...overdue, ...dueToday];
 
-  if (urgent.length === 0 && commitments.length === 0) return null;
+  if (commitments.length === 0) return null;
+
+  // Success state: all commitments exist but none are urgent
+  if (urgent.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center gap-2 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <span className="font-medium text-foreground">All caught up</span>
+          <span className="text-muted-foreground">— {commitments.length} open, nothing overdue</span>
+        </div>
+      </div>
+    );
+  }
 
   const displayItems = urgent.length > 0 ? urgent : commitments.slice(0, 3);
 

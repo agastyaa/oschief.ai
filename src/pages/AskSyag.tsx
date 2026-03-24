@@ -21,6 +21,7 @@ const recipes = [
   { label: "TL;DR", color: "bg-blue-400/70", prompt: "Give me a concise TL;DR of my most recent meetings. Include top decisions and next steps." },
   { label: "Action items", color: "bg-emerald-400/70", prompt: "List my open action items across recent meetings, grouped by urgency and owner." },
   { label: "Weekly recap", color: "bg-orange-400/70", prompt: "Create a weekly recap from recent meetings: wins, risks, blockers, and follow-ups." },
+  { label: "What's critical?", color: "bg-red-400/70", prompt: "What needs my attention right now? Surface overdue commitments, unresolved decisions, and any risks or blockers from recent meetings. Be direct — tell me what's falling through the cracks." },
 ];
 
 export default function AskSyag() {
@@ -198,10 +199,10 @@ export default function AskSyag() {
                   <Sparkles className="h-7 w-7" aria-hidden />
                 </div>
                 <h1 className="font-display text-2xl sm:text-3xl text-foreground tracking-tight mb-2">
-                  Ask Syag
+                  Your Chief of Staff
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Search across your meetings, transcripts, and notes. Use a recipe below or ask your own question.
+                  Ask about your meetings, people, projects, and commitments. Syag searches your full work graph to give answers grounded in what actually happened.
                 </p>
                 {getActiveAIModelLabel() && (
                   <p className="mt-3 text-[11px] text-muted-foreground">

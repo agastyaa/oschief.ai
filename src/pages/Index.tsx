@@ -466,20 +466,50 @@ const Index = () => {
 
             {/* ── Recent Meetings (collapsible on homepage, always-expanded in All Notes) ── */}
             {notes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
-                  <Mic className="h-5 w-5" />
-                </div>
-                <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
-                <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
-                  Syag captures, transcribes, and summarizes your meetings automatically.
-                </p>
-                <button
-                  onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                  className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
-                >
-                  Quick Note
-                </button>
+              <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-8 text-center">
+                {!icsSource ? (
+                  /* No calendar connected — guide to connect first */
+                  <>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
+                      <Calendar className="h-5 w-5" />
+                    </div>
+                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Get started with Syag</h2>
+                    <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
+                      Connect your calendar so Syag can detect meetings, prep you before calls, and track your work over time.
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => setIcsOpen(true)}
+                        className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                      >
+                        Connect Calendar
+                      </button>
+                      <button
+                        onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                        className="rounded-md border border-border px-3.5 py-1.5 text-[12px] font-medium text-foreground transition-all hover:bg-secondary"
+                      >
+                        Quick Note
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* Calendar connected but no recordings yet */
+                  <>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
+                      <Mic className="h-5 w-5" />
+                    </div>
+                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Ready when you are</h2>
+                    <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
+                      Hit record during your next meeting. Syag will transcribe, summarize, and connect everything to your people and projects.
+                    </p>
+                    <button
+                      onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                      className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                    >
+                      Quick Note
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <div>
