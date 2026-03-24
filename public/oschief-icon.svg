@@ -1,26 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1E2D6B"/>
-      <stop offset="100%" stop-color="#2E3F8F"/>
-    </linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
-      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#243272"/>
+      <stop offset="100%" stop-color="#1C2652"/>
     </linearGradient>
   </defs>
-  <!-- Background: macOS rounded-rect -->
+  <!-- macOS rounded-rect background -->
   <rect x="32" y="32" width="960" height="960" rx="220" ry="220" fill="url(#bg)"/>
-  <!-- Subtle top shine for depth -->
-  <rect x="32" y="32" width="960" height="480" rx="220" ry="220" fill="url(#shine)"/>
-  <!-- "OS" monogram — clean, geometric, slightly condensed -->
-  <text x="512" y="590"
-        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
-        font-size="480"
-        font-weight="600"
-        fill="white"
-        text-anchor="middle"
-        letter-spacing="-20">OS</text>
-  <!-- Thin accent line under monogram -->
-  <rect x="320" y="680" width="384" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+  <!-- Subtle inner glow at top -->
+  <rect x="32" y="32" width="960" height="480" rx="220" ry="220" fill="white" opacity="0.04"/>
+
+  <!-- "O" letter - geometric circle, stroke-based -->
+  <circle cx="340" cy="512" r="155" fill="none" stroke="white" stroke-width="52"/>
+
+  <!-- "S" letter - geometric S shape using paths -->
+  <path d="M 760 385
+    C 760 345, 730 310, 680 310
+    L 620 310
+    C 570 310, 540 345, 540 385
+    C 540 425, 570 450, 620 460
+    L 680 475
+    C 730 485, 760 515, 760 555
+    C 760 605, 730 640, 680 640
+    L 620 640
+    C 570 640, 540 605, 540 555"
+    fill="none" stroke="white" stroke-width="52" stroke-linecap="round"/>
+
+  <!-- Thin accent line -->
+  <line x1="290" y1="720" x2="734" y2="720" stroke="white" stroke-opacity="0.2" stroke-width="3"/>
 </svg>

@@ -1,16 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
   <defs>
-    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1E2D6B"/>
-      <stop offset="100%" stop-color="#2E3F8F"/>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#243272"/>
+      <stop offset="100%" stop-color="#1C2652"/>
     </linearGradient>
   </defs>
   <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="url(#bg2)"/>
-  <text x="24" y="32"
-        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
-        font-size="22"
-        font-weight="600"
-        fill="white"
-        text-anchor="middle"
-        letter-spacing="-1">OS</text>
+  <!-- "O" -->
+  <circle cx="16.5" cy="24" r="6.5" fill="none" stroke="white" stroke-width="2.5"/>
+  <!-- "S" -->
+  <path d="M 38 19
+    C 38 17, 36 15.5, 33.5 15.5
+    L 31 15.5
+    C 28.5 15.5, 26.5 17, 26.5 19
+    C 26.5 21, 28.5 22, 31 22.5
+    L 33.5 23
+    C 36 23.5, 38 25.5, 38 27.5
+    C 38 30, 36 32, 33.5 32
+    L 31 32
+    C 28.5 32, 26.5 30, 26.5 27.5"
+    fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
 </svg>
