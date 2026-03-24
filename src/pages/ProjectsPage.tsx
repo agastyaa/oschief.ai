@@ -220,7 +220,7 @@ export default function ProjectsPage() {
                       </button>
                       <button
                         onClick={() => handleDelete(project.id)}
-                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600"
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                         title="Dismiss"
                       >
                         <X className="h-3.5 w-3.5" />
