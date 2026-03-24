@@ -166,6 +166,7 @@ const electronAPI = {
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
+    writeClipboard: (text: string) => ipcRenderer.invoke('app:write-clipboard', text),
     getArch: () => ipcRenderer.invoke('app:get-arch') as Promise<string>,
     getOptionalProviders: () => ipcRenderer.invoke('app:get-optional-providers') as Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>,
     /** Fetch URL from main process (bypasses CORS for calendar ICS, e.g. Outlook). Returns { ok, status, body }. */

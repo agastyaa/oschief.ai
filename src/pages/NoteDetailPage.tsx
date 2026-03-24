@@ -251,14 +251,31 @@ export default function NoteDetailPage() {
                   onClick={() => {
                     if (!note) return;
                     const md = noteToMarkdown(note);
-                    navigator.clipboard.writeText(md).then(
-                      () => toast.success("Copied as Markdown"),
-                      () => toast.error("Failed to copy")
-                    );
+                    // Use Electron clipboard (more reliable in dropdown context) with Web API fallback
+                    if (api?.app?.writeClipboard) {
+                      api.app.writeClipboard(md);
+                      toast.success("Copied as Markdown");
+                    } else {
+                      navigator.clipboard.writeText(md).then(
+                        () => toast.success("Copied as Markdown"),
+                        () => {
+                          // Last resort: textarea trick
+                          const ta = document.createElement('textarea');
+                          ta.value = md;
+                          ta.style.position = 'fixed';
+                          ta.style.left = '-9999px';
+                          document.body.appendChild(ta);
+                          ta.select();
+                          document.execCommand('copy');
+                          document.body.removeChild(ta);
+                          toast.success("Copied as Markdown");
+                        }
+                      );
+                    }
                   }}
                 >
                   <Copy className="mr-2 h-3.5 w-3.5" />
-                  Copy as Markdown
+                  Copy text
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={async () => {

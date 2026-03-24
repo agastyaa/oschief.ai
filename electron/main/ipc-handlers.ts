@@ -1356,6 +1356,10 @@ export function registerIPCHandlers(): void {
     const { shell } = await import('electron')
     await shell.openExternal(url)
   })
+  ipcMain.handle('app:write-clipboard', async (_e, text: string) => {
+    const { clipboard } = await import('electron')
+    clipboard.writeText(text)
+  })
   ipcMain.handle('app:get-arch', () => process.arch)
   ipcMain.handle('app:apple-foundation-available', () => checkAppleFoundationAvailable())
   ipcMain.handle('app:set-login-item', (_e, enabled: boolean) => {
