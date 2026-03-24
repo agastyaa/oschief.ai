@@ -604,7 +604,6 @@ function tryVenvInstall(packageName: string): Promise<{ ok: boolean; stderr: str
     }
   })
 }
-}
 
 /** Install ffmpeg (required for MLX Whisper audio). On macOS runs brew install ffmpeg. */
 export async function installFfmpeg(): Promise<boolean> {
