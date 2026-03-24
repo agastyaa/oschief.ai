@@ -1155,7 +1155,7 @@ export default function NewNotePage() {
                         }
                       }}
                       disabled={isSummarizing}
-                      className="flex items-center gap-1.5 rounded-full border border-border bg-card shadow-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-card backdrop-blur-md shadow-sm px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSummarizing ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
