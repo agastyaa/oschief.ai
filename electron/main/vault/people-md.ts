@@ -77,7 +77,7 @@ function createNew(filePath: string, person: PersonData, meetingWikilink: string
   if (person.email) lines.push(`email: "${escapeFrontmatter(person.email)}"`)
   if (person.company) lines.push(`company: "${escapeFrontmatter(person.company)}"`)
   if (person.role) lines.push(`role: "${escapeFrontmatter(person.role)}"`)
-  lines.push('tags: [person, syag]')
+  lines.push('tags: [person, oschief]')
   lines.push('---')
   lines.push('')
 

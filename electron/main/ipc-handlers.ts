@@ -328,7 +328,7 @@ export function registerIPCHandlers(): void {
     })
   })
 
-  // Build rich graph context for Syag Chat (people, projects, decisions, commitments + notes)
+  // Build rich graph context for OSChief Chat (people, projects, decisions, commitments + notes)
   ipcMain.handle('llm:build-graph-context', async () => {
     try {
       const { getAllPeople } = await import('./memory/people-store')
@@ -559,7 +559,7 @@ export function registerIPCHandlers(): void {
 
       const frontmatter: string[] = []
       frontmatter.push('---')
-      frontmatter.push(`id: syag-${(noteId).slice(0, 12)}`)
+      frontmatter.push(`id: oschief-${(noteId).slice(0, 12)}`)
       frontmatter.push(`date: ${noteDate}`)
       if (noteData.time) frontmatter.push(`time: "${noteData.time}"`)
       frontmatter.push(`title: "${noteTitle.replace(/"/g, '\\"')}"`)
@@ -571,7 +571,7 @@ export function registerIPCHandlers(): void {
       if (noteProjects.length > 0) {
         frontmatter.push(`project: "[[${noteProjects[0].name}]]"`)
       }
-      frontmatter.push('tags: [meeting, syag]')
+      frontmatter.push('tags: [meeting, oschief]')
       frontmatter.push('---')
 
       // Build markdown body using shared function
@@ -730,7 +730,7 @@ export function registerIPCHandlers(): void {
       const { statusCode } = await netFetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: '✅ Syag Note connected successfully!' }),
+        body: JSON.stringify({ text: '✅ OSChief Note connected successfully!' }),
       })
       return { ok: statusCode === 200 }
     } catch (err: any) {
@@ -762,7 +762,7 @@ export function registerIPCHandlers(): void {
             $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
             type: 'AdaptiveCard',
             version: '1.4',
-            body: [{ type: 'TextBlock', text: '✅ Syag Note connected successfully!', weight: 'Bolder', wrap: true }],
+            body: [{ type: 'TextBlock', text: '✅ OSChief Note connected successfully!', weight: 'Bolder', wrap: true }],
           },
         }],
       }

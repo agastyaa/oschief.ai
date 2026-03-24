@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat } from "lucide-react";
-import { SyagLogo } from "@/components/SyagLogo";
+import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
@@ -141,7 +141,7 @@ export function Sidebar() {
       {/* Logo only — collapse is in content top bar via SidebarTopBarLeft */}
       <div className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
         <div className="flex items-center gap-2">
-          <SyagLogo size={24} showText />
+          <OSChiefLogo size={24} showText />
         </div>
         <SyncStatusIndicator />
       </div>
@@ -293,7 +293,7 @@ export function Sidebar() {
           <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Intelligence</span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <NavItem icon={Sparkles} label="Ask Syag" to="/ask" iconClass="text-accent/90" />
+          <NavItem icon={Sparkles} label="Ask OSChief" to="/ask" iconClass="text-accent/90" />
           <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
           <NavItem icon={Zap} label="Routines" to="/routines" />
         </div>

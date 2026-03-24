@@ -174,7 +174,7 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                                 {evt.title}
                               </h4>
                               {evt.source === "local" && (
-                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">Syag</span>
+                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">OSChief</span>
                               )}
                               {calendarViewId === "all" && evt.source === "synced" && evt.calendarName && (
                                 <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1 max-w-[7rem] truncate">{evt.calendarName}</span>
@@ -196,7 +196,7 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                               <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">{evt.description}</p>
                             )}
                             {evt.source === "local" && (
-                              <p className="text-[10px] text-muted-foreground mt-1.5">Only in Syag — won&apos;t appear in Google Calendar or Outlook.</p>
+                              <p className="text-[10px] text-muted-foreground mt-1.5">Only in OSChief — won&apos;t appear in Google Calendar or Outlook.</p>
                             )}
                           </div>
                           <div className="flex flex-col items-end gap-1 flex-shrink-0">

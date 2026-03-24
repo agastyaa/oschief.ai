@@ -202,7 +202,7 @@ export default function AskSyag() {
                   Your Chief of Staff
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ask about your meetings, people, projects, and commitments. Syag searches your full work graph to give answers grounded in what actually happened.
+                  Ask about your meetings, people, projects, and commitments. OSChief searches your full work graph to give answers grounded in what actually happened.
                 </p>
                 {getActiveAIModelLabel() && (
                   <p className="mt-3 text-[11px] text-muted-foreground">

@@ -473,9 +473,9 @@ const Index = () => {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
                       <Calendar className="h-5 w-5" />
                     </div>
-                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Get started with Syag</h2>
+                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Get started with OSChief</h2>
                     <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
-                      Connect your calendar so Syag can detect meetings, prep you before calls, and track your work over time.
+                      Connect your calendar so OSChief can detect meetings, prep you before calls, and track your work over time.
                     </p>
                     <div className="flex items-center justify-center gap-3">
                       <button
@@ -500,7 +500,7 @@ const Index = () => {
                     </div>
                     <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Ready when you are</h2>
                     <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
-                      Hit record during your next meeting. Syag will transcribe, summarize, and connect everything to your people and projects.
+                      Hit record during your next meeting. OSChief will transcribe, summarize, and connect everything to your people and projects.
                     </p>
                     <button
                       onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}

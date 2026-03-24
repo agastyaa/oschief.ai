@@ -1,5 +1,5 @@
 // ============================================================================
-// Syag AI — Meeting Notes Templates & Types
+// OSChief AI — Meeting Notes Templates & Types
 // Architecture: LLM outputs markdown → app parses structured data from it
 // ============================================================================
 
@@ -65,7 +65,7 @@ export interface MeetingTemplate {
 // System prompt — shared preamble for all templates
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PREAMBLE = `You are Syag AI, a meeting notes assistant. You produce crisp, scannable notes from a user's raw notes + a transcript. Your notes should read like a sharp EA wrote them — every bullet earns its place. Granola-style: very tight, scannable bullets; no filler; someone should get the gist in seconds.
+const SYSTEM_PREAMBLE = `You are OSChief AI, a meeting notes assistant. You produce crisp, scannable notes from a user's raw notes + a transcript. Your notes should read like a sharp EA wrote them — every bullet earns its place. Granola-style: very tight, scannable bullets; no filler; someone should get the gist in seconds.
 
 CORE PRINCIPLES
 1. User notes are primary. Every point the user wrote must appear. Never drop or contradict them.

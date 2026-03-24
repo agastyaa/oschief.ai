@@ -2,7 +2,7 @@
  * Google Gmail API — fetch recent email threads with people in the graph.
  *
  * Used by prep briefs to surface "Jane emailed you yesterday about X"
- * and by Syag Chat for cross-channel context.
+ * and by OSChief Chat for cross-channel context.
  *
  * Only reads — never sends, deletes, or modifies emails.
  */

@@ -33,7 +33,7 @@ export function createMainWindow(): BrowserWindow {
   })
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    console.error('[Syag] did-fail-load', errorCode, errorDescription, validatedURL)
+    console.error('[OSChief] did-fail-load', errorCode, errorDescription, validatedURL)
   })
 
   mainWindow.on('close', (e) => {

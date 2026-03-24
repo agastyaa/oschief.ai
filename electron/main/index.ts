@@ -13,7 +13,7 @@ import { startApiServer, stopApiServer, getApiToken } from './api/server'
 import { loadOptionalProviders } from './cloud/optional-providers-loader'
 import { setupAutoUpdater } from './auto-updater'
 
-app.setName('Syag')
+app.setName('OSChief')
 
 // Custom protocol so the packaged app loads the renderer over app:// instead of file://,
 // avoiding blank screen (file:// blocks ES module scripts / CORS in Chromium).

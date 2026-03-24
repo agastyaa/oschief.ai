@@ -103,7 +103,7 @@ export function setupTray(win: BrowserWindow): void {
   const icon = createTrayIcon()
 
   tray = new Tray(icon)
-  tray.setToolTip('Syag')
+  tray.setToolTip('OSChief')
 
   rebuildMenu()
 
@@ -218,7 +218,7 @@ export function updateTrayRecordingState(recording: boolean): void {
   isRecording = recording
   if (!tray) return
 
-  tray.setToolTip(recording ? 'Syag — Recording' : 'Syag')
+  tray.setToolTip(recording ? 'OSChief — Recording' : 'OSChief')
   tray.setImage(recording ? createRecordingIcon() : createTrayIcon())
 
   if (recording) {

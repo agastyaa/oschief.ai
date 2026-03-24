@@ -439,7 +439,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
             <div className="space-y-1 mt-2">
               <p className="text-[11px] text-muted-foreground font-medium">Available endpoints:</p>
               <ul className="text-[11px] text-muted-foreground space-y-0.5 list-disc list-inside">
-                <li><code className="text-[10px]">GET /v1/health</code> — check if Syag is running</li>
+                <li><code className="text-[10px]">GET /v1/health</code> — check if OSChief is running</li>
                 <li><code className="text-[10px]">GET /v1/notes</code> — list notes (supports ?q=, ?limit=, ?offset=)</li>
                 <li><code className="text-[10px]">GET /v1/notes/:id</code> — full note with summary</li>
                 <li><code className="text-[10px]">GET /v1/notes/:id/transcript</code> — transcript lines</li>
@@ -470,13 +470,13 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Privacy & Data" description="Control what Syag stores and sends. Your data never leaves your Mac unless you explicitly enable cloud features." />
+      <SectionHeader title="Privacy & Data" description="Control what OSChief stores and sends. Your data never leaves your Mac unless you explicitly enable cloud features." />
 
       {/* Cloud AI Privacy */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-4">
         <div className="text-sm font-medium">Cloud AI Prompts</div>
         <div className="text-xs text-muted-foreground mb-3">
-          When using cloud models (OpenAI, Anthropic, etc.), Syag sends your transcript to generate summaries. These settings control what personal data is included.
+          When using cloud models (OpenAI, Anthropic, etc.), OSChief sends your transcript to generate summaries. These settings control what personal data is included.
         </div>
 
         <div className="flex items-center justify-between">
@@ -507,7 +507,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 
         {anonymize && (
           <div className="text-xs text-amber-600 dark:text-amber-400 px-2 py-1.5 rounded bg-amber-50 dark:bg-amber-900/20">
-            When anonymization is on, cloud AI won't see real names. Summaries will use "Person A" etc., then Syag restores real names locally.
+            When anonymization is on, cloud AI won't see real names. Summaries will use "Person A" etc., then OSChief restores real names locally.
           </div>
         )}
       </div>
@@ -515,7 +515,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       {/* Data Retention */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-3">
         <div className="text-sm font-medium">Data Retention</div>
-        <div className="text-xs text-muted-foreground">How long Syag keeps meeting history. Older data is deleted automatically.</div>
+        <div className="text-xs text-muted-foreground">How long OSChief keeps meeting history. Older data is deleted automatically.</div>
         <select
           value={retention}
           onChange={e => { setRetention(e.target.value); updateSetting("privacy-retention-days", e.target.value) }}
@@ -532,7 +532,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       <div className="rounded-lg border border-border bg-card p-4 space-y-3">
         <div className="text-sm font-medium">Forget a Person</div>
         <div className="text-xs text-muted-foreground">
-          Completely remove someone from Syag's memory — deletes their profile, meeting links, commitments, decisions, and vault file. Does not affect your calendar or email.
+          Completely remove someone from OSChief's memory — deletes their profile, meeting links, commitments, decisions, and vault file. Does not affect your calendar or email.
         </div>
         <button
           onClick={() => {
@@ -550,7 +550,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
         <div className="text-sm font-medium">Where Your Data Lives</div>
         <div className="text-xs text-muted-foreground space-y-1">
           <p>All data is stored locally on your Mac:</p>
-          <p className="font-mono text-[11px]">~/Library/Application Support/Syag/data/syag.db</p>
+          <p className="font-mono text-[11px]">~/Library/Application Support/OSChief/data/syag.db</p>
           <p>No server sync by default. Cloud LLMs are only used when you explicitly choose a cloud model. Local models (Ollama, whisper.cpp) keep everything on-device.</p>
         </div>
       </div>
@@ -621,7 +621,7 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
             {configured ? "Change Vault Folder" : "Connect Obsidian Vault"}
           </button>
           <div className="text-xs text-muted-foreground">
-            When you export a note, Syag writes structured markdown with YAML frontmatter, [[wikilinks]] to people and projects, and updates people files automatically.
+            When you export a note, OSChief writes structured markdown with YAML frontmatter, [[wikilinks]] to people and projects, and updates people files automatically.
           </div>
         </div>
       </div>
@@ -685,7 +685,7 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Knowledge Base" description="Point Syag at a folder of notes — it will search them during live meetings and suggest relevant talking points" />
+      <SectionHeader title="Knowledge Base" description="Point OSChief at a folder of notes — it will search them during live meetings and suggest relevant talking points" />
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -741,7 +741,7 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
 
         <div className="rounded-md border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-3">
           <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-            <strong>How it works:</strong> Syag reads .md and .txt files from this folder, chunks and indexes them locally. During live meetings, it searches your notes for context relevant to the conversation and suggests talking points — powered by your selected AI model. Everything stays on your machine.
+            <strong>How it works:</strong> OSChief reads .md and .txt files from this folder, chunks and indexes them locally. During live meetings, it searches your notes for context relevant to the conversation and suggests talking points — powered by your selected AI model. Everything stays on your machine.
           </p>
         </div>
       </div>
@@ -1181,7 +1181,7 @@ function AccountSection() {
         {/* Role selector — drives the coaching knowledge base */}
         <div ref={roleDropdownRef} className="relative">
           <label className="text-[13px] font-medium text-foreground">Role</label>
-          <p className="text-[11px] text-muted-foreground mb-1">Your role determines the coaching advice and frameworks Syag uses.</p>
+          <p className="text-[11px] text-muted-foreground mb-1">Your role determines the coaching advice and frameworks OSChief uses.</p>
           <button
             onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
             className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground hover:bg-secondary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/20"
@@ -1712,13 +1712,13 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <SectionHeader title="Meeting & Preferences" description="Recording behavior, templates, and appearance" />
                   <div className="space-y-2">
-                    <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it. Open Syag from the Dock or menu bar anytime.">
+                    <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it. Open OSChief from the Dock or menu bar anytime.">
                       <Toggle enabled={prefs.showRecordingIndicator} onToggle={() => updatePref("showRecordingIndicator", !prefs.showRecordingIndicator)} />
                     </SettingRow>
-                    <SettingRow label="Launch Syag on startup" description="Syag will open automatically when you log in">
+                    <SettingRow label="Launch OSChief on startup" description="OSChief will open automatically when you log in">
                       <Toggle enabled={prefs.launchOnStartup} onToggle={() => updatePref("launchOnStartup", !prefs.launchOnStartup)} />
                     </SettingRow>
-                    <SettingRow label="Hide from screen sharing" description="Prevents the Syag window from appearing in screen shares and recordings — invisible to others on calls">
+                    <SettingRow label="Hide from screen sharing" description="Prevents the OSChief window from appearing in screen shares and recordings — invisible to others on calls">
                       <Toggle enabled={prefs.hideFromScreenShare ?? false} onToggle={() => {
                         const newVal = !(prefs.hideFromScreenShare ?? false);
                         updatePref("hideFromScreenShare", newVal);
@@ -1900,18 +1900,18 @@ export default function SettingsPage() {
                         </summary>
                         <ul className="mt-2.5 list-disc pl-4 space-y-1.5">
                           <li>
-                            <span className="text-foreground font-medium">Whisper Large V3 Turbo</span> — Syag downloads the model file, then looks for or installs{" "}
+                            <span className="text-foreground font-medium">Whisper Large V3 Turbo</span> — OSChief downloads the model file, then looks for or installs{" "}
                             <code className="rounded bg-muted px-1 py-0.5 text-[10px]">whisper-cli</code> (build from source or{" "}
                             <code className="rounded bg-muted px-1 py-0.5 text-[10px]">brew install whisper-cpp</code>). When it finishes, a toast lists every step.
                           </li>
                           <li>
-                            <span className="text-foreground font-medium">MLX Whisper</span> — Syag ensures{" "}
+                            <span className="text-foreground font-medium">MLX Whisper</span> — OSChief ensures{" "}
                             <code className="rounded bg-muted px-1 py-0.5 text-[10px]">ffmpeg</code> (often via Homebrew), then runs{" "}
                             <code className="rounded bg-muted px-1 py-0.5 text-[10px]">pip</code> for the Python package. You need Python 3; the toast shows what ran and what to run in{" "}
                             <Terminal className="inline h-3 w-3 align-text-bottom" /> Terminal if something fails.
                           </li>
                           <li className="list-none pl-0 -ml-4 text-[10px] pt-1">
-                            More detail: <code className="rounded bg-muted px-1 py-0.5">docs/local-stt-setup.md</code> in the Syag repo.
+                            More detail: <code className="rounded bg-muted px-1 py-0.5">docs/local-stt-setup.md</code> in the OSChief repo.
                           </li>
                         </ul>
                       </details>
@@ -2037,7 +2037,7 @@ export default function SettingsPage() {
                               Install Ollama
                               <ExternalLink className="h-2.5 w-2.5" />
                             </a>
-                            , then restart Syag.
+                            , then restart OSChief.
                           </p>
                         </div>
                       ) : (
@@ -2233,7 +2233,7 @@ export default function SettingsPage() {
                     </TabsContent>
 
                     <TabsContent value="transcription" className="mt-4 space-y-5 focus-visible:outline-none">
-                  <SectionHeader title="Transcription" description="Control how Syag listens and transcribes your meetings" />
+                  <SectionHeader title="Transcription" description="Control how OSChief listens and transcribes your meetings" />
                   <div className="space-y-2">
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
                       <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />
@@ -2350,7 +2350,7 @@ export default function SettingsPage() {
                       <p className="text-[11px] text-muted-foreground -mt-1">
                         macOS menu bar icon: show a compact agenda popover instead of only focusing the app when you click the icon (when not recording).
                       </p>
-                      <SettingRow label="Show agenda in tray" description="Open a Notion-style agenda when clicking the Syag menu bar icon.">
+                      <SettingRow label="Show agenda in tray" description="Open a Notion-style agenda when clicking the OSChief menu bar icon.">
                         <Toggle
                           enabled={trayAgendaEnabled}
                           onToggle={() => {
@@ -2395,7 +2395,7 @@ export default function SettingsPage() {
                               className="text-[12px] rounded-md border border-border bg-background px-2 py-1.5 max-w-[11rem]"
                             >
                               <option value="note">Open linked note / new note</option>
-                              <option value="calendar">Open Syag calendar</option>
+                              <option value="calendar">Open OSChief calendar</option>
                             </select>
                           </div>
                         </>
@@ -2521,13 +2521,13 @@ export default function SettingsPage() {
 
               {active === "about" && (
                 <div className="space-y-5">
-                  <SectionHeader title="About Syag" description="Your private, on-device meeting companion" />
+                  <SectionHeader title="About OSChief" description="Your private, on-device meeting companion" />
 
                   {/* Version + Update */}
                   <div className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[14px] font-semibold text-foreground">Syag {appVersion ?? ''}</p>
+                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
                         <p className="text-[11px] text-muted-foreground">macOS (Apple Silicon)</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2596,15 +2596,15 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* What Syag does */}
+                  {/* What OSChief does */}
                   <div className="space-y-2">
-                    <h3 className="text-[13px] font-semibold text-foreground">What Syag does</h3>
+                    <h3 className="text-[13px] font-semibold text-foreground">What OSChief does</h3>
                     <div className="text-[12px] text-muted-foreground space-y-1.5 leading-relaxed">
                       <p><strong className="text-foreground">Record & transcribe</strong> — Capture mic and system audio with live speaker-labeled transcription. Works with Zoom, Meet, Teams, or any audio source.</p>
                       <p><strong className="text-foreground">AI summaries</strong> — Structured notes after each meeting: overview, key points, action items, decisions, and open questions.</p>
                       <p><strong className="text-foreground">Work Coach</strong> — Post-meeting behavioral coaching tuned to your role, grounded in transcript evidence.</p>
                       <p><strong className="text-foreground">People & relationships</strong> — Automatically extracts and tracks the people you meet with.</p>
-                      <p><strong className="text-foreground">Knowledge base</strong> — Point Syag at a folder of docs. During calls, it surfaces relevant talking points in real time.</p>
+                      <p><strong className="text-foreground">Knowledge base</strong> — Point OSChief at a folder of docs. During calls, it surfaces relevant talking points in real time.</p>
                     </div>
                   </div>
 
@@ -2612,7 +2612,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <h3 className="text-[13px] font-semibold text-foreground">Privacy</h3>
                     <div className="text-[12px] text-muted-foreground space-y-1 leading-relaxed">
-                      <p>All data stored locally in <code className="text-[11px] bg-muted px-1 rounded">~/Library/Application Support/Syag/</code></p>
+                      <p>All data stored locally in <code className="text-[11px] bg-muted px-1 rounded">~/Library/Application Support/OSChief/</code></p>
                       <p>API keys encrypted via macOS Keychain</p>
                       <p>No telemetry, no analytics, no cloud sync by default</p>
                       <p>Supports fully local transcription (MLX Whisper / whisper.cpp) and local LLMs (via Ollama)</p>

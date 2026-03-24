@@ -1,6 +1,6 @@
-# Syag Note
+# OSChief
 
-Electron + React meeting notes app with AI-powered transcription, summarization, and coaching.
+On-device chief of staff for macOS — meetings, memory, and action. Electron + React with AI-powered transcription, summarization, coaching, and a people/project/decision graph.
 
 ## gstack
 

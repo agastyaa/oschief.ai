@@ -135,7 +135,7 @@ export function TeamsShareDialog({ open, onClose, noteTitle, noteDate, summary }
     // Footer
     bodyItems.push({
       type: "TextBlock",
-      text: "_Shared from Syag Note_",
+      text: "_Shared from OSChief Note_",
       isSubtle: true,
       spacing: "Medium",
       separator: true,

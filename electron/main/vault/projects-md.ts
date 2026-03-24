@@ -50,7 +50,7 @@ function createNew(filePath: string, project: ProjectData, meetingWikilink: stri
   lines.push(`name: "${escapeFrontmatter(project.name)}"`)
   if (project.status) lines.push(`status: ${project.status}`)
   if (project.description) lines.push(`description: "${escapeFrontmatter(project.description)}"`)
-  lines.push('tags: [project, syag]')
+  lines.push('tags: [project, oschief]')
   lines.push('---')
   lines.push('')
   lines.push('## Meetings')

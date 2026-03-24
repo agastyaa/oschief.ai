@@ -176,7 +176,7 @@ export async function exportToDocx(note: NoteData, filePath: string): Promise<vo
 
   const doc = new Document({
     sections: [{ children }],
-    creator: 'Syag Note',
+    creator: 'OSChief Note',
     title: note.title || 'Meeting Notes',
   })
 

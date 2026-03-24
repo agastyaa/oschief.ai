@@ -150,7 +150,7 @@ export default function RoutinesPage() {
               />
               <textarea
                 value={newPrompt} onChange={e => setNewPrompt(e.target.value)}
-                placeholder="What should Syag tell you? e.g. 'Summarize all decisions about ACME this month'"
+                placeholder="What should OSChief tell you? e.g. 'Summarize all decisions about ACME this month'"
                 rows={3} className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
               />
               <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ export default function RoutinesPage() {
             <div className="text-center py-12 text-muted-foreground">
               <Zap className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">No routines yet.</p>
-              <p className="text-xs mt-1">Syag can brief you every morning, recap your week, and nudge you about overdue commitments.</p>
+              <p className="text-xs mt-1">OSChief can brief you every morning, recap your week, and nudge you about overdue commitments.</p>
               <button onClick={() => setCreating(true)} className="mt-4 text-xs font-medium text-primary hover:underline">Create your first routine</button>
             </div>
           ) : (

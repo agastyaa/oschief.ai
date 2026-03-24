@@ -105,7 +105,7 @@ export default function TrayAgendaPage() {
             <span className="text-[11px] tabular-nums text-muted-foreground">{relative}</span>
             {evt.hasNote && <span className="text-[9px] text-accent font-medium">Note</span>}
             {evt.source === "local" && (
-              <span className="text-[9px] text-muted-foreground border border-border rounded px-0.5">Syag</span>
+              <span className="text-[9px] text-muted-foreground border border-border rounded px-0.5">OSChief</span>
             )}
           </div>
           <p className="text-[13px] font-medium text-foreground truncate leading-tight">{evt.title}</p>

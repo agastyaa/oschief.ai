@@ -306,7 +306,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                     <Sparkles className="h-4 w-4" aria-hidden />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-foreground leading-tight">Ask Syag</p>
+                    <p className="text-[12px] font-semibold text-foreground leading-tight">Ask OSChief</p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       <span className="font-medium text-foreground/80">{contextLabel}</span>
                       {getActiveAIModelLabel() ? (
@@ -552,7 +552,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask Syag anything… type / for prompts"
+                  placeholder="Ask OSChief anything… type / for prompts"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none min-w-0"
                 />
                 {hasInput && !showSlashMenu && (
@@ -571,7 +571,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                   <Sparkles className="h-3.5 w-3.5" aria-hidden />
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  <span className="text-foreground/90 font-medium">Ask Syag</span>
+                  <span className="text-foreground/90 font-medium">Ask OSChief</span>
                   <span className="text-muted-foreground/80"> — your notes &amp; meeting</span>
                 </span>
               </>

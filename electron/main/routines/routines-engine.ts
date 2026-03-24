@@ -146,7 +146,7 @@ function scheduleRoutine(routine: RoutineConfig): void {
       const win = BrowserWindow.getAllWindows()[0]
       if (win) win.webContents.send('routines:result', result)
     } catch (err) {
-      console.error(`[routines] Execution failed for ${routine.name}:`, err)
+      console.error(`[OSChief:routines] Execution failed for ${routine.name}:`, err)
     }
     // Reschedule
     const fresh = getRoutine(routine.id)
@@ -196,7 +196,7 @@ export async function executeRoutine(routine: RoutineConfig): Promise<any> {
     const model = getSetting('summary-model') || getSetting('ai-model') || 'openai:gpt-4o-mini'
 
     // Call LLM
-    const systemPrompt = `You are Syag, an on-device chief of staff. ${routine.prompt}`
+    const systemPrompt = `You are OSChief, an on-device chief of staff. ${routine.prompt}`
     const response = await routeLLM(
       [
         { role: 'system', content: systemPrompt },

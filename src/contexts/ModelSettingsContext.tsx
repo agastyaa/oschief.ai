@@ -586,7 +586,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       api.db.settings.set("default-local-models-install-started", "true").then(() => {
         setUseLocalModels(true);
         toast.info("Setting up on-device speech and AI", {
-          description: "Downloading or installing models in the background. You can keep using Syag.",
+          description: "Downloading or installing models in the background. You can keep using OSChief.",
           duration: 6000,
         });
         if (!hasSTT) handleDownload(defaultSttId);

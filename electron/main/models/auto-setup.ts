@@ -203,7 +203,7 @@ export async function runAutoSetup(
     onProgress({ phase: 'downloading-llm', message: 'AI summarization ready', percent: 90, track, llmModel })
 
     // ── Configure ──
-    onProgress({ phase: 'configuring', message: 'Configuring Syag...', percent: 95, track, sttModel, llmModel })
+    onProgress({ phase: 'configuring', message: 'Configuring OSChief...', percent: 95, track, sttModel, llmModel })
 
     // Auto-select models in Settings DB
     const existingRaw = getSetting('model-settings')
@@ -220,7 +220,7 @@ export async function runAutoSetup(
     setSetting('auto-setup-complete', 'true')
 
     console.log(`[auto-setup] Complete — STT: ${sttModel}, LLM: ${llmModel}`)
-    onProgress({ phase: 'ready', message: 'Syag is ready!', percent: 100, track, sttModel, llmModel })
+    onProgress({ phase: 'ready', message: 'OSChief is ready!', percent: 100, track, sttModel, llmModel })
 
     return { ok: true, track, sttModel, llmModel }
   } catch (err: any) {

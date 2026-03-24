@@ -115,7 +115,7 @@ export async function enableSync(): Promise<{ ok: boolean; error?: string }> {
       // Joining existing sync — restore from latest snapshot + replay changes
       const manifest = readManifest(containerPath)
       if (manifest && manifest.schemaVersion > CURRENT_SCHEMA_VERSION) {
-        return { ok: false, error: 'A newer version of Syag created this sync. Please update the app.' }
+        return { ok: false, error: 'A newer version of OSChief created this sync. Please update the app.' }
       }
 
       // Check if local DB is empty (fresh install)

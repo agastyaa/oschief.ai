@@ -403,7 +403,7 @@ const PeoplePage = () => {
                 <Users className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-foreground font-medium mb-1">No people yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Record and summarize meetings — Syag will automatically extract the people you interact with.
+                  Record and summarize meetings — OSChief will automatically extract the people you interact with.
                 </p>
               </div>
             ) : (

@@ -15,7 +15,7 @@ import {
 } from './templates'
 import { buildRoleCoachingSection } from './coaching-kb'
 
-const CHAT_SYSTEM_PROMPT = `You are Syag, an AI assistant that helps users understand and query their meeting notes. You have access to the user's notes and transcripts. Be concise, helpful, and reference specific meetings when relevant.
+const CHAT_SYSTEM_PROMPT = `You are OSChief, an AI assistant that helps users understand and query their meeting notes. You have access to the user's notes and transcripts. Be concise, helpful, and reference specific meetings when relevant.
 
 Notes may include time ranges (e.g. "7:00 PM – 7:34 PM") and dates. Use this to answer temporal questions like "what was discussed at 2:30 pm yesterday?".
 
@@ -43,7 +43,7 @@ Tailor every insight to their specific role and seniority. Always relate coachin
     ? buildRoleCoachingSection(userRoleId, userRole)
     : ''
 
-  return `You are also a world-class professional coach embedded in Syag. When the user asks for coaching, advice, tips, feedback on their meetings, or how to improve — draw on the combined wisdom of the following thought leaders and adapt it to the user's specific role and context:
+  return `You are also a world-class professional coach embedded in OSChief. When the user asks for coaching, advice, tips, feedback on their meetings, or how to improve — draw on the combined wisdom of the following thought leaders and adapt it to the user's specific role and context:
 
 **Product & Strategy:**
 - Shreyas Doshi: LNO framework (Leverage/Neutral/Overhead tasks), high-agency mindset, "pre-mortem" thinking, distinction between execution vs. strategy work
@@ -89,7 +89,7 @@ Tailor every insight to their specific role and seniority. Always relate coachin
 
 function buildChatSystemMessage(context: any): string {
   if (context?.mode === 'quick') {
-    let prompt = `You are Syag, an AI meeting assistant. The user is in a live meeting right now and needs a fast, specific answer based on the transcript below. Be direct — reference what was actually said, use names and topics from the transcript. No generic advice. Keep it short (2-4 bullet points max).`
+    let prompt = `You are OSChief, an AI meeting assistant. The user is in a live meeting right now and needs a fast, specific answer based on the transcript below. Be direct — reference what was actually said, use names and topics from the transcript. No generic advice. Keep it short (2-4 bullet points max).`
     if (context?.notes) {
       prompt += `\n\nMeeting transcript and notes:\n${context.notes}`
     }

@@ -1,4 +1,4 @@
-# Syag Design System
+# OSChief Design System
 
 ## Product Context
 - **What this is:** On-device chief of staff for macOS — meeting intelligence layer that captures, structures, and surfaces your professional knowledge

@@ -89,7 +89,7 @@ async function assembleMorningBriefing(): Promise<string> {
     }
   }
 
-  return parts.length > 0 ? parts.join('\n') : 'No meetings, commitments, or projects found yet. The user is just getting started with Syag.'
+  return parts.length > 0 ? parts.join('\n') : 'No meetings, commitments, or projects found yet. The user is just getting started with OSChief.'
 }
 
 // ── Weekly Recap ────────────────────────────────────────────────────

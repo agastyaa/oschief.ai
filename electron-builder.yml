@@ -1,5 +1,5 @@
-appId: com.syag.notes
-productName: Syag
+appId: com.oschief.app
+productName: OSChief
 publish:
   provider: github
   owner: iamsagar125

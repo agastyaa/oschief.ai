@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { mkdirSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs'
 
-const SYAG_DOCS_FOLDER = 'Syag meeting notes'
+const SYAG_DOCS_FOLDER = 'OSChief meeting notes'
 
 function getRoot(): string {
   return join(app.getPath('documents'), SYAG_DOCS_FOLDER)
@@ -62,8 +62,8 @@ function noteToMarkdown(note: {
 }
 
 /**
- * Write or overwrite a summarized note to Documents/Syag meeting notes.
- * Subfolder mirrors the app folder (if any). No folder = root of "Syag meeting notes".
+ * Write or overwrite a summarized note to Documents/OSChief meeting notes.
+ * Subfolder mirrors the app folder (if any). No folder = root of "OSChief meeting notes".
  */
 export function upsertNoteToDocuments(note: any, folders: { id: string; name: string }[]): void {
   if (!note?.summary) return
@@ -105,7 +105,7 @@ export function removeNoteFromDocuments(
 
 /**
  * Sync all summarized notes to Documents (e.g. on first run or repair).
- * Creates "Syag meeting notes" and subfolders, writes only notes that have a summary.
+ * Creates "OSChief meeting notes" and subfolders, writes only notes that have a summary.
  */
 export function syncAllSummarizedNotesToDocuments(
   notes: any[],

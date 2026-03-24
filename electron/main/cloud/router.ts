@@ -109,7 +109,7 @@ export async function routeLLM(
     case 'groq':
       return chatGroq(messages, modelName, apiKey, onChunk)
     default:
-      throw new Error(`Unknown LLM provider: ${providerId}. If this is an optional provider, install its files in Application Support > Syag > optional-providers and restart. Or pick OpenAI, Anthropic, Google, Groq, or a local model in Settings.`)
+      throw new Error(`Unknown LLM provider: ${providerId}. If this is an optional provider, install its files in Application Support > OSChief > optional-providers and restart. Or pick OpenAI, Anthropic, Google, Groq, or a local model in Settings.`)
   }
 }
 
@@ -147,7 +147,7 @@ export async function routeSTT(wavBuffer: Buffer, model: string, vocabulary?: st
     case 'groq':
       return sttGroq(wavBuffer, apiKey, prompt)
     default:
-      throw new Error(`Unknown STT provider: ${providerId}. If this is an optional provider, install its files in Application Support > Syag > optional-providers and restart. Or pick Deepgram, AssemblyAI, Groq, or a local model in Settings.`)
+      throw new Error(`Unknown STT provider: ${providerId}. If this is an optional provider, install its files in Application Support > OSChief > optional-providers and restart. Or pick Deepgram, AssemblyAI, Groq, or a local model in Settings.`)
   }
 }
 

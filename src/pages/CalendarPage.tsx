@@ -251,7 +251,7 @@ export default function CalendarPage() {
     }
     const eventId = await addLocalBlock({ title, start, end, noteId: null });
     setBlockOpen(false);
-    toast.success("Block added — only in Syag, not in Google/Outlook");
+    toast.success("Block added — only in OSChief, not in Google/Outlook");
     if (blockOpenNote && eventId) {
       navigate("/new-note", { state: { eventTitle: title, eventId } });
     }
@@ -281,7 +281,7 @@ export default function CalendarPage() {
               <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-1" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar yet</h2>
               <p className="text-[13px] text-muted-foreground">
-                Import an .ics feed or add a Syag-only schedule block
+                Import an .ics feed or add an OSChief-only schedule block
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
@@ -297,7 +297,7 @@ export default function CalendarPage() {
                     className="flex items-center gap-1.5 rounded-md border border-border bg-accent/10 px-3 py-2 text-xs font-medium text-accent hover:bg-accent/15 transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Schedule block (Syag only)
+                    Schedule block (OSChief only)
                   </button>
                 )}
               </div>
@@ -332,13 +332,13 @@ export default function CalendarPage() {
                       onClick={clearCalendar}
                       className="text-xs text-destructive hover:underline whitespace-nowrap"
                     >
-                      Remove all from Syag
+                      Remove all from OSChief
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="mb-6 rounded-lg border border-dashed border-border bg-card/30 px-4 py-2.5 text-xs text-muted-foreground">
-                  Syag-only blocks — not synced to Google or Outlook. Connect a calendar in Settings to import
+                  OSChief-only blocks — not synced to Google or Outlook. Connect a calendar in Settings to import
                   meetings.
                 </div>
               )}
@@ -515,9 +515,9 @@ export default function CalendarPage() {
       <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Schedule block (Syag only)</DialogTitle>
+            <DialogTitle>Schedule block (OSChief only)</DialogTitle>
             <DialogDescription>
-              This block stays on your device and in Syag. It is not written to Google Calendar or Outlook.
+              This block stays on your device and in OSChief. It is not written to Google Calendar or Outlook.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">

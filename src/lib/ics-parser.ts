@@ -15,7 +15,7 @@ export interface CalendarEvent {
   joinLink?: string;
   /** True when DTSTART is date-only (all-day / full-day block) */
   isAllDay?: boolean;
-  /** Synced from provider/ICS vs Syag-only block */
+  /** Synced from provider/ICS vs OSChief-only block */
   source?: "synced" | "local";
   /** Linked note for local blocks */
   noteId?: string | null;

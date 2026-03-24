@@ -142,7 +142,7 @@ function findWhisperBinary(): string | null {
 }
 
 export async function ensureWhisperBinary(steps?: string[]): Promise<string> {
-  logStep(steps, 'Looking for whisper-cli (Syag models folder, PATH, or common Homebrew locations)…')
+  logStep(steps, 'Looking for whisper-cli (OSChief models folder, PATH, or common Homebrew locations)…')
   const existing = findWhisperBinary()
   if (existing) {
     logStep(steps, 'Found whisper-cli — no install needed.')
@@ -185,7 +185,7 @@ export async function ensureWhisperCliSetupResult(): Promise<LocalSetupResult> {
       ok: false,
       steps,
       error: msg,
-      hint: 'In Terminal: brew install whisper-cpp  (requires Homebrew). Or install Xcode Command Line Tools and let Syag build from source.',
+      hint: 'In Terminal: brew install whisper-cpp  (requires Homebrew). Or install Xcode Command Line Tools and let OSChief build from source.',
     }
   }
 }
@@ -260,7 +260,7 @@ async function tryBuildFromSource(steps?: string[]): Promise<string | null> {
         if (existsSync(candidate)) {
           execSync(`cp "${candidate}" "${destBinary}"`)
           chmodSync(destBinary, 0o755)
-          logStep(steps, 'Built whisper-cli (CMake) into your Syag models folder.')
+          logStep(steps, 'Built whisper-cli (CMake) into your OSChief models folder.')
           console.log('whisper-cli built and installed successfully')
           return destBinary
         }
@@ -285,7 +285,7 @@ async function tryBuildFromSource(steps?: string[]): Promise<string | null> {
         if (existsSync(candidate)) {
           execSync(`cp "${candidate}" "${destBinary}"`)
           chmodSync(destBinary, 0o755)
-          logStep(steps, 'Built whisper-cli (Make) into your Syag models folder.')
+          logStep(steps, 'Built whisper-cli (Make) into your OSChief models folder.')
           console.log('whisper-cli built and installed successfully')
           return destBinary
         }
@@ -319,7 +319,7 @@ function tryHomebrewInstall(steps?: string[]): Promise<string | null> {
       return
     }
 
-    logStep(steps, 'Running brew install whisper-cpp (can take several minutes; keep Syag open)…')
+    logStep(steps, 'Running brew install whisper-cpp (can take several minutes; keep OSChief open)…')
     console.log('Installing whisper-cpp via Homebrew...')
     try {
       execSync(`"${brewPath}" install whisper-cpp`, {
@@ -383,7 +383,7 @@ function getEnvPathWithBrew(): string {
  */
 function getMlxChildEnv(): NodeJS.ProcessEnv {
   const pathWithBrew = getEnvPathWithBrew()
-  // If a Syag venv exists, prepend its bin/ so python3/pip3 resolve to the venv
+  // If an OSChief venv exists, prepend its bin/ so python3/pip3 resolve to the venv
   const venvDir = process.env.SYAG_VENV_PATH
   if (venvDir && existsSync(join(venvDir, 'bin', 'python3'))) {
     return { ...process.env, PATH: `${join(venvDir, 'bin')}:${pathWithBrew}`, VIRTUAL_ENV: venvDir }
@@ -567,7 +567,7 @@ function pipInstallSafe(packageName: string, extraArgs: string[] = []): Promise<
 }
 
 /**
- * Create a venv at ~/Library/Application Support/Syag/python-venv/ and install there.
+ * Create a venv at ~/Library/Application Support/OSChief/python-venv/ and install there.
  * This handles PEP 668 on macOS where system Python refuses all installs.
  */
 function tryVenvInstall(packageName: string): Promise<{ ok: boolean; stderr: string }> {
@@ -633,7 +633,7 @@ function downloadFile(url: string, dest: string, redirectCount = 0): Promise<voi
     if (redirectCount > 5) { reject(new Error('Too many redirects')); return }
 
     const client = url.startsWith('https') ? https : http
-    client.get(url, { headers: { 'User-Agent': 'Syag/1.0' } }, (res) => {
+    client.get(url, { headers: { 'User-Agent': 'OSChief/1.0' } }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         downloadFile(res.headers.location, dest, redirectCount + 1).then(resolve, reject)
         return

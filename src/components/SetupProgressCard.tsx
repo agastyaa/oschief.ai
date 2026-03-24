@@ -48,7 +48,7 @@ export function SetupProgressCard({ phase, message, percent }: SetupProgressCard
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-4 w-4 text-primary" />
         <h3 className="text-[14px] font-semibold text-foreground">
-          {isReady ? "Syag is ready!" : isError ? "Setup needs attention" : "Setting up Syag..."}
+          {isReady ? "OSChief is ready!" : isError ? "Setup needs attention" : "Setting up OSChief..."}
         </h3>
       </div>
 

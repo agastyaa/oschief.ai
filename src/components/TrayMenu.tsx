@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Mic, MicOff, Clock, FileText, Settings, LogOut, Circle, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SyagLogo } from "@/components/SyagLogo";
+import { OSChiefLogo } from "@/components/OSChiefLogo";
 
 interface MeetingStatus {
   active: boolean;
@@ -39,8 +39,8 @@ export function TrayMenu() {
         "flex items-center gap-2.5 px-4 py-3 border-b",
         isDark ? "border-[hsl(20,8%,17%)]" : "border-border"
       )}>
-        <SyagLogo size={20} />
-        <span className="font-display text-sm">Syag</span>
+        <OSChiefLogo size={20} />
+        <span className="font-display text-sm">OSChief</span>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setIsDark(!isDark)}
@@ -137,7 +137,7 @@ export function TrayMenu() {
 
       {/* Footer */}
       <div className="px-2 py-1.5">
-        <TrayMenuItem icon={LogOut} label="Quit Syag" shortcut="⌘Q" variant="destructive" isDark={isDark} />
+        <TrayMenuItem icon={LogOut} label="Quit OSChief" shortcut="⌘Q" variant="destructive" isDark={isDark} />
       </div>
     </div>
   );

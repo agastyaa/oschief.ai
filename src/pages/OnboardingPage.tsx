@@ -18,7 +18,7 @@ const featureSteps = [
   {
     icon: Mic,
     title: "Your on-device chief of staff",
-    description: "Syag sits beside your calls, captures everything, and builds a living memory of your work — all on your Mac.",
+    description: "OSChief sits beside your calls, captures everything, and builds a living memory of your work — all on your Mac.",
   },
   {
     icon: Sparkles,
@@ -209,8 +209,8 @@ export default function OnboardingPage() {
               {micStatus === "granted"
                 ? "You're all set to record meetings."
                 : micStatus === "denied"
-                ? "Syag needs microphone access to record meetings. You can enable it in System Settings > Privacy & Security."
-                : "Syag needs access to your microphone to capture meeting audio. We never record without your explicit action."}
+                ? "OSChief needs microphone access to record meetings. You can enable it in System Settings > Privacy & Security."
+                : "OSChief needs access to your microphone to capture meeting audio. We never record without your explicit action."}
             </p>
             {micStatus === "idle" && (
               <button
@@ -263,10 +263,10 @@ export default function OnboardingPage() {
             </h1>
             <p className="text-[15px] text-muted-foreground leading-relaxed max-w-sm mx-auto mb-8">
               {screenStatus === "granted"
-                ? "Syag can now capture system audio from your meetings."
+                ? "OSChief can now capture system audio from your meetings."
                 : screenStatus === "denied"
                 ? "To capture audio from meeting apps, enable Screen Recording in System Settings > Privacy & Security > Screen Recording."
-                : "This allows Syag to capture audio from meeting apps like Zoom, Google Meet, and Teams. Only audio is captured, never your screen."}
+                : "This allows OSChief to capture audio from meeting apps like Zoom, Google Meet, and Teams. Only audio is captured, never your screen."}
             </p>
             {screenStatus === "idle" && (
               <button
@@ -342,7 +342,7 @@ export default function OnboardingPage() {
               What&apos;s your role?
             </h1>
             <p className="text-[15px] text-muted-foreground mb-6">
-              Syag tailors coaching and insights to how you work.
+              OSChief tailors coaching and insights to how you work.
             </p>
             <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-6">
               {ROLES.map(r => (
@@ -388,8 +388,8 @@ export default function OnboardingPage() {
             </h1>
             <p className="text-[15px] text-muted-foreground mb-8">
               {calendarConnected
-                ? "Syag will auto-detect meetings and prep you before each one."
-                : "Syag uses your calendar to detect meetings, show attendee context, and send prep briefs before each call."}
+                ? "OSChief will auto-detect meetings and prep you before each one."
+                : "OSChief uses your calendar to detect meetings, show attendee context, and send prep briefs before each call."}
             </p>
             {!calendarConnected && (
               <div className="flex flex-col items-center gap-3 mb-6">

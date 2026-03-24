@@ -103,7 +103,7 @@ export function SlackShareDialog({ open, onClose, noteTitle, noteDate, summary }
     blocks.push({ type: "divider" });
     blocks.push({
       type: "context",
-      elements: [{ type: "mrkdwn", text: "_Shared from Syag Note_" }],
+      elements: [{ type: "mrkdwn", text: "_Shared from OSChief Note_" }],
     });
 
     try {

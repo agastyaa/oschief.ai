@@ -6,7 +6,7 @@
  *
  * The Swift binary is built from electron/resources/darwin/parakeet-coreml/ (Swift Package).
  * On first use, it downloads ~600MB of CoreML model weights from HuggingFace.
- * Subsequent runs load from ~/Library/Application Support/Syag/models/parakeet-coreml/.
+ * Subsequent runs load from ~/Library/Application Support/OSChief/models/parakeet-coreml/.
  *
  * Performance: ~110x RTF on M4 Pro (1 min audio ≈ 0.5s). English-only, 6% WER.
  */
