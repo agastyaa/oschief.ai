@@ -310,6 +310,10 @@ const electronAPI = {
       ipcRenderer.invoke('google:calendar-fetch', accessToken, range) as Promise<{ ok: boolean; events: any[]; error?: string }>,
     calendarRefresh: (clientId: string, refreshToken: string) =>
       ipcRenderer.invoke('google:calendar-refresh', clientId, refreshToken) as Promise<{ ok: boolean; accessToken?: string; expiresIn?: number; error?: string }>,
+    gmailFetchThreads: (accessToken: string, emailAddresses: string[], maxResults?: number) =>
+      ipcRenderer.invoke('gmail:fetch-threads', accessToken, emailAddresses, maxResults) as Promise<{ ok: boolean; threads: any[]; error?: string }>,
+    gmailContextForPeople: (accessToken: string, emailAddresses: string[]) =>
+      ipcRenderer.invoke('gmail:context-for-people', accessToken, emailAddresses) as Promise<string>,
   },
 
   microsoft: {

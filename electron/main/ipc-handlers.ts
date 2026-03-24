@@ -860,6 +860,16 @@ export function registerIPCHandlers(): void {
     }
   )
 
+  // --- Gmail ---
+  ipcMain.handle('gmail:fetch-threads', async (_e, accessToken: string, emailAddresses: string[], maxResults?: number) => {
+    const { fetchGmailThreads } = await import('./integrations/google-gmail')
+    return fetchGmailThreads(accessToken, emailAddresses, maxResults)
+  })
+  ipcMain.handle('gmail:context-for-people', async (_e, accessToken: string, emailAddresses: string[]) => {
+    const { fetchGmailContextForPeople } = await import('./integrations/google-gmail')
+    return fetchGmailContextForPeople(accessToken, emailAddresses)
+  })
+
   // --- Contacts Import ---
   ipcMain.handle('contacts:import-vcf', async () => {
     try {
