@@ -1,31 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.5" y2="1">
-      <stop offset="0%" stop-color="#243272"/>
-      <stop offset="100%" stop-color="#1C2652"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#2A2A2E"/>
+      <stop offset="100%" stop-color="#1A1A1E"/>
     </linearGradient>
   </defs>
-  <!-- macOS rounded-rect background -->
+
+  <!-- macOS rounded-rect background — dark charcoal -->
   <rect x="32" y="32" width="960" height="960" rx="220" ry="220" fill="url(#bg)"/>
-  <!-- Subtle inner glow at top -->
-  <rect x="32" y="32" width="960" height="480" rx="220" ry="220" fill="white" opacity="0.04"/>
+  <!-- Subtle top highlight for depth -->
+  <rect x="32" y="32" width="960" height="480" rx="220" ry="220" fill="white" opacity="0.03"/>
 
-  <!-- "O" letter - geometric circle, stroke-based -->
-  <circle cx="340" cy="512" r="155" fill="none" stroke="white" stroke-width="52"/>
+  <!-- Central large node -->
+  <circle cx="512" cy="512" r="80" fill="white"/>
 
-  <!-- "S" letter - geometric S shape using paths -->
-  <path d="M 760 385
-    C 760 345, 730 310, 680 310
-    L 620 310
-    C 570 310, 540 345, 540 385
-    C 540 425, 570 450, 620 460
-    L 680 475
-    C 730 485, 760 515, 760 555
-    C 760 605, 730 640, 680 640
-    L 620 640
-    C 570 640, 540 605, 540 555"
-    fill="none" stroke="white" stroke-width="52" stroke-linecap="round"/>
+  <!-- Cardinal satellite nodes (medium) -->
+  <circle cx="512" cy="310" r="22" fill="white"/>   <!-- top -->
+  <circle cx="714" cy="512" r="22" fill="white"/>   <!-- right -->
+  <circle cx="512" cy="714" r="22" fill="white"/>   <!-- bottom -->
+  <circle cx="310" cy="512" r="22" fill="white"/>   <!-- left -->
 
-  <!-- Thin accent line -->
-  <line x1="290" y1="720" x2="734" y2="720" stroke="white" stroke-opacity="0.2" stroke-width="3"/>
+  <!-- Diagonal satellite nodes (small) -->
+  <circle cx="370" cy="370" r="12" fill="white"/>   <!-- top-left -->
+  <circle cx="654" cy="370" r="12" fill="white"/>   <!-- top-right -->
+  <circle cx="654" cy="654" r="12" fill="white"/>   <!-- bottom-right -->
+  <circle cx="370" cy="654" r="12" fill="white"/>   <!-- bottom-left -->
+
+  <!-- Tiny accent dots (between cardinal and diagonal) -->
+  <circle cx="432" cy="326" r="6" fill="white" opacity="0.6"/>   <!-- between top and top-left -->
+  <circle cx="592" cy="326" r="6" fill="white" opacity="0.6"/>   <!-- between top and top-right -->
+  <circle cx="698" cy="432" r="6" fill="white" opacity="0.6"/>   <!-- between right and top-right -->
+  <circle cx="698" cy="592" r="6" fill="white" opacity="0.6"/>   <!-- between right and bottom-right -->
+  <circle cx="592" cy="698" r="6" fill="white" opacity="0.6"/>   <!-- between bottom and bottom-right -->
+  <circle cx="432" cy="698" r="6" fill="white" opacity="0.6"/>   <!-- between bottom and bottom-left -->
+  <circle cx="326" cy="592" r="6" fill="white" opacity="0.6"/>   <!-- between left and bottom-left -->
+  <circle cx="326" cy="432" r="6" fill="white" opacity="0.6"/>   <!-- between left and top-left -->
 </svg>
