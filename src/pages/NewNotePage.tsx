@@ -1456,7 +1456,15 @@ export default function NewNotePage() {
       </main>
 
       {/* Command Center — context panel during recording */}
-      {isCapturing && <CommandCenterPanel context={meetingContext} />}
+      {isCapturing && <CommandCenterPanel
+        context={meetingContext}
+        onLookupPerson={(name) => {
+          if (!api?.context?.assemble) return
+          api.context.assemble({ attendeeNames: [name], attendeeEmails: [], eventTitle: title || undefined })
+            .then(ctx => { if (ctx) setMeetingContext(ctx) })
+            .catch(err => console.error('[command-center] Lookup failed:', err))
+        }}
+      />}
     </div>
   );
 }

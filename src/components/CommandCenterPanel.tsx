@@ -20,9 +20,9 @@
  *  └──────────────────────┘
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ChevronLeft, ChevronRight, FileText, AlertTriangle, FolderKanban, BookOpen } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileText, AlertTriangle, FolderKanban, BookOpen, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface MeetingContext {
@@ -52,9 +52,11 @@ interface MeetingContext {
 
 interface Props {
   context: MeetingContext | null
+  onLookupPerson?: (name: string) => void
 }
 
-export default function CommandCenterPanel({ context }: Props) {
+export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
+  const [lookupName, setLookupName] = useState("")
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("syag-cc-collapsed") === "true" } catch { return false }
@@ -95,9 +97,29 @@ export default function CommandCenterPanel({ context }: Props) {
       </div>
 
       {!hasContent ? (
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex-1 p-3 space-y-3">
+          {onLookupPerson && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground block mb-1.5">Who are you meeting with?</label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  value={lookupName}
+                  onChange={e => setLookupName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && lookupName.trim()) { onLookupPerson(lookupName.trim()); setLookupName("") } }}
+                  placeholder="Name..."
+                  className="flex-1 px-2 py-1.5 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20"
+                />
+                <button
+                  onClick={() => { if (lookupName.trim()) { onLookupPerson(lookupName.trim()); setLookupName("") } }}
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground"
+                >
+                  <Search className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground text-center leading-relaxed">
-            Recording in progress. Context will appear as your meeting history grows.
+            {onLookupPerson ? "Type a name to look up meeting history." : "Recording in progress. Context will appear as your meeting history grows."}
           </p>
         </div>
       ) : (
