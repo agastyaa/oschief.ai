@@ -1029,6 +1029,50 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- Routines ---
+  ipcMain.handle('routines:get-all', async () => {
+    const { getAllRoutines } = await import('./routines/routines-engine')
+    return getAllRoutines()
+  })
+  ipcMain.handle('routines:get', async (_e, id: string) => {
+    const { getRoutine } = await import('./routines/routines-engine')
+    return getRoutine(id)
+  })
+  ipcMain.handle('routines:create', async (_e, data: any) => {
+    const { createRoutine, rescheduleAllRoutines } = await import('./routines/routines-engine')
+    const result = createRoutine(data)
+    rescheduleAllRoutines()
+    return result
+  })
+  ipcMain.handle('routines:update', async (_e, id: string, data: any) => {
+    const { updateRoutine, rescheduleAllRoutines } = await import('./routines/routines-engine')
+    updateRoutine(id, data)
+    rescheduleAllRoutines()
+    return true
+  })
+  ipcMain.handle('routines:delete', async (_e, id: string) => {
+    const { deleteRoutine, rescheduleAllRoutines } = await import('./routines/routines-engine')
+    const ok = deleteRoutine(id)
+    rescheduleAllRoutines()
+    return ok
+  })
+  ipcMain.handle('routines:toggle', async (_e, id: string, enabled: boolean) => {
+    const { toggleRoutine, rescheduleAllRoutines } = await import('./routines/routines-engine')
+    toggleRoutine(id, enabled)
+    rescheduleAllRoutines()
+    return true
+  })
+  ipcMain.handle('routines:run-now', async (_e, id: string) => {
+    const { getRoutine, executeRoutine } = await import('./routines/routines-engine')
+    const routine = getRoutine(id)
+    if (!routine) return { ok: false, error: 'Not found' }
+    return await executeRoutine(routine)
+  })
+  ipcMain.handle('routines:get-runs', async (_e, routineId: string, limit?: number) => {
+    const { getRoutineRuns } = await import('./routines/routines-engine')
+    return getRoutineRuns(routineId, limit ?? 20)
+  })
+
   // --- Context Assembly (Command Center) ---
   ipcMain.handle('context:assemble', async (_e, data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) => {
     try {

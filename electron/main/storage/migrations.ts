@@ -196,6 +196,41 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_notes_calendar_event ON notes(calendar_event_id)`,
     ]
   },
+  {
+    version: 10,
+    up: [
+      // Routines — scheduled prompts that run against the meeting graph
+      `CREATE TABLE IF NOT EXISTS routines (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        schedule_type TEXT NOT NULL DEFAULT 'daily',
+        schedule_hour INTEGER NOT NULL DEFAULT 9,
+        schedule_minute INTEGER NOT NULL DEFAULT 0,
+        schedule_day INTEGER,
+        delivery TEXT NOT NULL DEFAULT 'both',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        builtin_type TEXT,
+        data_query TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // Routine execution history
+      `CREATE TABLE IF NOT EXISTS routine_runs (
+        id TEXT PRIMARY KEY,
+        routine_id TEXT NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+        output TEXT NOT NULL,
+        context_snapshot TEXT,
+        status TEXT NOT NULL DEFAULT 'success',
+        error_message TEXT,
+        started_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT,
+        duration_ms INTEGER
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_routine_runs_routine ON routine_runs(routine_id, started_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_routines_enabled ON routines(enabled)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

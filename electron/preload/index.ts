@@ -402,6 +402,22 @@ const electronAPI = {
       ipcRenderer.invoke('notify:meeting-prep', data) as Promise<boolean>,
   },
 
+  routines: {
+    getAll: () => ipcRenderer.invoke('routines:get-all') as Promise<any[]>,
+    get: (id: string) => ipcRenderer.invoke('routines:get', id) as Promise<any>,
+    create: (data: any) => ipcRenderer.invoke('routines:create', data) as Promise<any>,
+    update: (id: string, data: any) => ipcRenderer.invoke('routines:update', id, data) as Promise<boolean>,
+    delete: (id: string) => ipcRenderer.invoke('routines:delete', id) as Promise<boolean>,
+    toggle: (id: string, enabled: boolean) => ipcRenderer.invoke('routines:toggle', id, enabled) as Promise<boolean>,
+    runNow: (id: string) => ipcRenderer.invoke('routines:run-now', id) as Promise<any>,
+    getRuns: (routineId: string, limit?: number) => ipcRenderer.invoke('routines:get-runs', routineId, limit) as Promise<any[]>,
+    onResult: (callback: (result: any) => void) => {
+      const handler = (_event: any, result: any) => callback(result)
+      ipcRenderer.on('routines:result', handler)
+      return () => ipcRenderer.removeListener('routines:result', handler)
+    },
+  },
+
   contacts: {
     importVCF: () => ipcRenderer.invoke('contacts:import-vcf') as Promise<{ ok: boolean; total?: number; imported?: number; skipped?: number; errors?: number; error?: string }>,
   },
