@@ -29,14 +29,44 @@ export function SearchCommandProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      const meta = e.metaKey || e.ctrlKey;
+      // Cmd+K — search
+      if (e.key === "k" && meta) {
         e.preventDefault();
         setOpen((o) => !o);
+        return;
+      }
+      // Don't intercept shortcuts when typing in an input
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+      // Cmd+N — quick note
+      if (e.key === "n" && meta) {
+        e.preventDefault();
+        navigate("/new-note?startFresh=1");
+        return;
+      }
+      // Cmd+Shift+P — projects
+      if (e.key === "p" && meta && e.shiftKey) {
+        e.preventDefault();
+        navigate("/projects");
+        return;
+      }
+      // Cmd+Shift+D — decisions
+      if (e.key === "d" && meta && e.shiftKey) {
+        e.preventDefault();
+        navigate("/decisions");
+        return;
+      }
+      // Cmd+, — settings
+      if (e.key === "," && meta) {
+        e.preventDefault();
+        navigate("/settings");
+        return;
       }
     };
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [navigate]);
 
   const handleSelect = useCallback(
     (noteId: string) => {
