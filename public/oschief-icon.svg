@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E2D6B"/>
+      <stop offset="100%" stop-color="#2E3F8F"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <!-- Background: macOS rounded-rect -->
+  <rect x="32" y="32" width="960" height="960" rx="220" ry="220" fill="url(#bg)"/>
+  <!-- Subtle top shine for depth -->
+  <rect x="32" y="32" width="960" height="480" rx="220" ry="220" fill="url(#shine)"/>
+  <!-- "OS" monogram — clean, geometric, slightly condensed -->
+  <text x="512" y="590"
+        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+        font-size="480"
+        font-weight="600"
+        fill="white"
+        text-anchor="middle"
+        letter-spacing="-20">OS</text>
+  <!-- Thin accent line under monogram -->
+  <rect x="320" y="680" width="384" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+</svg>

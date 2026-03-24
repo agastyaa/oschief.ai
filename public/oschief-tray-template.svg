@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Tray icon: "OS" monogram, monochrome black (macOS template inverts for dark mode) -->
+  <text x="16" y="23"
+        font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif"
+        font-size="20"
+        font-weight="600"
+        fill="black"
+        text-anchor="middle"
+        letter-spacing="-1">OS</text>
+</svg>

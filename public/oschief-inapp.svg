@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E2D6B"/>
+      <stop offset="100%" stop-color="#2E3F8F"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="url(#bg2)"/>
+  <text x="24" y="32"
+        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+        font-size="22"
+        font-weight="600"
+        fill="white"
+        text-anchor="middle"
+        letter-spacing="-1">OS</text>
+</svg>
