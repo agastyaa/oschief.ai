@@ -24,10 +24,9 @@ import { CommitmentsDueCard } from "@/components/CommitmentsDueCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 
-function accentFromId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360} 38% 52%)`;
+function accentFromId(_id: string): string {
+  // Monochrome: subtle muted bar instead of rainbow per-note colors
+  return `hsl(var(--muted-foreground) / 0.25)`;
 }
 
 const Index = () => {
@@ -391,17 +390,13 @@ const Index = () => {
               />
             </div>
 
-            {/* ── Schedule (calendar, compact) — time-sensitive, shown first ── */}
+            {/* ── Coming Up (calendar, compact Granola-style) ── */}
             {icsSource && upcomingEventsList.length > 0 && (
-              <div className="mb-4">
-                <div
-                  className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-[var(--card-shadow-hover)]"
-                  style={{ boxShadow: "var(--card-shadow)" }}
-                >
+              <div className="mb-5">
+                <div className="px-1">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      Schedule
+                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Coming up
                     </h3>
                     <button
                       onClick={() => navigate("/calendar?view=list")}
@@ -411,7 +406,7 @@ const Index = () => {
                     </button>
                   </div>
                   <CalendarAgendaList
-                    events={upcomingEventsList.slice(0, 3)}
+                    events={upcomingEventsList.slice(0, 5)}
                     onEventClick={(evt) => setSelectedEvent(evt)}
                     findNoteForEvent={findNoteForEvent}
                     calendarViewId={calendarViewId}

@@ -7,9 +7,12 @@ import type { CalendarEvent } from "@/lib/ics-parser";
 export type CalendarAgendaListVariant = "full" | "compact";
 
 function eventRowClass(evt: CalendarEvent, variant: CalendarAgendaListVariant) {
+  if (variant === "compact") {
+    // Granola-style: clean rows, no cards, no borders
+    return "w-full text-left py-1.5 hover:bg-secondary/50 rounded-md transition-colors group px-1";
+  }
   return cn(
-    "w-full text-left rounded-lg border hover:border-accent/40 hover:shadow-sm transition-all group",
-    variant === "compact" ? "p-2.5" : "p-3",
+    "w-full text-left rounded-lg border hover:border-accent/40 hover:shadow-sm transition-all group p-3",
     evt.source === "local" || evt.isAllDay
       ? "border-dashed bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,hsl(var(--border)/0.35)_6px,hsl(var(--border)/0.35)_7px)] bg-card"
       : "border-border bg-card"
@@ -119,12 +122,44 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
 
               <div
                 className={cn(
-                  "border-l-2 border-border space-y-1 mt-1 mb-4",
-                  isCompact ? "ml-4 pl-3" : "ml-5 pl-5"
+                  "space-y-0.5 mt-1 mb-3",
+                  isCompact ? "ml-0" : "border-l-2 border-border ml-5 pl-5"
                 )}
               >
                 {dayEvents.map((evt) => {
                   const linked = findNoteForEvent(evt);
+                  // Monochrome accent bar — subtle, not distracting
+                  const accentColor = isCompact
+                    ? "hsl(var(--muted-foreground) / 0.25)"
+                    : evt.source === "local"
+                      ? "hsl(var(--muted-foreground) / 0.5)"
+                      : `hsl(${(evt.id.charCodeAt(0) * 37) % 360} 40% 45%)`;
+
+                  if (isCompact) {
+                    // Granola-style: clean row — colored bar + title + time, no cards
+                    return (
+                      <button
+                        key={evt.id}
+                        type="button"
+                        onClick={() => onEventClick(evt)}
+                        className={eventRowClass(evt, variant)}
+                      >
+                        <div
+                          className="border-l-[3px] pl-2.5"
+                          style={{ borderColor: accentColor }}
+                        >
+                          <h4 className="text-[13px] font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                            {evt.title}
+                          </h4>
+                          <span className="text-[11px] text-muted-foreground">
+                            {evt.isAllDay ? "All day" : `${format(new Date(evt.start), "h:mm")} – ${format(new Date(evt.end), "h:mm a")}`}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  // Full variant: cards with details
                   return (
                     <div key={evt.id} className="relative group/row">
                       <button
@@ -133,81 +168,41 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                         className={eventRowClass(evt, variant)}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div
-                            className="min-w-0 flex-1 border-l-[3px] pl-2 -ml-0.5"
-                            style={{
-                              borderColor:
-                                evt.source === "local"
-                                  ? "hsl(var(--muted-foreground) / 0.5)"
-                                  : `hsl(${(evt.id.charCodeAt(0) * 37) % 360} 40% 45%)`,
-                            }}
-                          >
+                          <div className="min-w-0 flex-1 border-l-[3px] pl-2 -ml-0.5" style={{ borderColor: accentColor }}>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4
-                                className={cn(
-                                  "font-medium text-foreground truncate group-hover:text-accent transition-colors",
-                                  isCompact ? "text-[13px]" : "text-sm"
-                                )}
-                              >
+                              <h4 className="text-sm font-medium text-foreground truncate group-hover:text-accent transition-colors">
                                 {evt.title}
                               </h4>
                               {evt.source === "local" && (
-                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">
-                                  Syag
-                                </span>
+                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">Syag</span>
                               )}
                               {calendarViewId === "all" && evt.source === "synced" && evt.calendarName && (
-                                <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1 max-w-[7rem] truncate">
-                                  {evt.calendarName}
-                                </span>
+                                <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1 max-w-[7rem] truncate">{evt.calendarName}</span>
                               )}
                             </div>
-                            <div className={cn("flex items-center gap-3 flex-wrap", isCompact ? "mt-0.5" : "mt-1")}>
+                            <div className="flex items-center gap-3 flex-wrap mt-1">
                               <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                                 <Clock className="h-3 w-3 flex-shrink-0" />
-                                {evt.isAllDay
-                                  ? "All day"
-                                  : `${format(new Date(evt.start), "h:mm a")} — ${format(new Date(evt.end), "h:mm a")}`}
+                                {evt.isAllDay ? "All day" : `${format(new Date(evt.start), "h:mm a")} — ${format(new Date(evt.end), "h:mm a")}`}
                               </span>
-                              {!isCompact && evt.location && (
+                              {evt.location && (
                                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate min-w-0">
                                   <MapPin className="h-3 w-3 flex-shrink-0" />
                                   {evt.location}
                                 </span>
                               )}
                             </div>
-                            {!isCompact && evt.description && (
-                              <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">
-                                {evt.description}
-                              </p>
+                            {evt.description && (
+                              <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">{evt.description}</p>
                             )}
-                            {!isCompact && evt.source === "local" && (
-                              <p className="text-[10px] text-muted-foreground mt-1.5">
-                                Only in Syag — won&apos;t appear in Google Calendar or Outlook.
-                              </p>
+                            {evt.source === "local" && (
+                              <p className="text-[10px] text-muted-foreground mt-1.5">Only in Syag — won&apos;t appear in Google Calendar or Outlook.</p>
                             )}
                           </div>
                           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            {linked || evt.noteId ? (
-                              <div
-                                className={cn(
-                                  "flex items-center justify-center rounded-md bg-accent/10 text-accent",
-                                  isCompact ? "h-7 w-7" : "h-8 w-8"
-                                )}
-                                title="Has note"
-                              >
-                                <FileText className={isCompact ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                              </div>
-                            ) : (
-                              <div
-                                className={cn(
-                                  "flex items-center justify-center rounded-md bg-accent/10 text-accent",
-                                  isCompact ? "h-7 w-7" : "h-8 w-8"
-                                )}
-                              >
-                                <Calendar className={isCompact ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                              </div>
-                            )}
+                            <div className={cn("flex items-center justify-center rounded-md bg-accent/10 text-accent h-8 w-8")} title={linked ? "Has note" : "Start note"}>
+                              {linked || evt.noteId ? <FileText className="h-3.5 w-3.5" /> : <Calendar className="h-3.5 w-3.5" />}
+                            </div>
                           </div>
                         </div>
                       </button>
