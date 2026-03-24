@@ -1240,6 +1240,8 @@ export default function SettingsPage() {
   const [trayAgendaEnabled, setTrayAgendaEnabled] = useState(false);
   const [trayCalendarRange, setTrayCalendarRange] = useState<"today" | "today_tomorrow">("today_tomorrow");
   const [trayCalendarClick, setTrayCalendarClick] = useState<"note" | "calendar">("note");
+  /** default = balanced gates; sensitive = looser energy + dedup (see electron/main/audio/capture.ts) */
+  const [sttCaptureSensitivity, setSttCaptureSensitivity] = useState<"default" | "sensitive">("default");
   const api = getElectronAPI();
 
   useEffect(() => {
@@ -1272,6 +1274,8 @@ export default function SettingsPage() {
         if (r === "today" || r === "today_tomorrow") setTrayCalendarRange(r);
         const c = await api.db.settings.get("tray-calendar-click");
         if (c === "note" || c === "calendar") setTrayCalendarClick(c);
+        const sens = await api.db.settings.get("stt-capture-sensitivity");
+        if (sens === "sensitive") setSttCaptureSensitivity("sensitive");
       } catch {
         /* defaults */
       }
@@ -1317,6 +1321,13 @@ export default function SettingsPage() {
             loaded[uiKey] = JSON.parse(val);
           }
         } catch {}
+      }
+      // Capture reads `transcribe-when-stopped` only; keep legacy `real-time-transcription` aligned.
+      const batchMode = loaded.transcribeWhenStopped;
+      const expectLiveUi = !batchMode;
+      if (loaded.realTimeTranscribe !== expectLiveUi) {
+        loaded.realTimeTranscribe = expectLiveUi;
+        api.db.settings.set('real-time-transcription', JSON.stringify(expectLiveUi)).catch(console.error);
       }
       setToggles(loaded);
       setTogglesLoaded(true);
@@ -2049,20 +2060,53 @@ export default function SettingsPage() {
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
                       <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />
                     </SettingRow>
-                    <SettingRow label="Live transcription" description="Transcribe speech in real-time during recording. Turn off for privacy-friendly batch mode (transcribes after you stop).">
+                    <SettingRow label="Live transcription" description="Recommended on. Real-time transcription during recording. Turn off only for privacy-friendly batch mode (full pass after you stop). When off, little or no text appears until you stop — and long meetings can look very delayed or incomplete on one side.">
                       <Toggle enabled={!toggles.transcribeWhenStopped} onToggle={() => {
-                        const nowDeferred = !toggles.transcribeWhenStopped;
-                        // Toggle both: they're mutually exclusive
-                        setToggles(prev => {
-                          const next = { ...prev, transcribeWhenStopped: !nowDeferred, realTimeTranscribe: nowDeferred };
+                        setToggles((prev) => {
+                          const nextBatch = !prev.transcribeWhenStopped;
+                          const next = {
+                            ...prev,
+                            transcribeWhenStopped: nextBatch,
+                            realTimeTranscribe: !nextBatch,
+                          };
                           if (api) {
-                            api.db.settings.set('transcribe-when-stopped', JSON.stringify(!nowDeferred)).catch(console.error);
-                            api.db.settings.set('real-time-transcription', JSON.stringify(nowDeferred)).catch(console.error);
+                            api.db.settings.set('transcribe-when-stopped', JSON.stringify(nextBatch)).catch(console.error);
+                            api.db.settings.set('real-time-transcription', JSON.stringify(!nextBatch)).catch(console.error);
                           }
                           return next;
                         });
                       }} />
                     </SettingRow>
+                    {isElectron && (
+                      <>
+                        <div className="rounded-md border border-border bg-card p-3 space-y-2">
+                          <div>
+                            <label htmlFor="stt-capture-sensitivity" className="text-[13px] font-medium text-foreground block">
+                              Live capture sensitivity
+                            </label>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              <strong>Balanced</strong> reduces false mic transcripts when you are muted. <strong>More sensitive</strong> lowers energy and echo-suppression thresholds — use if live lines are sparse; may add noise or duplicate lines from speaker bleed. Applies after you resume or start the next recording.
+                            </p>
+                          </div>
+                          <select
+                            id="stt-capture-sensitivity"
+                            value={sttCaptureSensitivity}
+                            onChange={(e) => {
+                              const v = e.target.value === "sensitive" ? "sensitive" : "default";
+                              setSttCaptureSensitivity(v);
+                              api?.db.settings.set("stt-capture-sensitivity", v).catch(console.error);
+                            }}
+                            className="w-full max-w-xs rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                          >
+                            <option value="default">Balanced (default)</option>
+                            <option value="sensitive">More sensitive</option>
+                          </select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+                          <strong className="text-foreground">macOS:</strong> allow <strong>Microphone</strong> for “Me” lines. For meeting audio on <strong>Them</strong>, Screen Recording (and system audio) must be allowed for Syag in System Settings → Privacy & Security.
+                        </p>
+                      </>
+                    )}
                     <SettingRow label="Enhance transcript with AI" description="Use your AI model to fix grammar, punctuation, and proper nouns in real-time. Requires a cloud AI model.">
                       <Toggle enabled={toggles.llmPostProcess} onToggle={() => toggle("llmPostProcess")} />
                     </SettingRow>

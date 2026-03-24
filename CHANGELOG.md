@@ -4,6 +4,34 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.12.0] — 2026-03-24
+
+Recording reliability, live vs batch transcription, and STT polish.
+
+### Fixed
+- **Live transcription toggle (Settings):** The switch did not actually change `transcribe-when-stopped` — the handler always wrote the previous value, so many users were stuck in batch (“transcribe when stopped”) mode with no way to turn real-time transcription on from the UI.
+- **Pause / resume timer:** The meeting timer no longer jumps by the length of a pause when you resume. The renderer re-anchors session `startTime` to active elapsed time; the main process tracks paused intervals, uses **active** duration on stop, uses **active** seconds for transcript chunk times, skips STT while paused, and flushes an in-progress pause before clearing state on stop.
+- **Resume UI race:** While `resumeAudioCapture` was async, local state could snap back to “paused” because `isRecording` was still false. A short **resuming** guard prevents that; resume errors return the UI to paused.
+- **PrepCard “Start note”:** Uses the canonical `nextEvent` from the calendar list so event id/title match note linking (`calendarEventId` / `findNoteForEvent`).
+
+### Added
+- **Live capture sensitivity (Settings → Transcription, macOS):** **Balanced** (default) vs **More sensitive** — relaxes buffer energy gates and cross-channel dedup slightly when you need more mic/system lines (applies on next start or resume). Persisted as `stt-capture-sensitivity`.
+- **Post-resume STT hardening:** For the first few STT passes per channel after resume, slightly stricter energy/VAD thresholds reduce generic “meeting filler” hallucinations from noisy reconnect buffers.
+- **Tray clock:** `updateTrayMeetingInfo` runs when `startTime` changes (e.g. after resume re-anchor).
+
+### Changed
+- **Settings load:** `real-time-transcription` is reconciled with `transcribe-when-stopped` (the value capture reads). Mismatched legacy DB rows are corrected and written back.
+- **Live transcription copy:** Clarifies that live mode is **recommended** and that batch mode can look delayed or one-sided for long meetings.
+- **New note page:** Reads `transcribe-when-stopped` first (then `real-time-transcription`) for transcript-related UI prefs.
+
+### Improved
+- **Deepgram (Nova):** When word-level tokens exist, build text from words and drop adjacent duplicate tokens (cleaner than some `transcript` string duplicates).
+- **MLX Whisper install check:** Import probe uses the same PATH as the worker; failures surface a Python traceback and executable hint for Terminal fixes.
+
+### Docs
+- **`docs/transcript-me-them.md`:** Pause/resume behavior, post-resume junk lines, debug log patterns, settings checklist.
+- **`docs/local-stt-setup.md`:** Import failures, wrong-Python vs GUI, Apple Silicon notes.
+
 ## [1.11.0] — 2026-03-24
 
 Zero-config AI setup — Syag now downloads and configures the best STT + LLM models automatically on first launch. No settings navigation required.

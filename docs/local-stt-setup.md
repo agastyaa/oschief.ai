@@ -18,9 +18,11 @@ Used for Apple Silicon–optimized inference via Python.
 
 1. **ffmpeg** — Syag checks first; on macOS it may run **`brew install ffmpeg`** for you.
 2. **pip** — Syag runs `python3 -m pip install mlx-whisper` or `mlx-audio-plus`.
-3. **Verify** — Syag runs `python3 -c "import …"` with the same PATH as pip (includes common Homebrew bin dirs) so the check uses the same interpreter that received the package.
+3. **Verify** — Syag runs a real `import` under the same PATH as pip (includes common Homebrew bin dirs). If verification fails, the error includes **Python’s traceback** and the **`python3` path** Syag used — copy the suggested `… -m pip install --user --force-reinstall mlx-whisper` line into Terminal.
 
 **You need:** **Python 3** with a working `pip`, and usually **Homebrew** for ffmpeg. If the app’s automatic steps fail, run the same commands in **Terminal** (the toast shows the exact suggestion).
+
+**Common “import failed” causes:** `pip` installed the wheel for a **different** Python than GUI Syag’s `python3`; or **`mlx`** / native deps failed (Apple Silicon vs Rosetta). Use the path from the error message, or run `which python3` in Terminal and `that-path -m pip install --user --force-reinstall mlx-whisper`.
 
 ## Why the app can’t always do 100% automatically
 

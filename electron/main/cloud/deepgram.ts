@@ -1,5 +1,41 @@
 import { netFetch } from './net-request'
 
+/** Compare adjacent Deepgram tokens (handles trailing punctuation on words). */
+function dgWordKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^['"([{]+/g, '')
+    .replace(/['"})\].,!?;:]+$/g, '')
+    .trim()
+}
+
+/**
+ * Prefer word-level array when present — avoids some duplicate tokens in `transcript` string
+ * from Nova models; fall back to transcript.
+ */
+function extractDeepgramText(json: {
+  results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string; words?: Array<{ word?: string; punctuated_word?: string }> }> }> }
+}): string {
+  const alt = json.results?.channels?.[0]?.alternatives?.[0]
+  if (!alt) return ''
+  const words = alt.words
+  if (Array.isArray(words) && words.length > 0) {
+    const parts: string[] = []
+    let prevKey = ''
+    for (const w of words) {
+      const raw = (w.punctuated_word || w.word || '').trim()
+      if (!raw) continue
+      const key = dgWordKey(raw)
+      if (key.length > 0 && key === prevKey) continue
+      parts.push(raw)
+      prevKey = key
+    }
+    const joined = parts.join(' ').trim()
+    if (joined) return joined
+  }
+  return (alt.transcript || '').trim()
+}
+
 const MODEL_MAP: Record<string, string> = {
   'Nova-2': 'nova-2',
   'Nova-2 Medical': 'nova-2-medical',
@@ -47,9 +83,8 @@ export async function sttDeepgram(
       }
     }
     const json = JSON.parse(data)
-    if (json.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
-      return json.results.channels[0].alternatives[0].transcript
-    }
+    const text = extractDeepgramText(json)
+    if (text) return text
     if (json.err_msg) throw new Error(`Deepgram error: ${json.err_msg}`)
     return ''
   } catch (err: any) {

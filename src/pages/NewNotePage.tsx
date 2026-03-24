@@ -193,6 +193,8 @@ export default function NewNotePage() {
   const lastGeneratedTranscriptLengthRef = useRef(-1);
   const lastGeneratedNotesRef = useRef("");
   const userPausedRef = useRef(false);
+  /** True while `resumeAudioCapture` is in flight so we don't force UI back to paused (session stays isRecording false until IPC completes). */
+  const resumingRef = useRef(false);
   /** Fire `generateNotes` once 3s after explicit pause when no real summary yet. */
   const pauseAutoSummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggeredPauseAndSummarizeRef = useRef(false);
@@ -232,9 +234,20 @@ export default function NewNotePage() {
 
   useEffect(() => {
     if (!api) return;
-    api.db.settings.get('real-time-transcription').then(val => {
-      if (val !== null) setShowRealTimeTranscript(JSON.parse(val));
-    }).catch(() => {});
+    Promise.all([
+      api.db.settings.get('transcribe-when-stopped'),
+      api.db.settings.get('real-time-transcription'),
+    ])
+      .then(([tws, rtt]) => {
+        let livePreferred = true;
+        if (tws !== null) {
+          livePreferred = !JSON.parse(tws);
+        } else if (rtt !== null) {
+          livePreferred = JSON.parse(rtt);
+        }
+        setShowRealTimeTranscript(livePreferred);
+      })
+      .catch(() => {});
     api.db.settings.get('auto-generate-notes').then(val => {
       if (val !== null) setAutoGenerateNotes(JSON.parse(val));
     }).catch(() => {});
@@ -521,7 +534,14 @@ export default function NewNotePage() {
           setViewMode("ai-notes");
           setUserHasStartedCapture(true); // User clicked Quick Note — explicit start
           startSession(newId);
-          navigate(`/new-note?session=${newId}`, { replace: true });
+          navigate(`/new-note?session=${newId}`, {
+            replace: true,
+            state: {
+              eventTitle: eventState?.eventTitle,
+              eventId: eventState?.eventId,
+              joinLink: eventState?.joinLink,
+            },
+          });
           if (usingRealAudio) {
             const meetingTitle = (eventState?.eventTitle ?? title) || undefined;
             startAudioCapture(selectedSTTModel || "", { meetingTitle }).catch((err) => {
@@ -561,7 +581,14 @@ export default function NewNotePage() {
         setViewMode("ai-notes");
         setUserHasStartedCapture(true);
         startSession(newId);
-        navigate(`/new-note?session=${newId}`, { replace: true });
+        navigate(`/new-note?session=${newId}`, {
+          replace: true,
+          state: {
+            eventTitle: eventState?.eventTitle,
+            eventId: eventState?.eventId,
+            joinLink: eventState?.joinLink,
+          },
+        });
         if (usingRealAudio) {
           const meetingTitle = (eventState?.eventTitle ?? eventState?.eventId) || undefined;
           startAudioCapture(selectedSTTModel || "", { meetingTitle }).catch((err) => {
@@ -659,11 +686,13 @@ export default function NewNotePage() {
     isSummarizing,
     selectedFolderId,
     addNote,
+    eventState?.eventId,
   ]);
 
   // Sync recording state with main process (auto-pause disabled — manual pause only)
   useEffect(() => {
     if (recordingState === "stopped") return;
+    if (resumingRef.current) return;
     if (activeSession && !activeSession.isRecording && recordingState === "recording") {
       userPausedRef.current = false;
       setRecordingState("paused");
@@ -742,16 +771,32 @@ export default function NewNotePage() {
         startAudioCapture(selectedSTTModel || '', { meetingTitle }).catch(console.error);
       }
     } else {
-      // Safety: if activeSession was somehow cleared during pause, restore it
+      resumingRef.current = usingRealAudio;
+      // Re-anchor wall clock so the timer does not count time spent paused (useElapsedTime uses Date.now() - startTime).
       if (!activeSession) {
         resumeSession(noteId, title || "New note", elapsedSeconds);
+      } else {
+        updateSession({
+          startTime: Date.now() - elapsedSeconds * 1000,
+          elapsedSeconds,
+        });
       }
       setSummary(null);
       if (usingRealAudio) {
-        resumeAudioCapture(selectedSTTModel || '').catch(console.error);
+        resumeAudioCapture(selectedSTTModel || '')
+          .catch((err) => {
+            console.error(err);
+            setRecordingState("paused");
+          })
+          .finally(() => {
+            resumingRef.current = false;
+          });
+      } else {
+        resumingRef.current = false;
+        updateSession({ isRecording: true });
       }
     }
-  }, [recordingState, resumeSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel, activeSession]);
+  }, [recordingState, resumeSession, updateSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel, activeSession]);
 
   const handleViewModeChange = useCallback(async (mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -1361,7 +1406,7 @@ export default function NewNotePage() {
                 )}
                 {!transcriptSearch && sttStale && (
                   <p className="text-[10px] text-amber-600 dark:text-amber-400 pt-0.5">
-                    No transcription for a while. Check your STT model and connection.
+                    No real-time speech detected for a while. Check your STT model, network, mic, and system audio permissions — or try higher capture sensitivity in Settings → AI Models → Transcription.
                   </p>
                 )}
                 {transcriptSearch && currentTranscript.filter(l => l.text.toLowerCase().includes(transcriptSearch.toLowerCase())).length === 0 && (

@@ -83,7 +83,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       if (chunk.text.startsWith("[STT Error:")) {
         const message = chunk.text.replace(/^\[STT Error:\s*/i, "").replace(/\]$/, "").trim() || "Transcription failed.";
         toast.error(message, { duration: 6000 });
-      } else {
+      } else if (chunk.speaker !== "System") {
+        // Only real You/Others lines count for "stale transcript" — ignore [STT: …] system hints
         setLastSuccessfulTranscriptTime(Date.now());
       }
       setTranscriptLines((prev) => [...prev, chunk]);
@@ -160,7 +161,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setActiveSession((prev) => {
       if (!prev) return null;
       const next = { ...prev, ...updates };
-      if (api && (updates.title || updates.isRecording !== undefined)) {
+      if (api && ('title' in updates || 'isRecording' in updates || 'startTime' in updates)) {
         api.app.updateTrayMeetingInfo?.({ title: next.title, startTime: next.startTime });
       }
       return next;

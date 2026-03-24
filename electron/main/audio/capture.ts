@@ -21,6 +21,17 @@ let correctionCallback: CorrectionCallback | null = null
 let statusCallback: StatusCallback | null = null
 const audioBuffers: Float32Array[][] = [[], []]
 let recordingStartTime = 0
+/** Wall-clock ms spent paused — excluded from transcript times and stop duration. */
+let totalPausedMs = 0
+let pauseStartedAt: number | null = null
+
+function activeRecordingElapsedMs(): number {
+  let paused = totalPausedMs
+  if (isPaused && pauseStartedAt != null) {
+    paused += Date.now() - pauseStartedAt
+  }
+  return Math.max(0, Date.now() - recordingStartTime - paused)
+}
 let chunkTimer: ReturnType<typeof setInterval> | null = null
 let silenceTimer: ReturnType<typeof setInterval> | null = null
 let currentSTTModel = ''
@@ -68,8 +79,8 @@ function textSimilarity(a: string, b: string): number {
 
 /** Recent emitted transcripts for cross-channel deduplication. */
 const recentEmittedTexts: Array<{ text: string; time: number; channel: number }> = []
-const DEDUP_WINDOW_MS = 12000 // 12s window — if same/similar text was emitted recently, skip
-const FUZZY_DEDUP_THRESHOLD = 0.75 // Jaccard word-overlap threshold for cross-channel echo suppression
+const DEDUP_WINDOW_MS_DEFAULT = 12000 // 12s window — if same/similar text was emitted recently, skip
+const FUZZY_DEDUP_THRESHOLD_DEFAULT = 0.75 // Jaccard word-overlap threshold for cross-channel echo suppression
 
 // Near real-time: process every 4s when active, 15s when idle
 const CHUNK_INTERVAL_ACTIVE_MS = 4000
@@ -85,6 +96,41 @@ const MIN_ENERGY_BY_CHANNEL = [0.0004, 0.00005] as const   // You: stricter so m
 const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0012, 0.0002] as const  // Others: halved to catch quieter remote participants
 // You: slightly relaxed so short phrases right after un-muting in the meeting app are less likely to be skipped
 const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.55, 0.5] as const
+
+/** When true (Settings → stt-capture-sensitivity=sensitive), relax energy gates and dedup slightly. */
+let sttCaptureSensitivityRelaxed = false
+
+function refreshSttCaptureSensitivity(): void {
+  sttCaptureSensitivityRelaxed = getSetting('stt-capture-sensitivity') === 'sensitive'
+}
+
+function effectiveMinEnergy(channel: 0 | 1): number {
+  const base = MIN_ENERGY_BY_CHANNEL[channel]
+  return sttCaptureSensitivityRelaxed ? base * 0.62 : base
+}
+
+function effectiveMinSpeechEnergy(channel: 0 | 1): number {
+  const base = MIN_SPEECH_ENERGY_BY_CHANNEL[channel]
+  return sttCaptureSensitivityRelaxed ? base * 0.7 : base
+}
+
+function effectiveDedupWindowMs(): number {
+  return sttCaptureSensitivityRelaxed ? 9000 : DEDUP_WINDOW_MS_DEFAULT
+}
+
+function effectiveFuzzyDedupThreshold(): number {
+  return sttCaptureSensitivityRelaxed ? 0.68 : FUZZY_DEDUP_THRESHOLD_DEFAULT
+}
+
+/**
+ * After pause→resume, the worklet reconnects; first buffers are often noise/underrun.
+ * Whisper then emits generic "meeting filler" text. For the next N STT passes per channel,
+ * require stronger speech energy and slightly longer VAD segments before calling the model.
+ */
+let resumeStrictPassCountdown: [number, number] = [0, 0]
+const RESUME_STRICT_PASSES_PER_CHANNEL = 3
+const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.75
+const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.35
 
 /** Log mic-channel skip reasons when SYAG_DEBUG_AUDIO=1 or setting debug-audio-capture=true (see docs/transcript-me-them.md). */
 function isDebugAudioCapture(): boolean {
@@ -167,11 +213,14 @@ export async function startRecording(
   audioBuffers[1].length = 0
   chunkRetryCount[0] = 0
   chunkRetryCount[1] = 0
+  totalPausedMs = 0
+  pauseStartedAt = null
   recordingStartTime = Date.now()
   lastSpeechTime = Date.now()
   currentSTTModel = options.sttModel
   hasLoggedNoSTTModelThisSession = false
   deferTranscription = getSetting('transcribe-when-stopped') === 'true'
+  refreshSttCaptureSensitivity()
   resetContext()
 
   // Merge vocabulary: settings + meeting title tokens + explicit vocabulary
@@ -203,6 +252,7 @@ export async function startRecording(
   }
 
   consecutiveSilentChunks = 0
+  resumeStrictPassCountdown = [0, 0]
   currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
   if (!deferTranscription) {
     chunkTimer = setInterval(() => {
@@ -219,6 +269,11 @@ export async function startRecording(
 
 export async function stopRecording(): Promise<{ duration: number } | null> {
   if (!isRecording) return null
+
+  if (pauseStartedAt != null) {
+    totalPausedMs += Date.now() - pauseStartedAt
+    pauseStartedAt = null
+  }
 
   isRecording = false
   isPaused = false
@@ -254,7 +309,9 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
   statusCallback = null
   correctionQueue.length = 0
   isCorrecting = false
-  const duration = Date.now() - recordingStartTime
+  const duration = activeRecordingElapsedMs()
+  totalPausedMs = 0
+  pauseStartedAt = null
   audioBuffers[0].length = 0
   audioBuffers[1].length = 0
 
@@ -262,16 +319,25 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
 }
 
 export function pauseRecording(): void {
+  if (!isPaused) {
+    pauseStartedAt = Date.now()
+  }
   isPaused = true
 }
 
 export function resumeRecording(options?: { sttModel?: string }): void {
+  if (pauseStartedAt != null) {
+    totalPausedMs += Date.now() - pauseStartedAt
+    pauseStartedAt = null
+  }
   isPaused = false
   autoPaused = false
   lastSpeechTime = Date.now()
+  refreshSttCaptureSensitivity()
   // Clear stale dedup window — after a long pause, old entries would cause
   // false-positive dedup matches against new speech
   recentEmittedTexts.length = 0
+  resumeStrictPassCountdown = [RESUME_STRICT_PASSES_PER_CHANNEL, RESUME_STRICT_PASSES_PER_CHANNEL]
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel
   }
@@ -311,6 +377,7 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
 async function processBufferedAudio(): Promise<void> {
   if (!transcriptCallback) return
   if (isProcessing) return
+  if (isPaused) return
 
   for (const channel of [0, 1]) {
     if (audioBuffers[channel].length === 0) continue
@@ -332,7 +399,7 @@ async function processBufferedAudio(): Promise<void> {
       offset += chunk.length
     }
 
-    const elapsedSec = Math.floor((Date.now() - recordingStartTime) / 1000)
+    const elapsedSec = Math.floor(activeRecordingElapsedMs() / 1000)
     const chunkStartSec = Math.max(0, elapsedSec - Math.floor(totalLength / SAMPLE_RATE))
     const speaker = SPEAKER_BY_CHANNEL[channel]
 
@@ -358,7 +425,7 @@ async function processBufferedAudio(): Promise<void> {
       }
 
       const energy = merged.reduce((sum, v) => sum + v * v, 0) / merged.length
-      const minEnergy = MIN_ENERGY_BY_CHANNEL[channel]
+      const minEnergy = effectiveMinEnergy(channel as 0 | 1)
       if (energy < minEnergy) {
         if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (buffer energy', energy.toFixed(6), '<', minEnergy, ') channel:', channel)
         audioBuffers[channel].splice(0, chunkCount)
@@ -402,7 +469,10 @@ async function processBufferedAudio(): Promise<void> {
           continue
         }
         const totalSpeechDuration = vadSegments.reduce((sum, s) => sum + (s.end - s.start), 0)
-        const minSpeechSec = MIN_SPEECH_DURATION_SEC_BY_CHANNEL[channel]
+        const chIdx = channel as 0 | 1
+        const useResumeStrict = resumeStrictPassCountdown[chIdx] > 0
+        let minSpeechSec = MIN_SPEECH_DURATION_SEC_BY_CHANNEL[channel]
+        if (useResumeStrict) minSpeechSec *= RESUME_STRICT_MIN_SPEECH_SEC_MULT
         if (totalSpeechDuration < minSpeechSec) {
           if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: speech duration', totalSpeechDuration.toFixed(1), '<', minSpeechSec, 's) channel:', channel)
           audioBuffers[channel].splice(0, chunkCount)
@@ -418,7 +488,10 @@ async function processBufferedAudio(): Promise<void> {
 
       // Skip STT on near-silence to avoid hallucinations (stricter for "You" when muted)
       const speechEnergy = speechAudio.reduce((sum, v) => sum + v * v, 0) / speechAudio.length
-      const minSpeechEnergy = MIN_SPEECH_ENERGY_BY_CHANNEL[channel]
+      const chIdxForEnergy = channel as 0 | 1
+      const resumeStrictEnergy = resumeStrictPassCountdown[chIdxForEnergy] > 0
+      let minSpeechEnergy = effectiveMinSpeechEnergy(chIdxForEnergy)
+      if (resumeStrictEnergy) minSpeechEnergy *= RESUME_STRICT_SPEECH_ENERGY_MULT
       if (speechEnergy < minSpeechEnergy) {
         if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (speech energy', speechEnergy.toFixed(6), '<', minSpeechEnergy, ') channel:', channel)
         audioBuffers[channel].splice(0, chunkCount)
@@ -435,6 +508,11 @@ async function processBufferedAudio(): Promise<void> {
           currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
           restartChunkTimer()
         }
+      }
+
+      if (resumeStrictPassCountdown[chIdxForEnergy] > 0) {
+        resumeStrictPassCountdown[chIdxForEnergy]--
+        if (channel === 0) logMicCaptureDebug('resume_strict_pass_used', { remaining: resumeStrictPassCountdown[0] })
       }
 
       const wavBuffer = pcmToWav(speechAudio, SAMPLE_RATE)
@@ -499,14 +577,14 @@ async function processBufferedAudio(): Promise<void> {
         const now = Date.now()
         const filteredNorm = filtered.toLowerCase().replace(/[,.\-!?\s]+/g, ' ').trim()
         // Prune old entries
-        while (recentEmittedTexts.length > 0 && now - recentEmittedTexts[0].time > DEDUP_WINDOW_MS) {
+        while (recentEmittedTexts.length > 0 && now - recentEmittedTexts[0].time > effectiveDedupWindowMs()) {
           recentEmittedTexts.shift()
         }
         const isDuplicate = recentEmittedTexts.some(entry => {
           if (entry.text === filteredNorm) return true
           if (filteredNorm.includes(entry.text) || entry.text.includes(filteredNorm)) return true
           // Fuzzy match for cross-channel echo (speaker bleed into mic)
-          if (entry.channel !== channel && textSimilarity(entry.text, filteredNorm) > FUZZY_DEDUP_THRESHOLD) return true
+          if (entry.channel !== channel && textSimilarity(entry.text, filteredNorm) > effectiveFuzzyDedupThreshold()) return true
           return false
         })
         if (isDuplicate) {
@@ -647,9 +725,40 @@ function formatTimestamp(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/**
+ * Normalize a token for duplicate detection (handles "are," vs "are", "it's" intact).
+ */
+function tokenCompareKey(token: string): string {
+  return token
+    .toLowerCase()
+    .replace(/^['"([{]+/g, '')
+    .replace(/['"})\].,!?;:]+$/g, '')
+    .trim()
+}
+
+/**
+ * Collapse consecutive duplicate tokens — fixes paired stutter from cloud STT (e.g. Deepgram
+ * "are are", "that that") that regex (1) below misses (it needs 3+ repeats).
+ */
+function collapseAdjacentDuplicateTokens(text: string): string {
+  const tokens = text.trim().split(/\s+/).filter(Boolean)
+  if (tokens.length < 2) return text.trim()
+  const out: string[] = []
+  for (const t of tokens) {
+    const key = tokenCompareKey(t)
+    const prev = out[out.length - 1]
+    const prevKey = prev ? tokenCompareKey(prev) : ''
+    if (key.length > 0 && key === prevKey) continue
+    out.push(t)
+  }
+  return out.join(' ')
+}
+
 /** Collapse repeated phrases/words to one occurrence so we keep content instead of dropping. */
 function collapseRepetitions(text: string): string {
   let out = text.trim()
+  // 0. Immediate doubles (cloud STT stutter) — run twice; later steps can re-adjacentize
+  out = collapseAdjacentDuplicateTokens(out)
 
   // 1. Word-level stutter: "Oh, Oh, Oh, Oh" → "Oh" / "you you you you" → "you"
   //    Match a word (with optional trailing comma) repeated 2+ times consecutively
@@ -679,6 +788,9 @@ function collapseRepetitions(text: string): string {
 
   // 6. Clean up leftover double spaces / commas
   out = out.replace(/\s{2,}/g, ' ').replace(/,\s*,/g, ',').trim()
+
+  // 7. Final pass: paired duplicates after punctuation normalization
+  out = collapseAdjacentDuplicateTokens(out)
 
   return out
 }
@@ -714,6 +826,10 @@ function filterHallucinatedTranscript(text: string): string | null {
     /hit\s+the\s+(bell|subscribe)\s+button/i,
     /^\[music\]$/i, /^\[applause\]$/i, /^\[blank_audio\]$/i,
     /^\(music\)$/i, /^\(applause\)$/i, /^\(laughter\)$/i,
+    // Common Whisper "meeting filler" on silence / reconnect noise (esp. after pause→resume)
+    /let me add (a few )?thoughts on (this |the )?topic/i,
+    /consider the timeline (for|of) next steps/i,
+    /wrap up the remaining items/i,
   ]
   for (const pat of hallucinationPatterns) {
     if (pat.test(lower)) return null

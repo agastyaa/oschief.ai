@@ -8,6 +8,8 @@ import { useState, useEffect, useRef } from 'react';
  * When `isActive` becomes false (paused) but `startTime` is still set,
  * the timer freezes at the last value instead of resetting.
  * Resets to 0 only when `startTime` becomes null.
+ * After a pause, the parent should re-anchor `startTime` to `Date.now() - frozenElapsed * 1000`
+ * on resume so wall time during the pause is not counted (see NewNotePage handleResume).
  */
 export function useElapsedTime(startTime: number | null, isActive: boolean): number {
   const [elapsed, setElapsed] = useState(0);

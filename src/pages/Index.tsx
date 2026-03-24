@@ -378,12 +378,11 @@ const Index = () => {
             <div className="mb-4">
               <PrepCard
                 event={nextEventForPrep}
-                onStartNote={(evt) => {
-                  const calEvt = displayEvents.find(e => e.id === evt.id || e.title === evt.title);
-                  if (calEvt) {
-                    handleStartNotesForEvent(calEvt);
-                  } else {
-                    navigate("/new-note", { state: { eventTitle: evt.title, eventId: evt.id } });
+                onStartNote={() => {
+                  // Use canonical `nextEvent` from the calendar list — not PrepCard's mapped shape —
+                  // so event id/title always match `findNoteForEvent` / stored `calendarEventId`.
+                  if (nextEvent) {
+                    handleStartNotesForEvent(nextEvent);
                   }
                 }}
                 onConnectCalendar={() => setIcsOpen(true)}

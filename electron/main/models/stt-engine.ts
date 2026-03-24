@@ -385,6 +385,139 @@ function getMlxChildEnv(): NodeJS.ProcessEnv {
   return { ...process.env, PATH: getEnvPathWithBrew() }
 }
 
+/** First `python3` on PATH with brew bins (same as pip / MLX worker). */
+function getPython3ExecutableHint(): string {
+  const env = getMlxChildEnv()
+  try {
+    const out = execSync('command -v python3', { encoding: 'utf8', timeout: 5000, env }).trim()
+    if (out) return out
+  } catch {
+    /* try which */
+  }
+  try {
+    const w = execSync('which python3', { encoding: 'utf8', timeout: 5000, env }).trim()
+    return w || 'python3'
+  } catch {
+    return 'python3'
+  }
+}
+
+type MlxImportProbe = { ok: boolean; pythonExecutable: string; stderr: string }
+
+/** Run `import mlx_whisper` under the same env as the worker; capture traceback on failure. */
+function probeMlxWhisperImport(): Promise<MlxImportProbe> {
+  const script = [
+    'import sys',
+    'try:',
+    '    import mlx_whisper',
+    '    print(sys.executable)',
+    'except BaseException:',
+    '    import traceback',
+    '    traceback.print_exc()',
+    '    sys.exit(1)',
+  ].join('\n')
+
+  return new Promise((resolve) => {
+    const proc = spawn('python3', ['-c', script], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: getMlxChildEnv(),
+    })
+    let stderr = ''
+    let stdout = ''
+    proc.stdout?.on('data', (d) => {
+      stdout += d.toString()
+    })
+    proc.stderr?.on('data', (d) => {
+      stderr += d.toString()
+    })
+    proc.on('close', (code) => {
+      const pythonExecutable = stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .pop()
+        ?.trim() || ''
+      resolve({
+        ok: code === 0,
+        pythonExecutable,
+        stderr: stderr.trim(),
+      })
+    })
+    proc.on('error', (err) => {
+      resolve({ ok: false, pythonExecutable: '', stderr: err.message })
+    })
+  })
+}
+
+/** Same for 8-bit path (mlx-audio-plus). */
+function probeMlxAudioSttImport(): Promise<MlxImportProbe> {
+  const script = [
+    'import sys',
+    'try:',
+    '    from mlx_audio.stt import load',
+    '    from mlx_audio.stt.utils import load_audio',
+    '    print(sys.executable)',
+    'except BaseException:',
+    '    import traceback',
+    '    traceback.print_exc()',
+    '    sys.exit(1)',
+  ].join('\n')
+
+  return new Promise((resolve) => {
+    const proc = spawn('python3', ['-c', script], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: getMlxChildEnv(),
+    })
+    let stderr = ''
+    let stdout = ''
+    proc.stdout?.on('data', (d) => {
+      stdout += d.toString()
+    })
+    proc.stderr?.on('data', (d) => {
+      stderr += d.toString()
+    })
+    proc.on('close', (code) => {
+      const pythonExecutable = stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .pop()
+        ?.trim() || ''
+      resolve({
+        ok: code === 0,
+        pythonExecutable,
+        stderr: stderr.trim(),
+      })
+    })
+    proc.on('error', (err) => {
+      resolve({ ok: false, pythonExecutable: '', stderr: err.message })
+    })
+  })
+}
+
+function formatMlxWhisperImportRepairError(probe: MlxImportProbe): string {
+  const bin = getPython3ExecutableHint()
+  const detail = (probe.stderr || probe.pythonExecutable || 'unknown error')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 520)
+  return (
+    `Import failed for mlx-whisper (Syag uses: ${bin}` +
+    (probe.pythonExecutable ? ` → ${probe.pythonExecutable}` : '') +
+    `). ${detail}. In Terminal: ${bin} -m pip install --user --force-reinstall mlx-whisper && ${bin} -c "import mlx_whisper"`
+  )
+}
+
+function formatMlxAudioImportRepairError(probe: MlxImportProbe): string {
+  const bin = getPython3ExecutableHint()
+  const detail = (probe.stderr || 'unknown error').replace(/\s+/g, ' ').trim().slice(0, 520)
+  return (
+    `Import failed for mlx-audio-plus (Syag uses: ${bin}` +
+    (probe.pythonExecutable ? ` → ${probe.pythonExecutable}` : '') +
+    `). ${detail}. In Terminal: ${bin} -m pip install --user --force-reinstall mlx-audio-plus`
+  )
+}
+
 /**
  * PEP 668-safe pip install: tries --user first (works on macOS system Python),
  * falls back to --break-system-packages if --user fails.
@@ -668,17 +801,9 @@ export function killMLXWorker(): void {
 
 export async function checkMLXWhisperAvailable(): Promise<boolean> {
   if (mlxWhisperAvailable !== null) return mlxWhisperAvailable
-  try {
-    execSync('python3 -c "import mlx_whisper"', {
-      stdio: 'pipe',
-      timeout: 10000,
-      env: getMlxChildEnv(),
-    })
-    mlxWhisperAvailable = true
-  } catch {
-    mlxWhisperAvailable = false
-  }
-  return mlxWhisperAvailable
+  const probe = await probeMlxWhisperImport()
+  mlxWhisperAvailable = probe.ok
+  return probe.ok
 }
 
 export async function installMLXWhisper(): Promise<LocalSetupResult> {
@@ -726,13 +851,14 @@ export async function installMLXWhisper(): Promise<LocalSetupResult> {
 
   steps.push('Step 3/3 — Verifying import…')
   mlxWhisperAvailable = null
-  const available = await checkMLXWhisperAvailable()
-  if (!available) {
-    console.warn('[MLX] pip install succeeded but import check failed')
+  const probe = await probeMlxWhisperImport()
+  mlxWhisperAvailable = probe.ok
+  if (!probe.ok) {
+    console.warn('[MLX] pip install succeeded but import check failed:', probe.stderr?.slice(0, 400))
     return {
       ok: false,
       steps,
-      error: 'mlx-whisper installed but Python import check failed (wrong Python / venv?).',
+      error: formatMlxWhisperImportRepairError(probe),
       hint,
     }
   }
@@ -963,17 +1089,9 @@ export async function checkMLXWhisper8BitAvailable(): Promise<boolean> {
     mlx8BitAvailable = false
     return false
   }
-  try {
-    execSync('python3 -c "from mlx_audio.stt import load; from mlx_audio.stt.utils import load_audio"', {
-      stdio: 'pipe',
-      timeout: 10000,
-      env: getMlxChildEnv(),
-    })
-    mlx8BitAvailable = true
-  } catch {
-    mlx8BitAvailable = false
-  }
-  return mlx8BitAvailable
+  const probe = await probeMlxAudioSttImport()
+  mlx8BitAvailable = probe.ok
+  return probe.ok
 }
 
 export async function installMLXWhisper8Bit(): Promise<LocalSetupResult> {
@@ -1016,13 +1134,14 @@ export async function installMLXWhisper8Bit(): Promise<LocalSetupResult> {
 
   steps.push('Step 3/3 — Verifying import…')
   mlx8BitAvailable = null
-  const available = await checkMLXWhisper8BitAvailable()
-  if (!available) {
-    console.warn('[MLX 8-bit] pip install succeeded but import check failed')
+  const probe8 = await probeMlxAudioSttImport()
+  mlx8BitAvailable = probe8.ok
+  if (!probe8.ok) {
+    console.warn('[MLX 8-bit] pip install succeeded but import check failed:', probe8.stderr?.slice(0, 400))
     return {
       ok: false,
       steps,
-      error: 'mlx-audio-plus installed but import check failed.',
+      error: formatMlxAudioImportRepairError(probe8),
       hint,
     }
   }
@@ -1106,8 +1225,9 @@ export async function repairMLXWhisper(): Promise<{ ok: boolean; error?: string 
     if (!pipOk) return { ok: false, error: 'pip install mlx-whisper failed. Run: pip3 install mlx-whisper' }
     // Verify the import works
     mlxWhisperAvailable = null
-    const available = await checkMLXWhisperAvailable()
-    if (!available) return { ok: false, error: 'mlx-whisper installed but import failed. Check Python 3 installation.' }
+    const probe = await probeMlxWhisperImport()
+    mlxWhisperAvailable = probe.ok
+    if (!probe.ok) return { ok: false, error: formatMlxWhisperImportRepairError(probe) }
     return { ok: true }
   } catch (err: any) {
     return { ok: false, error: err.message || 'Unknown repair error' }
@@ -1124,8 +1244,12 @@ export async function repairMLXWhisper8Bit(): Promise<{ ok: boolean; error?: str
     const pipOk = await forceInstallPip('mlx-audio-plus')
     if (!pipOk) return { ok: false, error: 'pip install mlx-audio-plus failed. Run: pip3 install mlx-audio-plus' }
     mlx8BitAvailable = null
-    const available = await checkMLXWhisper8BitAvailable()
-    if (!available) return { ok: false, error: 'mlx-audio-plus installed but import failed.' }
+    if (!checkFfmpegAvailable()) {
+      return { ok: false, error: 'ffmpeg required for MLX 8-bit. Run: brew install ffmpeg' }
+    }
+    const probe = await probeMlxAudioSttImport()
+    mlx8BitAvailable = probe.ok
+    if (!probe.ok) return { ok: false, error: formatMlxAudioImportRepairError(probe) }
     return { ok: true }
   } catch (err: any) {
     return { ok: false, error: err.message || 'Unknown repair error' }
