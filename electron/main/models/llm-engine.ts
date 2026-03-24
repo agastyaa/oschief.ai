@@ -110,6 +110,10 @@ function buildChatSystemMessage(context: any): string {
     prompt += `\n\nContext from user's notes:\n${context.notes}`
   }
 
+  if (context?.graph) {
+    prompt += `\n\nUser's professional graph (people, projects, decisions, commitments):\n${context.graph}`
+  }
+
   return prompt
 }
 

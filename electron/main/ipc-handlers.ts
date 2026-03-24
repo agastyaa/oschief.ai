@@ -303,6 +303,55 @@ export function registerIPCHandlers(): void {
     })
   })
 
+  // Build rich graph context for Syag Chat (people, projects, decisions, commitments + notes)
+  ipcMain.handle('llm:build-graph-context', async () => {
+    try {
+      const { getAllPeople } = await import('./memory/people-store')
+      const { getAllProjects } = await import('./memory/project-store')
+      const { getAllDecisions } = await import('./memory/decision-store')
+      const { getOpenCommitments } = await import('./memory/commitment-store')
+      const parts: string[] = []
+
+      const people = getAllPeople()
+      if (people.length > 0) {
+        parts.push(`People (${people.length}):`)
+        for (const p of people.slice(0, 30)) {
+          parts.push(`  - ${p.name}${p.company ? ` (${p.company})` : ''}${p.role ? `, ${p.role}` : ''} — ${p.meetingCount || 0} meetings`)
+        }
+      }
+
+      const projects = getAllProjects()
+      if (projects.length > 0) {
+        parts.push(`\nProjects (${projects.length}):`)
+        for (const p of projects.slice(0, 15)) {
+          parts.push(`  - ${p.name} [${p.status}] — ${p.meetingCount || 0} meetings, ${p.decisionCount || 0} decisions`)
+        }
+      }
+
+      const decisions = getAllDecisions()
+      if (decisions.length > 0) {
+        parts.push(`\nRecent decisions (${decisions.length}):`)
+        for (const d of decisions.slice(0, 20)) {
+          parts.push(`  - ${d.text}${d.project_name ? ` (${d.project_name})` : ''}${d.note_title ? ` from "${d.note_title}"` : ''}`)
+        }
+      }
+
+      const commitments = getOpenCommitments()
+      if (commitments.length > 0) {
+        parts.push(`\nOpen commitments (${commitments.length}):`)
+        for (const c of commitments.slice(0, 15)) {
+          const owner = c.owner === 'you' ? 'You' : (c.assignee_name || c.owner)
+          parts.push(`  - ${owner}: ${c.text}${c.due_date ? ` (due ${c.due_date})` : ''}`)
+        }
+      }
+
+      return parts.join('\n')
+    } catch (err: any) {
+      console.error('[llm:build-graph-context]', err)
+      return ''
+    }
+  })
+
   // --- Audio ---
   ipcMain.handle('audio:get-devices', async () => {
     return [] // Devices are enumerated in the renderer via navigator.mediaDevices

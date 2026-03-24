@@ -133,6 +133,7 @@ const electronAPI = {
     }) => ipcRenderer.invoke('llm:summarize', data),
     chat: (data: { messages: any[]; context: any; model: string }) =>
       ipcRenderer.invoke('llm:chat', data),
+    buildGraphContext: () => ipcRenderer.invoke('llm:build-graph-context') as Promise<string>,
     onChatChunk: (callback: (chunk: { text: string; done: boolean }) => void) => {
       const handler = (_event: any, chunk: any) => callback(chunk)
       ipcRenderer.on('llm:chat-chunk', handler)

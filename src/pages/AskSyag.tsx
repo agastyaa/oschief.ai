@@ -111,7 +111,7 @@ export default function AskSyag() {
     const userMsg: Message = {
       role: "user",
       text: recipe ? recipe.label : question,
-      context: { label: "My notes", detail: useTranscripts ? "+ Last 25 transcripts" : "All notes" },
+      context: { label: "My notes + graph", detail: useTranscripts ? "+ Transcripts + People/Projects/Decisions" : "Notes + People/Projects/Decisions" },
       recipe,
     };
 
@@ -123,6 +123,8 @@ export default function AskSyag() {
     if (api && selectedAIModel) {
       try {
         const notesContext = buildNotesContext();
+        // Fetch full graph context (people, projects, decisions, commitments)
+        const graphContext = await (api.llm as any).buildGraphContext?.() || '';
         const chatMessages = [...messages, userMsg].map(m => ({
           role: m.role,
           content: m.recipe?.prompt || m.text,
@@ -132,6 +134,7 @@ export default function AskSyag() {
           messages: chatMessages,
           context: {
             notes: notesContext,
+            graph: graphContext,
             mode: "ask-syag",
           },
           model: selectedAIModel,
