@@ -685,6 +685,7 @@ function CoachingView({
   onJumpToTranscriptLine?: (lineIndex: number) => void;
 }) {
   const api = getElectronAPI();
+  const { selectedAIModel } = useModelSettings();
   const meetingDurationSec = useMemo(() => {
     const parts = (note.duration || "0:00").split(":").map(Number);
     if (parts.length === 2) return parts[0] * 60 + parts[1];
@@ -753,6 +754,7 @@ function CoachingView({
           metrics: metricsForApi as unknown as Record<string, unknown>,
           heuristics,
           roleId: accountRoleId,
+          model: selectedAIModel || undefined,
         });
         if (cancelled) return;
         if (result.ok) {
@@ -792,7 +794,7 @@ function CoachingView({
       if (!accountRoleId || cancelled) return;
       setInsightsLoading(true);
       try {
-        const result = await api.coaching!.generateRoleInsights(metrics, accountRoleId);
+        const result = await api.coaching!.generateRoleInsights(metrics, accountRoleId, selectedAIModel || undefined);
         if (!cancelled && result.roleInsights.length > 0) {
           setRoleInsights(result.roleInsights);
           updateNote(note.id, { coachingMetrics: { ...metrics, roleInsights: result.roleInsights, roleId: accountRoleId } });
@@ -994,6 +996,7 @@ function CoachingView({
                   metrics: metricsForApi as unknown as Record<string, unknown>,
                   heuristics,
                   roleId: accountRoleId,
+                  model: selectedAIModel || undefined,
                 });
                 if (result.ok) {
                   updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
