@@ -75,6 +75,11 @@ app.whenReady().then(async () => {
     startSync()
   }
 
+  // Smart meeting reminders — 5 min before each meeting
+  import('./notifications/meeting-reminder').then(({ startMeetingReminders }) => {
+    startMeetingReminders()
+  }).catch(() => {})
+
   // Schedule routines (daily brief, weekly recap, etc.)
   import('./routines/routines-engine').then(({ scheduleAllRoutines }) => {
     scheduleAllRoutines()

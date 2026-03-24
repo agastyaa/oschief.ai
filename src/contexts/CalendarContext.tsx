@@ -257,6 +257,14 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [calendarViewId, calendarSources, setCalendarViewId]);
 
+  // Expose calendar events to main process for smart meeting reminders
+  useEffect(() => {
+    (window as any).__syagCalendarEvents = events.map(e => ({
+      id: e.id, title: e.title, start: e.start, end: e.end,
+      attendees: e.attendees, joinLink: e.joinLink,
+    }))
+  }, [events]);
+
   const mergeFeedEvents = useCallback(
     (
       feedId: string,
