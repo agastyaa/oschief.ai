@@ -52,6 +52,24 @@ function saveKeychain(data: Record<string, string>): void {
 }
 
 export function registerIPCHandlers(): void {
+  // --- Auto-Setup ---
+  ipcMain.handle('setup:is-complete', async () => {
+    const { isSetupComplete } = await import('./models/auto-setup')
+    return isSetupComplete()
+  })
+  ipcMain.handle('setup:retry', async (_e) => {
+    const { BrowserWindow } = await import('electron')
+    const { runAutoSetup } = await import('./models/auto-setup')
+    const { setSetting } = await import('./storage/database')
+    setSetting('auto-setup-complete', '') // Reset so it re-runs
+    return runAutoSetup((status) => {
+      const win = BrowserWindow.getFocusedWindow()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('setup:progress', status)
+      }
+    })
+  })
+
   // --- Notes ---
   ipcMain.handle('db:notes-get-all', () => getAllNotes())
   ipcMain.handle('db:notes-get', (_e, id: string) => getNote(id))

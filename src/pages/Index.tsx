@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { SetupProgressCard, type SetupPhase } from "@/components/SetupProgressCard";
+import { OllamaUpgradeCard } from "@/components/OllamaUpgradeCard";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
 import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -96,6 +98,31 @@ const Index = () => {
   const [openCommitments, setOpenCommitments] = useState<any[]>([]);
   const viewAll = searchParams.get("view") === "all";
   const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
+
+  // Auto-setup progress tracking
+  const [setupPhase, setSetupPhase] = useState<SetupPhase | null>(null);
+  const [setupMessage, setSetupMessage] = useState("");
+  const [setupPercent, setSetupPercent] = useState(0);
+  const [setupComplete, setSetupComplete] = useState(true); // assume complete until checked
+
+  useEffect(() => {
+    if (!api?.setup) return;
+    // Check if setup is already complete
+    api.setup.isComplete().then((complete) => {
+      setSetupComplete(complete);
+      if (!complete) setSetupPhase('detecting');
+    }).catch(() => {});
+    // Listen for progress events
+    const cleanup = api.setup.onProgress((status) => {
+      setSetupPhase(status.phase as SetupPhase);
+      setSetupMessage(status.message);
+      setSetupPercent(status.percent);
+      if (status.phase === 'ready') {
+        setSetupComplete(true);
+      }
+    });
+    return cleanup;
+  }, [api]);
 
   useEffect(() => {
     if (viewAll) setRecentMeetingsExpanded(true);
@@ -405,20 +432,35 @@ const Index = () => {
 
             {/* ── Recent Meetings (collapsible on homepage, always-expanded in All Notes) ── */}
             {notes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
-                  <Mic className="h-5 w-5" />
-                </div>
-                <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
-                <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
-                  Syag captures, transcribes, and summarizes your meetings automatically.
-                </p>
-                <button
-                  onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                  className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
-                >
-                  Quick Note
-                </button>
+              <div className="space-y-4">
+                {/* Show setup progress if auto-setup is running */}
+                {!setupComplete && setupPhase && (
+                  <SetupProgressCard phase={setupPhase} message={setupMessage} percent={setupPercent} />
+                )}
+
+                {/* Show "Record your first meeting" after setup or if already set up */}
+                {setupComplete && (
+                  <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-10 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
+                      <Mic className="h-5 w-5" />
+                    </div>
+                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Record your first meeting</h2>
+                    <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
+                      Syag captures, transcribes, and summarizes your meetings automatically.
+                    </p>
+                    <button
+                      onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                      className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                    >
+                      Quick Note
+                    </button>
+                  </div>
+                )}
+
+                {/* Show Ollama upgrade prompt if using bundled models */}
+                {setupComplete && !viewAll && (
+                  <OllamaUpgradeCard />
+                )}
               </div>
             ) : (
               <div>

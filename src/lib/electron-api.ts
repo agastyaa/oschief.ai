@@ -53,6 +53,11 @@ type ElectronAPI = {
       getAll: () => Promise<Record<string, string>>
     }
   }
+  setup?: {
+    isComplete: () => Promise<boolean>
+    retry: () => Promise<any>
+    onProgress: (callback: (status: { phase: string; message: string; percent: number; track: number; sttModel?: string; llmModel?: string }) => void) => () => void
+  }
   ollama?: {
     detect: () => Promise<{ available: boolean; models: string[] }>
     models: () => Promise<{ value: string; label: string; size: number }[]>

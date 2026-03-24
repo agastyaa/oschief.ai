@@ -71,6 +71,16 @@ const electronAPI = {
     uninstallMLXWhisper8Bit: () => ipcRenderer.invoke('models:uninstall-mlx-whisper-8bit') as Promise<{ ok: boolean; error?: string }>,
   },
 
+  setup: {
+    isComplete: () => ipcRenderer.invoke('setup:is-complete') as Promise<boolean>,
+    retry: () => ipcRenderer.invoke('setup:retry') as Promise<any>,
+    onProgress: (callback: (status: any) => void) => {
+      const handler = (_: any, status: any) => callback(status);
+      ipcRenderer.on('setup:progress', handler);
+      return () => ipcRenderer.removeListener('setup:progress', handler);
+    },
+  },
+
   ollama: {
     detect: () => ipcRenderer.invoke('ollama:detect') as Promise<{ available: boolean; models: string[] }>,
     models: () => ipcRenderer.invoke('ollama:models') as Promise<{ value: string; label: string; size: number }[]>,

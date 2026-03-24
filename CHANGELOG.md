@@ -4,6 +4,23 @@ All notable changes to Syag are documented here. **Keep this file updated with e
 
 ---
 
+## [1.11.0] — 2026-03-24
+
+Zero-config AI setup — Syag now downloads and configures the best STT + LLM models automatically on first launch. No settings navigation required.
+
+### Added
+- **Auto-setup on first launch:** Syag detects your Mac's hardware and automatically downloads the best models:
+  - **With Ollama (16GB+):** MLX Whisper (best STT) + Qwen3 8B via Ollama (~95% cloud quality)
+  - **Without Ollama:** Whisper Large V3 Turbo (whisper.cpp) + Llama 3.2 3B (~80% cloud quality)
+  - STT: tries MLX Whisper first (Apple Silicon native), falls back to whisper.cpp if pip fails
+- **Setup progress card on homepage:** Shows download progress during first-run setup with step indicators (Speech recognition → AI summarization → Configuration)
+- **Ollama upgrade prompt:** After bundled setup, shows a dismissible card suggesting Ollama for better quality — "Want better AI quality? Install Ollama for 95% cloud quality"
+- **IPC handlers for setup:** `setup:is-complete`, `setup:retry`, `setup:progress` events
+
+### Changed
+- Homepage empty state now shows setup progress during first run instead of immediately showing "Record your first meeting"
+- Auto-setup replaces the previous Ollama-only auto-pull (which only worked if Ollama was already installed)
+
 ## [1.10.4] — 2026-03-24
 
 Stability and UI polish release. Focus: homepage layout, Quick Prompts overlay, export reliability, dark mode.

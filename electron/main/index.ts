@@ -75,18 +75,21 @@ app.whenReady().then(async () => {
     startSync()
   }
 
-  // Auto-pull recommended Ollama model in background (silent, non-blocking)
-  import('./models/ollama-manager').then(({ autoSetupOllamaModel }) => {
-    autoSetupOllamaModel((progress) => {
+  // Zero-config auto-setup: download best STT + LLM models on first launch
+  import('./models/auto-setup').then(({ runAutoSetup, isSetupComplete }) => {
+    if (isSetupComplete()) return
+    runAutoSetup((status) => {
       const win = getMainWindow()
       if (win && !win.isDestroyed()) {
-        win.webContents.send('ollama:pull-progress', progress)
+        win.webContents.send('setup:progress', status)
       }
     }).then((result) => {
-      if (result.pulled) {
-        console.log(`[Ollama] Auto-pulled ${result.model} on startup`)
+      if (result.ok) {
+        console.log(`[auto-setup] Done — Track ${result.track}: STT=${result.sttModel}, LLM=${result.llmModel}`)
       }
-    }).catch(() => {})
+    }).catch((err) => {
+      console.error('[auto-setup] Unexpected error:', err)
+    })
   }).catch(() => {})
 
   // Start Agent API if enabled and token exists
