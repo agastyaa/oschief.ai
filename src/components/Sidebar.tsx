@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat } from "lucide-react";
 import { SyagLogo } from "@/components/SyagLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { cn } from "@/lib/utils";
@@ -153,6 +153,18 @@ export function Sidebar() {
         >
           <FileText className="h-3.5 w-3.5" />
           All Notes
+        </button>
+        <button
+          onClick={() => navigate("/series")}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+            isActive("/series")
+              ? "bg-secondary text-foreground font-medium border-l-2 border-primary -ml-[2px]"
+              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+          )}
+        >
+          <Repeat className="h-3.5 w-3.5" />
+          Series
         </button>
       </nav>
 
