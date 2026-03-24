@@ -4,6 +4,7 @@ import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft 
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
+import { SummarySkeleton } from "@/components/SummarySkeleton";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
@@ -1099,53 +1100,14 @@ export default function NewNotePage() {
                         autoFocus
                       />
                     ) : isSummarizing ? (
-                      <div className="space-y-8 py-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
-                            <div className="h-4 w-36 rounded bg-muted-foreground/10 animate-pulse" />
-                          </div>
-                          <div className="space-y-2 pl-6">
-                            <div className="h-4 w-full rounded bg-muted-foreground/10 animate-pulse" />
-                            <div className="h-4 w-4/5 rounded bg-muted-foreground/10 animate-pulse" />
-                            <div className="h-4 w-3/5 rounded bg-muted-foreground/10 animate-pulse" />
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
-                            <div className="h-4 w-24 rounded bg-muted-foreground/10 animate-pulse" />
-                          </div>
-                          <div className="space-y-2.5 pl-6">
-                            {[1, 2, 3, 4].map((i) => (
-                              <div key={i} className="flex items-center gap-2.5">
-                                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/10 animate-pulse" />
-                                <div className="h-4 rounded bg-muted-foreground/10 animate-pulse" style={{ width: `${70 - i * 10}%` }} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="h-3.5 w-3.5 rounded bg-muted-foreground/10 animate-pulse" />
-                            <div className="h-4 w-28 rounded bg-muted-foreground/10 animate-pulse" />
-                          </div>
-                          <div className="space-y-2.5 pl-6">
-                            {[1, 2].map((i) => (
-                              <div key={i} className="flex items-center gap-2.5">
-                                <div className="h-4 w-4 rounded-full bg-muted-foreground/10 animate-pulse" />
-                                <div className="h-4 rounded bg-muted-foreground/10 animate-pulse" style={{ width: `${55 - i * 10}%` }} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center animate-pulse">Generating summary...</p>
-                      </div>
+                      <SummarySkeleton />
                     ) : (
-                      <EditableSummary
-                        summary={summary}
-                        onUpdate={(updated) => setSummary(updated)}
-                      />
+                      <div className="animate-fade-in">
+                        <EditableSummary
+                          summary={summary}
+                          onUpdate={(updated) => setSummary(updated)}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -1206,7 +1168,7 @@ export default function NewNotePage() {
 
           {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-full lg:w-[36rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none">
+            <div className="w-full lg:w-[36rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none animate-slide-in-right">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-2">
@@ -1309,11 +1271,13 @@ export default function NewNotePage() {
                     const displayLabel = isMe ? "Me" : "Them";
                     // Always show speaker label for clarity — especially after time-gap splits
                     const showLabel = true;
+                    const isLastGroup = groupIdx === groups.length - 1;
                     return (
                       <div
                         key={group.indices.join("-")}
                         className={cn(
-                          "animate-fade-in group flex flex-col items-end gap-0.5",
+                          "group flex flex-col items-end gap-0.5",
+                          isLastGroup ? "animate-slide-in-right" : "animate-fade-in",
                           !isMe && "items-start"
                         )}
                       >

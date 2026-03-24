@@ -249,8 +249,8 @@ export function Sidebar() {
                 : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
             )}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Syag Chat
+            <Sparkles className="h-3.5 w-3.5 text-accent/90" />
+            Ask Syag
           </button>
           <button
             onClick={() => navigate("/coaching")}

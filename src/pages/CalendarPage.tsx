@@ -6,11 +6,8 @@ import {
   Link2,
   LayoutGrid,
   List,
-  MapPin,
-  Clock,
   Plus,
   FileText,
-  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
@@ -21,8 +18,9 @@ import { useRecording } from "@/contexts/RecordingContext";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { ICSDialog } from "@/components/ICSDialog";
+import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 import { CalendarEvent } from "@/lib/ics-parser";
-import { addDays, format, isToday as isTodayFn, isTomorrow, startOfDay } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Dialog,
@@ -190,13 +188,6 @@ export default function CalendarPage() {
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }, [displayEvents, listAnchorDate, listWindowEnd]);
 
-  const listViewGrouped = listRangeEvents.reduce<Record<string, CalendarEvent[]>>((acc, evt) => {
-    const key = format(new Date(evt.start), "yyyy-MM-dd");
-    (acc[key] = acc[key] || []).push(evt);
-    return acc;
-  }, {});
-  const listViewDates = Object.keys(listViewGrouped).sort();
-
   const listHeaderLabel = useMemo(() => {
     const endShow = addDays(listAnchorDate, LIST_WINDOW_DAYS - 1);
     return `${format(listAnchorDate, "MMM d")} – ${format(endShow, "MMM d, yyyy")}`;
@@ -272,14 +263,6 @@ export default function CalendarPage() {
     await deleteLocalBlock(evt.id);
     toast.success("Block removed");
   };
-
-  const eventRowClass = (evt: CalendarEvent) =>
-    cn(
-      "w-full text-left rounded-lg border p-3 hover:border-accent/40 hover:shadow-sm transition-all group",
-      evt.source === "local" || evt.isAllDay
-        ? "border-dashed bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,hsl(var(--border)/0.35)_6px,hsl(var(--border)/0.35)_7px)] bg-card"
-        : "border-border bg-card"
-    );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -505,149 +488,23 @@ export default function CalendarPage() {
                   </div>
                 </>
               ) : (
-                <div ref={listViewScrollRef}>
-                  {listViewDates.length === 0 ? (
+                <CalendarAgendaList
+                  ref={listViewScrollRef}
+                  events={listRangeEvents}
+                  onEventClick={handleEventClick}
+                  findNoteForEvent={findNoteForEvent}
+                  calendarViewId={calendarViewId}
+                  variant="full"
+                  showLocalDelete={isElectron}
+                  onDeleteLocal={handleDeleteLocal}
+                  emptyState={
                     <div className="text-center py-16">
                       <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                       <p className="text-sm text-muted-foreground">No events in this date range</p>
                       <p className="text-xs text-muted-foreground mt-2">Use the arrows to move by a week</p>
                     </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {listViewDates.map((dateKey) => {
-                        const dayEvents = listViewGrouped[dateKey];
-                        const dateObj = new Date(dateKey + "T12:00:00");
-                        const dayIsToday = isTodayFn(dateObj);
-                        const dayIsTomorrow = isTomorrow(dateObj);
-                        return (
-                          <div key={dateKey} className="mb-2">
-                            <div
-                              className={cn(
-                                "sticky top-0 z-10 flex items-center gap-3 px-3 py-2 rounded-lg mb-1 bg-background border-b border-border/50",
-                                dayIsToday ? "text-accent" : ""
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  "flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-lg text-center",
-                                  dayIsToday ? "bg-accent text-accent-foreground" : "bg-card border border-border"
-                                )}
-                              >
-                                <span className="text-[10px] font-medium leading-none">{format(dateObj, "EEE")}</span>
-                                <span className="text-lg font-semibold leading-none mt-0.5">{format(dateObj, "d")}</span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p
-                                  className={cn(
-                                    "text-sm font-medium truncate",
-                                    dayIsToday ? "text-accent" : "text-foreground"
-                                  )}
-                                >
-                                  {dayIsToday ? "Today" : dayIsTomorrow ? "Tomorrow" : format(dateObj, "EEEE")}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">{format(dateObj, "MMMM d, yyyy")}</p>
-                              </div>
-                              <span className="flex-shrink-0 text-[11px] text-muted-foreground">
-                                {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
-                              </span>
-                            </div>
-
-                            <div className="ml-5 border-l-2 border-border pl-5 space-y-1 mt-1 mb-4">
-                              {dayEvents.map((evt) => {
-                                const linked = findNoteForEvent(evt);
-                                return (
-                                  <div key={evt.id} className="relative group/row">
-                                    <button
-                                      onClick={() => handleEventClick(evt)}
-                                      className={eventRowClass(evt)}
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <div
-                                          className="min-w-0 flex-1 border-l-[3px] pl-2 -ml-0.5"
-                                          style={{
-                                            borderColor:
-                                              evt.source === "local"
-                                                ? "hsl(var(--muted-foreground) / 0.5)"
-                                                : `hsl(${(evt.id.charCodeAt(0) * 37) % 360} 40% 45%)`,
-                                          }}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <h4 className="text-sm font-medium text-foreground truncate group-hover:text-accent transition-colors">
-                                              {evt.title}
-                                            </h4>
-                                            {evt.source === "local" && (
-                                              <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">
-                                                Syag
-                                              </span>
-                                            )}
-                                            {calendarViewId === "all" &&
-                                              evt.source === "synced" &&
-                                              evt.calendarName && (
-                                                <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1 max-w-[7rem] truncate">
-                                                  {evt.calendarName}
-                                                </span>
-                                              )}
-                                          </div>
-                                          <div className="flex items-center gap-3 mt-1">
-                                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                              <Clock className="h-3 w-3" />
-                                              {format(new Date(evt.start), "h:mm a")} —{" "}
-                                              {format(new Date(evt.end), "h:mm a")}
-                                            </span>
-                                            {evt.location && (
-                                              <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
-                                                <MapPin className="h-3 w-3 flex-shrink-0" />
-                                                {evt.location}
-                                              </span>
-                                            )}
-                                          </div>
-                                          {evt.description && (
-                                            <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">
-                                              {evt.description}
-                                            </p>
-                                          )}
-                                          {evt.source === "local" && (
-                                            <p className="text-[10px] text-muted-foreground mt-1.5">
-                                              Only in Syag — won&apos;t appear in Google Calendar or Outlook.
-                                            </p>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                          {linked || evt.noteId ? (
-                                            <div
-                                              className="flex h-8 w-8 items-center justify-center rounded-md bg-accent/10 text-accent"
-                                              title="Has note"
-                                            >
-                                              <FileText className="h-3.5 w-3.5" />
-                                            </div>
-                                          ) : (
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent/10 text-accent">
-                                              <Calendar className="h-3.5 w-3.5" />
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </button>
-                                    {evt.source === "local" && isElectron && (
-                                      <button
-                                        type="button"
-                                        aria-label="Delete block"
-                                        onClick={(e) => void handleDeleteLocal(e, evt)}
-                                        className="absolute right-2 top-2 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                  }
+                />
               )}
             </>
           )}

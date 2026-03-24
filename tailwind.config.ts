@@ -90,12 +90,29 @@ export default {
           from: { opacity: "0", transform: "translateX(-12px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(14px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        /** Skeleton / summary loading — moving highlight */
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        /** Soft pulse on pause control while recording */
+        "recording-ring": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(4 80% 58% / 0.35)" },
+          "50%": { boxShadow: "0 0 0 7px hsl(4 80% 58% / 0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
+        "slide-in-right": "slide-in-right 0.32s ease-out both",
+        shimmer: "shimmer 1.8s ease-in-out infinite",
+        "recording-ring": "recording-ring 2.2s ease-in-out infinite",
       },
       typography: {
         DEFAULT: {

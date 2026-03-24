@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, ChevronDown, ChevronRight, FileText, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, FileText, Square, Sparkles } from "lucide-react";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
@@ -7,6 +7,7 @@ import { useNotes } from "@/contexts/NotesContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 
 import { cn } from "@/lib/utils";
+import { askSyagInputShell } from "@/lib/ask-syag-styles";
 import { ChatMessageContent } from "@/components/ChatMessageContent";
 
 interface Message {
@@ -188,16 +189,31 @@ export default function AskSyag() {
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
-            <div className="flex h-full flex-col items-center justify-center px-6">
-              <h1 className="font-display text-2xl text-foreground mb-6">Ask anything about your notes</h1>
+            <div className="flex h-full flex-col items-center justify-center px-6 pb-8">
+              <div className="mb-8 text-center max-w-lg">
+                <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-accent/12 text-accent mb-4 shadow-sm ring-1 ring-accent/20">
+                  <Sparkles className="h-7 w-7" aria-hidden />
+                </div>
+                <h1 className="font-display text-2xl sm:text-3xl text-foreground tracking-tight mb-2">
+                  Ask Syag
+                </h1>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Search across your meetings, transcripts, and notes. Use a recipe below or ask your own question.
+                </p>
+                {getActiveAIModelLabel() && (
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    Using <span className="font-medium text-foreground/90">{getActiveAIModelLabel()}</span>
+                  </p>
+                )}
+              </div>
 
               {/* Input card */}
-              <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-sm p-4 mb-5">
+              <div className={cn("w-full max-w-xl p-4 mb-6", askSyagInputShell)}>
                 {/* Context row with dropdown */}
                 <div className="relative mb-3">
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-secondary"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-muted/30 px-3 py-1.5 text-sm transition-all hover:bg-muted/50 hover:border-accent/25"
                   >
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                     {useTranscripts ? (
@@ -214,7 +230,7 @@ export default function AskSyag() {
                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </button>
                   {dropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 rounded-lg border border-border bg-card shadow-lg py-1 z-50 min-w-[220px]">
+                    <div className="absolute top-full left-0 mt-1.5 rounded-xl border border-border/70 bg-popover shadow-lg py-1 z-50 min-w-[220px] ring-1 ring-black/[0.04] dark:ring-white/[0.08]">
                       <button
                         onClick={() => { setUseTranscripts(false); setDropdownOpen(false); }}
                         className={cn(
@@ -238,35 +254,40 @@ export default function AskSyag() {
                 </div>
 
                 {/* Input row */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="h-4 w-4 text-accent/60 shrink-0" aria-hidden />
                   <input
                     ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask anything"
-                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
+                    placeholder="Ask anything about your notes…"
+                    className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none min-w-0"
                   />
                   {input.trim() && (
                     <button
                       onClick={() => handleSend()}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90 flex-shrink-0"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                      aria-label="Send"
                     >
-                      <ArrowUp className="h-3.5 w-3.5" />
+                      <ArrowUp className="h-4 w-4" />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Recipe chips */}
-              <div className="flex flex-wrap items-center justify-center gap-2 max-w-xl">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-xl">
                 {recipes.map((r) => (
                   <button
                     key={r.label}
                     onClick={() => handleSend(r.prompt, r)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-all hover:shadow-sm hover:border-ring/20"
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3.5 py-2 text-xs font-medium text-foreground",
+                      "shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-accent/35 hover:bg-accent/5"
+                    )}
                   >
-                    <span className={cn("h-2.5 w-1 rounded-full", r.color)} />
+                    <span className={cn("h-2.5 w-1 rounded-full shrink-0", r.color)} />
                     {r.label}
                   </button>
                 ))}
@@ -275,12 +296,12 @@ export default function AskSyag() {
           ) : (
             <div className="mx-auto max-w-2xl px-6 py-6 space-y-5">
               {messages.map((msg, i) => (
-                <div key={i} className={cn("animate-fade-in", msg.role === "user" ? "flex flex-col items-end gap-1.5" : "")}>
+                <div key={i} className={cn("animate-fade-in", msg.role === "user" ? "flex flex-col items-end gap-2" : "")}>
                   {msg.role === "user" ? (
                     <>
                       {msg.context && (
-                        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-sm">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-muted/25 px-3 py-2 text-sm shadow-sm">
+                          <FileText className="h-4 w-4 text-accent/80" />
                           <div>
                             <span className="font-medium text-foreground">{msg.context.label}</span>
                             <span className="text-muted-foreground ml-1.5 text-xs">{msg.context.detail}</span>
@@ -288,34 +309,36 @@ export default function AskSyag() {
                         </div>
                       )}
                       {msg.recipe ? (
-                        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground shadow-sm">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3.5 py-2 text-sm text-foreground shadow-sm">
                           <span className={cn("h-2.5 w-1 rounded-full", msg.recipe.color)} />
                           {msg.text}
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                       ) : (
-                        <div className="max-w-[80%] rounded-xl bg-accent text-accent-foreground px-3.5 py-2.5 text-[13px] leading-relaxed">
+                        <div className="max-w-[85%] rounded-2xl bg-accent text-accent-foreground px-4 py-3 text-[13px] leading-relaxed shadow-sm font-medium">
                           {msg.text}
                         </div>
                       )}
                     </>
                   ) : (
-                    <ChatMessageContent text={msg.text} />
+                    <div className="rounded-2xl border border-border/50 bg-card/80 px-4 py-3 shadow-sm">
+                      <ChatMessageContent text={msg.text} className="text-[13px]" />
+                    </div>
                   )}
                 </div>
               ))}
               {/* Streaming text display */}
               {streamingText && (
-                <div className="animate-fade-in">
-                  <ChatMessageContent text={streamingText} />
+                <div className="animate-fade-in rounded-2xl border border-border/50 bg-card/80 px-4 py-3 shadow-sm">
+                  <ChatMessageContent text={streamingText} className="text-[13px]" />
                 </div>
               )}
               {isLoading && !streamingText && (
-                <div className="animate-fade-in">
-                  <div className="flex gap-1 py-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:300ms]" />
+                <div className="animate-fade-in rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 inline-flex">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse [animation-delay:300ms]" />
                   </div>
                 </div>
               )}
@@ -325,28 +348,32 @@ export default function AskSyag() {
 
         {/* Bottom input in chat mode */}
         {!isEmpty && (
-          <div className="px-4 py-3">
+          <div className="px-4 py-3 border-t border-border/50 bg-gradient-to-t from-muted/15 to-transparent">
             <div className="mx-auto max-w-2xl">
-              <div className="flex items-center rounded-2xl border border-border bg-card shadow-sm px-4 py-3">
+              <div className={cn("flex items-center gap-2.5 px-4 py-3", askSyagInputShell)}>
+                <Sparkles className="h-4 w-4 text-accent/60 shrink-0" aria-hidden />
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type / for recipes"
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
+                  placeholder="Follow up… (recipes from home screen)"
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none min-w-0"
                 />
                 {isLoading ? (
                   <button
-                    className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-accent-foreground flex-shrink-0"
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground flex-shrink-0 cursor-default"
+                    aria-label="Loading"
                   >
                     <Square className="h-3 w-3" />
                   </button>
                 ) : input.trim() ? (
                   <button
                     onClick={() => handleSend()}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all hover:opacity-90 flex-shrink-0"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                    aria-label="Send"
                   >
-                    <ArrowUp className="h-3.5 w-3.5" />
+                    <ArrowUp className="h-4 w-4" />
                   </button>
                 ) : null}
               </div>
