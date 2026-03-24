@@ -159,17 +159,27 @@ export default function CoachingPage() {
       return { headline: latestInsights.headline, body: latestInsights.narrative, type: "latest" };
     }
     if (meetings.length > 0) {
-      // Build a coaching message from metrics
-      const latest = meetings[meetings.length - 1].metrics;
-      const issues: string[] = [];
-      if (latest.listeningScore < 60) issues.push(`Your listening score is ${latest.listeningScore} — you're talking ${Math.round(latest.talkToListenRatio * 100)}% of the time. Try asking more open questions.`);
-      if (latest.concisenessScore < 60) issues.push(`You're using ${latest.fillerWordsPerMinute.toFixed(1)} filler words per minute. Pausing instead of filling silence projects more confidence.`);
-      if (latest.pacingScore < 60) issues.push(`Your speaking pace is ${Math.round(latest.wordsPerMinute)} WPM — ${latest.wordsPerMinute > 160 ? "try slowing down" : "try picking up the pace"} to hit the 130-160 sweet spot.`);
-      if (issues.length === 0) issues.push(`Your latest score is ${latest.overallScore}. ${latest.overallScore >= 80 ? "Strong performance — keep it up." : "Open any meeting's Coaching tab to generate deeper analysis."}`);
-      return { headline: "Here's what I see", body: issues.join(" "), type: "metrics" };
+      return {
+        headline: "Generate your first coaching analysis",
+        body: "Open any meeting below and click the Coaching tab. I'll analyze what you said, what you committed to, and how it aligns with your role — not just how fast you talked.",
+        type: "metrics",
+      };
     }
     return { headline: "", body: "", type: "empty" };
   }
+
+  // Get the best micro-insights (specific "you said X" feedback) from recent meetings
+  const topMicroInsights = useMemo(() => {
+    const all: Array<{ text: string; framework?: string; evidenceQuote?: string; meetingTitle: string; meetingId: string }> = [];
+    for (const n of [...notesWithInsights].reverse().slice(0, 5)) {
+      const ci = n.coachingMetrics?.conversationInsights;
+      if (!ci?.microInsights) continue;
+      for (const mi of ci.microInsights.slice(0, 2)) {
+        all.push({ ...mi, meetingTitle: n.title || "Untitled", meetingId: n.id });
+      }
+    }
+    return all.slice(0, 5);
+  }, [notesWithInsights]);
 
   const coachMsg = buildCoachMessage();
 
@@ -261,6 +271,52 @@ export default function CoachingPage() {
               </div>
             )}
 
+            {/* ── Substance: What you said vs what you should have (micro-insights) ── */}
+            {topMicroInsights.length > 0 && (
+              <div className="mb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">WHAT I NOTICED</p>
+                <div className="space-y-3">
+                  {topMicroInsights.map((mi, i) => (
+                    <div key={i} className="border-l-2 border-primary/30 pl-3.5">
+                      <p className="text-[13px] text-foreground leading-relaxed">{mi.text}</p>
+                      {mi.evidenceQuote && (
+                        <blockquote className="mt-1.5 text-[11px] text-muted-foreground italic pl-2 border-l border-border">
+                          "{mi.evidenceQuote}"
+                        </blockquote>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {mi.framework && (
+                          <span className="text-[10px] text-primary/70">{mi.framework}</span>
+                        )}
+                        <button
+                          onClick={() => navigate(`/note/${mi.meetingId}`)}
+                          className="text-[10px] text-muted-foreground hover:text-primary"
+                        >
+                          {mi.meetingTitle} →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Key Moments (specific transcript moments worth reflecting on) ── */}
+            {latestInsights?.keyMoments && latestInsights.keyMoments.length > 0 && (
+              <div className="mb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">KEY MOMENTS FROM YOUR LAST CALL</p>
+                <div className="space-y-2">
+                  {latestInsights.keyMoments.slice(0, 3).map((km, i) => (
+                    <div key={i} className="rounded-md border border-border bg-card p-3">
+                      <p className="text-[12px] font-medium text-foreground">{km.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1 italic">"{km.quote}"</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{km.speaker} · {km.time}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Your Patterns (habit tags) ── */}
             {habitTagCounts.length > 0 && (
               <div className="mb-6">
@@ -291,15 +347,23 @@ export default function CoachingPage() {
                           <span className="text-[13px] font-medium text-foreground truncate">{m.title}</span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{m.date}</span>
                         </div>
-                        {m.metrics.conversationInsights?.headline && (
-                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {m.metrics.conversationInsights?.headline ? (
+                          <p className="text-[11px] text-foreground/70 truncate mt-0.5">
                             {m.metrics.conversationInsights.headline}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                            Click to generate coaching analysis
                           </p>
                         )}
                       </div>
-                      <span className={cn("text-sm font-bold tabular-nums shrink-0", scoreColor(m.metrics.overallScore))}>
-                        {m.metrics.overallScore}
-                      </span>
+                      {m.metrics.conversationInsights ? (
+                        <span className={cn("text-sm font-bold tabular-nums shrink-0", scoreColor(m.metrics.overallScore))}>
+                          {m.metrics.overallScore}
+                        </span>
+                      ) : (
+                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
                     </button>
                   ))}
                 </div>
