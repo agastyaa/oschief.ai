@@ -141,6 +141,62 @@ export function registerIPCHandlers(): void {
     return uninstallMLXWhisper8Bit()
   })
 
+  // --- Parakeet TDT (onnx-asr) ---
+  ipcMain.handle('models:check-parakeet', async () => {
+    try {
+      const { execSync } = await import('child_process')
+      execSync('python3 -c "import onnx_asr"', { timeout: 10000, stdio: 'pipe' })
+      return true
+    } catch {
+      return false
+    }
+  })
+  ipcMain.handle('models:install-parakeet', async () => {
+    const steps: { step: string; ok: boolean; detail?: string }[] = []
+    try {
+      const { execSync } = await import('child_process')
+      // Step 1: check python3
+      try {
+        execSync('python3 --version', { timeout: 5000, stdio: 'pipe' })
+        steps.push({ step: 'Python 3 check', ok: true })
+      } catch {
+        steps.push({ step: 'Python 3 check', ok: false, detail: 'python3 not found. Install Python 3 from python.org or brew install python3' })
+        return { ok: false, steps, error: 'Python 3 not found' }
+      }
+      // Step 2: pip install onnx-asr
+      try {
+        execSync('python3 -m pip install --user onnx-asr', { timeout: 120000, stdio: 'pipe' })
+        steps.push({ step: 'Install onnx-asr', ok: true })
+      } catch (err: any) {
+        const msg = err?.stderr?.toString?.()?.slice(0, 200) || ''
+        if (msg.includes('externally-managed')) {
+          // PEP 668 — try --break-system-packages
+          try {
+            execSync('python3 -m pip install --user --break-system-packages onnx-asr', { timeout: 120000, stdio: 'pipe' })
+            steps.push({ step: 'Install onnx-asr (PEP 668 workaround)', ok: true })
+          } catch (e2: any) {
+            steps.push({ step: 'Install onnx-asr', ok: false, detail: e2?.stderr?.toString?.()?.slice(0, 200) || 'pip install failed' })
+            return { ok: false, steps, error: 'pip install onnx-asr failed' }
+          }
+        } else {
+          steps.push({ step: 'Install onnx-asr', ok: false, detail: msg || 'pip install failed' })
+          return { ok: false, steps, error: 'pip install onnx-asr failed' }
+        }
+      }
+      // Step 3: verify import
+      try {
+        execSync('python3 -c "import onnx_asr; print(\'OK\')"', { timeout: 10000, stdio: 'pipe' })
+        steps.push({ step: 'Verify onnx-asr', ok: true })
+      } catch {
+        steps.push({ step: 'Verify onnx-asr', ok: false, detail: 'Import check failed after install' })
+        return { ok: false, steps, error: 'onnx-asr installed but import failed' }
+      }
+      return { ok: true, steps }
+    } catch (err: any) {
+      return { ok: false, steps, error: err.message?.slice(0, 200) || 'Unknown error' }
+    }
+  })
+
   // --- Ollama ---
   ipcMain.handle('ollama:detect', async () => {
     const { detectOllama } = await import('./models/ollama-manager')
@@ -855,7 +911,12 @@ export function registerIPCHandlers(): void {
   // --- Auto-updates ---
   ipcMain.handle('app:check-for-updates', async () => {
     try {
-      const { autoUpdater } = await import('electron-updater')
+      // electron-updater is CJS — use default import, then destructure
+      const pkg = await import('electron-updater')
+      const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
+      if (!autoUpdater?.checkForUpdates) {
+        return { ok: false as const, error: 'Auto-updater not available in this build' }
+      }
       const result = await autoUpdater.checkForUpdates()
       const info = result?.updateInfo
       const isUpdateAvailable =
@@ -873,7 +934,8 @@ export function registerIPCHandlers(): void {
     }
   })
   ipcMain.handle('app:install-update', async () => {
-    const { autoUpdater } = await import('electron-updater')
-    autoUpdater.quitAndInstall(false, true)
+    const pkg = await import('electron-updater')
+    const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
+    autoUpdater?.quitAndInstall(false, true)
   })
 }

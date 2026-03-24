@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUp,
@@ -81,11 +82,11 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
   },
   {
     label: "Coach me",
-    description: "Feedback tied to your transcript & metrics",
+    description: "Role-based coaching on how you ran this meeting",
     icon: Target,
     group: "growth",
     prompt:
-      "Based on this meeting, give me personalized coaching tips. How did I do? What could I improve? Reference specific moments from the transcript and my coaching metrics if available.",
+      "Coach me on how I ran this meeting based on my role. Focus on: (1) substance — did I say the right things at the right time? (2) questions — did I ask enough discovery/clarifying questions before jumping to solutions? (3) commitments — were next steps clear and assigned? (4) missed opportunities — what should I have said or asked? Reference specific transcript moments. Be direct, no generic praise.",
   },
   {
     label: "Prep for follow-up",
@@ -476,13 +477,16 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
           >
             {showSlashMenu && (
               <>
+              {createPortal(
+                <div
+                  className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
+                  onClick={() => { setInput(""); }}
+                  aria-hidden
+                />,
+                document.body
+              )}
               <div
-                className="fixed inset-0 z-40 bg-black/5"
-                onClick={() => { setInput(""); }}
-                aria-hidden
-              />
-              <div
-                className="absolute bottom-full left-0 right-0 mb-2 z-50 max-h-[min(420px,55vh)] flex flex-col rounded-2xl border border-border/60 bg-card/98 backdrop-blur-xl shadow-xl ring-1 ring-black/[0.05] dark:ring-white/[0.08] overflow-hidden animate-fade-in"
+                className="absolute bottom-full left-0 right-0 mb-2 z-50 max-h-[min(420px,55vh)] flex flex-col rounded-2xl border border-border/60 bg-card shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.1] overflow-hidden animate-fade-in"
                 role="listbox"
                 aria-label="Quick prompts"
               >

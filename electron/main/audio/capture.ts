@@ -76,8 +76,8 @@ const CHUNK_INTERVAL_ACTIVE_MS = 4000
 const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
 // Auto-pause on silence disabled — user manually pauses and uses "Generate summary" button
-const MIN_SAMPLES_PER_CHANNEL = 16000 * 2 // 2s minimum for STT (more context = fewer word errors)
-const EARLY_TRIGGER_SAMPLES = 16000 * 4  // 4s: faster first result, ~1s snappier than 5s; quality neutral
+const MIN_SAMPLES_PER_CHANNEL = 16000 * 1.5 // 1.5s minimum for STT (balance: enough context vs fast first result)
+const EARLY_TRIGGER_SAMPLES = 16000 * 3  // 3s: fast first result (~4-5s total latency with VAD+STT)
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const

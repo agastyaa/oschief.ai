@@ -21,13 +21,11 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     filename: 'llama-3.2-3b-instruct-q4_k_m.gguf',
   },
   'qwen3-4b': {
-    url: 'https://huggingface.co/bartowski/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
-    filename: 'qwen3-4b-q4_k_m.gguf',
+    url: 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
+    filename: 'Qwen3-4B-Q4_K_M.gguf',
   },
-  'parakeet-tdt-0.6b': {
-    url: 'https://huggingface.co/istupakov/parakeet-tdt-0.6b-v2-onnx/resolve/main/model.onnx',
-    filename: 'parakeet-tdt-0.6b-v2.onnx',
-  },
+  // Parakeet TDT is multi-file (encoder, decoder, vocab) — installed via `pip3 install onnx-asr` which auto-downloads.
+  // No direct download URL; the install flow handles model management like MLX Whisper.
 }
 
 const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()

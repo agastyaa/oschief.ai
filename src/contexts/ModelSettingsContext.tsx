@@ -39,7 +39,7 @@ export type LocalModel = {
 export const localModels: LocalModel[] = [
   { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 auto-installs ffmpeg + pip package; best quality on-device STT" },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
-  { id: "parakeet-tdt-0.6b", name: "Parakeet TDT 0.6B", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via ONNX \u2014 fast, accurate (6% WER), runs on Apple Silicon" },
+  { id: "parakeet-tdt-0.6b", name: "Parakeet TDT 0.6B", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via onnx-asr \u2014 fast, accurate (6% WER); auto-installs via pip" },
   { id: "qwen3-4b", name: "Qwen3 4B", size: "~2.5 GB", type: "llm", description: "Recommended \u2014 best quality local LLM for meeting notes (no internet needed)" },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM \u2014 lighter alternative if RAM is limited" },
 ];
