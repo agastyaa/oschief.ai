@@ -161,6 +161,31 @@ export default function ProjectsPage() {
                  tab === "archived" ? "No archived projects" :
                  "No active projects yet. Confirm suggested projects to start tracking them."}
               </p>
+              {tab === "active" && (
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  <button
+                    onClick={() => setCreating(true)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Create a project
+                  </button>
+                  <span className="text-xs opacity-40">or</span>
+                  <button
+                    onClick={() => navigate("/new-note?startFresh=1")}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Record a meeting
+                  </button>
+                </div>
+              )}
+              {tab === "suggested" && (
+                <button
+                  onClick={() => navigate("/new-note?startFresh=1")}
+                  className="mt-4 text-xs font-medium text-primary hover:underline"
+                >
+                  Record a meeting to get started
+                </button>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
