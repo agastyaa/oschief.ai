@@ -402,6 +402,10 @@ const electronAPI = {
       ipcRenderer.invoke('notify:meeting-prep', data) as Promise<boolean>,
   },
 
+  contacts: {
+    importVCF: () => ipcRenderer.invoke('contacts:import-vcf') as Promise<{ ok: boolean; total?: number; imported?: number; skipped?: number; errors?: number; error?: string }>,
+  },
+
   agentApi: {
     enable: () => ipcRenderer.invoke('api:enable') as Promise<boolean>,
     disable: () => ipcRenderer.invoke('api:disable') as Promise<boolean>,

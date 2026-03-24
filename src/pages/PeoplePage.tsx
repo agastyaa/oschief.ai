@@ -367,6 +367,20 @@ const PeoplePage = () => {
                   {people.length} {people.length === 1 ? "person" : "people"}
                 </span>
               </div>
+              <button
+                onClick={async () => {
+                  const result = await (api as any)?.contacts?.importVCF?.();
+                  if (result?.ok) {
+                    toast.success(`Imported ${result.imported} contacts (${result.skipped} already existed)`);
+                    loadPeople();
+                  } else if (result?.error !== 'Cancelled') {
+                    toast.error(result?.error || 'Import failed');
+                  }
+                }}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Import Contacts (.vcf)
+              </button>
             </div>
 
             {/* Search */}

@@ -788,6 +788,27 @@ export function registerIPCHandlers(): void {
     }
   )
 
+  // --- Contacts Import ---
+  ipcMain.handle('contacts:import-vcf', async () => {
+    try {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { ok: false, error: 'No active window' }
+      const { dialog } = await import('electron')
+      const result = await dialog.showOpenDialog(win, {
+        title: 'Import Contacts (VCF)',
+        filters: [{ name: 'vCard', extensions: ['vcf'] }],
+        properties: ['openFile'],
+      })
+      if (result.canceled || !result.filePaths.length) return { ok: false, error: 'Cancelled' }
+      const { importVCFFile } = await import('./integrations/contacts-import')
+      const importResult = importVCFFile(result.filePaths[0])
+      return { ok: true, ...importResult }
+    } catch (err: any) {
+      console.error('[contacts:import-vcf]', err)
+      return { ok: false, error: err.message || 'Import failed' }
+    }
+  })
+
   // --- Jira ---
   ipcMain.handle('jira:test-token', async (_e, siteUrl: string, email: string, apiToken: string) => {
     const { testJiraTokenConnection } = await import('./integrations/jira-auth')
