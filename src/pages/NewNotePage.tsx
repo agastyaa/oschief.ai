@@ -163,6 +163,8 @@ export default function NewNotePage() {
   const [personalNotes, setPersonalNotes] = useState("");
   const [visibleLines, setVisibleLines] = useState(2);
   const [title, setTitle] = useState(() => eventState?.eventTitle || "");
+  // Mid-meeting markers — Cmd+M to bookmark a moment (decision, risk, key point)
+  const [markers, setMarkers] = useState<Array<{ time: string; label: string; timestamp: number }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -212,6 +214,25 @@ export default function NewNotePage() {
     const custom = customTemplates.map(ct => ({ id: ct.id, name: ct.name, icon: "📝" }));
     return [...BUILTIN_TEMPLATES, ...custom];
   }, [customTemplates]);
+
+  // Mid-meeting markers — Cmd+M to bookmark a moment during recording
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'm' && isCapturing) {
+        e.preventDefault()
+        const elapsed = activeSession ? Math.floor((Date.now() - activeSession.startTime) / 1000) : 0
+        const mins = Math.floor(elapsed / 60)
+        const secs = elapsed % 60
+        const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`
+        setMarkers(prev => [...prev, { time: timeStr, label: 'Marker', timestamp: Date.now() }])
+        // Visual feedback via toast
+        const { toast } = require('sonner')
+        toast.success(`Marker dropped at ${timeStr}`, { duration: 1500 })
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [isCapturing, activeSession])
 
   // Command Center: assemble context when recording starts, using calendar attendees
   useEffect(() => {
@@ -367,7 +388,12 @@ export default function NewNotePage() {
     if (isSummarizing) return;
     setIsSummarizing(true);
     setTranscriptVisible(true);
-    const useNotes = override?.personalNotes ?? personalNotes;
+    let useNotes = override?.personalNotes ?? personalNotes;
+    // Append mid-meeting markers to notes context so LLM can anchor summary to key moments
+    if (markers.length > 0) {
+      const markerText = markers.map(m => `[${m.time}] ★ ${m.label}`).join('\n')
+      useNotes = useNotes ? `${useNotes}\n\nKey moments marked during meeting:\n${markerText}` : `Key moments marked during meeting:\n${markerText}`
+    }
     const useTitle = override?.title ?? title;
     const noteTitle = useTitle || "Meeting notes";
     if (!override && !useTitle) setTitle(noteTitle);

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from 'electron'
+import { app, BrowserWindow, protocol, globalShortcut } from 'electron'
 import { join, normalize, extname } from 'path'
 import { readFileSync, existsSync } from 'fs'
 import { createMainWindow, getMainWindow } from './windows'
@@ -150,6 +150,23 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Global keyboard shortcut: Cmd+Shift+R to toggle recording from anywhere on the Mac
+app.whenReady().then(() => {
+  globalShortcut.register('CommandOrControl+Shift+R', () => {
+    const win = getMainWindow()
+    if (!win) return
+    // Send toggle to renderer — it decides whether to start or stop recording
+    win.webContents.send('global:toggle-recording')
+    // Also bring window to front
+    win.show()
+    win.focus()
+  })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('before-quit', () => {

@@ -455,11 +455,13 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 
 function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
   const navigate = useNavigate();
+  const [airgapped, setAirgapped] = useState(false);
   const [anonymize, setAnonymize] = useState(false);
   const [includeNames, setIncludeNames] = useState(true);
   const [retention, setRetention] = useState("all");
 
   useEffect(() => {
+    api?.db.settings.get("privacy-airgapped").then((v) => { if (v === "true") setAirgapped(true) });
     api?.db.settings.get("privacy-anonymize-cloud").then((v) => { if (v === "true") setAnonymize(true) });
     api?.db.settings.get("privacy-include-names").then((v) => { if (v === "false") setIncludeNames(false) });
     api?.db.settings.get("privacy-retention-days").then((v) => { if (v) setRetention(v) });
@@ -472,6 +474,39 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
   return (
     <div className="space-y-5">
       <SectionHeader title="Privacy & Data" description="Control what OSChief stores and sends. Your data never leaves your Mac unless you explicitly enable cloud features." />
+
+      {/* Air-Gapped Mode */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium flex items-center gap-2">
+              Air-Gapped Mode
+              {airgapped && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">Active</span>}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Guarantees zero network access. All transcription and summarization use on-device models only. Cloud providers are disabled.
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const next = !airgapped;
+              setAirgapped(next);
+              updateSetting("privacy-airgapped", String(next));
+              if (next) {
+                toast.success("Air-gapped mode enabled — no data will leave your Mac");
+              } else {
+                toast("Air-gapped mode disabled — cloud models available again");
+              }
+            }}
+            className={cn(
+              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors",
+              airgapped ? "bg-green-500" : "bg-muted"
+            )}
+          >
+            <span className={cn("pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5", airgapped ? "translate-x-4.5 ml-0.5" : "translate-x-0.5")} />
+          </button>
+        </div>
+      </div>
 
       {/* Cloud AI Privacy */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -1054,7 +1089,7 @@ const defaultPrefs: Preferences = {
   showRecordingIndicator: true,
   launchOnStartup: false,
   hideFromScreenShare: false,
-  appearance: "light",
+  appearance: "system",
 };
 
 function loadPreferences(): Preferences {

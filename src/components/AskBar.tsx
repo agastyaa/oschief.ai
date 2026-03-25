@@ -16,6 +16,9 @@ import {
   Lightbulb,
   Target,
   CalendarCheck,
+  FileText,
+  TicketCheck,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { askSyagInputShell, askSyagPanelShell, askSyagPanelHeader } from "@/lib/ask-syag-styles";
@@ -27,7 +30,7 @@ import { ChatMessageContent } from "@/components/ChatMessageContent";
 export const WHAT_SHOULD_I_SAY_PROMPT =
   "What should I say next? Using this meeting’s transcript and notes, give 2–4 short, concrete things I could say. If I was just mentioned by name, address that first.";
 
-type SlashPromptGroup = "live" | "catch_up" | "growth";
+type SlashPromptGroup = "live" | "catch_up" | "growth" | "output";
 
 export type SlashPromptDefinition = {
   label: string;
@@ -41,6 +44,7 @@ const SLASH_GROUP_LABEL: Record<SlashPromptGroup, string> = {
   live: "In the moment",
   catch_up: "Catch up",
   growth: "Level up",
+  output: "Generate",
 };
 
 /** Slash-menu entries (also referenced for `isSlashPrompt` in handleSend). */
@@ -95,6 +99,30 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
     group: "growth",
     prompt:
       "Help me prepare for a follow-up to this meeting. What should I bring up, who should I follow up with, and what frameworks should I apply?",
+  },
+  {
+    label: "Exec one-pager",
+    description: "Concise brief for leadership",
+    icon: FileText,
+    group: "output",
+    prompt:
+      "Write a one-page executive summary of this meeting. Format: Title, Date, Attendees (one line), then 3 sections: (1) Key Decisions (2-3 bullets), (2) Risks & Blockers (1-2 bullets), (3) Next Steps with owners and dates. No filler, no meeting play-by-play. Write as if the reader has 30 seconds.",
+  },
+  {
+    label: "Ticket breakdown",
+    description: "Ready for JIRA / Linear / Asana",
+    icon: TicketCheck,
+    group: "output",
+    prompt:
+      "Break this meeting into actionable tickets. For each ticket: Title (imperative verb + object), Description (1-2 sentences of context), Assignee (from meeting attendees), Priority (P0-P3), Due date (if mentioned). Format as a numbered list. Only include work items, not discussion topics.",
+  },
+  {
+    label: "PRD update",
+    description: "Changes to add to your product spec",
+    icon: ClipboardList,
+    group: "output",
+    prompt:
+      "Extract product requirement changes from this meeting. Format: (1) New requirements discussed, (2) Changed requirements (what was X, now Y), (3) Deprioritized or cut scope, (4) Open questions that need answers before implementation. Use precise language suitable for a PRD. Reference who requested each change.",
   },
 ] as const;
 

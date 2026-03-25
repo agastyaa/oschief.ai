@@ -86,6 +86,20 @@ export async function routeLLM(
   const [providerId, ...rest] = model.split(':')
   const modelName = rest.join(':')
 
+  // Air-gapped mode: block all cloud providers, allow only local/ollama/apple
+  const localProviders = new Set(['local', 'ollama', 'apple'])
+  if (!localProviders.has(providerId)) {
+    try {
+      const { getSetting } = require('../storage/database')
+      if (getSetting('privacy-airgapped') === 'true') {
+        throw new Error('Air-gapped mode is enabled. Cloud AI providers are disabled. Switch to a local model in Settings > AI Models, or disable air-gapped mode in Settings > Privacy.')
+      }
+    } catch (e: any) {
+      if (e.message?.includes('Air-gapped')) throw e
+      // DB not ready yet — allow through
+    }
+  }
+
   // Ollama runs locally — no API key needed, route directly
   if (providerId === 'ollama') {
     return chatOllama(messages, modelName, onChunk)

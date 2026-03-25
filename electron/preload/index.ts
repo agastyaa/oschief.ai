@@ -121,6 +121,12 @@ const electronAPI = {
       ipcRenderer.on('recording:transcript-corrected', handler)
       return () => ipcRenderer.removeListener('recording:transcript-corrected', handler)
     },
+    /** Global shortcut: Cmd+Shift+R fires this from anywhere on the Mac */
+    onGlobalToggle: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('global:toggle-recording', handler)
+      return () => ipcRenderer.removeListener('global:toggle-recording', handler)
+    },
   },
 
   llm: {
