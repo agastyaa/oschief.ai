@@ -57,7 +57,8 @@ export async function fetchGmailThreads(
       return { ok: false, threads: [], error: `Gmail API error: HTTP ${statusCode}` }
     }
 
-    const result = JSON.parse(data)
+    let result: any
+    try { result = JSON.parse(data) } catch { return { ok: false, threads: [], error: 'Malformed Gmail API response' } }
     if (!result.threads?.length) return { ok: true, threads: [] }
 
     // Fetch thread details (subject, snippet, from) for top threads
@@ -86,7 +87,8 @@ async function fetchThreadDetail(accessToken: string, threadId: string): Promise
 
   if (statusCode !== 200) return null
 
-  const thread = JSON.parse(data)
+  let thread: any
+  try { thread = JSON.parse(data) } catch { return null }
   const firstMessage = thread.messages?.[0]
   if (!firstMessage) return null
 

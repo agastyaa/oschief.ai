@@ -101,9 +101,10 @@ export function deleteDecision(id: string): boolean {
 // ── People Links ────────────────────────────────────────────────────
 
 export function linkDecisionToPeople(decisionId: string, personIds: string[]): void {
+  if (!personIds?.length) return
   const db = getDb()
   const stmt = db.prepare('INSERT OR IGNORE INTO decision_people (decision_id, person_id) VALUES (?, ?)')
   for (const personId of personIds) {
-    stmt.run(decisionId, personId)
+    if (personId) stmt.run(decisionId, personId)
   }
 }

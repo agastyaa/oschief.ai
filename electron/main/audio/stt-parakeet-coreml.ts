@@ -104,12 +104,14 @@ export async function downloadParakeetCoreMLModels(): Promise<{ ok: boolean; err
   if (!binary) {
     console.log('[parakeet-coreml] Binary not found, building...')
     const buildResult = await buildParakeetCoreML()
-    if (!buildResult.ok) return { ok: false, error: `Build failed: ${buildResult.error}` }
-    binary = buildResult.binaryPath!
+    if (!buildResult.ok || !buildResult.binaryPath) return { ok: false, error: `Build failed: ${buildResult.error}` }
+    binary = buildResult.binaryPath
   }
 
+  if (!binary) return { ok: false, error: 'No binary path after build' }
+
   return new Promise((resolve) => {
-    const proc = spawn(binary!, ['download'], {
+    const proc = spawn(binary, ['download'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 600000, // 10 min for large download
     })

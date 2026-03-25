@@ -187,7 +187,8 @@ async function assembleOverdueCommitments(): Promise<string> {
 async function assembleCustom(dataQueryJson: string | null): Promise<string> {
   const db = getDb()
   const parts: string[] = []
-  const dataQuery = dataQueryJson ? JSON.parse(dataQueryJson) : {}
+  let dataQuery: any = {}
+  try { if (dataQueryJson) dataQuery = JSON.parse(dataQueryJson) } catch { /* malformed query JSON, use defaults */ }
 
   // Recent notes (last 14 days)
   const notes = db.prepare(`
@@ -197,7 +198,8 @@ async function assembleCustom(dataQueryJson: string | null): Promise<string> {
   `).all() as any[]
   parts.push(`Recent meetings (${notes.length}):`)
   for (const n of notes) {
-    const overview = n.summary ? JSON.parse(n.summary)?.overview?.slice(0, 100) : ''
+    let overview = ''
+    try { if (n.summary) overview = JSON.parse(n.summary)?.overview?.slice(0, 100) || '' } catch { /* malformed summary */ }
     parts.push(`  - ${n.date}: ${n.title || 'Untitled'}${overview ? ` — ${overview}` : ''}`)
   }
 
