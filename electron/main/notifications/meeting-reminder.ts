@@ -40,10 +40,20 @@ async function checkUpcomingMeetings(): Promise<void> {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return
 
-    // Ask the renderer for its calendar events
-    const events = await win.webContents.executeJavaScript(
-      `window.__syagCalendarEvents || []`
-    )
+    // Ask the renderer for its calendar events (with timeout to prevent hangs)
+    let events: any[]
+    try {
+      const eventsPromise = win.webContents.executeJavaScript(
+        `window.__syagCalendarEvents || []`
+      )
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Calendar events timeout')), 5000)
+      )
+      events = await Promise.race([eventsPromise, timeoutPromise]) as any[]
+    } catch (err) {
+      console.log('[meeting-reminder] Could not read calendar events:', (err as any)?.message)
+      return
+    }
 
     if (!Array.isArray(events) || events.length === 0) return
 
@@ -55,6 +65,7 @@ async function checkUpcomingMeetings(): Promise<void> {
       if (!event.start || !event.title) continue
 
       const startTime = new Date(event.start).getTime()
+      if (isNaN(startTime)) continue // Skip malformed dates
       const timeUntil = startTime - now
 
       // Fire notification when event is 5-6 minutes away (catches within our 60s check window)

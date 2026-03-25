@@ -260,6 +260,13 @@ export async function startRecording(
       const hasData = audioBuffers[0].length > 0 || audioBuffers[1].length > 0
       if (hasData) processBufferedAudio()
     }, currentChunkIntervalMs)
+    // Process the first chunk earlier (2s) so nothing is missed at the start
+    setTimeout(() => {
+      if (!isPaused && !isProcessing && isRecording) {
+        const hasData = audioBuffers[0].length > 0 || audioBuffers[1].length > 0
+        if (hasData) processBufferedAudio()
+      }
+    }, 2000)
   }
 
   // Silence-based auto-pause disabled — user triggers pause manually and uses "Generate summary" button
@@ -344,6 +351,13 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel
   }
+  // Process first post-resume chunk early (2s) so nothing is missed
+  setTimeout(() => {
+    if (!isPaused && !isProcessing && isRecording) {
+      const hasData = audioBuffers[0].length > 0 || audioBuffers[1].length > 0
+      if (hasData) processBufferedAudio()
+    }
+  }, 2000)
 }
 
 export function processAudioChunk(pcmData: Float32Array, channel: number): boolean {
