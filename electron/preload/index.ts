@@ -281,6 +281,11 @@ const electronAPI = {
       ipcRenderer.invoke('teams:send-summary', webhookUrl, payload) as Promise<{ ok: boolean; error?: string }>,
   },
 
+  calendarReminders: {
+    /** Send updated events to main process for meeting reminders (fire-and-forget) */
+    sendEvents: (events: any[]) => ipcRenderer.send('calendar:events-updated', events),
+  },
+
   calendarLocalBlocks: {
     list: () => ipcRenderer.invoke('calendar-local-blocks:list'),
     add: (block: { id: string; title: string; startIso: string; endIso: string; noteId?: string | null }) =>

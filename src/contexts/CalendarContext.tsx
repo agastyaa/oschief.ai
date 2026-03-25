@@ -257,12 +257,20 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [calendarViewId, calendarSources, setCalendarViewId]);
 
-  // Expose calendar events to main process for smart meeting reminders
+  // Send calendar events to main process for event-driven meeting reminders
   useEffect(() => {
-    (window as any).__syagCalendarEvents = events.map(e => ({
+    const serialized = events.map(e => ({
       id: e.id, title: e.title, start: e.start, end: e.end,
       attendees: e.attendees, joinLink: e.joinLink,
-    }))
+    }));
+    // Keep window global for backward compat (meeting-detector reads it)
+    (window as any).__syagCalendarEvents = serialized;
+    // Send to main process via preload bridge — schedules exact timers (no polling)
+    try {
+      (window as any).electronAPI?.calendarReminders?.sendEvents(serialized);
+    } catch {
+      // Not in Electron — skip
+    }
   }, [events]);
 
   const mergeFeedEvents = useCallback(

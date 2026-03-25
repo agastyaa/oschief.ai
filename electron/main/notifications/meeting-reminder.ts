@@ -1,98 +1,113 @@
 /**
- * Smart Meeting Reminder
+ * Smart Meeting Reminder — Event-Driven (no polling)
  *
- * Checks every 60 seconds for meetings starting in ~5 minutes.
- * When found, generates a prep brief and shows a macOS notification
- * with attendee context, open commitments, and a one-liner from the LLM.
+ * Instead of polling every 60s, this schedules exact timers:
+ * when calendar events are updated, it calculates the precise moment
+ * each notification should fire (event start - 5 min) and sets a
+ * setTimeout for that moment. When the calendar changes, it cancels
+ * stale timers and reschedules.
  *
- * Runs in the main process. Uses calendar events from the renderer
- * via IPC, or directly from the Google/Microsoft calendar APIs.
+ * Runs in the main process. Receives events via IPC from CalendarContext.
  */
 
-import { Notification, BrowserWindow } from 'electron'
-import { getSetting } from '../storage/database'
+import { Notification, BrowserWindow, ipcMain } from 'electron'
 
-let checkInterval: ReturnType<typeof setInterval> | null = null
+// ── State ───────────────────────────────────────────────────────────
+
+const REMIND_BEFORE_MS = 5 * 60 * 1000 // 5 minutes before start
+const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const notifiedEventIds = new Set<string>()
 
+// ── Public API ──────────────────────────────────────────────────────
+
 /**
- * Start the meeting reminder checker.
- * Call once on app startup.
+ * Start the meeting reminder system.
+ * Registers an IPC handler that the renderer calls whenever
+ * calendar events change. No polling — purely event-driven.
  */
 export function startMeetingReminders(): void {
-  if (checkInterval) return
-  checkInterval = setInterval(checkUpcomingMeetings, 60_000)
-  // Also check immediately on start
-  setTimeout(checkUpcomingMeetings, 5_000)
-  console.log('[meeting-reminder] Started — checking every 60s')
+  // Renderer sends updated events whenever CalendarContext refreshes
+  ipcMain.on('calendar:events-updated', (_e, events: any[]) => {
+    scheduleReminders(events)
+  })
+  console.log('[meeting-reminder] Started — event-driven (no polling)')
 }
 
 export function stopMeetingReminders(): void {
-  if (checkInterval) {
-    clearInterval(checkInterval)
-    checkInterval = null
+  // Cancel all pending timers
+  for (const timer of scheduledTimers.values()) {
+    clearTimeout(timer)
+  }
+  scheduledTimers.clear()
+  ipcMain.removeAllListeners('calendar:events-updated')
+}
+
+// ── Scheduling ──────────────────────────────────────────────────────
+
+function scheduleReminders(events: any[]): void {
+  if (!Array.isArray(events)) return
+
+  const now = Date.now()
+  const activeEventKeys = new Set<string>()
+
+  for (const event of events) {
+    if (!event.start || !event.title) continue
+
+    const startTime = new Date(event.start).getTime()
+    if (isNaN(startTime)) continue
+
+    const eventKey = `${event.id || event.title}-${startTime}`
+    activeEventKeys.add(eventKey)
+
+    // Already notified for this event
+    if (notifiedEventIds.has(eventKey)) continue
+
+    // Already scheduled
+    if (scheduledTimers.has(eventKey)) continue
+
+    const fireAt = startTime - REMIND_BEFORE_MS
+    const delay = fireAt - now
+
+    // Skip events that are in the past or more than 24h away
+    if (delay < -60_000) continue // Already past (with 1 min grace)
+    if (delay > 24 * 60 * 60 * 1000) continue // Too far out
+
+    if (delay <= 0) {
+      // Should have fired already but we just learned about it — fire now
+      fireReminder(event, eventKey)
+    } else {
+      // Schedule for the exact moment
+      const timer = setTimeout(() => {
+        scheduledTimers.delete(eventKey)
+        fireReminder(event, eventKey)
+      }, delay)
+      scheduledTimers.set(eventKey, timer)
+    }
+  }
+
+  // Cancel timers for events that were removed from the calendar
+  for (const [key, timer] of scheduledTimers.entries()) {
+    if (!activeEventKeys.has(key)) {
+      clearTimeout(timer)
+      scheduledTimers.delete(key)
+    }
+  }
+
+  // Clean up old notified IDs (keep set from growing unbounded)
+  if (notifiedEventIds.size > 200) {
+    const arr = [...notifiedEventIds]
+    arr.slice(0, 100).forEach(id => notifiedEventIds.delete(id))
   }
 }
 
-async function checkUpcomingMeetings(): Promise<void> {
-  try {
-    // Get upcoming events from the renderer's calendar state via IPC
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return
+// ── Notification ────────────────────────────────────────────────────
 
-    // Ask the renderer for its calendar events (with timeout to prevent hangs)
-    let events: any[]
-    try {
-      const eventsPromise = win.webContents.executeJavaScript(
-        `window.__syagCalendarEvents || []`
-      )
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Calendar events timeout')), 5000)
-      )
-      events = await Promise.race([eventsPromise, timeoutPromise]) as any[]
-    } catch (err) {
-      console.log('[meeting-reminder] Could not read calendar events:', (err as any)?.message)
-      return
-    }
+async function fireReminder(event: any, eventKey: string): Promise<void> {
+  notifiedEventIds.add(eventKey)
 
-    if (!Array.isArray(events) || events.length === 0) return
-
-    const now = Date.now()
-    const FIVE_MIN = 5 * 60 * 1000
-    const SIX_MIN = 6 * 60 * 1000
-
-    for (const event of events) {
-      if (!event.start || !event.title) continue
-
-      const startTime = new Date(event.start).getTime()
-      if (isNaN(startTime)) continue // Skip malformed dates
-      const timeUntil = startTime - now
-
-      // Fire notification when event is 5-6 minutes away (catches within our 60s check window)
-      if (timeUntil > 0 && timeUntil <= SIX_MIN && timeUntil > FIVE_MIN - 60_000) {
-        const eventKey = `${event.id || event.title}-${event.start}`
-        if (notifiedEventIds.has(eventKey)) continue
-        notifiedEventIds.add(eventKey)
-
-        // Clean up old event IDs (keep set small)
-        if (notifiedEventIds.size > 100) {
-          const arr = [...notifiedEventIds]
-          arr.slice(0, 50).forEach(id => notifiedEventIds.delete(id))
-        }
-
-        await showMeetingNotification(event)
-      }
-    }
-  } catch (err) {
-    // Silent — don't spam logs every 60s
-  }
-}
-
-async function showMeetingNotification(event: any): Promise<void> {
   const attendees = event.attendees || []
-  const attendeeNames = attendees.map((a: any) => a.name || a.email).filter(Boolean)
 
-  // Try to generate a prep brief for richer context
+  // Assemble context for a richer notification (no LLM — instant)
   let briefText = ''
   try {
     const { assembleContext } = await import('../memory/context-assembler')
@@ -100,11 +115,12 @@ async function showMeetingNotification(event: any): Promise<void> {
     const emails = attendees.map((a: any) => a.email).filter(Boolean)
     const ctx = await assembleContext(names, emails, event.title)
 
-    // Build a quick summary without LLM (faster, no API call needed)
     const parts: string[] = []
     if (ctx.previousMeetings.length > 0) {
-      const firstPerson = ctx.previousMeetings[0]
-      parts.push(`Last met ${firstPerson.personName} on ${firstPerson.meetings[0]?.date || 'recently'}`)
+      const first = ctx.previousMeetings[0]
+      if (first.meetings.length > 0) {
+        parts.push(`Last met ${first.personName} on ${first.meetings[0].date}`)
+      }
     }
     if (ctx.openCommitments.length > 0) {
       const overdue = ctx.openCommitments.filter(c => c.isOverdue)
@@ -119,9 +135,10 @@ async function showMeetingNotification(event: any): Promise<void> {
     }
     briefText = parts.join(' · ')
   } catch {
-    // No context available — still show the notification
+    // No context — still show the notification
   }
 
+  const attendeeNames = attendees.map((a: any) => a.name || a.email).filter(Boolean)
   const title = `${event.title} — in 5 minutes`
   const body = briefText
     ? briefText
@@ -141,7 +158,6 @@ async function showMeetingNotification(event: any): Promise<void> {
     if (win) {
       win.show()
       win.focus()
-      // Navigate to new note with this event
       win.webContents.executeJavaScript(
         `window.location.hash = '#/new-note?startFresh=1'; void 0`
       ).catch(() => {})
@@ -149,5 +165,5 @@ async function showMeetingNotification(event: any): Promise<void> {
   })
 
   notification.show()
-  console.log(`[meeting-reminder] Notified: "${event.title}" in 5 min`)
+  console.log(`[meeting-reminder] Notified: "${event.title}" in 5 min (scheduled, not polled)`)
 }
