@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
-import { join } from 'path'
-import { mkdirSync } from 'fs'
+import { join, dirname } from 'path'
+import { mkdirSync, existsSync, copyFileSync } from 'fs'
+import { homedir } from 'os'
 import { runMigrations } from './migrations'
 import type { SyncableTable } from './sync-types'
 
@@ -13,7 +14,60 @@ export function getDb(): Database.Database {
   return db
 }
 
+/**
+ * Migrate data from old "Syag" app directory to new "OSChief" directory.
+ * Copies the database and secure keychain if they exist at the old location.
+ * Only runs once — skips if the new location already has data.
+ */
+function migrateFromSyagIfNeeded(): void {
+  const newDataDir = join(app.getPath('userData'), 'data')
+  const newDbPath = join(newDataDir, 'syag.db')
+
+  // If new location already has a database, no migration needed
+  if (existsSync(newDbPath)) return
+
+  // Check old Syag location
+  const oldDataDir = join(homedir(), 'Library', 'Application Support', 'Syag', 'data')
+  const oldDbPath = join(oldDataDir, 'syag.db')
+
+  if (!existsSync(oldDbPath)) return
+
+  console.log('[database] Migrating data from Syag → OSChief...')
+  try {
+    mkdirSync(newDataDir, { recursive: true })
+    copyFileSync(oldDbPath, newDbPath)
+    console.log('[database] Database migrated successfully')
+
+    // Also copy the secure keychain if it exists
+    const oldKeychain = join(homedir(), 'Library', 'Application Support', 'Syag', 'secure', 'keychain.enc')
+    const newKeychainDir = join(app.getPath('userData'), 'secure')
+    const newKeychain = join(newKeychainDir, 'keychain.enc')
+    if (existsSync(oldKeychain) && !existsSync(newKeychain)) {
+      mkdirSync(newKeychainDir, { recursive: true })
+      copyFileSync(oldKeychain, newKeychain)
+      console.log('[database] Keychain migrated successfully')
+    }
+
+    // Copy models directory if it exists
+    const oldModels = join(homedir(), 'Library', 'Application Support', 'Syag', 'models')
+    const newModels = join(app.getPath('userData'), 'models')
+    if (existsSync(oldModels) && !existsSync(newModels)) {
+      // Symlink instead of copy (models can be GBs)
+      const { symlinkSync } = require('fs')
+      try {
+        symlinkSync(oldModels, newModels)
+        console.log('[database] Models directory symlinked')
+      } catch {
+        console.log('[database] Could not symlink models — user may need to re-download')
+      }
+    }
+  } catch (err) {
+    console.error('[database] Migration failed:', err)
+  }
+}
+
 export function getDbPath(): string {
+  migrateFromSyagIfNeeded()
   const userDataPath = app.getPath('userData')
   return join(userDataPath, 'data', 'syag.db')
 }

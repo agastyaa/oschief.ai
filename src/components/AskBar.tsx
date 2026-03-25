@@ -486,7 +486,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                 document.body
               )}
               <div
-                className="absolute bottom-full left-0 right-0 mb-2 z-50 max-h-[min(380px,50vh)] flex flex-col rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.1] overflow-hidden animate-fade-in"
+                className="absolute bottom-full left-0 right-0 mb-2 z-50 max-h-[min(380px,50vh)] flex flex-col rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.1] overflow-hidden animate-fade-in pointer-events-auto"
                 role="listbox"
                 aria-label="Quick prompts"
               >
