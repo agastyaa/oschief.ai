@@ -67,6 +67,8 @@ app.whenReady().then(async () => {
   ensureModelsDir()
   // Clean up stale temp files from previous sessions (orphaned WAV chunks)
   import('./models/stt-engine').then(({ cleanStaleTempFiles }) => cleanStaleTempFiles()).catch(() => {})
+  // Pre-load VAD model in background so first recording starts instantly (no 500ms delay)
+  import('./audio/vad').then(({ ensureVADModel }) => ensureVADModel()).catch(() => {})
   registerIPCHandlers()
   loadOptionalProviders()
 

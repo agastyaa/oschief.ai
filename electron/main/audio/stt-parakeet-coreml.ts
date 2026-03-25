@@ -149,7 +149,8 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
   const wavPath = join(tmpDir, `stt-${Date.now()}.wav`)
 
   try {
-    writeFileSync(wavPath, wavBuffer)
+    const { writeFile } = require('fs/promises')
+    await writeFile(wavPath, wavBuffer)
 
     const result = await new Promise<string>((resolve, reject) => {
       const proc = spawn(binary, ['transcribe', wavPath], {

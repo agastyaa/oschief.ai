@@ -34,19 +34,27 @@ const keychainPath = () => {
   return join(dir, 'keychain.enc')
 }
 
+// In-memory keychain cache — load once from disk, write-through on changes.
+// Eliminates repeated sync disk I/O (was 10-50ms per API key access).
+let keychainCache: Record<string, string> | null = null
+
 function loadKeychain(): Record<string, string> {
+  if (keychainCache) return keychainCache
   const path = keychainPath()
-  if (!existsSync(path)) return {}
+  if (!existsSync(path)) { keychainCache = {}; return keychainCache }
   try {
     const encrypted = readFileSync(path)
     const decrypted = safeStorage.decryptString(encrypted)
-    return JSON.parse(decrypted)
+    keychainCache = JSON.parse(decrypted)
+    return keychainCache!
   } catch {
-    return {}
+    keychainCache = {}
+    return keychainCache
   }
 }
 
 function saveKeychain(data: Record<string, string>): void {
+  keychainCache = data
   const encrypted = safeStorage.encryptString(JSON.stringify(data))
   writeFileSync(keychainPath(), encrypted)
 }

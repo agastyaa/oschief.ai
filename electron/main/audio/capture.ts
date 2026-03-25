@@ -402,6 +402,9 @@ async function processBufferedAudio(): Promise<void> {
     const totalLength = audioBuffers[channel].reduce((sum, c) => sum + c.length, 0)
     if (totalLength < MIN_SAMPLES_PER_CHANNEL) continue
 
+    // Yield to event loop between channels so UI stays responsive during STT
+    if (channel === 1) await new Promise(r => setImmediate(r))
+
     // Copy chunks — keep originals in buffer until STT succeeds
     const chunkCount = audioBuffers[channel].length
     const chunks = audioBuffers[channel].slice(0)
