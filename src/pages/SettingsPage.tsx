@@ -10,7 +10,7 @@ import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import {
   useCalendar,
@@ -454,6 +454,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
 }
 
 function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
+  const navigate = useNavigate();
   const [anonymize, setAnonymize] = useState(false);
   const [includeNames, setIncludeNames] = useState(true);
   const [retention, setRetention] = useState("all");
@@ -537,7 +538,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
         <button
           onClick={() => {
             // Navigate to People page where they can select and delete
-            window.location.href = "/people";
+            navigate("/people");
           }}
           className="text-xs font-medium text-primary hover:underline"
         >
@@ -2013,15 +2014,13 @@ export default function SettingsPage() {
                             <span className="text-[10px] font-normal text-muted-foreground">(not running)</span>
                           )}
                         </h3>
-                        {ollamaStatus.available && (
-                          <button
-                            onClick={() => refreshOllama()}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            Refresh
-                          </button>
-                        )}
+                        <button
+                          onClick={() => refreshOllama()}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          {ollamaStatus.available ? "Refresh" : "Detect"}
+                        </button>
                       </div>
 
                       {!ollamaStatus.available ? (

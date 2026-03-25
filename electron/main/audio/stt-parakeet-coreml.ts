@@ -49,13 +49,14 @@ function getBinaryPath(): string | null {
  * Returns the path to the built binary, or null if build fails.
  */
 export async function buildParakeetCoreML(): Promise<{ ok: boolean; binaryPath?: string; error?: string }> {
-  const packageDir = join(process.cwd(), 'electron', 'resources', 'darwin', 'parakeet-coreml')
-  if (!existsSync(join(packageDir, 'Package.swift'))) {
-    // Try from app path
-    const altDir = join(app.getAppPath(), 'electron', 'resources', 'darwin', 'parakeet-coreml')
-    if (!existsSync(join(altDir, 'Package.swift'))) {
-      return { ok: false, error: 'Package.swift not found' }
-    }
+  // Try app path first (works in both dev and packaged builds), then cwd fallback
+  const candidates = [
+    join(app.getAppPath(), 'electron', 'resources', 'darwin', 'parakeet-coreml'),
+    join(process.cwd(), 'electron', 'resources', 'darwin', 'parakeet-coreml'),
+  ]
+  const packageDir = candidates.find(d => existsSync(join(d, 'Package.swift')))
+  if (!packageDir) {
+    return { ok: false, error: `Package.swift not found (tried: ${candidates.join(', ')})` }
   }
 
   return new Promise((resolve) => {

@@ -20,22 +20,49 @@ export function getDb(): Database.Database {
  * Only runs once — skips if the new location already has data.
  */
 function migrateFromSyagIfNeeded(): void {
+  const { statSync } = require('fs')
   const newDataDir = join(app.getPath('userData'), 'data')
   const newDbPath = join(newDataDir, 'syag.db')
-
-  // If new location already has a database, no migration needed
-  if (existsSync(newDbPath)) return
-
-  // Check old Syag location
   const oldDataDir = join(homedir(), 'Library', 'Application Support', 'Syag', 'data')
   const oldDbPath = join(oldDataDir, 'syag.db')
 
   if (!existsSync(oldDbPath)) return
 
+  // Check if migration needed: no new DB, or old DB is significantly larger (WAL data was lost)
+  let needsMigration = !existsSync(newDbPath)
+  if (!needsMigration) {
+    try {
+      const oldSize = statSync(oldDbPath).size
+      const newSize = statSync(newDbPath).size
+      // If old DB is >2x larger, the initial copy missed WAL data — re-copy
+      if (oldSize > newSize * 2 && oldSize > 100000) {
+        console.log(`[database] Old DB (${oldSize}B) much larger than new (${newSize}B) — re-migrating`)
+        needsMigration = true
+      }
+    } catch { /* stat failed, skip size check */ }
+  }
+
+  if (!needsMigration) return
+
   console.log('[database] Migrating data from Syag → OSChief...')
   try {
     mkdirSync(newDataDir, { recursive: true })
+
+    // First, checkpoint the old WAL to merge it into the main DB file
+    try {
+      const OldDb = require('better-sqlite3')
+      const oldConn = new OldDb(oldDbPath, { readonly: false })
+      oldConn.pragma('wal_checkpoint(TRUNCATE)')
+      oldConn.close()
+      console.log('[database] WAL checkpointed before copy')
+    } catch (walErr) {
+      console.log('[database] WAL checkpoint skipped:', (walErr as any)?.message)
+    }
+
     copyFileSync(oldDbPath, newDbPath)
+    // Also copy WAL/SHM if they exist (belt and suspenders)
+    if (existsSync(oldDbPath + '-wal')) copyFileSync(oldDbPath + '-wal', newDbPath + '-wal')
+    if (existsSync(oldDbPath + '-shm')) copyFileSync(oldDbPath + '-shm', newDbPath + '-shm')
     console.log('[database] Database migrated successfully')
 
     // Also copy the secure keychain if it exists
@@ -48,13 +75,12 @@ function migrateFromSyagIfNeeded(): void {
       console.log('[database] Keychain migrated successfully')
     }
 
-    // Copy models directory if it exists
+    // Symlink models directory if it exists (models can be GBs)
     const oldModels = join(homedir(), 'Library', 'Application Support', 'Syag', 'models')
     const newModels = join(app.getPath('userData'), 'models')
     if (existsSync(oldModels) && !existsSync(newModels)) {
-      // Symlink instead of copy (models can be GBs)
-      const { symlinkSync } = require('fs')
       try {
+        const { symlinkSync } = require('fs')
         symlinkSync(oldModels, newModels)
         console.log('[database] Models directory symlinked')
       } catch {

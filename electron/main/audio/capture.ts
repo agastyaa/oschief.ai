@@ -337,6 +337,9 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   // Clear stale dedup window — after a long pause, old entries would cause
   // false-positive dedup matches against new speech
   recentEmittedTexts.length = 0
+  // Flush audio buffers to discard noise/underrun from the pause period
+  audioBuffers[0].length = 0
+  audioBuffers[1].length = 0
   resumeStrictPassCountdown = [RESUME_STRICT_PASSES_PER_CHANNEL, RESUME_STRICT_PASSES_PER_CHANNEL]
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel

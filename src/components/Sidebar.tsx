@@ -34,14 +34,17 @@ export function SidebarTopBarLeft({
   const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
   return (
     <div className="flex items-center gap-2">
-      <button
-        onClick={toggleSidebar}
-        className={COLLAPSE_BTN_CLASS}
-        title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-      >
-        {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-      </button>
+      {/* Only show collapse button when sidebar is open — when collapsed, SidebarCollapseRail already renders one */}
+      {sidebarOpen && (
+        <button
+          onClick={toggleSidebar}
+          className={COLLAPSE_BTN_CLASS}
+          title="Collapse sidebar"
+          aria-label="Collapse sidebar"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
+      )}
       {backLabel != null && onBack != null && (
         <button
           onClick={onBack}
