@@ -4,6 +4,15 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.0.2] — 2026-03-26
+
+### Fixed
+- **Release pipeline** — assets (DMG, ZIP, `latest-mac.yml`) were silently skipped due to draft/release type mismatch in electron-builder; added `releaseType: release` so CI uploads to existing releases
+- **OTA auto-updates** — `latest-mac.yml` now publishes correctly, unblocking electron-updater discovery
+- **DMG build size** — removed duplicate 34 MB `syag-mlx-llm` binary from the bundle (directory copy excluded, standalone binary retained)
+
+---
+
 ## [2.0.1] — 2026-03-26
 
 **Stability & polish release.** Fixes critical post-launch bugs, improves performance, and cleans up the repo.
