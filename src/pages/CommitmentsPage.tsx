@@ -43,6 +43,8 @@ const CommitmentsPage = () => {
   const [loading, setLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState("")
   const [addingTodo, setAddingTodo] = useState(false)
+  const [projects, setProjects] = useState<any[]>([])
+  const [newTodoProjectId, setNewTodoProjectId] = useState<string | null>(null)
 
   const api = getElectronAPI()
   const accountName = useMemo(() => loadAccountFromStorage().name?.trim() || "", [])
@@ -72,6 +74,7 @@ const CommitmentsPage = () => {
 
   useEffect(() => {
     loadCommitments()
+    api?.memory?.projects?.getAll().then((p: any[]) => setProjects(p || []))
   }, [loadCommitments])
 
   const handleToggleStatus = useCallback(async (commitment: Commitment) => {
@@ -136,8 +139,10 @@ const CommitmentsPage = () => {
       await api.memory.commitments.add({
         text,
         owner: "you",
+        projectId: newTodoProjectId || undefined,
       })
       setNewTodoText("")
+      setNewTodoProjectId(null)
       await loadCommitments()
     } catch (err) {
       console.error("Failed to add to-do:", err)
@@ -200,6 +205,18 @@ const CommitmentsPage = () => {
                   placeholder="Write a to-do..."
                   className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                {projects.length > 0 && (
+                  <select
+                    value={newTodoProjectId || ""}
+                    onChange={(e) => setNewTodoProjectId(e.target.value || null)}
+                    className="rounded-md border border-border bg-background px-2 py-2 text-xs text-muted-foreground"
+                  >
+                    <option value="">No project</option>
+                    {projects.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                )}
                 <button
                   onClick={() => void handleAddTodo()}
                   disabled={addingTodo || !newTodoText.trim()}

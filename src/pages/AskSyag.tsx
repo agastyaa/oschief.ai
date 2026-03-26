@@ -203,10 +203,10 @@ export default function AskSyag() {
                   <Sparkles className="h-7 w-7" aria-hidden />
                 </div>
                 <h1 className="font-display text-2xl sm:text-3xl text-foreground tracking-tight mb-2">
-                  Your Chief of Staff
+                  {localStorage.getItem('assistant-name') || 'Your Chief of Staff'}
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ask about your meetings, people, projects, and commitments. OSChief searches your full work graph to give answers grounded in what actually happened.
+                  Ask about your meetings, people, projects, and commitments. {localStorage.getItem('assistant-name') || 'OSChief'} searches your full work graph to give answers grounded in what actually happened.
                 </p>
                 {getActiveAIModelLabel() && (
                   <p className="mt-3 text-[11px] text-muted-foreground">
