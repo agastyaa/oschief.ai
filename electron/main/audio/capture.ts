@@ -860,7 +860,19 @@ function filterHallucinatedTranscript(text: string): string | null {
   const collapsed = collapseRepetitions(text)
   if (!collapsed) return null
 
-  const lower = collapsed.toLowerCase()
+  // Strip Whisper prompt echo — the accent priming text sometimes gets interleaved with real speech
+  const PROMPT_SUBSTRINGS_TO_STRIP = [
+    /Speakers may have Indian,? British,? or other non-American English accents\.?/gi,
+    /Discussion about [^.]{0,200}\./g, // Vocabulary prompt echo
+  ]
+  let cleaned = collapsed
+  for (const pat of PROMPT_SUBSTRINGS_TO_STRIP) {
+    cleaned = cleaned.replace(pat, '')
+  }
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim()
+  if (!cleaned) return null
+
+  const lower = cleaned.toLowerCase()
 
   const hallucinationPatterns = [
     // YouTube/podcast hallucinations (Whisper trained on these)
@@ -896,19 +908,19 @@ function filterHallucinatedTranscript(text: string): string | null {
   }
 
   // Entropy check: if text is mostly repeated words, it's hallucination
-  const wordList = collapsed.toLowerCase().replace(/[,.\-!?]/g, '').split(/\s+/).filter(Boolean)
+  const wordList = cleaned.toLowerCase().replace(/[,.\-!?]/g, '').split(/\s+/).filter(Boolean)
   const uniqueWords = new Set(wordList)
   if (wordList.length > 4 && uniqueWords.size / wordList.length < 0.4) {
     return null
   }
 
   // Single word repeated (after collapse): "Oh" or just filler
-  if (wordList.length <= 2 && collapsed.length < 5) {
+  if (wordList.length <= 2 && cleaned.length < 5) {
     return null
   }
 
   // Entire segment is only repeated short phrase (2–4 words repeated 2+ times)
-  const words = collapsed.split(/\s+/)
+  const words = cleaned.split(/\s+/)
   if (words.length >= 4) {
     for (let len = 1; len <= 4; len++) {
       for (let i = 0; i <= words.length - len * 2; i++) {
@@ -926,7 +938,7 @@ function filterHallucinatedTranscript(text: string): string | null {
     }
   }
 
-  return normalizeSentenceCasing(collapsed)
+  return normalizeSentenceCasing(cleaned)
 }
 
 // ─── LLM Post-Processing (background correction queue) ──────────────────────

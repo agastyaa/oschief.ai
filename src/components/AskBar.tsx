@@ -517,7 +517,11 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                   <p className="text-[10px] text-muted-foreground mt-0.5">↑↓ to move · Enter to run · Esc to close</p>
                 </div>
                 <div className="overflow-y-auto py-1.5 px-1.5">
-                  {SLASH_PROMPT_ITEMS.map((item, index) => {
+                  {SLASH_PROMPT_ITEMS.filter(item => {
+                    // On home page, hide meeting-only prompts (live/output groups)
+                    if (context === 'home') return item.group !== 'live' && item.group !== 'output'
+                    return true
+                  }).map((item, index) => {
                     const Icon = item.icon;
                     const prev = index > 0 ? SLASH_PROMPT_ITEMS[index - 1] : null;
                     const showGroup = !prev || prev.group !== item.group;

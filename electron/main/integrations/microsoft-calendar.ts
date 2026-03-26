@@ -51,7 +51,7 @@ export async function fetchMicrosoftCalendarEvents(
   const start = new Date(now.getTime() - daysPast * 24 * 60 * 60 * 1000)
   const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 
-  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body,attendees`
+  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,sensitivity,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body,attendees`
 
   const { statusCode, data } = await netFetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -76,9 +76,15 @@ export async function fetchMicrosoftCalendarEvents(
         responseStatus: a.status?.response || undefined,
       }))
 
+    // Handle private/confidential events where subject may be hidden
+    const isPrivate = evt.sensitivity === 'private' || evt.sensitivity === 'confidential'
+    const title = (isPrivate && (!evt.subject || evt.subject === 'Busy'))
+      ? '(Private event)'
+      : evt.subject || 'Untitled'
+
     events.push({
       id: evt.id,
-      title: evt.subject || 'Untitled',
+      title,
       start: evt.start?.dateTime ? new Date(evt.start.dateTime + 'Z').toISOString() : new Date().toISOString(),
       end: evt.end?.dateTime ? new Date(evt.end.dateTime + 'Z').toISOString() : new Date().toISOString(),
       joinLink,

@@ -360,7 +360,7 @@ export default function AskSyag() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Follow up… (recipes from home screen)"
+                  placeholder="Ask about your meetings, people, or commitments…"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none min-w-0"
                 />
                 {isLoading ? (

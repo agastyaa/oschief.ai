@@ -41,6 +41,7 @@ type AiModelsSubTab = "models" | "transcription";
 const sections = [
   { icon: User, label: "Account", id: "account" },
   { icon: Sparkles, label: "AI Models", id: "ai-models" },
+  { icon: Mic, label: "Transcription", id: "transcription" },
   { icon: FileText, label: "Meeting", id: "meeting" },
   { icon: Globe, label: "Connections", id: "connections" },
   { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
@@ -85,13 +86,14 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   useDiarization: false,
 };
 
-function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button
-      onClick={onToggle}
+      onClick={disabled ? undefined : onToggle}
+      disabled={disabled}
       className={cn(
         "relative h-5 w-9 rounded-full transition-colors flex-shrink-0",
-        enabled ? "bg-accent" : "bg-secondary"
+        disabled ? "bg-muted opacity-50 cursor-not-allowed" : enabled ? "bg-accent" : "bg-secondary"
       )}
     >
       <div
@@ -1813,17 +1815,7 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <Tabs value={aiModelsTab} onValueChange={handleAiModelsTabChange} className="w-full">
-                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:inline-flex sm:h-10 sm:w-auto">
-                      <TabsTrigger value="models" className="text-[13px]">
-                        Models &amp; providers
-                      </TabsTrigger>
-                      <TabsTrigger value="transcription" className="text-[13px]">
-                        Transcription
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="models" className="mt-4 space-y-6 focus-visible:outline-none">
+                  <div className="mt-4 space-y-6">
                   {/* Default Model Selection */}
                   <div className="space-y-3">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -2264,9 +2256,12 @@ export default function SettingsPage() {
                       })}
                     </div>
                   </div>
-                    </TabsContent>
+                  </div>
+                </div>
+              )}
 
-                    <TabsContent value="transcription" className="mt-4 space-y-5 focus-visible:outline-none">
+              {active === "transcription" && (
+                <div className="space-y-5">
                   <SectionHeader title="Transcription" description="Control how OSChief listens and transcribes your meetings" />
                   <div className="space-y-2">
                     <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
@@ -2319,8 +2314,11 @@ export default function SettingsPage() {
                         </p>
                       </>
                     )}
-                    <SettingRow label="Enhance transcript with AI" description="Use your AI model to fix grammar, punctuation, and proper nouns in real-time. Requires a cloud AI model.">
-                      <Toggle enabled={toggles.llmPostProcess} onToggle={() => toggle("llmPostProcess")} />
+                    <SettingRow
+                      label="Enhance transcript with AI"
+                      description={selectedAIModel ? "Use your AI model to fix grammar, punctuation, and proper nouns in real-time." : "Requires an AI model — configure in Models & Providers above."}
+                    >
+                      <Toggle enabled={toggles.llmPostProcess && !!selectedAIModel} onToggle={() => { if (selectedAIModel) toggle("llmPostProcess") }} disabled={!selectedAIModel} />
                     </SettingRow>
                     <SettingRow label="Auto-generate AI notes" description="Create summaries and action items when recording ends">
                       <Toggle enabled={toggles.aiSummaries} onToggle={() => toggle("aiSummaries")} />
@@ -2330,13 +2328,8 @@ export default function SettingsPage() {
                     </SettingRow>
                     {/* "Reduce noise before transcription" removed — not wired to backend.
                         VAD energy thresholds in capture.ts handle this automatically. */}
-                    <SettingRow label="Speaker diarization (mic only)" description="Coming soon. Will label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings.">
-                      <button
-                        className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted cursor-not-allowed opacity-50"
-                        disabled
-                      >
-                        <span className="inline-block h-4 w-4 transform rounded-full bg-muted-foreground/40 transition translate-x-1" />
-                      </button>
+                    <SettingRow label="Speaker diarization (mic only)" description="Will label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings.">
+                      <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full font-medium">Coming soon</span>
                     </SettingRow>
                   </div>
                   <div>
@@ -2355,8 +2348,6 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <AudioTestPanel selectedDeviceId={selectedDeviceId} />
-                    </TabsContent>
-                  </Tabs>
                 </div>
               )}
 

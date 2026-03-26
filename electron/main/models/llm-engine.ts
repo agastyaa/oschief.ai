@@ -16,6 +16,9 @@ import {
 } from './templates'
 import { buildRoleCoachingSection } from './coaching-kb'
 
+// Module-level: stores the last transcript text for grounding validation in repairLocalSummary
+let _lastTranscriptForGrounding = ''
+
 const CHAT_SYSTEM_PROMPT = `You are OSChief, an AI assistant that helps users understand and query their meeting notes. You have access to the user's notes and transcripts. Be concise, helpful, and reference specific meetings when relevant.
 
 Notes may include time ranges (e.g. "7:00 PM – 7:34 PM") and dates. Use this to answer temporal questions like "what was discussed at 2:30 pm yesterday?".
@@ -231,6 +234,10 @@ export async function summarize(
   }
 
   const userInput = buildPrompt(effectiveTemplate, context, personalNotes, finalTranscriptText, isLocalModel)
+  console.log(`[summarize] transcript: ${transcript.length} lines, ${transcriptText.length} chars, model: ${model}`)
+
+  // Store transcript text for grounding validation in repairLocalSummary
+  _lastTranscriptForGrounding = transcriptText
 
   if (model.startsWith('ollama:')) {
     return summarizeWithOllama(userInput, model.replace('ollama:', ''), template, assigneeNormName)
@@ -321,7 +328,7 @@ async function summarizeWithOllama(
     const title = extractTitleFromResponse(response)
     const summary = parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
     // Output repair for local models: fill gaps that small/medium models sometimes leave
-    return repairLocalSummary(summary, response)
+    return repairLocalSummary(summary, response, _lastTranscriptForGrounding)
   } catch (err: any) {
     const msg = err?.message ?? String(err)
     if (msg.includes('Cannot reach Ollama') || msg.includes('ECONNREFUSED')) {
@@ -337,11 +344,49 @@ async function summarizeWithOllama(
 // ─── Output Repair (local/Ollama models) ────────────────────────────────────
 
 /**
+ * Extract proper nouns / capitalized multi-word phrases from text.
+ * Used to validate summary grounding against transcript.
+ */
+function extractProperNouns(text: string): string[] {
+  const matches = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/g) || []
+  // Filter out sentence starters and common words
+  const common = new Set(['The', 'This', 'That', 'They', 'Their', 'There', 'When', 'What', 'Where', 'Which', 'How', 'Who', 'Why', 'Not', 'But', 'And', 'For', 'From', 'With', 'Into', 'New', 'Key', 'Action', 'Meeting', 'Discussion', 'Summary', 'Overview', 'Decision', 'Item', 'Next', 'Step', 'Point'])
+  return [...new Set(matches.filter(m => !common.has(m) && m.length > 2))]
+}
+
+/**
+ * Check if LLM summary is grounded in the transcript.
+ * Returns true if the summary references content from the actual meeting.
+ */
+function isSummaryGrounded(summary: MeetingSummary, transcriptText: string): boolean {
+  const summaryText = [
+    summary.overview || '',
+    ...(summary.keyPoints || []),
+    ...(summary.nextSteps?.map(s => typeof s === 'string' ? s : s.text) || []),
+    ...(summary.decisions || []),
+  ].join(' ')
+  const summaryNouns = extractProperNouns(summaryText)
+  if (summaryNouns.length === 0) return true // no proper nouns to check
+  const lower = transcriptText.toLowerCase()
+  const grounded = summaryNouns.filter(n => lower.includes(n.toLowerCase()))
+  return grounded.length / summaryNouns.length >= 0.3
+}
+
+/**
  * Fix common structural issues in local model output.
  * Small/medium models sometimes miss fields or produce slightly off-format output.
  * This never runs for cloud models — their output is reliable enough.
  */
-function repairLocalSummary(summary: MeetingSummary, rawResponse: string): MeetingSummary {
+function repairLocalSummary(summary: MeetingSummary, rawResponse: string, transcriptText?: string): MeetingSummary {
+  // If the raw response doesn't reference any transcript content, skip repair —
+  // making hallucinated content look structured is worse than showing nothing
+  if (transcriptText && !isSummaryGrounded(summary, transcriptText)) {
+    console.warn('[LLM] Summary failed grounding check — likely hallucinated. Skipping repair.')
+    return {
+      ...summary,
+      overview: `⚠️ This summary may not match the transcript — verify manually.\n\n${summary.overview || ''}`.trim(),
+    }
+  }
   const repaired = { ...summary }
 
   // 1. Missing overview → extract from raw response (first non-title paragraph)
@@ -429,7 +474,7 @@ async function summarizeWithMLX(
     )
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
-    return repairLocalSummary(parsedToMeetingSummary(parsed, title, template.id, userDisplayName), response)
+    return repairLocalSummary(parsedToMeetingSummary(parsed, title, template.id, userDisplayName), response, _lastTranscriptForGrounding)
   } catch (err: any) {
     throw new Error(
       `MLX on-device summary failed. Try another model in Settings. ${(err?.message ?? '').slice(0, 80)}`
@@ -520,7 +565,7 @@ async function summarizeWithLocal(
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
     const summary = parsedToMeetingSummary(parsed, title, template.id, userDisplayName)
-    return repairLocalSummary(summary, response)
+    return repairLocalSummary(summary, response, _lastTranscriptForGrounding)
   } catch (err: any) {
     if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {
       throw new Error('Local LLM requires node-llama-cpp. It is not bundled with the app. Use a cloud model (e.g. OpenAI, Groq) in Settings, or install node-llama-cpp in development.')

@@ -81,12 +81,35 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
   return (
     <div
       className={cn(
-        "flex flex-shrink-0 flex-col items-center",
+        "flex flex-shrink-0 flex-col items-center relative",
         isElectron ? "w-20 min-w-[5rem] pt-10" : "w-10 pt-2"
       )}
     >
+      {/* Drag region when sidebar is collapsed — allows window movement from the rail area */}
+      {isElectron && (
+        <div
+          className="absolute top-0 left-0 right-0 h-10 z-50"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        />
+      )}
       {children}
     </div>
+  );
+}
+
+/**
+ * Global drag region for Electron — covers the full top of the window when
+ * sidebar is collapsed. Pages that use `pl-20` instead of SidebarCollapseRail
+ * need this to remain draggable.
+ */
+export function GlobalDragRegion() {
+  const { sidebarOpen } = useSidebarVisibility();
+  if (!isElectron || sidebarOpen) return null;
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 h-10 z-40 pointer-events-auto"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    />
   );
 }
 
@@ -141,8 +164,18 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
+      {/* Drag region for window movement (Electron hiddenInset titlebar) */}
+      {isElectron && (
+        <div
+          className="absolute top-0 left-0 right-0 h-10 z-50"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        />
+      )}
       {/* Logo only — collapse is in content top bar via SidebarTopBarLeft */}
-      <div className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
+      <div
+        className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}
+        style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
+      >
         <div className="flex items-center gap-2">
           <OSChiefLogo size={24} showText />
         </div>

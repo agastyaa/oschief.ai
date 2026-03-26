@@ -534,7 +534,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
             end: new Date(e.end),
             source: (e as CalendarEvent).source ?? ("synced" as const),
           }));
-          const filtered = withDates.filter((e) => e.joinLink && !e.isAllDay);
+          const filtered = withDates.filter((e) => !e.isAllDay);
           setSyncedEvents(dedupeCalendarEvents(filtered));
         }
         const reg = loadRegistry();
