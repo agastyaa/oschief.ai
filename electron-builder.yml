@@ -4,6 +4,7 @@ publish:
   provider: github
   owner: iamsagar125
   repo: syag-note
+  releaseType: release
 directories:
   buildResources: electron/resources
   output: dist
@@ -33,10 +34,7 @@ mac:
         - "!**/parakeet-coreml/Sources/**"
         - "!**/parakeet-coreml/Package.swift"
         - "!**/parakeet-coreml/Package.resolved"
-        - "!**/syag-mlx-llm/.build/**"
-        - "!**/syag-mlx-llm/Sources/**"
-        - "!**/syag-mlx-llm/Package.swift"
-        - "!**/syag-mlx-llm/Package.resolved"
+        - "!**/syag-mlx-llm/**"
     - from: electron/resources/tray-icon-template-2x.png
       to: tray-icon-template-2x.png
   target:
