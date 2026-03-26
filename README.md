@@ -90,7 +90,9 @@ OSChief is designed to be boring from a security review standpoint.
 
 You own your data. OSChief’s job is to make it usable.
 
----
+## Release
+
+https://github.com/iamsagar125/syag-note/releases
 
 ## Install
 
