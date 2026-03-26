@@ -69,7 +69,7 @@ export async function runAutoSetup(
   // Track 0: Bundled models — zero downloads, instant setup
   if (process.resourcesPath) {
     const bundledParakeet = existsSync(join(process.resourcesPath, 'darwin', 'models', 'parakeet-coreml', '.models-ready'))
-    const bundledMLX = existsSync(join(process.resourcesPath, 'darwin', 'syag-mlx-llm'))
+    const bundledMLX = existsSync(join(process.resourcesPath, 'darwin', 'syag-mlx-llm-bin'))
       && existsSync(join(process.resourcesPath, 'darwin', 'models', 'mlx-qwen3-4b'))
     if (bundledParakeet && bundledMLX && !hasModelsConfigured()) {
       console.log('[auto-setup] Track 0: Bundled models detected — instant setup')
