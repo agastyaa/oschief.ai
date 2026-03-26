@@ -32,6 +32,10 @@ export default function DecisionsPage() {
   const [filter, setFilter] = useState<FilterMode>("all")
   const [projects, setProjects] = useState<any[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newText, setNewText] = useState("")
+  const [newContext, setNewContext] = useState("")
+  const [newProjectId, setNewProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!api?.memory?.decisions) return
@@ -88,10 +92,78 @@ export default function DecisionsPage() {
             <Gavel className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Decisions</h1>
             <span className="text-xs text-muted-foreground ml-2">{decisions.length} total</span>
+            <div className="flex-1" />
+            {!creating && (
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <span className="text-sm">+</span>
+                Add Decision
+              </button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mb-5">
             Every decision made across your meetings — searchable by project, person, or keyword.
           </p>
+
+          {creating && (
+            <div className="rounded-lg border border-primary/30 bg-card p-4 mb-4 space-y-3">
+              <input
+                value={newText}
+                onChange={e => setNewText(e.target.value)}
+                placeholder="What was decided?"
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+              <input
+                value={newContext}
+                onChange={e => setNewContext(e.target.value)}
+                placeholder="Context (optional — why, who was involved)"
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {projects.length > 0 && (
+                <select
+                  value={newProjectId || ""}
+                  onChange={e => setNewProjectId(e.target.value || null)}
+                  className="px-3 py-2 text-sm bg-background border border-border rounded-md"
+                >
+                  <option value="">No project</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (!newText.trim() || !api?.memory?.decisions?.create) return
+                    await api.memory.decisions.create({
+                      text: newText.trim(),
+                      context: newContext.trim() || undefined,
+                      projectId: newProjectId || undefined,
+                      date: new Date().toISOString().slice(0, 10),
+                    })
+                    setNewText("")
+                    setNewContext("")
+                    setNewProjectId(null)
+                    setCreating(false)
+                    api.memory.decisions.getAll().then(setDecisions)
+                  }}
+                  disabled={!newText.trim()}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setCreating(false); setNewText(""); setNewContext(""); setNewProjectId(null) }}
+                  className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Filters */}
           <div className="flex items-center gap-3 mb-4">

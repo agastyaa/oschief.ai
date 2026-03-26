@@ -1191,6 +1191,25 @@ export function registerIPCHandlers(): void {
     const { getAllDecisions } = await import('./memory/decision-store')
     return getAllDecisions(filters)
   })
+  ipcMain.handle('memory:decisions-create', async (_e, data: { text: string; context?: string; noteId?: string; projectId?: string; date?: string }) => {
+    const { addDecision } = await import('./memory/decision-store')
+    return addDecision(data)
+  })
+  ipcMain.handle('memory:decisions-delete', async (_e, id: string) => {
+    const { deleteDecision } = await import('./memory/decision-store')
+    return deleteDecision(id)
+  })
+
+  // --- Projects: link people ---
+  ipcMain.handle('memory:projects-link-person', async (_e, projectId: string, personId: string) => {
+    const { getDb } = await import('./storage/database')
+    const db = getDb()
+    const existing = db.prepare('SELECT 1 FROM note_people WHERE note_id = ? AND person_id = ?').get(projectId, personId)
+    if (!existing) {
+      db.prepare('INSERT OR IGNORE INTO note_people (note_id, person_id, role) VALUES (?, ?, ?)').run(projectId, personId, 'project-member')
+    }
+    return true
+  })
 
   ipcMain.handle('memory:extract-entities', async (_e, data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) => {
     try {

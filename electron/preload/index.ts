@@ -391,11 +391,14 @@ const electronAPI = {
       timeline: (projectId: string) => ipcRenderer.invoke('memory:projects-timeline', projectId) as Promise<any>,
       linkToNote: (noteId: string, projectId: string) => ipcRenderer.invoke('memory:projects-link-note', noteId, projectId) as Promise<boolean>,
       unlinkFromNote: (noteId: string, projectId: string) => ipcRenderer.invoke('memory:projects-unlink-note', noteId, projectId) as Promise<boolean>,
+      linkPerson: (projectId: string, personId: string) => ipcRenderer.invoke('memory:projects-link-person', projectId, personId) as Promise<boolean>,
     },
     decisions: {
       forNote: (noteId: string) => ipcRenderer.invoke('memory:decisions-for-note', noteId) as Promise<any[]>,
       forProject: (projectId: string) => ipcRenderer.invoke('memory:decisions-for-project', projectId) as Promise<any[]>,
       getAll: (filters?: any) => ipcRenderer.invoke('memory:decisions-get-all', filters) as Promise<any[]>,
+      create: (data: { text: string; context?: string; noteId?: string; projectId?: string; date?: string }) => ipcRenderer.invoke('memory:decisions-create', data) as Promise<any>,
+      delete: (id: string) => ipcRenderer.invoke('memory:decisions-delete', id) as Promise<boolean>,
     },
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
