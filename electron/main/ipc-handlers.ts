@@ -340,10 +340,12 @@ export function registerIPCHandlers(): void {
 
   // --- LLM ---
   ipcMain.handle('llm:summarize', async (_e, data: any) => {
+    const { resolveSelectedAIModel } = await import('./models/model-resolver')
+    const model = resolveSelectedAIModel(data.model)
     return summarize(
       data.transcript,
       data.personalNotes,
-      data.model,
+      model,
       data.meetingTemplateId,
       data.customPrompt,
       data.meetingTitle,
@@ -354,7 +356,9 @@ export function registerIPCHandlers(): void {
   })
   ipcMain.handle('llm:chat', async (_e, data: any) => {
     const sender = _e.sender
-    return chat(data.messages, data.context, data.model, (chunk) => {
+    const { resolveSelectedAIModel } = await import('./models/model-resolver')
+    const model = resolveSelectedAIModel(data.model)
+    return chat(data.messages, data.context, model, (chunk) => {
       sender.send('llm:chat-chunk', chunk)
     })
   })
