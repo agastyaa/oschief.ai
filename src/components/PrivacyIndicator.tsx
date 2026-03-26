@@ -33,7 +33,7 @@ export function PrivacyIndicator() {
       {showDetail && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowDetail(false)} />
-          <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card p-3 shadow-lg text-xs space-y-2">
+          <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card p-3 shadow-lg text-xs space-y-2">
             <div className="font-medium text-foreground">Data boundary</div>
             <div className="flex items-center gap-2">
               <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0" />

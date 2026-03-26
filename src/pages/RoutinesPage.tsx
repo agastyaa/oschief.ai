@@ -126,14 +126,20 @@ export default function RoutinesPage() {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {sidebarOpen && <Sidebar />}
-      <main className="flex-1 overflow-y-auto">
+      {sidebarOpen && (
+        <div className="w-56 flex-shrink-0 overflow-hidden">
+          <Sidebar />
+        </div>
+      )}
+      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
+        <div className={cn("flex items-center px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
+          <SidebarCollapseButton />
+        </div>
         <div className="px-6 pt-2">
           <SectionTabs tabs={INTELLIGENCE_TABS} />
         </div>
         <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 mb-1">
-            {!sidebarOpen && <SidebarCollapseButton />}
             <Zap className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Routines</h1>
             <div className="flex-1" />

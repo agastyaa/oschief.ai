@@ -160,19 +160,7 @@ export async function exportToDocx(note: NoteData, filePath: string): Promise<vo
     }
   }
 
-  // Transcript
-  if (note.transcript?.length) {
-    children.push(sectionHeading('Transcript'))
-    for (const t of note.transcript) {
-      children.push(new Paragraph({
-        children: [
-          new TextRun({ text: `[${t.time}] ${t.speaker}: `, bold: true, size: 20 }),
-          new TextRun({ text: t.text, size: 20 }),
-        ],
-        spacing: { after: 80 },
-      }))
-    }
-  }
+  // Transcript excluded from default export — summary is what gets shared.
 
   const doc = new Document({
     sections: [{ children }],

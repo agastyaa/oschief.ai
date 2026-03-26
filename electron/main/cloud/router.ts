@@ -100,9 +100,22 @@ export async function routeLLM(
     }
   }
 
-  // Ollama runs locally — no API key needed, route directly
+  // Local models — no API key needed, route directly
   if (providerId === 'ollama') {
     return chatOllama(messages, modelName, onChunk)
+  }
+  if (providerId === 'local') {
+    // node-llama-cpp local model — import lazily to avoid circular deps
+    const llmEngine = await import('../models/llm-engine')
+    return (llmEngine as any).chatWithLocal(messages, modelName, onChunk)
+  }
+  if (providerId === 'mlx') {
+    const { chatMLX } = await import('./mlx-llm')
+    return chatMLX(messages, modelName, onChunk)
+  }
+  if (providerId === 'apple') {
+    const { chatApple } = await import('./apple-llm')
+    return chatApple(messages, model, onChunk)
   }
 
   const optional = optionalProviders.get(providerId)

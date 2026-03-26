@@ -574,7 +574,7 @@ async function summarizeWithLocal(
   }
 }
 
-async function chatWithLocal(
+export async function chatWithLocal(
   messages: any[],
   modelId: string,
   onChunk?: (chunk: { text: string; done: boolean }) => void
