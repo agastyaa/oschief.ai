@@ -4,6 +4,35 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.0.1] — 2026-03-26
+
+**Stability & polish release.** Fixes critical post-launch bugs, improves performance, and cleans up the repo.
+
+### Fixed
+- **Critical data migration bug** — v2.0 upgrade could lose existing meeting data; migration now runs safely
+- **Quick Prompts** — click handling fixed; prompts now fire reliably
+- **Parakeet ONNX model loading** — STT engine no longer fails on first launch
+- **Tray icon** — proper black template image for macOS menu bar (respects light/dark mode)
+- **In-app icons** — regenerated from 1024px source so orbital pattern is visible at all sizes
+- **Production build** — removed stray brace in `stt-engine.ts` that broke the build
+- **DMG naming** — productName corrected from "Syag" to "OSChief"
+- **STT startup** — faster speech-to-text initialization with safer meeting reminder scheduling
+
+### Performance
+- **UI freezes eliminated** — recording and startup no longer block the main thread
+- **Event-driven meeting reminders** — replaced polling with event listeners (lower CPU, instant response)
+
+### Testing
+- **50+ new tests** added from QA audit covering v2 features
+
+### Removed
+- Stale `bun.lock` / `bun.lockb` files (project uses npm)
+- Unused SVG/PNG assets from `public/`: old icon previews, source PNGs, placeholder SVG, sample calendar ICS, and superseded icon variants
+- `public/icon-previews/` directory and its planning docs
+- Lighter app bundle and faster repo clone
+
+---
+
 ## [2.0.0] — 2026-03-24
 
 **The "chief of staff" release.** OSChief stops being a meeting recorder and becomes your on-device work OS. New brand, new identity, new data model.
