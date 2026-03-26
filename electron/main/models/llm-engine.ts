@@ -1,6 +1,7 @@
 import { getModelPath } from './manager'
 import { routeLLM } from '../cloud/router'
 import { chatApple } from '../cloud/apple-llm'
+import { chatMLX } from '../cloud/mlx-llm'
 import { chatOllama } from '../cloud/ollama'
 import { getContextCap } from './ollama-manager'
 import {
@@ -182,6 +183,20 @@ export async function summarize(
 ): Promise<MeetingSummary> {
   const transcriptText = transcript.map(t => `[${t.time}] ${t.speaker}: ${t.text}`).join('\n')
 
+  // Guard: if transcript is too thin (fewer than 3 substantive lines), skip LLM to avoid hallucination.
+  // The LLM will fabricate plausible meeting content from almost nothing. Better to use local fallback.
+  const substantiveLines = transcript.filter(t => t.speaker !== 'System' && t.text.trim().length > 10)
+  if (substantiveLines.length < 3 && !personalNotes.trim()) {
+    console.log(`[LLM] Skipping summarization — only ${substantiveLines.length} substantive transcript lines and no personal notes. Would hallucinate.`)
+    return {
+      overview: substantiveLines.length > 0
+        ? substantiveLines.map(l => l.text).join(' ')
+        : 'No notes captured.',
+      keyPoints: [],
+      actionItems: [],
+    } as MeetingSummary
+  }
+
   const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
   const template = getTemplate(templateId)
   const context = buildMeetingContext({
@@ -227,6 +242,10 @@ export async function summarize(
 
   if (model.startsWith('apple:')) {
     return summarizeWithApple(userInput, template, assigneeNormName)
+  }
+
+  if (model.startsWith('mlx:')) {
+    return summarizeWithMLX(userInput, template, assigneeNormName)
   }
 
   // Cloud LLM: apply anonymization if enabled
@@ -276,6 +295,10 @@ export async function chat(
 
   if (model.startsWith('apple:')) {
     return chatApple(llmMessages, model, onChunk)
+  }
+
+  if (model.startsWith('mlx:')) {
+    return chatMLX(llmMessages, model.replace('mlx:', ''), onChunk)
   }
 
   return routeLLM(llmMessages, model, onChunk)
@@ -388,6 +411,28 @@ async function summarizeWithApple(
     }
     throw new Error(
       `Apple on-device summary failed. Try another model in Settings. ${msg.slice(0, 80)}`
+    )
+  }
+}
+
+// ─── MLX (on-device via MLX-Swift) ──────────────────────────────────────────
+
+async function summarizeWithMLX(
+  userInput: string,
+  template: MeetingTemplate,
+  userDisplayName?: string,
+): Promise<MeetingSummary> {
+  try {
+    const response = await chatMLX(
+      [{ role: 'user', content: userInput }],
+      'qwen3-4b'
+    )
+    const parsed = parseEnhancedNotes(response)
+    const title = extractTitleFromResponse(response)
+    return repairLocalSummary(parsedToMeetingSummary(parsed, title, template.id, userDisplayName), response)
+  } catch (err: any) {
+    throw new Error(
+      `MLX on-device summary failed. Try another model in Settings. ${(err?.message ?? '').slice(0, 80)}`
     )
   }
 }

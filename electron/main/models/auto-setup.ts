@@ -13,6 +13,8 @@ import { getSetting, setSetting } from '../storage/database'
 import { downloadModel, getModelPath, ensureModelsDir } from './manager'
 import { getSystemRAMGB, getRecommendedTier, autoSetupOllamaModel } from './ollama-manager'
 import { ollamaHealthCheck } from '../cloud/ollama'
+import { existsSync } from 'fs'
+import { join } from 'path'
 import os from 'os'
 
 export type SetupPhase = 'detecting' | 'downloading-stt' | 'installing-stt' | 'downloading-llm' | 'configuring' | 'ready' | 'error'
@@ -64,8 +66,47 @@ function hasModelsConfigured(): boolean {
 export async function runAutoSetup(
   onProgress: (status: SetupStatus) => void
 ): Promise<SetupResult> {
-  // Skip if already set up or models already configured
-  if (isSetupComplete() || hasModelsConfigured()) {
+  // Track 0: Bundled models — zero downloads, instant setup
+  if (process.resourcesPath) {
+    const bundledParakeet = existsSync(join(process.resourcesPath, 'darwin', 'models', 'parakeet-coreml', '.models-ready'))
+    const bundledMLX = existsSync(join(process.resourcesPath, 'darwin', 'syag-mlx-llm'))
+      && existsSync(join(process.resourcesPath, 'darwin', 'models', 'mlx-qwen3-4b'))
+    if (bundledParakeet && bundledMLX && !hasModelsConfigured()) {
+      console.log('[auto-setup] Track 0: Bundled models detected — instant setup')
+      onProgress({ phase: 'configuring', message: 'On-device AI models ready', percent: 95, track: 1, sttModel: 'local:parakeet-coreml', llmModel: 'mlx:qwen3-4b' })
+      const existingRaw = getSetting('model-settings')
+      let existing: Record<string, any> = {}
+      try { existing = existingRaw ? JSON.parse(existingRaw) : {} } catch {}
+      const updated = { ...existing, selectedSTTModel: 'local:parakeet-coreml', selectedAIModel: 'mlx:qwen3-4b', useLocalModels: true }
+      setSetting('model-settings', JSON.stringify(updated))
+      setSetting('auto-setup-complete', 'true')
+      onProgress({ phase: 'ready', message: 'OSChief is ready!', percent: 100, track: 1, sttModel: 'local:parakeet-coreml', llmModel: 'mlx:qwen3-4b' })
+      return { ok: true, track: 1, sttModel: 'local:parakeet-coreml', llmModel: 'mlx:qwen3-4b' }
+    }
+  }
+
+  // Skip if models already configured (fully set up)
+  if (hasModelsConfigured() && isSetupComplete()) {
+    // Even if setup completed, try to upgrade LLM to Ollama if available and currently using local fallback
+    const existingRaw = getSetting('model-settings')
+    const existing = existingRaw ? JSON.parse(existingRaw) : {}
+    if (existing.selectedAIModel?.startsWith('local:')) {
+      const ollamaRunning = await ollamaHealthCheck().catch(() => false)
+      if (ollamaRunning) {
+        const tier = getRecommendedTier()
+        if (tier) {
+          try {
+            const result = await autoSetupOllamaModel()
+            if (result.pulled && result.model) {
+              existing.selectedAIModel = `ollama:${result.model}`
+              setSetting('model-settings', JSON.stringify(existing))
+              console.log(`[auto-setup] Upgraded LLM to Ollama: ${result.model}`)
+              return { ok: true, track: 1, sttModel: existing.selectedSTTModel, llmModel: `ollama:${result.model}` }
+            }
+          } catch {}
+        }
+      }
+    }
     return { ok: true, track: 1, sttModel: 'existing', llmModel: 'existing' }
   }
 
@@ -88,26 +129,55 @@ export async function runAutoSetup(
     onProgress({ phase: 'downloading-stt', message: 'Setting up speech recognition...', percent: 10, track })
 
     if (IS_APPLE_SILICON) {
-      // Try MLX Whisper first (best quality on Apple Silicon)
+      // Try Parakeet CoreML first (best: 600M params, ~2.5% WER, runs on ANE)
       try {
-        onProgress({ phase: 'installing-stt', message: 'Installing MLX Whisper (best quality)...', percent: 15, track })
-        const { installMLXWhisper, checkMLXWhisperAvailable } = await import('./stt-engine')
-
-        const alreadyInstalled = await checkMLXWhisperAvailable()
-        if (alreadyInstalled) {
-          sttModel = 'local:mlx-whisper-large-v3-turbo'
-          console.log('[auto-setup] MLX Whisper already installed')
+        const { isParakeetCoreMLAvailable, buildParakeetCoreML, downloadParakeetCoreMLModels } = await import('../audio/stt-parakeet-coreml')
+        const parakeetReady = await isParakeetCoreMLAvailable()
+        if (parakeetReady) {
+          sttModel = 'local:parakeet-coreml'
+          console.log('[auto-setup] Parakeet CoreML already available')
         } else {
-          const result = await installMLXWhisper()
-          if (result.ok) {
-            sttModel = 'local:mlx-whisper-large-v3-turbo'
-            console.log('[auto-setup] MLX Whisper installed successfully')
+          onProgress({ phase: 'installing-stt', message: 'Setting up Parakeet speech recognition...', percent: 12, track })
+          const buildResult = await buildParakeetCoreML()
+          if (buildResult.ok) {
+            onProgress({ phase: 'downloading-stt', message: 'Downloading Parakeet CoreML models (~600MB)...', percent: 15, track })
+            const dlResult = await downloadParakeetCoreMLModels()
+            if (dlResult.ok) {
+              sttModel = 'local:parakeet-coreml'
+              console.log('[auto-setup] Parakeet CoreML ready')
+            } else {
+              console.warn('[auto-setup] Parakeet model download failed:', dlResult.error)
+            }
           } else {
-            console.warn('[auto-setup] MLX Whisper install failed, falling back to whisper.cpp:', result.error)
+            console.warn('[auto-setup] Parakeet build failed:', buildResult.error)
           }
         }
       } catch (err: any) {
-        console.warn('[auto-setup] MLX Whisper failed:', err.message?.slice(0, 100))
+        console.warn('[auto-setup] Parakeet CoreML failed:', err.message?.slice(0, 100))
+      }
+
+      // Fallback: MLX Whisper
+      if (!sttModel) {
+        try {
+          onProgress({ phase: 'installing-stt', message: 'Installing MLX Whisper...', percent: 15, track })
+          const { installMLXWhisper, checkMLXWhisperAvailable } = await import('./stt-engine')
+
+          const alreadyInstalled = await checkMLXWhisperAvailable()
+          if (alreadyInstalled) {
+            sttModel = 'local:mlx-whisper-large-v3-turbo'
+            console.log('[auto-setup] MLX Whisper already installed')
+          } else {
+            const result = await installMLXWhisper()
+            if (result.ok) {
+              sttModel = 'local:mlx-whisper-large-v3-turbo'
+              console.log('[auto-setup] MLX Whisper installed successfully')
+            } else {
+              console.warn('[auto-setup] MLX Whisper install failed, falling back to whisper.cpp:', result.error)
+            }
+          }
+        } catch (err: any) {
+          console.warn('[auto-setup] MLX Whisper failed:', err.message?.slice(0, 100))
+        }
       }
     }
 
@@ -148,7 +218,37 @@ export async function runAutoSetup(
     // ── LLM Setup ──
     onProgress({ phase: 'downloading-llm', message: 'Setting up AI summarization...', percent: 55, track })
 
-    if (track === 1 && ollamaRunning) {
+    // Try MLX-LLM first (Qwen3-4B on Apple Silicon — no Ollama needed, fully on-device)
+    if (IS_APPLE_SILICON && !llmModel) {
+      try {
+        const { isMLXLLMAvailable, buildMLXLLM, downloadMLXModels } = await import('../cloud/mlx-llm')
+        const mlxReady = await isMLXLLMAvailable()
+        if (mlxReady) {
+          llmModel = 'mlx:qwen3-4b'
+          console.log('[auto-setup] MLX-LLM (Qwen3-4B) already available')
+        } else {
+          onProgress({ phase: 'downloading-llm', message: 'Building MLX-LLM engine...', percent: 57, track })
+          const buildResult = await buildMLXLLM()
+          if (buildResult.ok) {
+            onProgress({ phase: 'downloading-llm', message: 'Downloading Qwen3-4B (~2.5GB)...', percent: 60, track })
+            const dlResult = await downloadMLXModels()
+            if (dlResult.ok) {
+              llmModel = 'mlx:qwen3-4b'
+              console.log('[auto-setup] MLX-LLM (Qwen3-4B) ready')
+            } else {
+              console.warn('[auto-setup] MLX model download failed:', dlResult.error)
+            }
+          } else {
+            console.warn('[auto-setup] MLX-LLM build failed:', buildResult.error)
+          }
+        }
+      } catch (err: any) {
+        console.warn('[auto-setup] MLX-LLM failed:', err.message?.slice(0, 100))
+      }
+    }
+
+    // Fallback: Ollama
+    if (!llmModel && track === 1 && ollamaRunning) {
       // Track 1: Ollama — auto-pull best model
       const tier = getRecommendedTier()
       if (tier) {

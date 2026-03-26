@@ -223,26 +223,22 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
           if (raw) userProfile = JSON.parse(raw);
         } catch {}
 
-        let effectiveNotes = noteContext;
-        if (isSlashPrompt && effectiveNotes) {
-          const lines = effectiveNotes.split('\n');
-          const transcriptIdx = lines.findIndex(l => l.startsWith('TRANSCRIPT:'));
-          if (transcriptIdx >= 0) {
-            const beforeTranscript = lines.slice(0, transcriptIdx + 1);
-            const transcriptLines = lines.slice(transcriptIdx + 1);
-            const recentLines = transcriptLines.slice(-25);
-            effectiveNotes = [...beforeTranscript, ...recentLines].join('\n');
-          }
-        }
+        // Use full note context for all prompts — Quick Prompts deserve the same quality as Ask page
+        const effectiveNotes = noteContext;
+
+        // Build graph context for richer answers (people, projects, decisions)
+        let graphContext = '';
+        try {
+          graphContext = await api?.llm?.buildGraphContext?.() || '';
+        } catch {}
 
         const contextData: any = {};
         if (effectiveNotes) contextData.notes = effectiveNotes;
-        if (isSlashPrompt) {
-          contextData.mode = 'quick';
-        } else {
-          if (userProfile?.name || userProfile?.role) contextData.userProfile = userProfile;
-          if (coachingMetrics) contextData.coachingMetrics = coachingMetrics;
-        }
+        if (graphContext) contextData.graph = graphContext;
+        // Use ask-syag mode for comprehensive answers, not 'quick' mode which truncates
+        contextData.mode = 'ask-syag';
+        if (userProfile?.name || userProfile?.role) contextData.userProfile = userProfile;
+        if (coachingMetrics) contextData.coachingMetrics = coachingMetrics;
 
         const response = await api.llm.chat({
           messages: chatMessages,

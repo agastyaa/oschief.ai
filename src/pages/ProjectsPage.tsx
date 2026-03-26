@@ -93,7 +93,7 @@ export default function ProjectsPage() {
           <div className="flex items-center gap-2 mb-1">
             {!sidebarOpen && <SidebarCollapseButton />}
             <FolderKanban className="h-4.5 w-4.5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Projects</h1>
+            <h1 className="font-display text-2xl text-foreground">Projects</h1>
             <div className="flex-1" />
             {!creating && (
               <button

@@ -77,6 +77,13 @@ app.whenReady().then(async () => {
     startSync()
   }
 
+  // Mark overdue commitments on startup + every 15 minutes
+  import('./memory/commitment-store').then(({ markOverdueCommitments }) => {
+    markOverdueCommitments()
+    setInterval(() => markOverdueCommitments(), 15 * 60 * 1000)
+    console.log('[commitments] Overdue marking active (startup + 15min interval)')
+  }).catch(() => {})
+
   // Smart meeting reminders — 5 min before each meeting
   import('./notifications/meeting-reminder').then(({ startMeetingReminders }) => {
     startMeetingReminders()

@@ -21,13 +21,22 @@ asarUnpack:
   - "node_modules/node-llama-cpp/**"
 mac:
   category: public.app-category.productivity
-  notarize:
-    teamId: "4TF93K384V"
+  notarize: false
   extendInfo:
     NSSpeechRecognitionUsageDescription: "Syag uses speech recognition to transcribe your meetings when you choose Apple Speech. Audio is processed on your device or by Apple's service."
   extraResources:
     - from: electron/resources/darwin
       to: darwin
+      filter:
+        - "**/*"
+        - "!**/parakeet-coreml/.build/**"
+        - "!**/parakeet-coreml/Sources/**"
+        - "!**/parakeet-coreml/Package.swift"
+        - "!**/parakeet-coreml/Package.resolved"
+        - "!**/syag-mlx-llm/.build/**"
+        - "!**/syag-mlx-llm/Sources/**"
+        - "!**/syag-mlx-llm/Package.swift"
+        - "!**/syag-mlx-llm/Package.resolved"
     - from: electron/resources/tray-icon-template-2x.png
       to: tray-icon-template-2x.png
   target:
@@ -38,7 +47,7 @@ mac:
       arch:
         - arm64
   icon: electron/resources/icon.icns
-  identity: "Developer ID Application: Sagar Adrushappa Kalarkopp (4TF93K384V)"
+  identity: "Sagar Adrushappa Kalarkopp (4TF93K384V)"
   hardenedRuntime: true
   entitlements: electron/resources/entitlements.mac.plist
   entitlementsInherit: electron/resources/entitlements.mac.inherit.plist

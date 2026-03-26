@@ -37,6 +37,12 @@ interface MeetingContext {
     dueDate: string | null
     isOverdue: boolean
   }>
+  recentDecisions?: Array<{
+    text: string
+    context: string | null
+    date: string
+    noteTitle: string
+  }>
   relatedNotes: Array<{
     title: string
     snippet: string
@@ -71,6 +77,7 @@ export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
   const hasContent =
     context.previousMeetings.length > 0 ||
     context.openCommitments.length > 0 ||
+    (context.recentDecisions?.length ?? 0) > 0 ||
     context.relatedNotes.length > 0 ||
     context.projects.length > 0
 
@@ -170,6 +177,20 @@ export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
                         · Due {c.dueDate}
                       </span>
                     )}
+                  </div>
+                </div>
+              ))}
+            </ContextSection>
+          )}
+
+          {/* Recent Decisions */}
+          {(context.recentDecisions?.length ?? 0) > 0 && (
+            <ContextSection title="Recent Decisions">
+              {context.recentDecisions!.map((d, i) => (
+                <div key={i} className="px-2 py-1.5">
+                  <div className="text-xs leading-relaxed">{d.text}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {d.noteTitle} · {d.date}
                   </div>
                 </div>
               ))}

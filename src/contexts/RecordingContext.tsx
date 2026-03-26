@@ -338,12 +338,24 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: useNoiseSuppression,
       };
       if (preferredDeviceId) {
-        audioConstraints.deviceId = { exact: preferredDeviceId };
+        audioConstraints.deviceId = { ideal: preferredDeviceId };
       }
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-      micStreamRef.current = micStream;
-      const micSource = audioCtx.createMediaStreamSource(micStream);
-      micSource.connect(merger, 0, 0);
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        micStreamRef.current = micStream;
+        const micSource = audioCtx.createMediaStreamSource(micStream);
+        micSource.connect(merger, 0, 0);
+      } catch (firstErr) {
+        // Preferred device may have changed — try without device constraint
+        console.warn('Preferred mic device failed, trying default:', firstErr);
+        const fallbackConstraints: MediaTrackConstraints = {
+          sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: useNoiseSuppression,
+        };
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: fallbackConstraints });
+        micStreamRef.current = micStream;
+        const micSource = audioCtx.createMediaStreamSource(micStream);
+        micSource.connect(merger, 0, 0);
+      }
     } catch (micErr) {
       console.warn('Microphone access denied or unavailable:', micErr);
     }

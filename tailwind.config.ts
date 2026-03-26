@@ -67,6 +67,16 @@ export default {
         canvas: "hsl(var(--canvas))",
         recording: "hsl(var(--recording))",
         "ai-active": "hsl(var(--ai-active))",
+        amber: {
+          DEFAULT: "hsl(var(--amber))",
+          bg: "hsl(var(--amber-bg))",
+          text: "hsl(var(--amber-text))",
+        },
+        green: {
+          DEFAULT: "hsl(var(--green))",
+          bg: "hsl(var(--green-bg))",
+          text: "hsl(var(--green-text))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

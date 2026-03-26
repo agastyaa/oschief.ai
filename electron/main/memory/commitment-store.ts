@@ -56,14 +56,15 @@ export function addCommitment(data: {
   owner?: string
   assigneeId?: string
   dueDate?: string
+  projectId?: string
   jiraIssueKey?: string
   jiraIssueUrl?: string
 }): any {
   const id = randomUUID()
   const now = new Date().toISOString()
   getDb().prepare(`
-    INSERT INTO commitments (id, note_id, text, owner, assignee_id, due_date, jira_issue_key, jira_issue_url, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+    INSERT INTO commitments (id, note_id, text, owner, assignee_id, due_date, project_id, jira_issue_key, jira_issue_url, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
   `).run(
     id,
     data.noteId ?? null,
@@ -71,6 +72,7 @@ export function addCommitment(data: {
     data.owner ?? 'you',
     data.assigneeId ?? null,
     data.dueDate ?? null,
+    data.projectId ?? null,
     data.jiraIssueKey ?? null,
     data.jiraIssueUrl ?? null,
     now,
@@ -125,8 +127,88 @@ export function updateCommitment(id: string, data: any): boolean {
 
 export function markOverdueCommitments(): void {
   const now = new Date().toISOString()
-  getDb().prepare(`
+  const result = getDb().prepare(`
     UPDATE commitments SET status = 'overdue', updated_at = ?
-    WHERE status = 'open' AND due_date < date('now')
+    WHERE status = 'open'
+      AND due_date IS NOT NULL
+      AND due_date GLOB '????-??-??*'
+      AND date(due_date) < date('now')
+      AND (snoozed_until IS NULL OR datetime(snoozed_until) < datetime('now'))
   `).run(now)
+  if ((result as any).changes > 0) {
+    console.log(`[commitments] Marked ${(result as any).changes} commitment(s) as overdue`)
+  }
+}
+
+export function snoozeCommitment(id: string, until: string): boolean {
+  const now = new Date().toISOString()
+  getDb().prepare(`
+    UPDATE commitments SET snoozed_until = ?, status = 'open', updated_at = ? WHERE id = ?
+  `).run(until, now, id)
+  const updated = getCommitment(id)
+  if (updated) logCommitmentSync('UPDATE', id, updated)
+  return true
+}
+
+// ── Due date normalization ───────────────────────────────────────────
+
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+export function normalizeDueDate(raw: string, referenceDate?: Date): string | null {
+  if (!raw || raw === 'null') return null
+  const trimmed = raw.trim()
+
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10)
+
+  const ref = referenceDate ?? new Date()
+  const lower = trimmed.toLowerCase().replace(/^by\s+/i, '').replace(/^on\s+/i, '').trim()
+
+  // "tomorrow"
+  if (lower === 'tomorrow') {
+    const d = new Date(ref); d.setDate(d.getDate() + 1)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // "today"
+  if (lower === 'today') return ref.toISOString().slice(0, 10)
+
+  // "in N days"
+  const inDays = lower.match(/^in\s+(\d+)\s+days?$/)
+  if (inDays) {
+    const d = new Date(ref); d.setDate(d.getDate() + parseInt(inDays[1]))
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Day name: "friday", "next monday"
+  const isNext = lower.startsWith('next ')
+  const dayStr = lower.replace(/^next\s+/, '')
+  const dayIdx = DAY_NAMES.indexOf(dayStr)
+  if (dayIdx >= 0) {
+    const d = new Date(ref)
+    const currentDay = d.getDay()
+    let daysAhead = dayIdx - currentDay
+    if (daysAhead <= 0 || isNext) daysAhead += 7
+    if (isNext && daysAhead <= 7) daysAhead += 7
+    d.setDate(d.getDate() + daysAhead)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // "next week" / "end of week"
+  if (lower === 'next week' || lower === 'end of week' || lower === 'end of the week') {
+    const d = new Date(ref)
+    const daysToFriday = (5 - d.getDay() + 7) % 7 || 7
+    d.setDate(d.getDate() + daysToFriday)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // "next month" / "end of month"
+  if (lower === 'next month' || lower === 'end of month' || lower === 'end of the month') {
+    const d = new Date(ref)
+    d.setMonth(d.getMonth() + 1, 0) // last day of current month
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Couldn't parse — return null (caller keeps raw as fallback)
+  return null
 }

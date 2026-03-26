@@ -45,3 +45,8 @@ electron/main/cloud/optional-providers-dist/
 # Cursor IDE
 .cursor/
 .gstack/
+
+# Bundled AI models (downloaded at build time, not committed)
+electron/resources/darwin/models/
+electron/resources/darwin/syag-mlx-llm/.build/
+electron/resources/darwin/parakeet-coreml/.build/

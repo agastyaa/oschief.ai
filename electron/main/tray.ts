@@ -18,10 +18,17 @@ const TRAY_ICON_NAME = 'tray-icon-template-2x.png'
 /** Path to tray icon file (44×44 template); used as-is when present. */
 function getTrayIconPath(): string | null {
   try {
-    const p = app.isPackaged
-      ? join(app.getPath('resourcesPath'), TRAY_ICON_NAME)
-      : join(app.getAppPath(), 'electron', 'resources', TRAY_ICON_NAME)
-    return existsSync(p) ? p : null
+    // Packaged: icon is in extraResources at process.resourcesPath root
+    // Dev: icon is in electron/resources/
+    const candidates = [
+      ...(process.resourcesPath ? [join(process.resourcesPath, TRAY_ICON_NAME)] : []),
+      join(app.getAppPath(), 'electron', 'resources', TRAY_ICON_NAME),
+      join(process.cwd(), 'electron', 'resources', TRAY_ICON_NAME),
+    ]
+    for (const p of candidates) {
+      if (existsSync(p)) return p
+    }
+    return null
   } catch {
     return null
   }

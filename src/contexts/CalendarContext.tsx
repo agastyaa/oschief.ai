@@ -280,7 +280,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       rawEvents: CalendarEvent[],
       registryUpdate?: IcsFeedRegistryEntry
     ) => {
-      const filtered = rawEvents.filter((e) => e.joinLink && !e.isAllDay);
+      const filtered = rawEvents.filter((e) => !e.isAllDay);
       const tagged = filtered.map((e) => ({
         ...e,
         source: "synced" as const,

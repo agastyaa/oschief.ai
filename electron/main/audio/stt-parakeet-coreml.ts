@@ -18,6 +18,23 @@ import { app } from 'electron'
 
 const BINARY_NAME = 'syag-parakeet-coreml'
 
+/** Get bundled Parakeet model dir from extraResources (if models are shipped with the app). */
+function getBundledModelDir(): string | null {
+  if (process.resourcesPath) {
+    const bundled = join(process.resourcesPath, 'darwin', 'models', 'parakeet-coreml')
+    if (existsSync(join(bundled, '.models-ready'))) return bundled
+  }
+  return null
+}
+
+/** Build env object with PARAKEET_MODEL_DIR if bundled models exist. */
+function getSpawnEnv(): Record<string, string> {
+  const env: Record<string, string> = { ...process.env as Record<string, string> }
+  const bundled = getBundledModelDir()
+  if (bundled) env.PARAKEET_MODEL_DIR = bundled
+  return env
+}
+
 /**
  * Find the built Swift binary.
  * Checks: packaged app resources → dev build output → not found.
@@ -49,8 +66,19 @@ function getBinaryPath(): string | null {
  * Returns the path to the built binary, or null if build fails.
  */
 export async function buildParakeetCoreML(): Promise<{ ok: boolean; binaryPath?: string; error?: string }> {
-  // Try app path first (works in both dev and packaged builds), then cwd fallback
+  // In packaged app, the binary should already be in extraResources — can't build from asar
+  if (app.isPackaged) {
+    const packaged = join(process.resourcesPath, 'darwin', BINARY_NAME)
+    if (existsSync(packaged)) {
+      return { ok: true, binaryPath: packaged }
+    }
+    return { ok: false, error: 'Parakeet CoreML binary not found in packaged app. Reinstall the app to fix this.' }
+  }
+
+  // Dev: try app path first, then cwd fallback
   const candidates = [
+    // extraResources path (also available in dev when resources are copied)
+    ...(process.resourcesPath ? [join(process.resourcesPath, 'darwin', 'parakeet-coreml')] : []),
     join(app.getAppPath(), 'electron', 'resources', 'darwin', 'parakeet-coreml'),
     join(process.cwd(), 'electron', 'resources', 'darwin', 'parakeet-coreml'),
   ]
@@ -87,7 +115,7 @@ export async function isParakeetCoreMLAvailable(): Promise<boolean> {
   if (!binary) return false
 
   try {
-    const result = execSync(`"${binary}" check`, { timeout: 5000, stdio: 'pipe' })
+    const result = execSync(`"${binary}" check`, { timeout: 5000, stdio: 'pipe', env: getSpawnEnv() })
     return result.toString().trim() === 'ok'
   } catch {
     return false
@@ -98,6 +126,12 @@ export async function isParakeetCoreMLAvailable(): Promise<boolean> {
  * Download CoreML models (~600MB). Shows progress on stderr.
  */
 export async function downloadParakeetCoreMLModels(): Promise<{ ok: boolean; error?: string }> {
+  // Skip download if bundled models exist
+  if (getBundledModelDir()) {
+    console.log('[parakeet-coreml] Bundled models detected, skipping download')
+    return { ok: true }
+  }
+
   let binary = getBinaryPath()
 
   // If binary doesn't exist, try building it first
@@ -114,6 +148,7 @@ export async function downloadParakeetCoreMLModels(): Promise<{ ok: boolean; err
     const proc = spawn(binary, ['download'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 600000, // 10 min for large download
+      env: getSpawnEnv(),
     })
 
     let stdout = ''
@@ -144,6 +179,32 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
     throw new Error('CoreML Parakeet binary not found. Run the setup in Settings > AI Models first.')
   }
 
+  // Validate WAV header before writing to disk
+  if (wavBuffer.length < 44) {
+    throw new Error('Invalid WAV buffer: too small for header')
+  }
+  const riffTag = wavBuffer.toString('ascii', 0, 4)
+  const waveTag = wavBuffer.toString('ascii', 8, 12)
+  if (riffTag !== 'RIFF' || waveTag !== 'WAVE') {
+    throw new Error(`Invalid WAV header: expected RIFF/WAVE, got ${riffTag}/${waveTag}`)
+  }
+  const sampleRate = wavBuffer.readUInt32LE(24)
+  const numChannels = wavBuffer.readUInt16LE(22)
+  const bitsPerSample = wavBuffer.readUInt16LE(34)
+  console.log(`[parakeet-coreml] WAV: ${sampleRate}Hz, ${numChannels}ch, ${bitsPerSample}bit, ${wavBuffer.length} bytes`)
+
+  // Parakeet expects 16kHz mono 16-bit PCM, minimum 1 second
+  if (sampleRate !== 16000) {
+    console.warn(`[parakeet-coreml] Unexpected sample rate: ${sampleRate}Hz (expected 16000)`)
+  }
+  // FluidAudio requires minimum audio length — lowered to 0.8s to catch short utterances ("yes", "got it")
+  const dataBytes = wavBuffer.length - 44
+  const minDataBytes = sampleRate * numChannels * (bitsPerSample / 8) * 0.8 // 0.8 second minimum
+  if (dataBytes < minDataBytes) {
+    console.warn(`[parakeet-coreml] Audio too short for Parakeet: ${(dataBytes / (sampleRate * numChannels * (bitsPerSample / 8))).toFixed(2)}s (need ≥0.8s)`)
+    return '' // Return empty instead of crashing
+  }
+
   const tmpDir = join(app.getPath('temp'), 'syag-parakeet-coreml')
   mkdirSync(tmpDir, { recursive: true })
   const wavPath = join(tmpDir, `stt-${Date.now()}.wav`)
@@ -152,10 +213,18 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
     const { writeFile } = require('fs/promises')
     await writeFile(wavPath, wavBuffer)
 
+    // Verify file was written correctly
+    const { statSync: fstatSync } = require('fs')
+    const writtenSize = fstatSync(wavPath).size
+    if (writtenSize !== wavBuffer.length) {
+      throw new Error(`WAV file size mismatch: wrote ${writtenSize}, expected ${wavBuffer.length}`)
+    }
+
     const result = await new Promise<string>((resolve, reject) => {
       const proc = spawn(binary, ['transcribe', wavPath], {
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: 60000, // 60s timeout per chunk
+        env: getSpawnEnv(),
       })
 
       let stdout = ''
@@ -167,7 +236,9 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
         if (code === 0) {
           resolve(stdout.trim())
         } else {
-          reject(new Error(`CoreML Parakeet exited ${code}: ${stderr.trim()}`))
+          // Include WAV details in error for debugging
+          const detail = `WAV: ${sampleRate}Hz ${numChannels}ch ${bitsPerSample}bit ${wavBuffer.length}B`
+          reject(new Error(`CoreML Parakeet exited ${code}: ${stderr.trim()} [${detail}]`))
         }
       })
     })

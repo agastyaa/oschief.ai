@@ -203,7 +203,27 @@ export default function NoteDetailPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showTemplateMenu]);
 
+  // Notes load async in Electron — wait before showing "not found"
+  const [waitedForLoad, setWaitedForLoad] = useState(false);
+  useEffect(() => {
+    if (!note && !waitedForLoad) {
+      const timer = setTimeout(() => setWaitedForLoad(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [note, waitedForLoad]);
+
   if (!note) {
+    if (!waitedForLoad) {
+      // Show loading state while notes are being fetched from DB
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <Loader2 className="h-6 w-6 text-muted-foreground/40 mx-auto mb-3 animate-spin" />
+            <p className="text-[12px] text-muted-foreground">Loading note...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -572,7 +592,7 @@ export default function NoteDetailPage() {
           </div>
 
           {/* Transcript side panel */}
-          {transcriptVisible && (note.transcript.length > 0 || newLines.length > 0) && (
+          {transcriptVisible && (
             <div className="w-[27rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl animate-slide-in-right">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
@@ -600,6 +620,14 @@ export default function NoteDetailPage() {
                 </div>
               </div>
               <div className="p-4 space-y-4">
+                {/* Empty state */}
+                {note.transcript.length === 0 && newLines.length === 0 && recordingState !== "recording" && (
+                  <div className="text-center py-8">
+                    <Mic className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-[11px] text-muted-foreground">No transcript available</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Set up an STT model in Settings → AI Models to transcribe meetings</p>
+                  </div>
+                )}
                 {/* Grouped transcript blocks */}
                 {(() => {
                   const allLines = [...note.transcript, ...newLines];
@@ -996,13 +1024,20 @@ function CoachingView({
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
           <p className="text-[11px] text-foreground">
-            Connect an AI model in <button onClick={() => window.location.href = '/settings?section=ai-models'} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
+            Connect an AI model in <button onClick={() => navigate('/settings?section=ai-models')} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
           </p>
           <button
             type="button"
             className="shrink-0 text-[11px] font-medium text-accent hover:underline"
             onClick={async () => {
-              if (!api?.coaching?.analyzeConversation || !metrics || !heuristics) return;
+              if (!selectedAIModel) {
+                navigate('/settings?section=ai-models');
+                return;
+              }
+              if (!api?.coaching?.analyzeConversation || !metrics || !heuristics) {
+                toast.error('Unable to analyze — missing transcript metrics. Try reopening this note.');
+                return;
+              }
               conversationAnalysisStarted.current = true;
               setConversationFailed(false);
               setConversationLoading(true);
@@ -1013,7 +1048,7 @@ function CoachingView({
                   metrics: metricsForApi as unknown as Record<string, unknown>,
                   heuristics,
                   roleId: accountRoleId,
-                  model: selectedAIModel || undefined,
+                  model: selectedAIModel,
                 });
                 if (result.ok) {
                   updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });

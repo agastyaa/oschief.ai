@@ -125,7 +125,7 @@ export default function RoutinesPage() {
           <div className="flex items-center gap-2 mb-1">
             {!sidebarOpen && <SidebarCollapseButton />}
             <Zap className="h-4.5 w-4.5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Routines</h1>
+            <h1 className="font-display text-2xl text-foreground">Routines</h1>
             <div className="flex-1" />
             {!creating && (
               <button

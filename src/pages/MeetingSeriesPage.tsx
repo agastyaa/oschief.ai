@@ -89,7 +89,7 @@ export default function MeetingSeriesPage() {
           <div className="flex items-center gap-2 mb-1">
             {!sidebarOpen && <SidebarCollapseButton />}
             <Repeat className="h-4.5 w-4.5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Meeting Series</h1>
+            <h1 className="font-display text-2xl text-foreground">Meeting Series</h1>
             <span className="text-xs text-muted-foreground ml-2">{series.length} recurring</span>
           </div>
           <p className="text-xs text-muted-foreground mb-6">

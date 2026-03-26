@@ -231,6 +231,15 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_routines_enabled ON routines(enabled)`,
     ]
   },
+  {
+    version: 11,
+    up: [
+      // Direct commitment→project link + snooze support
+      `ALTER TABLE commitments ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL`,
+      `ALTER TABLE commitments ADD COLUMN snoozed_until TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_commitments_project ON commitments(project_id)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

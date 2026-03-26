@@ -37,6 +37,14 @@ let silenceTimer: ReturnType<typeof setInterval> | null = null
 let currentSTTModel = ''
 let customVocabulary = ''
 let isProcessing = false
+let isProcessingSince = 0  // timestamp when isProcessing was set true; 0 when idle
+const MAX_PROCESSING_TIME_MS = 120_000  // 2 min safety timeout to unstick isProcessing
+
+function clearProcessingLock(notifyIdle = false): void {
+  isProcessing = false
+  isProcessingSince = 0
+  if (notifyIdle) statusCallback?.({ state: 'stt-idle' })
+}
 let lastSpeechTime = 0
 let autoPaused = false
 let consecutiveSilentChunks = 0
@@ -79,23 +87,27 @@ function textSimilarity(a: string, b: string): number {
 
 /** Recent emitted transcripts for cross-channel deduplication. */
 const recentEmittedTexts: Array<{ text: string; time: number; channel: number }> = []
-const DEDUP_WINDOW_MS_DEFAULT = 12000 // 12s window — if same/similar text was emitted recently, skip
-const FUZZY_DEDUP_THRESHOLD_DEFAULT = 0.75 // Jaccard word-overlap threshold for cross-channel echo suppression
+const DEDUP_WINDOW_MS_DEFAULT = 15000 // 15s window — if same/similar text was emitted recently, skip (up from 12s)
+const FUZZY_DEDUP_THRESHOLD_DEFAULT = 0.65 // Jaccard word-overlap threshold for cross-channel echo suppression (tightened from 0.75)
 
-// Near real-time: process every 4s when active, 15s when idle
-const CHUNK_INTERVAL_ACTIVE_MS = 4000
+// Near real-time: process every 6s when active (up from 4s — longer context = better WER), 15s when idle
+const CHUNK_INTERVAL_ACTIVE_MS = 6000
 const CHUNK_INTERVAL_IDLE_MS = 15000
 const SAMPLE_RATE = 16000
 // Auto-pause on silence disabled — user manually pauses and uses "Generate summary" button
 const MIN_SAMPLES_PER_CHANNEL = 16000 * 1.5 // 1.5s minimum for STT (balance: enough context vs fast first result)
-const EARLY_TRIGGER_SAMPLES = 16000 * 3  // 3s: fast first result (~4-5s total latency with VAD+STT)
+const EARLY_TRIGGER_SAMPLES = 16000 * 4  // 4s: slightly longer for better context (~5-6s total latency)
+// Overlapping chunks: keep last 2s of audio from previous chunk as context for the next one.
+// This gives the STT model continuity across chunk boundaries — dramatically improves WER at word boundaries.
+const OVERLAP_SAMPLES = SAMPLE_RATE * 2  // 2s = 32,000 samples
+const previousAudioTail: [Float32Array | null, Float32Array | null] = [null, null]
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
-const MIN_ENERGY_BY_CHANNEL = [0.0004, 0.00005] as const   // You: stricter so muted mic doesn't produce segments; Others: lowered for quieter speakers
-const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0012, 0.0002] as const  // Others: halved to catch quieter remote participants
-// You: slightly relaxed so short phrases right after un-muting in the meeting app are less likely to be skipped
-const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.55, 0.5] as const
+const MIN_ENERGY_BY_CHANNEL = [0.0002, 0.00005] as const   // You: relaxed to catch softer speech; Others: lowered for quieter speakers
+const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0006, 0.0002] as const  // You: halved — too strict was dropping normal speech after first sentence
+// You: lowered so short replies ("yes", "got it") aren't dropped
+const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.35, 0.5] as const
 
 /** When true (Settings → stt-capture-sensitivity=sensitive), relax energy gates and dedup slightly. */
 let sttCaptureSensitivityRelaxed = false
@@ -128,9 +140,9 @@ function effectiveFuzzyDedupThreshold(): number {
  * require stronger speech energy and slightly longer VAD segments before calling the model.
  */
 let resumeStrictPassCountdown: [number, number] = [0, 0]
-const RESUME_STRICT_PASSES_PER_CHANNEL = 3
-const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.75
-const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.35
+const RESUME_STRICT_PASSES_PER_CHANNEL = 1
+const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.3
+const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.15
 
 /** Log mic-channel skip reasons when SYAG_DEBUG_AUDIO=1 or setting debug-audio-capture=true (see docs/transcript-me-them.md). */
 function isDebugAudioCapture(): boolean {
@@ -195,7 +207,7 @@ export async function startRecording(
 
   isRecording = true
   isPaused = false
-  isProcessing = false
+  clearProcessingLock()
   autoPaused = false
   transcriptCallback = onTranscript
   correctionCallback = onCorrectedTranscript || null
@@ -393,7 +405,16 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
 
 async function processBufferedAudio(): Promise<void> {
   if (!transcriptCallback) return
-  if (isProcessing) return
+  if (isProcessing) {
+    // Safety: if isProcessing has been stuck for over 2 minutes, force-reset it
+    if (isProcessingSince > 0 && Date.now() - isProcessingSince > MAX_PROCESSING_TIME_MS) {
+      console.warn('[capture] isProcessing stuck for', Math.round((Date.now() - isProcessingSince) / 1000), 's — force-resetting')
+      isProcessing = false
+      isProcessingSince = 0
+    } else {
+      return
+    }
+  }
   if (isPaused) return
 
   for (const channel of [0, 1]) {
@@ -410,10 +431,15 @@ async function processBufferedAudio(): Promise<void> {
     const chunks = audioBuffers[channel].slice(0)
 
     isProcessing = true
+    isProcessingSince = Date.now()
     statusCallback?.({ state: 'stt-processing' })
 
-    const merged = new Float32Array(totalLength)
-    let offset = 0
+    // Prepend overlap tail from previous chunk (2s of prior audio for context continuity)
+    const tail = previousAudioTail[channel]
+    const overlapLength = tail ? tail.length : 0
+    const merged = new Float32Array(overlapLength + totalLength)
+    if (tail) merged.set(tail, 0)
+    let offset = overlapLength
     for (const chunk of chunks) {
       merged.set(chunk, offset)
       offset += chunk.length
@@ -430,8 +456,7 @@ async function processBufferedAudio(): Promise<void> {
           console.warn('[capture] No STT model configured; transcript will be empty. Set Speech-to-Text model in Settings > AI Models.')
         }
         audioBuffers[channel].splice(0, chunkCount)
-        isProcessing = false
-        statusCallback?.({ state: 'stt-idle' })
+        clearProcessingLock(true)
         return
       }
 
@@ -439,8 +464,7 @@ async function processBufferedAudio(): Promise<void> {
       if (currentSTTModel.startsWith('local:') && Date.now() < localSTTBackoffUntil) {
         console.log('[capture] Skipping local STT (backoff until', new Date(localSTTBackoffUntil).toISOString(), ')')
         if (channel === 0) logMicCaptureDebug('skip_local_stt_backoff', { until: localSTTBackoffUntil })
-        isProcessing = false
-        statusCallback?.({ state: 'stt-idle' })
+        clearProcessingLock(true)
         continue
       }
 
@@ -451,12 +475,11 @@ async function processBufferedAudio(): Promise<void> {
         audioBuffers[channel].splice(0, chunkCount)
         if (channel === 0) logMicCaptureDebug('skip_buffer_energy', { energy: energy, minEnergy, samples: merged.length })
         consecutiveSilentChunks++
-        if (consecutiveSilentChunks >= 2 && currentChunkIntervalMs < CHUNK_INTERVAL_IDLE_MS) {
+        if (consecutiveSilentChunks >= 4 && currentChunkIntervalMs < CHUNK_INTERVAL_IDLE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_IDLE_MS
           restartChunkTimer()
         }
-        isProcessing = false
-        statusCallback?.({ state: 'stt-idle' })
+        clearProcessingLock(true)
         continue
       }
 
@@ -484,8 +507,7 @@ async function processBufferedAudio(): Promise<void> {
           if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: no segments) channel:', channel)
           audioBuffers[channel].splice(0, chunkCount)
           if (channel === 0) logMicCaptureDebug('skip_vad_no_segments', { vadThreshold, ambientEnergy })
-          isProcessing = false
-          statusCallback?.({ state: 'stt-idle' })
+          clearProcessingLock(true)
           continue
         }
         const totalSpeechDuration = vadSegments.reduce((sum, s) => sum + (s.end - s.start), 0)
@@ -497,8 +519,7 @@ async function processBufferedAudio(): Promise<void> {
           if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (VAD: speech duration', totalSpeechDuration.toFixed(1), '<', minSpeechSec, 's) channel:', channel)
           audioBuffers[channel].splice(0, chunkCount)
           if (channel === 0) logMicCaptureDebug('skip_vad_short_duration', { totalSpeechDuration, minSpeechSec })
-          isProcessing = false
-          statusCallback?.({ state: 'stt-idle' })
+          clearProcessingLock(true)
           continue
         }
         speechAudio = extractSpeechSegments(merged, vadSegments, SAMPLE_RATE)
@@ -516,8 +537,7 @@ async function processBufferedAudio(): Promise<void> {
         if (currentSTTModel.startsWith('local:')) console.log('[capture] Skip (speech energy', speechEnergy.toFixed(6), '<', minSpeechEnergy, ') channel:', channel)
         audioBuffers[channel].splice(0, chunkCount)
         if (channel === 0) logMicCaptureDebug('skip_speech_energy', { speechEnergy, minSpeechEnergy })
-        isProcessing = false
-        statusCallback?.({ state: 'stt-idle' })
+        clearProcessingLock(true)
         continue
       }
 
@@ -586,8 +606,7 @@ async function processBufferedAudio(): Promise<void> {
         audioBuffers[channel].splice(0, chunkCount)
         chunkRetryCount[channel] = 0
         if (channel === 0) logMicCaptureDebug('skip_low_confidence', { avgConfidence: sttResult.avgConfidence })
-        isProcessing = false
-        statusCallback?.({ state: 'stt-idle' })
+        clearProcessingLock(true)
         continue
       }
 
@@ -611,8 +630,7 @@ async function processBufferedAudio(): Promise<void> {
           audioBuffers[channel].splice(0, chunkCount)
           chunkRetryCount[channel] = 0
           if (channel === 0) logMicCaptureDebug('skip_cross_channel_dedup', { preview: filteredNorm.slice(0, 80) })
-          isProcessing = false
-          statusCallback?.({ state: 'stt-idle' })
+          clearProcessingLock(true)
           continue
         }
         recentEmittedTexts.push({ text: filteredNorm, time: now, channel })
@@ -621,6 +639,15 @@ async function processBufferedAudio(): Promise<void> {
         const time = formatTimestamp(chunkStartSec)
         transcriptCallback({ speaker, time, text: filtered, words: sttResult.words?.length ? sttResult.words : undefined })
         setPreviousContextForChannel(channel as 0 | 1, filtered)
+        // Save last 2s of audio as overlap context for next chunk (improves WER at boundaries)
+        const mergedForTail = new Float32Array(totalLength)
+        let tailOffset = 0
+        for (const c of chunks) { mergedForTail.set(c, tailOffset); tailOffset += c.length }
+        if (mergedForTail.length > OVERLAP_SAMPLES) {
+          previousAudioTail[channel] = mergedForTail.slice(-OVERLAP_SAMPLES)
+        } else {
+          previousAudioTail[channel] = mergedForTail.slice()
+        }
         // Success — remove processed audio from buffer and reset retry counter
         audioBuffers[channel].splice(0, chunkCount)
         chunkRetryCount[channel] = 0
@@ -704,9 +731,8 @@ async function processBufferedAudio(): Promise<void> {
         statusCallback?.({ state: 'stt-idle', error: msg })
       }
     }
-    isProcessing = false
-    statusCallback?.({ state: 'stt-idle' })
   }
+  clearProcessingLock(true)
 
   // Low-latency: if either channel still has enough samples, process again immediately
   const hasMore0 = audioBuffers[0].reduce((s, c) => s + c.length, 0) >= MIN_SAMPLES_PER_CHANNEL
@@ -837,6 +863,7 @@ function filterHallucinatedTranscript(text: string): string | null {
   const lower = collapsed.toLowerCase()
 
   const hallucinationPatterns = [
+    // YouTube/podcast hallucinations (Whisper trained on these)
     /thank\s+you\s+for\s+watching/i,
     /thanks\s+for\s+watching/i,
     /subscribe\s*(to\s+our\s+channel)?/i,
@@ -844,12 +871,25 @@ function filterHallucinatedTranscript(text: string): string | null {
     /see\s+you\s+(in\s+the\s+)?next\s+/i,
     /don't\s+forget\s+to\s+subscribe/i,
     /hit\s+the\s+(bell|subscribe)\s+button/i,
-    /^\[music\]$/i, /^\[applause\]$/i, /^\[blank_audio\]$/i,
-    /^\(music\)$/i, /^\(applause\)$/i, /^\(laughter\)$/i,
+    /please\s+leave\s+a\s+(like|comment)/i,
+    /if\s+you\s+enjoyed\s+this/i,
+    /check\s+out\s+our\s+(other\s+)?videos/i,
+    /sponsored\s+by/i,
+    /this\s+episode\s+is\s+brought\s+to\s+you/i,
+    // Audio tags
+    /^\[music\]$/i, /^\[applause\]$/i, /^\[blank_audio\]$/i, /^\[silence\]$/i,
+    /^\(music\)$/i, /^\(applause\)$/i, /^\(laughter\)$/i, /^\(silence\)$/i,
+    /^\[inaudible\]$/i, /^\(inaudible\)$/i,
     // Common Whisper "meeting filler" on silence / reconnect noise (esp. after pause→resume)
     /let me add (a few )?thoughts on (this |the )?topic/i,
     /consider the timeline (for|of) next steps/i,
     /wrap up the remaining items/i,
+    /let's move on to the next/i,
+    /i think (that's|we) (a good|the right) point/i,
+    /^\.+$/,  // Just periods/dots
+    /^,+$/,   // Just commas
+    // Single foreign-language words that Whisper hallucinates on silence
+    /^(vous|merci|bonjour|danke|gracias|arigatou|xie\s*xie|spasibo)$/i,
   ]
   for (const pat of hallucinationPatterns) {
     if (pat.test(lower)) return null

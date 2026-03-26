@@ -87,7 +87,7 @@ export async function routeLLM(
   const modelName = rest.join(':')
 
   // Air-gapped mode: block all cloud providers, allow only local/ollama/apple
-  const localProviders = new Set(['local', 'ollama', 'apple'])
+  const localProviders = new Set(['local', 'ollama', 'apple', 'mlx'])
   if (!localProviders.has(providerId)) {
     try {
       const { getSetting } = require('../storage/database')

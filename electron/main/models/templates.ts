@@ -114,9 +114,12 @@ NEVER
 - Include greetings, small talk, filler, or tangents
 - Write a bullet that only says something "was discussed" without capturing what was said
 
-EDGE CASES
+CRITICAL: DO NOT HALLUCINATE
+- If the transcript is very short (fewer than 5 lines of real speech), ONLY summarize what was actually said. Do NOT invent topics, decisions, action items, or attendee names that don't appear in the transcript.
+- If the transcript + user notes together contain less than 50 words of substance, output only a brief summary of what was said. Do NOT pad with plausible-sounding meeting content.
 - Transcript very short or missing → generate only from user notes, don't fabricate
 - Both empty → return only the title line and "No notes captured."
+- When in doubt, output LESS. A 2-bullet summary of a 2-minute conversation is correct. A 15-bullet summary of a 2-minute conversation is hallucinated.
 
 OUTPUT FORMAT (follow exactly)
 

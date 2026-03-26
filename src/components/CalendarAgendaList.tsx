@@ -1,8 +1,27 @@
 import { forwardRef, useMemo } from "react";
 import { format, isToday as isTodayFn, isTomorrow } from "date-fns";
-import { Calendar, Clock, FileText, MapPin, Trash2 } from "lucide-react";
+import { Calendar, Clock, FileText, MapPin, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/lib/ics-parser";
+
+/** Format event title, handling empty/private events */
+function eventTitle(evt: CalendarEvent): string {
+  if (evt.title && evt.title.trim()) return evt.title
+  if (evt.attendees?.length) return `Meeting · ${evt.attendees.length} attendee${evt.attendees.length !== 1 ? 's' : ''}`
+  return '(No title)'
+}
+
+/** Format attendee names for display: "with Sarah, Mike and 2 others" */
+function attendeeSummary(evt: CalendarEvent): string | null {
+  if (!evt.attendees?.length) return null
+  const names = evt.attendees
+    .map(a => a.name || a.email?.split('@')[0] || '')
+    .filter(Boolean)
+    .slice(0, 3)
+  if (names.length === 0) return null
+  const rest = evt.attendees.length - names.length
+  return `with ${names.join(', ')}${rest > 0 ? ` +${rest}` : ''}`
+}
 
 export type CalendarAgendaListVariant = "full" | "compact";
 
@@ -149,11 +168,18 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                           style={{ borderColor: accentColor }}
                         >
                           <h4 className="text-[13px] font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                            {evt.title}
+                            {eventTitle(evt)}
                           </h4>
-                          <span className="text-[11px] text-muted-foreground">
-                            {evt.isAllDay ? "All day" : `${format(new Date(evt.start), "h:mm")} – ${format(new Date(evt.end), "h:mm a")}`}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] text-muted-foreground">
+                              {evt.isAllDay ? "All day" : `${format(new Date(evt.start), "h:mm")} – ${format(new Date(evt.end), "h:mm a")}`}
+                            </span>
+                            {attendeeSummary(evt) && (
+                              <span className="text-[11px] text-muted-foreground/70 truncate">
+                                {attendeeSummary(evt)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
                     );
@@ -171,7 +197,7 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                           <div className="min-w-0 flex-1 border-l-[3px] pl-2 -ml-0.5" style={{ borderColor: accentColor }}>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-sm font-medium text-foreground truncate group-hover:text-accent transition-colors">
-                                {evt.title}
+                                {eventTitle(evt)}
                               </h4>
                               {evt.source === "local" && (
                                 <span className="text-[9px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1">OSChief</span>
@@ -192,6 +218,12 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                                 </span>
                               )}
                             </div>
+                            {attendeeSummary(evt) && (
+                              <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70 mt-1">
+                                <Users className="h-3 w-3 flex-shrink-0" />
+                                {attendeeSummary(evt)}
+                              </span>
+                            )}
                             {evt.description && (
                               <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">{evt.description}</p>
                             )}

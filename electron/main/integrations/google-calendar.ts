@@ -4,6 +4,15 @@
  */
 import { netFetch } from '../cloud/net-request'
 
+/** Derive a human-readable name from an email address (e.g., "john.doe@acme.com" → "John Doe"). */
+function nameFromEmail(email: string): string {
+  const local = email.split('@')[0] || email
+  return local
+    .replace(/[._-]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim()
+}
+
 export interface GoogleCalendarAttendee {
   email: string
   name?: string
@@ -97,12 +106,12 @@ export async function fetchGoogleCalendarEvents(
       joinLink = descMatch?.[0] || locMatch?.[0]
     }
 
-    // Extract attendees
+    // Extract attendees — fallback to email prefix when displayName is missing
     const attendees: GoogleCalendarAttendee[] = (item.attendees || [])
       .filter((a: any) => a.email)
       .map((a: any) => ({
         email: a.email,
-        name: a.displayName || undefined,
+        name: a.displayName || nameFromEmail(a.email),
         responseStatus: a.responseStatus,
         self: a.self || false,
       }))

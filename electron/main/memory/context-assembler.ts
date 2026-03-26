@@ -22,6 +22,13 @@ export interface MeetingContext {
     dueDate: string | null
     isOverdue: boolean
   }>
+  /** Key decisions from recent meetings with these attendees */
+  recentDecisions: Array<{
+    text: string
+    context: string | null
+    date: string
+    noteTitle: string
+  }>
   relatedNotes: Array<{
     title: string
     snippet: string
@@ -161,5 +168,30 @@ export async function assembleContext(
     }
   }
 
-  return { previousMeetings, openCommitments, relatedNotes, projects }
+  // 6. Recent decisions from meetings with these attendees
+  const recentDecisions: MeetingContext['recentDecisions'] = []
+  if (personIds.length > 0) {
+    const placeholders = personIds.map(() => '?').join(',')
+    try {
+      const decisionRows = db.prepare(`
+        SELECT d.text, d.context, n.date, n.title as noteTitle
+        FROM decisions d
+        JOIN notes n ON n.id = d.note_id
+        JOIN note_people np ON np.note_id = n.id
+        WHERE np.person_id IN (${placeholders})
+        ORDER BY n.date DESC, n.time DESC
+        LIMIT 5
+      `).all(...personIds.map(p => p.id)) as any[]
+      recentDecisions.push(...decisionRows.map(r => ({
+        text: r.text,
+        context: r.context || null,
+        date: r.date,
+        noteTitle: r.noteTitle || 'Untitled',
+      })))
+    } catch {
+      // decisions table might not exist yet
+    }
+  }
+
+  return { previousMeetings, openCommitments, recentDecisions, relatedNotes, projects }
 }

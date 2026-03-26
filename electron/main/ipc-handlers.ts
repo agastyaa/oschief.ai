@@ -1,4 +1,5 @@
 import { ipcMain, systemPreferences, desktopCapturer, app, safeStorage, BrowserWindow } from 'electron'
+import { getSyncStatus, isICloudAvailable, enableSync, disableSync, forceSyncNow } from './storage/icloud-sync'
 import { getMainWindow, setContentProtection } from './windows'
 import { updateTrayRecordingState, updateTrayMeetingInfo, rebuildTrayContextMenu } from './tray'
 import { setCalendarEvents } from './meeting-detector'
@@ -245,6 +246,28 @@ export function registerIPCHandlers(): void {
       return dlResult
     } catch (err: any) {
       return { ok: false, error: err.message || 'CoreML Parakeet setup failed' }
+    }
+  })
+
+  // --- MLX LLM ---
+  ipcMain.handle('models:check-mlx-llm', async () => {
+    try {
+      const { isMLXLLMAvailable } = await import('./cloud/mlx-llm')
+      return await isMLXLLMAvailable()
+    } catch { return false }
+  })
+
+  ipcMain.handle('models:install-mlx-llm', async () => {
+    try {
+      const { buildMLXLLM, downloadMLXModels } = await import('./cloud/mlx-llm')
+      console.log('[mlx-llm] Building Swift binary...')
+      const buildResult = await buildMLXLLM()
+      if (!buildResult.ok) return { ok: false, error: `Build failed: ${buildResult.error}` }
+      console.log('[mlx-llm] Downloading MLX model weights...')
+      const dlResult = await downloadMLXModels()
+      return dlResult
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'MLX LLM setup failed' }
     }
   })
 
@@ -1039,6 +1062,39 @@ export function registerIPCHandlers(): void {
     const { updateCommitment } = await import('./memory/commitment-store')
     return updateCommitment(id, data)
   })
+  ipcMain.handle('memory:commitments-snooze', async (_e, id: string, until: string) => {
+    const { snoozeCommitment } = await import('./memory/commitment-store')
+    return snoozeCommitment(id, until)
+  })
+
+  // Project link/unlink
+  ipcMain.handle('memory:projects-link-note', async (_e, noteId: string, projectId: string) => {
+    const { linkProjectToNote } = await import('./memory/project-store')
+    linkProjectToNote(noteId, projectId)
+    return true
+  })
+  ipcMain.handle('memory:projects-unlink-note', async (_e, noteId: string, projectId: string) => {
+    const { unlinkProjectFromNote } = await import('./memory/project-store')
+    unlinkProjectFromNote(noteId, projectId)
+    return true
+  })
+
+  // Transcript draft recovery
+  ipcMain.handle('recording:get-orphaned-drafts', async () => {
+    const { getOrphanedDrafts } = await import('./audio/transcript-autosave')
+    return getOrphanedDrafts()
+  })
+  ipcMain.handle('recording:delete-draft', async (_e, noteId: string) => {
+    const { deleteDraft } = await import('./audio/transcript-autosave')
+    deleteDraft(noteId)
+    return true
+  })
+  ipcMain.handle('recording:clear-all-drafts', async () => {
+    const { clearAllDrafts } = await import('./audio/transcript-autosave')
+    clearAllDrafts()
+    return true
+  })
+
   ipcMain.handle('memory:people-update', async (_e, id: string, data: any) => {
     const { updatePerson } = await import('./memory/people-store')
     return updatePerson(id, data)
@@ -1336,24 +1392,19 @@ export function registerIPCHandlers(): void {
 
   // --- iCloud Sync ---
   ipcMain.handle('sync:get-status', () => {
-    const { getSyncStatus } = require('./storage/icloud-sync')
     return getSyncStatus()
   })
   ipcMain.handle('sync:is-icloud-available', () => {
-    const { isICloudAvailable } = require('./storage/icloud-sync')
     return isICloudAvailable()
   })
   ipcMain.handle('sync:enable', async () => {
-    const { enableSync } = require('./storage/icloud-sync')
     return enableSync()
   })
   ipcMain.handle('sync:disable', () => {
-    const { disableSync } = require('./storage/icloud-sync')
     disableSync()
     return true
   })
   ipcMain.handle('sync:force-sync', async () => {
-    const { forceSyncNow } = require('./storage/icloud-sync')
     await forceSyncNow()
     return true
   })

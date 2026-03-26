@@ -73,6 +73,8 @@ const electronAPI = {
     installParakeet: () => ipcRenderer.invoke('models:install-parakeet') as Promise<{ ok: boolean; steps?: any[]; error?: string }>,
     checkParakeetCoreML: () => ipcRenderer.invoke('models:check-parakeet-coreml') as Promise<boolean>,
     installParakeetCoreML: () => ipcRenderer.invoke('models:install-parakeet-coreml') as Promise<{ ok: boolean; error?: string }>,
+    checkMLXLLM: () => ipcRenderer.invoke('models:check-mlx-llm') as Promise<boolean>,
+    installMLXLLM: () => ipcRenderer.invoke('models:install-mlx-llm') as Promise<{ ok: boolean; error?: string }>,
   },
 
   setup: {
@@ -127,6 +129,10 @@ const electronAPI = {
       ipcRenderer.on('global:toggle-recording', handler)
       return () => ipcRenderer.removeListener('global:toggle-recording', handler)
     },
+    // Draft recovery (crash protection)
+    getOrphanedDrafts: () => ipcRenderer.invoke('recording:get-orphaned-drafts'),
+    deleteDraft: (noteId: string) => ipcRenderer.invoke('recording:delete-draft', noteId),
+    clearAllDrafts: () => ipcRenderer.invoke('recording:clear-all-drafts'),
   },
 
   llm: {
@@ -363,6 +369,7 @@ const electronAPI = {
       add: (data: any) => ipcRenderer.invoke('memory:commitments-add', data),
       updateStatus: (id: string, status: string) => ipcRenderer.invoke('memory:commitments-update-status', id, status),
       update: (id: string, data: any) => ipcRenderer.invoke('memory:commitments-update', id, data),
+      snooze: (id: string, until: string) => ipcRenderer.invoke('memory:commitments-snooze', id, until),
     },
     topics: {
       getAll: () => ipcRenderer.invoke('memory:topics-get-all'),
@@ -382,6 +389,8 @@ const electronAPI = {
       delete: (id: string) => ipcRenderer.invoke('memory:projects-delete', id) as Promise<boolean>,
       merge: (keepId: string, mergeId: string) => ipcRenderer.invoke('memory:projects-merge', keepId, mergeId) as Promise<boolean>,
       timeline: (projectId: string) => ipcRenderer.invoke('memory:projects-timeline', projectId) as Promise<any>,
+      linkToNote: (noteId: string, projectId: string) => ipcRenderer.invoke('memory:projects-link-note', noteId, projectId) as Promise<boolean>,
+      unlinkFromNote: (noteId: string, projectId: string) => ipcRenderer.invoke('memory:projects-unlink-note', noteId, projectId) as Promise<boolean>,
     },
     decisions: {
       forNote: (noteId: string) => ipcRenderer.invoke('memory:decisions-for-note', noteId) as Promise<any[]>,

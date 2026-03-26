@@ -3,6 +3,15 @@
  */
 import { netFetch } from '../cloud/net-request'
 
+/** Derive a human-readable name from an email address (e.g., "john.doe@acme.com" → "John Doe"). */
+function nameFromEmail(email: string): string {
+  const local = email.split('@')[0] || email
+  return local
+    .replace(/[._-]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim()
+}
+
 const GRAPH_CALENDAR_URL = 'https://graph.microsoft.com/v1.0/me/calendarview'
 
 export interface MicrosoftCalendarAttendee {
@@ -62,7 +71,7 @@ export async function fetchMicrosoftCalendarEvents(
       .filter((a: any) => a.emailAddress?.address)
       .map((a: any) => ({
         email: a.emailAddress.address,
-        name: a.emailAddress.name || undefined,
+        name: a.emailAddress.name || nameFromEmail(a.emailAddress.address),
         type: a.type || undefined,
         responseStatus: a.status?.response || undefined,
       }))

@@ -1694,6 +1694,12 @@ except ImportError:
 // ── CoreML Parakeet (Apple Neural Engine — no Python needed) ────────
 
 async function processWithParakeetCoreML(wavBuffer: Buffer): Promise<STTResult> {
+  // WAV header is 44 bytes; Parakeet needs at least ~0.5s of audio (8000 samples at 16kHz = 16000 bytes)
+  const MIN_WAV_SIZE = 44 + 16000
+  if (wavBuffer.length < MIN_WAV_SIZE) {
+    console.log(`[stt] Parakeet CoreML: audio too short (${wavBuffer.length} bytes), skipping`)
+    return { text: '', words: [] }
+  }
   const { transcribeWithParakeetCoreML } = await import('../audio/stt-parakeet-coreml')
   const text = await transcribeWithParakeetCoreML(wavBuffer)
   return {

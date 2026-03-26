@@ -41,6 +41,7 @@ export const localModels: LocalModel[] = [
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
   { id: "parakeet-coreml", name: "Parakeet CoreML (Apple Silicon)", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via CoreML — fastest on Mac (110x RTF), 6% WER, no Python needed. English only." },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM for summarization and chat (no internet needed)" },
+  { id: "mlx-qwen3-4b", name: "Qwen3 4B (MLX)", size: "~2.5 GB", type: "llm", description: "MLX on Apple Silicon — fast 4-bit Qwen3 inference. Best quality on-device LLM." },
 ];
 
 type DownloadState = "idle" | "downloading" | "downloaded";
@@ -491,6 +492,33 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (modelId === 'mlx-qwen3-4b' && api) {
+      try {
+        const result = api.models.installMLXLLM ? await api.models.installMLXLLM() : { ok: false, error: "Not available in this build" };
+        if (result.ok) {
+          setHiddenLocalModels((prev) => prev.filter((id) => id !== modelId));
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("Qwen3 4B (MLX) ready", {
+            description: "On-device LLM — fast 4-bit inference on Apple Silicon.",
+            duration: 8_000,
+          });
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("Qwen3 4B setup failed", {
+            description: result.error || "Requires macOS 14+ and Apple Silicon.",
+            duration: 12_000,
+          });
+        }
+      } catch (err) {
+        console.error('MLX Qwen3 setup failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("Qwen3 4B setup failed", {
+          description: err instanceof Error ? err.message : "Download error.",
+          duration: 12_000,
+        });
+      }
+      return;
+    }
     if (modelId === 'parakeet-coreml' && api) {
       try {
         // CoreML Parakeet: build Swift binary + download models
@@ -711,6 +739,10 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       models.push({ value: "apple:foundation", label: "Apple (on-device)", group: "System" });
     } else if (isDarwin) {
       models.push({ value: "apple:foundation", label: "Apple (on-device) (requires macOS 26+)", group: "System" });
+    }
+    // MLX on-device models (Apple Silicon)
+    if (downloadStates["mlx-qwen3-4b"] === "downloaded") {
+      models.push({ value: "mlx:qwen3-4b", label: "Qwen3 4B (MLX, on-device)", group: "On-Device" });
     }
     // Ollama models (on-device, larger models)
     if (ollamaStatus.available && ollamaStatus.models.length > 0) {

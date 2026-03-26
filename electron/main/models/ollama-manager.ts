@@ -32,10 +32,7 @@ export function getSystemRAMGB(): number {
 export function getRecommendedTier(): OllamaModelTier | null {
   const ramGB = getSystemRAMGB()
 
-  // 8GB Macs: not enough headroom for Ollama after macOS + Electron overhead
-  if (ramGB < 16) return null
-
-  // Pick the largest model that fits
+  // Pick the largest model that fits this machine's RAM
   let best: OllamaModelTier | null = null
   for (const tier of MODEL_TIERS) {
     if (ramGB >= tier.minRamGB) {

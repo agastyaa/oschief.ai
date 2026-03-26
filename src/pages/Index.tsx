@@ -98,6 +98,8 @@ const Index = () => {
   const [latestCoachingHeadline, setLatestCoachingHeadline] = useState<string | null>(null);
   const viewAll = searchParams.get("view") === "all";
   const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
+  // Prep brief: all hooks must be above the early return (folder view) to respect React rules
+  const [prepBrief, setPrepBrief] = useState<{ previousMeetings: any[]; openCommitments: any[] } | null>(null);
 
   useEffect(() => {
     if (viewAll) setRecentMeetingsExpanded(true);
@@ -115,6 +117,20 @@ const Index = () => {
     if (latest) setLatestCoachingHeadline(latest.coachingMetrics!.conversationInsights!.headline);
   }, [notes]);
 
+  // Prep brief effect: fetch context for the next meeting's attendees (must be above early return)
+  const upcomingForPrep = displayEvents
+    .filter((e) => isAfter(new Date(e.end), new Date()))
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const nextEventForHook = upcomingForPrep.length > 0 ? upcomingForPrep[0] : null;
+  useEffect(() => {
+    if (!nextEventForHook?.attendees?.length || !api?.context?.assemble) { setPrepBrief(null); return }
+    const names = nextEventForHook.attendees.map((a: any) => a.name).filter(Boolean);
+    const emails = nextEventForHook.attendees.map((a: any) => a.email).filter(Boolean);
+    api.context.assemble({ attendeeNames: names, attendeeEmails: emails, eventTitle: nextEventForHook.title })
+      .then(ctx => { if (ctx) setPrepBrief(ctx) })
+      .catch(() => {});
+  }, [nextEventForHook?.id, api]);
+
   const grouped = notes.reduce<Record<string, typeof notes>>((acc, n) => {
     (acc[n.date] = acc[n.date] || []).push(n);
     return acc;
@@ -123,12 +139,26 @@ const Index = () => {
   const folderNotes = activeFolderId ? notes.filter((n) => n.folderId === activeFolderId) : [];
 
   const homeNoteContext = useMemo(() => {
-    return notes.slice(0, 10).map(n => {
-      const parts = [`Title: ${n.title} (${n.date})`];
-      if (n.summary?.overview) parts.push(`Summary: ${n.summary.overview}`);
-      if (n.personalNotes) parts.push(`Notes: ${n.personalNotes.slice(0, 200)}`);
-      return parts.join('\n');
-    }).join('\n\n');
+    const NOTE_LIMIT = 25;
+    const NOTE_CHAR_LIMIT = 1200;
+    const TOTAL_CHAR_LIMIT = 18000;
+    let total = 0;
+    const parts: string[] = [];
+    for (const n of notes.slice(0, NOTE_LIMIT)) {
+      const noteParts = [`Title: ${n.title} (${n.date})`];
+      if (n.summary?.overview) noteParts.push(`Summary: ${n.summary.overview}`);
+      if (n.personalNotes) noteParts.push(`Notes: ${n.personalNotes.slice(0, 500)}`);
+      // Include transcript for richer Quick Prompt answers (TL;DR, action items, etc.)
+      if ((n as any).transcript?.length > 0) {
+        const txt = (n as any).transcript.map((t: any) => t.text).join(' ').trim();
+        if (txt) noteParts.push(`Transcript: ${txt.slice(0, 4000)}`);
+      }
+      const noteStr = noteParts.join('\n').slice(0, NOTE_CHAR_LIMIT);
+      if (total + noteStr.length > TOTAL_CHAR_LIMIT) break;
+      total += noteStr.length;
+      parts.push(noteStr);
+    }
+    return parts.join('\n\n');
   }, [notes]);
 
   const findNoteForEvent = useCallback((evt: CalendarEvent) => {
@@ -231,7 +261,25 @@ const Index = () => {
     );
   };
 
-  // Folder view
+  // Folder view — show loading spinner if folder ID is in URL but folders haven't loaded yet
+  if (activeFolderId && !activeFolder) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        {sidebarOpen && (
+          <div className="w-56 flex-shrink-0 overflow-hidden">
+            <Sidebar />
+          </div>
+        )}
+        <main className={cn("flex flex-1 flex-col min-w-0 relative items-center justify-center", !sidebarOpen && isElectron && "pl-20")}>
+          <div className="text-center">
+            <FolderOpen className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
+            <p className="text-sm text-muted-foreground">Loading folder...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (activeFolder) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
@@ -294,17 +342,6 @@ const Index = () => {
     endTime: nextEvent.end,
     attendees: nextEvent.attendees?.map((a: any) => a.name || a.email),
   } : null;
-
-  // Prep brief: fetch context for the next meeting's attendees
-  const [prepBrief, setPrepBrief] = useState<{ previousMeetings: any[]; openCommitments: any[] } | null>(null);
-  useEffect(() => {
-    if (!nextEvent?.attendees?.length || !api?.context?.assemble) { setPrepBrief(null); return }
-    const names = nextEvent.attendees.map((a: any) => a.name).filter(Boolean);
-    const emails = nextEvent.attendees.map((a: any) => a.email).filter(Boolean);
-    api.context.assemble({ attendeeNames: names, attendeeEmails: emails, eventTitle: nextEvent.title })
-      .then(ctx => { if (ctx) setPrepBrief(ctx) })
-      .catch(() => {});
-  }, [nextEvent?.id, api]);
 
   // Today's stats for the briefing header
   const todayEvents = displayEvents.filter((e) => isTodayFn(new Date(e.start)));

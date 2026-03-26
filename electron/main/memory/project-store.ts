@@ -151,7 +151,19 @@ export function mergeProjects(keepId: string, mergeId: string): boolean {
 // ── Links ───────────────────────────────────────────────────────────
 
 export function linkProjectToNote(noteId: string, projectId: string): void {
-  getDb().prepare('INSERT OR IGNORE INTO note_projects (note_id, project_id) VALUES (?, ?)').run(noteId, projectId)
+  const db = getDb()
+  db.prepare('INSERT OR IGNORE INTO note_projects (note_id, project_id) VALUES (?, ?)').run(noteId, projectId)
+
+  // Auto-confirm: if project is 'suggested' and now has 2+ meetings, promote to 'active'
+  const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(projectId) as any
+  if (project?.status === 'suggested') {
+    const count = db.prepare('SELECT COUNT(*) as cnt FROM note_projects WHERE project_id = ?').get(projectId) as any
+    if (count?.cnt >= 2) {
+      const now = new Date().toISOString()
+      db.prepare('UPDATE projects SET status = ?, updated_at = ? WHERE id = ?').run('active', now, projectId)
+      console.log(`[projects] Auto-confirmed project ${projectId} (${count.cnt} meetings)`)
+    }
+  }
 }
 
 export function unlinkProjectFromNote(noteId: string, projectId: string): void {

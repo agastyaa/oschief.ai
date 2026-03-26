@@ -177,7 +177,7 @@ export async function storeExtractedEntities(
 ): Promise<{ peopleCount: number; commitmentCount: number; topicCount: number; projectId?: string; decisionCount: number }> {
   // Lazy import stores to avoid circular deps
   const { upsertPerson, linkPersonToNote } = await import('./people-store')
-  const { addCommitment } = await import('./commitment-store')
+  const { addCommitment, normalizeDueDate } = await import('./commitment-store')
   const { upsertTopic, linkTopicToNote } = await import('./topic-store')
   const { upsertProject, linkProjectToNote, parseProjectFromCalendarTitle } = await import('./project-store')
   const { addDecision, linkDecisionToPeople } = await import('./decision-store')
@@ -243,12 +243,17 @@ export async function storeExtractedEntities(
         assigneeId = nameToPersonId[c.assignee.toLowerCase()]
       }
 
+      // Normalize natural language dates to ISO format
+      const rawDueDate = c.dueDate || undefined
+      const normalizedDueDate = rawDueDate ? (normalizeDueDate(rawDueDate) ?? rawDueDate) : undefined
+
       addCommitment({
         noteId,
         text: c.text,
         owner: c.owner || 'you',
         assigneeId,
-        dueDate: c.dueDate || undefined,
+        dueDate: normalizedDueDate,
+        projectId,
       })
       commitmentCount++
     } catch (err) {

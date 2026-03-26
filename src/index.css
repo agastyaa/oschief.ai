@@ -20,53 +20,54 @@
 
 @layer base {
   :root {
-    /* ── Muted Slate palette — calm, professional, invisible-until-needed ── */
-    --background: 220 14% 96%;
-    --foreground: 222 25% 8%;
+    /* ── Executive Utilitarian — warm neutrals, slate navy primary ── */
+    --background: 228 14% 96%;
+    --background-warm: 34 20% 96%;
+    --foreground: 225 22% 10%;
 
-    --card: 220 14% 99%;
-    --card-foreground: 222 25% 8%;
+    --card: 228 12% 99%;
+    --card-foreground: 225 22% 10%;
 
-    --popover: 220 14% 99%;
-    --popover-foreground: 222 25% 8%;
+    --popover: 228 12% 99%;
+    --popover-foreground: 225 22% 10%;
 
-    --primary: 224 35% 32%;
-    --primary-foreground: 220 14% 98%;
+    --primary: 229 51% 37%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 12% 93%;
-    --secondary-foreground: 222 20% 16%;
+    --secondary: 228 12% 93%;
+    --secondary-foreground: 225 20% 16%;
 
-    --muted: 218 10% 93%;
-    --muted-foreground: 220 12% 38%;
+    --muted: 226 10% 93%;
+    --muted-foreground: 225 12% 40%;
 
-    --accent: 224 35% 32%;
-    --accent-foreground: 220 14% 98%;
+    --accent: 229 51% 37%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 220 14% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
+    --border: 228 11% 89%;
+    --input: 228 11% 89%;
     --ring: 229 51% 37%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem; /* 10px — harmonises with macOS Tahoe Liquid Glass */
 
-    --sidebar-background: 220 14% 95%;
-    --sidebar-foreground: 222 10% 40%;
-    --sidebar-primary: 224 35% 32%;
-    --sidebar-primary-foreground: 220 14% 98%;
-    --sidebar-accent: 224 35% 32%;
-    --sidebar-accent-foreground: 220 14% 98%;
-    --sidebar-border: 220 12% 89%;
-    --sidebar-ring: 224 35% 32%;
+    --sidebar-background: 228 14% 95%;
+    --sidebar-foreground: 225 10% 40%;
+    --sidebar-primary: 229 51% 37%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 229 51% 37%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 228 12% 89%;
+    --sidebar-ring: 229 51% 37%;
 
     /* ── Semantic tokens ── */
-    --indigo: 224 35% 32%;
-    --indigo-light: 224 25% 90%;
-    --indigo-muted: 224 20% 48%;
-    --slate: 222 25% 8%;
-    --surface: 220 16% 95%;
-    --canvas: 220 14% 99%;
+    --indigo: 229 51% 37%;
+    --indigo-light: 229 25% 90%;
+    --indigo-muted: 229 25% 48%;
+    --slate: 225 22% 10%;
+    --surface: 228 16% 95%;
+    --canvas: 228 12% 99%;
 
     /* ── Card elevation ── */
     --card-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -76,62 +77,91 @@
     --recording: 4 80% 58%;
     --ai-active: 229 55% 55%;
 
+    /* ── Amber tokens (commitments, suggestions) ── */
+    --amber: 30 55% 64%;
+    --amber-bg: 30 55% 95%;
+    --amber-text: 30 60% 30%;
+
+    /* ── Green tokens (active, success) ── */
+    --green: 142 50% 45%;
+    --green-bg: 142 50% 94%;
+    --green-text: 142 50% 20%;
+
+    /* ── AI shimmer ── */
+    --shimmer-from: 229 30% 94%;
+    --shimmer-to: 229 40% 88%;
+
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   .dark {
-    /* ── Dark-first: deep charcoal, muted slate accent ── */
+    /* ── Dark: warm charcoal, not blue-black ── */
     --background: 225 18% 8%;
-    --foreground: 220 14% 90%;
+    --background-warm: 225 14% 9%;
+    --foreground: 228 12% 93%;
 
     --card: 225 16% 12%;
-    --card-foreground: 220 14% 90%;
+    --card-foreground: 228 12% 93%;
 
     --popover: 225 16% 12%;
-    --popover-foreground: 220 14% 90%;
+    --popover-foreground: 228 12% 93%;
 
-    --primary: 220 30% 55%;
-    --primary-foreground: 225 18% 8%;
+    --primary: 229 45% 62%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 225 12% 16%;
-    --secondary-foreground: 220 14% 82%;
+    --secondary: 225 14% 17%;
+    --secondary-foreground: 228 12% 82%;
 
-    --muted: 225 10% 17%;
-    --muted-foreground: 220 8% 52%;
+    --muted: 225 12% 19%;
+    --muted-foreground: 228 8% 55%;
 
-    --accent: 220 30% 55%;
-    --accent-foreground: 220 14% 98%;
+    --accent: 229 45% 62%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 65% 50%;
-    --destructive-foreground: 220 14% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 225 10% 20%;
-    --input: 225 10% 20%;
-    --ring: 220 30% 55%;
+    --border: 225 12% 19%;
+    --input: 225 12% 19%;
+    --ring: 229 45% 62%;
 
     --sidebar-background: 225 20% 6%;
-    --sidebar-foreground: 220 8% 52%;
-    --sidebar-primary: 220 30% 55%;
-    --sidebar-primary-foreground: 225 18% 8%;
-    --sidebar-accent: 220 25% 45%;
-    --sidebar-accent-foreground: 220 14% 98%;
-    --sidebar-border: 225 10% 16%;
-    --sidebar-ring: 220 30% 55%;
+    --sidebar-foreground: 228 8% 55%;
+    --sidebar-primary: 229 45% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 229 35% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 225 12% 16%;
+    --sidebar-ring: 229 45% 62%;
 
     /* ── Semantic tokens (dark) ── */
-    --indigo: 220 30% 55%;
-    --indigo-light: 225 12% 16%;
-    --indigo-muted: 220 18% 38%;
-    --slate: 220 14% 90%;
+    --indigo: 229 45% 62%;
+    --indigo-light: 225 14% 17%;
+    --indigo-muted: 229 20% 42%;
+    --slate: 228 12% 93%;
     --surface: 225 18% 8%;
     --canvas: 225 16% 12%;
 
     /* ── Card elevation (dark) ── */
-    --card-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    --card-shadow-hover: 0 2px 8px rgba(0,0,0,0.35);
+    --card-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    --card-shadow-hover: 0 3px 12px rgba(0,0,0,0.3);
 
-    --recording: 4 65% 50%;
-    --ai-active: 220 40% 55%;
+    --recording: 4 80% 58%;
+    --ai-active: 229 55% 55%;
+
+    /* ── Amber tokens (dark) ── */
+    --amber: 30 50% 58%;
+    --amber-bg: 30 30% 14%;
+    --amber-text: 30 40% 75%;
+
+    /* ── Green tokens (dark) ── */
+    --green: 142 45% 50%;
+    --green-bg: 142 30% 12%;
+    --green-text: 142 40% 70%;
+
+    /* ── AI shimmer (dark) ── */
+    --shimmer-from: 229 20% 14%;
+    --shimmer-to: 229 30% 20%;
   }
 }
 
@@ -146,6 +176,11 @@
   h1, h2, h3, h4 {
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 600;
+  }
+  /* Display headings use Instrument Serif (page titles, greetings, note headers) */
+  h1.font-display, .font-display {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
   }
 }
 
@@ -163,6 +198,10 @@
 
 @layer utilities {
   .font-display {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+  }
+  .font-heading {
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 600;
   }
@@ -175,6 +214,24 @@
   .small-caps {
     font-variant-caps: small-caps;
   }
+  /* Warm paper background for focus views */
+  .bg-warm {
+    background: hsl(var(--background-warm));
+  }
+  /* AI shimmer loading state */
+  .ai-shimmer {
+    background: linear-gradient(90deg,
+      hsl(var(--shimmer-from)) 0%, hsl(var(--shimmer-to)) 25%,
+      hsl(var(--shimmer-from)) 50%, hsl(var(--shimmer-to)) 75%,
+      hsl(var(--shimmer-from)) 100%);
+    background-size: 200% 100%;
+    animation: ai-shimmer 2.5s ease-in-out infinite;
+  }
+}
+
+@keyframes ai-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {

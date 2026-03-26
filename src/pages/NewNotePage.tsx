@@ -239,21 +239,25 @@ export default function NewNotePage() {
     if (!isCapturing || !api?.context?.assemble) return;
     const eventTitle = eventState?.eventTitle || title || undefined;
     // Find matching calendar event to extract attendees
+    // Priority: 1) match by eventId (if note was created from calendar), 2) match by time proximity
     const now = Date.now();
-    const matchedEvent = calendarEvents.find(e => {
+    const matchedEvent = (eventState?.eventId
+      ? calendarEvents.find(e => e.id === eventState.eventId)
+      : null
+    ) || calendarEvents.find(e => {
       const start = new Date(e.start).getTime();
       const end = new Date(e.end).getTime();
       return now >= start - 15 * 60 * 1000 && now <= end + 5 * 60 * 1000;
     });
     const attendeeNames = (matchedEvent?.attendees || []).map(a => a.name).filter(Boolean) as string[];
     const attendeeEmails = (matchedEvent?.attendees || []).map(a => a.email).filter(Boolean) as string[];
-    api.context.assemble({ attendeeNames, attendeeEmails, eventTitle }).then(ctx => {
+    api.context.assemble({ attendeeNames, attendeeEmails, eventTitle: eventTitle || matchedEvent?.title }).then(ctx => {
       if (ctx) setMeetingContext(ctx);
     }).catch(err => {
       console.error('[command-center] Context assembly failed:', err);
     });
     return () => { setMeetingContext(null); };
-  }, [isCapturing]);
+  }, [isCapturing, calendarEvents]);
 
   const activeSTTLabel = useMemo(() => {
     if (!selectedSTTModel) return null;
