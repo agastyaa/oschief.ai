@@ -76,11 +76,19 @@ export async function fetchMicrosoftCalendarEvents(
         responseStatus: a.status?.response || undefined,
       }))
 
-    // Handle private/confidential events where subject may be hidden
+    // Handle events where subject is missing or limited
+    // Graph API returns "Busy" as literal subject when user has limited access or
+    // when the event organizer set show-as to "busy" without a real title
     const isPrivate = evt.sensitivity === 'private' || evt.sensitivity === 'confidential'
-    const title = (isPrivate && (!evt.subject || evt.subject === 'Busy'))
-      ? '(Private event)'
-      : evt.subject || 'Untitled'
+    let title = evt.subject || 'Untitled'
+    if (isPrivate && (!evt.subject || evt.subject === 'Busy')) {
+      title = '(Private event)'
+    } else if (evt.subject === 'Busy' && attendees.length > 0) {
+      // "Busy" with attendees = real meeting whose title wasn't returned
+      // Show attendee names as fallback title
+      const names = attendees.slice(0, 3).map((a: MicrosoftCalendarAttendee) => a.name || a.email.split('@')[0]).join(', ')
+      title = `Meeting with ${names}`
+    }
 
     events.push({
       id: evt.id,
