@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, ChevronDown, ChevronRight, FileText, Square, Sparkles } from "lucide-react";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
+import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { useNotes } from "@/contexts/NotesContext";
@@ -190,6 +191,9 @@ export default function AskSyag() {
       <main className={cn("flex flex-1 flex-col min-w-0", !sidebarOpen && isElectron && "pl-20")}>
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
+        </div>
+        <div className="px-6 pt-2">
+          <SectionTabs tabs={INTELLIGENCE_TABS} />
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (

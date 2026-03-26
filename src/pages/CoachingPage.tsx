@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
+import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
@@ -201,6 +202,9 @@ export default function CoachingPage() {
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3", !sidebarOpen && isElectron && "pl-20")}>
           <SidebarTopBarLeft />
           <div />
+        </div>
+        <div className="px-6 pt-2">
+          <SectionTabs tabs={INTELLIGENCE_TABS} />
         </div>
 
         <div className="flex-1 overflow-y-auto">
