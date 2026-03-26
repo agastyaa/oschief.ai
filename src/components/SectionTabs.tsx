@@ -14,6 +14,10 @@ export function SectionTabs({ tabs }: { tabs: TabDef[] }) {
 
   const isTabActive = (tab: TabDef) => {
     if (tab.matchQuery) {
+      // For Notes tab: also match folder views (/?folder=...)
+      if (tab.matchQuery === "view=all") {
+        return location.pathname === "/" && (location.search.includes("view=all") || location.search.includes("folder="));
+      }
       return location.search.includes(tab.matchQuery);
     }
     return tab.path === "/"
