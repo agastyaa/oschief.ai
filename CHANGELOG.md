@@ -9,6 +9,9 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 ### Fixed
 - **Whisper v3 turbo stops after first transcription** — replaced per-request `on`/`removeListener` pattern with a single permanent stdout listener + resolver queue (standard LSP/tsserver pattern). Second and subsequent transcription requests now work reliably. Full-precision and 8-bit MLX variants both fixed.
 - **Test suite sync** — updated 3 test files to reflect intentional threshold changes (`PAUSE_THRESHOLD_SEC` 5→45s, `MAX_SENTENCES_PER_GROUP` 5→20) and transcript exclusion from default markdown export.
+- **Summary blocks new note creation** — summary now runs as a background IPC task. Note is saved immediately and the user is free to navigate away; the summary arrives via event and updates the note in-place. NoteDetailPage shows a shimmer while the background job runs.
+- **Transcript cross-chunk repetition** — Whisper's 2-second audio overlap (prepended for WER continuity) was re-transcribing the same words at each chunk boundary. Added an overlap-tail trimmer (word-normalized sliding window, min 4 words) and extended fuzzy dedup to same-channel matches (threshold 0.85 vs 0.65 cross-channel).
+- **Folder view header layout** — nav chrome (sidebar collapse + Back to home) shifted the folder name right. Nav chrome now sits at the far left; folder name + note count are absolutely centred in the header row regardless of sidebar state.
 
 ---
 
