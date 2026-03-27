@@ -4,8 +4,9 @@ import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { Gavel, Search, FolderKanban, FileText, Users } from "lucide-react"
+import { Gavel, Search, FolderKanban, FileText, Users, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface Decision {
   id: string
@@ -40,7 +41,7 @@ export default function DecisionsPage() {
   useEffect(() => {
     if (!api?.memory?.decisions) return
     api.memory.decisions.getAll().then(setDecisions)
-    api.memory?.projects?.getAll().then((p: any[]) => setProjects(p || []))
+    api.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setProjects(p || []))
   }, [api])
 
   useEffect(() => {
@@ -209,8 +210,22 @@ export default function DecisionsPage() {
                   </div>
                   <div className="rounded-lg border border-border bg-card divide-y divide-border">
                     {items.map(d => (
-                      <div key={d.id} className="px-4 py-3 space-y-1">
-                        <div className="text-sm">{d.text}</div>
+                      <div key={d.id} className="group px-4 py-3 space-y-1 relative">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-sm flex-1">{d.text}</div>
+                          <button
+                            onClick={async () => {
+                              if (!confirm("Delete this decision?")) return
+                              await api?.memory?.decisions?.delete?.(d.id)
+                              api?.memory?.decisions?.getAll?.().then(setDecisions)
+                              toast.success("Decision deleted")
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-opacity shrink-0"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                         {d.context && (
                           <div className="text-xs text-muted-foreground italic">{d.context}</div>
                         )}

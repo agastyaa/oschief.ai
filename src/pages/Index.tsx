@@ -241,8 +241,8 @@ const Index = () => {
             )}
           </div>
         </button>
-        <div className="flex items-center gap-2 pr-2 shrink-0 w-16 justify-end">
-          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums text-right">
+        <div className="flex items-center gap-2 pr-2 shrink-0 justify-end">
+          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums text-right whitespace-nowrap">
             {n.timeRange ?? n.time}
           </span>
           {isRecording && (
