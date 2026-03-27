@@ -427,6 +427,32 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('llm:is-unified-eligible', async (_e, _model: string) => {
     return true  // Unified path is now the default for all models
   })
+  // Non-blocking background summarize: saves note immediately, returns to renderer, pushes result when done
+  ipcMain.handle('llm:summarize-background', async (event, noteId: string, data: any) => {
+    ;(async () => {
+      try {
+        const { resolveSelectedAIModel } = await import('./models/model-resolver')
+        const model = resolveSelectedAIModel(data.model)
+        const summary = await summarize(
+          data.transcript,
+          data.personalNotes,
+          model,
+          data.meetingTemplateId,
+          data.customPrompt,
+          data.meetingTitle,
+          data.meetingDuration,
+          data.attendees,
+          data.accountDisplayName,
+        )
+        updateNote(noteId, { summary })
+        event.sender.send('note:summary-ready', noteId, summary)
+      } catch (err) {
+        console.error('[summarize-background] failed:', err)
+        event.sender.send('note:summary-failed', noteId)
+      }
+    })()
+    return { ok: true }
+  })
   ipcMain.handle('llm:chat', async (_e, data: any) => {
     const sender = _e.sender
     const { resolveSelectedAIModel } = await import('./models/model-resolver')

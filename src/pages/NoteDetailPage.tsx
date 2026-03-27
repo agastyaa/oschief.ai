@@ -203,6 +203,25 @@ export default function NoteDetailPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showTemplateMenu]);
 
+  // If this note has content but no summary, it may have been saved before summary completed.
+  // Show shimmer and listen for the background summary IPC event.
+  useEffect(() => {
+    if (!note || note.summary || !api?.llm?.onSummaryReady) return;
+    const hasContent = (note.transcript?.length ?? 0) > 0 || (note.personalNotes || '').trim().length > 0;
+    if (!hasContent) return;
+    setIsSummarizing(true);
+    const unsubReady = api.llm.onSummaryReady((incomingId: string, summary: any) => {
+      if (incomingId !== id) return;
+      updateNote(id!, { summary });
+      setIsSummarizing(false);
+    });
+    const unsubFailed = api.llm.onSummaryFailed((incomingId: string) => {
+      if (incomingId !== id) return;
+      setIsSummarizing(false);
+    });
+    return () => { unsubReady(); unsubFailed(); };
+  }, [note?.summary, id, api]);
+
   // Notes load async in Electron — wait before showing "not found"
   const [waitedForLoad, setWaitedForLoad] = useState(false);
   useEffect(() => {

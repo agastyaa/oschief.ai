@@ -164,6 +164,27 @@ const electronAPI = {
       durationMs: number
     }>,
     isUnifiedEligible: (model: string) => ipcRenderer.invoke('llm:is-unified-eligible', model) as Promise<boolean>,
+    summarizeBackground: (noteId: string, data: {
+      transcript: any[]
+      personalNotes: string
+      model: string
+      meetingTemplateId?: string
+      customPrompt?: string
+      meetingTitle?: string
+      meetingDuration?: string | null
+      attendees?: string[]
+      accountDisplayName?: string
+    }) => ipcRenderer.invoke('llm:summarize-background', noteId, data),
+    onSummaryReady: (callback: (noteId: string, summary: any) => void) => {
+      const handler = (_event: any, noteId: string, summary: any) => callback(noteId, summary)
+      ipcRenderer.on('note:summary-ready', handler)
+      return () => ipcRenderer.removeListener('note:summary-ready', handler)
+    },
+    onSummaryFailed: (callback: (noteId: string) => void) => {
+      const handler = (_event: any, noteId: string) => callback(noteId)
+      ipcRenderer.on('note:summary-failed', handler)
+      return () => ipcRenderer.removeListener('note:summary-failed', handler)
+    },
     chat: (data: { messages: any[]; context: any; model: string }) =>
       ipcRenderer.invoke('llm:chat', data),
     buildGraphContext: () => ipcRenderer.invoke('llm:build-graph-context') as Promise<string>,
