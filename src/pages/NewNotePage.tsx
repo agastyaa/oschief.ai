@@ -174,6 +174,7 @@ export default function NewNotePage() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
+  const [transcriptSearchOpen, setTranscriptSearchOpen] = useState(false);
   const [meetingTemplate, setMeetingTemplate] = useState("general");
   const meetingTemplateRef = useRef(meetingTemplate);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1108,7 +1109,7 @@ export default function NewNotePage() {
       )}
 
       <main className="flex flex-1 flex-col min-w-0">
-        {/* Top bar — pl-20 clears macOS traffic lights when sidebar is collapsed */}
+        {/* Top bar — compact: back + actions on one tight line */}
         <div className={cn(
           "flex items-center justify-between px-4 pb-0",
           isElectron ? "pt-10" : "pt-3",
@@ -1119,27 +1120,26 @@ export default function NewNotePage() {
             onBack={() => navigate("/")}
             backIcon
           />
-          <div className="flex items-center gap-1.5">
-            <button className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleCopyText}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Copy text"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+            <button className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Share">
               <Share2 className="h-3.5 w-3.5" />
             </button>
             <div ref={moreMenuRef} className="relative">
               <button
                 onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
               {showMoreMenu && (
                 <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                  <button
-                    onClick={handleCopyText}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
-                  >
-                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                    Copy text
-                  </button>
-                  <div className="border-t border-border" />
                   <button
                     onClick={handleDeleteNote}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
@@ -1356,31 +1356,15 @@ export default function NewNotePage() {
 
           {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-full lg:w-[36rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none animate-slide-in-right">
-              <div className="px-4 py-3 border-b border-border">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-medium uppercase tracking-wider text-foreground/80">
+            <div className="w-full lg:w-[32rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none animate-slide-in-right">
+              <div className="px-3 py-2 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
                       {recordingState === "recording" ? "Live Transcript" : "Transcript"}
                     </span>
-                    {usingRealAudio && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                            aria-label="About Me and Them labels"
-                          >
-                            <Info className="h-3 w-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-xs text-[11px] leading-snug">
-                          <strong>Me</strong> = your microphone. <strong>Them</strong> = meeting/system audio. Labels follow audio source, not names in the chat. Unmute your mic for reliable &quot;Me&quot; lines; short replies may show as &quot;Them&quot; if only picked up from the meeting mix.
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
                     {(recordingState === "recording" || recordingState === "paused") && (
-                      <div className="flex items-center gap-1.5">
+                      <>
                         {recordingState === "recording" ? (
                           <span className="flex items-center gap-1 text-[10px] text-destructive">
                             <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
@@ -1389,19 +1373,34 @@ export default function NewNotePage() {
                         ) : (
                           <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                             <Pause className="h-2.5 w-2.5" />
-                            Paused
                           </span>
                         )}
                         {activeSTTLabel && (
-                          <>
-                            <span className="text-[10px] text-muted-foreground/40">·</span>
-                            <span className="text-[10px] text-muted-foreground">{activeSTTLabel}</span>
-                          </>
+                          <span className="text-[10px] text-muted-foreground/60">{activeSTTLabel}</span>
                         )}
-                      </div>
+                      </>
+                    )}
+                    {usingRealAudio && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="rounded p-0.5 text-muted-foreground/50 hover:text-foreground" aria-label="About Me and Them labels">
+                            <Info className="h-2.5 w-2.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs text-[11px] leading-snug">
+                          <strong>Me</strong> = your microphone. <strong>Them</strong> = meeting/system audio.
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0">
+                    <button
+                      onClick={() => setTranscriptSearchOpen(v => !v)}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground"
+                      title="Search"
+                    >
+                      <Search className="h-3 w-3" />
+                    </button>
                     {currentTranscript.length > 0 && (
                       <button
                         onClick={() => {
@@ -1422,22 +1421,23 @@ export default function NewNotePage() {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5">
-                  <Search className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <input
-                    value={transcriptSearch}
-                    onChange={(e) => setTranscriptSearch(e.target.value)}
-                    placeholder="Search transcript..."
-                    className="flex-1 min-w-0 bg-transparent text-[13px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  />
-                  {transcriptSearch && (
-                    <button onClick={() => setTranscriptSearch("")} className="text-muted-foreground hover:text-foreground">
+                {transcriptSearchOpen && (
+                  <div className="mt-1.5 flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
+                    <Search className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <input
+                      autoFocus
+                      value={transcriptSearch}
+                      onChange={(e) => setTranscriptSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="flex-1 min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <button onClick={() => { setTranscriptSearch(""); setTranscriptSearchOpen(false); }} className="text-muted-foreground hover:text-foreground">
                       <X className="h-3 w-3" />
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-              <div className="p-3 space-y-4">
+              <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
                   <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3">
                     <p className="text-[13px] font-medium text-amber-800 dark:text-amber-200">
@@ -1471,7 +1471,7 @@ export default function NewNotePage() {
                       >
                         <div
                           className={cn(
-                            "max-w-[92%] rounded-2xl px-3 py-2 text-[14px] font-medium leading-relaxed",
+                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed",
                             isMe
                               ? "bg-green-500/15 text-green-900 dark:text-green-100 rounded-br-md"
                               : "bg-muted/80 text-foreground/90 rounded-bl-md"
