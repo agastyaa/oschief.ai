@@ -4,7 +4,7 @@ import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -19,7 +19,6 @@ import { format, parse, isToday as isTodayFn, isAfter, isValid } from "date-fns"
 import { cn } from "@/lib/utils";
 import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
-import { CommitmentsDueCard } from "@/components/CommitmentsDueCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 
@@ -102,6 +101,12 @@ const Index = () => {
   // Prep brief: all hooks must be above the early return (folder view) to respect React rules
   const [prepBrief, setPrepBrief] = useState<{ previousMeetings: any[]; openCommitments: any[] } | null>(null);
 
+  // Intelligence layer state
+  const [riskLevels, setRiskLevels] = useState<any[]>([]);
+  const [staleDecisions, setStaleDecisions] = useState<any[]>([]);
+  const [latestBriefRun, setLatestBriefRun] = useState<any>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'amber' | 'error' } | null>(null);
+
   useEffect(() => {
     if (viewAll) setRecentMeetingsExpanded(true);
   }, [viewAll]);
@@ -111,6 +116,42 @@ const Index = () => {
     api.memory.commitments.getOpen().then(setOpenCommitments).catch(() => {});
     api?.memory?.projects?.getAll({ status: 'active' }).then(p => setActiveProjects(p?.slice(0, 3) || [])).catch(() => {});
   }, [api, notes.length]);
+
+  // Intelligence data fetching
+  useEffect(() => {
+    if (!api?.intelligence) return;
+    api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
+    api.intelligence.getStaleDecisions().then(setStaleDecisions).catch(() => {});
+    api.intelligence.getLatestBriefRun().then(setLatestBriefRun).catch(() => {});
+  }, [api, notes.length]);
+
+  // Nudge action handlers
+  const handleMarkDone = useCallback(async (id: string) => {
+    await api?.memory?.commitments?.updateStatus(id, 'done');
+    api?.intelligence?.getRiskLevels().then(setRiskLevels).catch(() => {});
+    api?.memory?.commitments?.getOpen().then(setOpenCommitments).catch(() => {});
+  }, [api]);
+
+  const handleSnooze = useCallback(async (id: string) => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    await api?.memory?.commitments?.snooze(id, tomorrow);
+    api?.intelligence?.getRiskLevels().then(setRiskLevels).catch(() => {});
+    setToast({ message: 'Snoozed for 24h', type: 'amber' });
+    setTimeout(() => setToast(null), 2500);
+  }, [api]);
+
+  const handleDraftFollowUp = useCallback(async (id: string) => {
+    const result = await api?.intelligence?.generateFollowUpDraft(id);
+    if (result?.ok && result.draft) {
+      await navigator.clipboard.writeText(result.draft);
+      setToast({ message: 'Copied to clipboard', type: 'success' });
+    } else {
+      setToast({ message: 'Failed to generate draft', type: 'error' });
+    }
+    setTimeout(() => setToast(null), 2500);
+  }, [api]);
+
+  const atRisk = riskLevels.filter(c => c.risk_level === 'AMBER' || c.risk_level === 'RED');
 
   // Latest coaching headline from most recent note with insights
   useEffect(() => {
@@ -395,13 +436,13 @@ const Index = () => {
                   <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
                     Good {timeOfDay}.
                   </h1>
-                  {(todayEvents.length > 0 || openCommitments.length > 0) && (
+                  {(todayEvents.length > 0 || openCommitments.length > 0 || atRisk.length > 0) && (
                     <p className="text-[13px] text-muted-foreground mt-1">
                       {[
                         todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`,
-                        overdue.length > 0 && `${overdue.length} overdue`,
-                        dueToday.length > 0 && `${dueToday.length} due today`,
-                        openCommitments.length > 0 && !overdue.length && !dueToday.length && `${openCommitments.length} open commitments`,
+                        atRisk.length > 0 && `${atRisk.length} at risk`,
+                        staleDecisions.length > 0 && `${staleDecisions.length} stale`,
+                        openCommitments.length > 0 && !atRisk.length && `${openCommitments.length} open commitments`,
                       ].filter(Boolean).join(' · ')}
                     </p>
                   )}
@@ -460,49 +501,154 @@ const Index = () => {
               </div>
             )}
 
-            {/* ── Active Projects + Coaching + Routines (compact row) ── */}
-            {(activeProjects.length > 0 || latestCoachingHeadline || openCommitments.length > 0) && (
-              <div className="grid grid-cols-1 gap-3 mb-4">
-                {/* Projects */}
-                {activeProjects.length > 0 && (
-                  <button onClick={() => navigate("/projects")} className="rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Projects</span>
+            {/* ── Needs Attention (risk commitments + stale decisions) ── */}
+            {(atRisk.length > 0 || staleDecisions.length > 0) && (
+              <div className="mb-4">
+                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" style={{ color: 'hsl(25 65% 45%)' }} />
+                      Needs Attention
+                      <span className="text-[11px] font-normal text-muted-foreground">{atRisk.length + staleDecisions.length}</span>
+                    </h3>
+                    <button onClick={() => navigate('/commitments')} className="text-[11px] text-primary hover:underline">
+                      View all
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {atRisk.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="rounded-[10px] border border-border p-3.5 transition-all"
+                        style={{
+                          borderLeftWidth: '3px',
+                          borderLeftColor: c.risk_level === 'RED' ? 'hsl(25 65% 45%)' : 'hsl(30 55% 64%)',
+                        }}
+                        role="alert"
+                        aria-label={`${c.risk_level === 'RED' ? 'Overdue' : 'Due soon'}: ${c.text}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] text-foreground leading-snug">{c.text}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                              {c.owner && <span>{c.owner}</span>}
+                              {c.due_date && (
+                                <span style={{ color: c.risk_level === 'RED' ? 'hsl(25 65% 45%)' : 'hsl(30 55% 64%)' }}>
+                                  {c.risk_level === 'RED' ? 'Overdue' : `Due ${c.due_date}`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleMarkDone(c.id)}
+                              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
+                              title="Mark done"
+                            >
+                              <Check className="h-3 w-3" />
+                              <span className="hidden sm:inline">Done</span>
+                            </button>
+                            <button
+                              onClick={() => handleSnooze(c.id)}
+                              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
+                              title="Snooze 24h"
+                            >
+                              <Pause className="h-3 w-3" />
+                              <span className="hidden sm:inline">Snooze</span>
+                            </button>
+                            <button
+                              onClick={() => handleDraftFollowUp(c.id)}
+                              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
+                              title="Draft follow-up message"
+                            >
+                              <ArrowUpRight className="h-3 w-3" />
+                              <span className="hidden sm:inline">Draft msg</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {activeProjects.map((p: any) => (
-                        <span key={p.id} className="text-[13px] text-foreground">
-                          {p.name} <span className="text-xs text-muted-foreground">({p.meetingCount || 0})</span>
-                        </span>
-                      ))}
-                    </div>
-                  </button>
-                )}
-
-                {/* Coaching summary */}
-                {latestCoachingHeadline && (
-                  <button onClick={() => navigate("/coaching")} className="rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Brain className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Coach</span>
-                      </div>
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <p className="text-[13px] text-foreground mt-1.5 truncate">{latestCoachingHeadline}</p>
-                  </button>
-                )}
+                    ))}
+                    {staleDecisions.map((d: any) => (
+                      <button
+                        key={d.id}
+                        onClick={() => navigate(`/decisions`)}
+                        className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-secondary/50 transition-colors"
+                      >
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-[13px] text-foreground/90 truncate">{d.text}</span>
+                        <span className="text-[11px] text-muted-foreground shrink-0">unchanged 14+ days</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* ── Commitments Due ── */}
-            {openCommitments.length > 0 && (
+            {/* ── Morning Brief ── */}
+            <div className="mb-4">
+              {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
+                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                  </div>
+                  <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
+                </div>
+              ) : (todayEvents.length > 0 || atRisk.length > 0 || staleDecisions.length > 0) ? (
+                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    {[
+                      todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''}`,
+                      atRisk.length > 0 && `${atRisk.length} at-risk`,
+                      staleDecisions.length > 0 && `${staleDecisions.length} stale decision${staleDecisions.length !== 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              ) : notes.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-card/30 p-6 text-center">
+                  <Briefcase className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    {[
+                      notes.length > 0 && `${notes.length} meeting${notes.length !== 1 ? 's' : ''} on record`,
+                      openCommitments.length > 0 && `${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ')}
+                    {' — '}set deadlines on commitments to see what needs attention.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Projects (compact) ── */}
+            {activeProjects.length > 0 && (
               <div className="mb-4">
-                <CommitmentsDueCard commitments={openCommitments} />
+                <button onClick={() => navigate("/projects")} className="w-full rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Projects</span>
+                    </div>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {activeProjects.map((p: any) => (
+                      <span key={p.id} className="text-[13px] text-foreground">
+                        {p.name} <span className="text-xs text-muted-foreground">({p.meetingCount || 0})</span>
+                      </span>
+                    ))}
+                  </div>
+                </button>
               </div>
             )}
             </>)}
@@ -662,6 +808,20 @@ const Index = () => {
               >
                 <X className="h-3.5 w-3.5" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Toast notification */}
+        {toast && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={cn(
+              "rounded-full px-4 py-2 text-xs font-medium shadow-lg",
+              toast.type === 'success' && "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20",
+              toast.type === 'amber' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+              toast.type === 'error' && "bg-destructive/10 text-destructive border border-destructive/20",
+            )}>
+              {toast.message}
             </div>
           </div>
         )}

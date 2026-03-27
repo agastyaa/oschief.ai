@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { isElectron } from "@/lib/electron-api";
+import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useFolders } from "@/contexts/FolderContext";
 import { useSearchCommand } from "@/components/SearchCommand";
@@ -130,6 +131,20 @@ export function Sidebar() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Commitment weather dot
+  const [riskLevels, setRiskLevels] = useState<any[]>([]);
+  useEffect(() => {
+    const api = getElectronAPI();
+    if (!api?.intelligence?.getRiskLevels) return;
+    api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
+    const interval = setInterval(() => {
+      api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+  const redCount = riskLevels.filter((c: any) => c.risk_level === 'RED').length;
+  const amberCount = riskLevels.filter((c: any) => c.risk_level === 'AMBER').length;
+
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
@@ -183,6 +198,24 @@ export function Sidebar() {
         <div className="flex items-center gap-1">
           <PrivacyIndicator />
           <SyncStatusIndicator />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="h-2 w-2 rounded-full transition-colors duration-150 ml-0.5"
+                style={{
+                  backgroundColor: redCount > 0
+                    ? 'hsl(25 65% 45%)'
+                    : amberCount > 0
+                    ? 'hsl(30 55% 64%)'
+                    : 'hsl(142 50% 45%)',
+                }}
+                aria-label={`${redCount + amberCount} commitments at risk`}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">
+              {redCount + amberCount > 0 ? `${redCount + amberCount} at risk` : 'All clear'}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

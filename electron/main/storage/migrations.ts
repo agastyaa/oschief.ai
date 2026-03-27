@@ -240,6 +240,17 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_commitments_project ON commitments(project_id)`,
     ]
   },
+  {
+    version: 12,
+    up: [
+      // Proactive Intelligence Layer — decision lifecycle + commitment risk + weekday routines
+      `ALTER TABLE decisions ADD COLUMN status TEXT DEFAULT 'MADE'`,
+      `ALTER TABLE decisions ADD COLUMN updated_at TEXT`,
+      `UPDATE decisions SET updated_at = created_at WHERE updated_at IS NULL`,
+      `ALTER TABLE commitments ADD COLUMN amber_notified_at TEXT`,
+      `ALTER TABLE routines ADD COLUMN weekdays_only INTEGER DEFAULT 0`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

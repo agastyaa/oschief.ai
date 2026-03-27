@@ -89,6 +89,10 @@ export function updateCommitmentStatus(id: string, status: 'open' | 'completed' 
   getDb().prepare(`
     UPDATE commitments SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?
   `).run(status, completedAt, now, id)
+  // Clear amber notification when completed or cancelled
+  if (status === 'completed' || status === 'cancelled') {
+    clearAmberNotification(id)
+  }
   const updated = getCommitment(id)
   if (updated) logCommitmentSync('UPDATE', id, updated)
   return true
@@ -137,6 +141,84 @@ export function markOverdueCommitments(): void {
   `).run(now)
   if ((result as any).changes > 0) {
     console.log(`[commitments] Marked ${(result as any).changes} commitment(s) as overdue`)
+  }
+}
+
+// ── Risk Scoring + AMBER Notifications ─────────────────────────────
+//
+// Runs on the same 15-min interval as markOverdueCommitments (index.ts).
+// Detects GREEN→AMBER transitions and fires macOS notifications.
+// Risk level is computed at read time (daily-brief-assembler.ts),
+// but amber_notified_at is persisted here to survive restarts.
+
+import { Notification } from 'electron'
+
+const AMBER_THRESHOLD_MS = 48 * 60 * 60 * 1000
+
+export function checkAmberTransitions(): number {
+  const db = getDb()
+  const now = Date.now()
+  let notified = 0
+
+  // Find open commitments approaching due date that haven't been notified
+  const candidates = db.prepare(`
+    SELECT c.id, c.text, c.due_date, c.owner, c.amber_notified_at,
+           p.name as assignee_name
+    FROM commitments c
+    LEFT JOIN people p ON p.id = c.assignee_id
+    WHERE c.status = 'open'
+      AND c.due_date IS NOT NULL
+      AND c.due_date GLOB '????-??-??*'
+      AND c.amber_notified_at IS NULL
+      AND (c.snoozed_until IS NULL OR datetime(c.snoozed_until) < datetime('now'))
+  `).all() as any[]
+
+  for (const c of candidates) {
+    try {
+      const dueMs = new Date(c.due_date).getTime()
+      if (isNaN(dueMs)) continue
+      const msUntilDue = dueMs - now
+      if (msUntilDue > 0 && msUntilDue <= AMBER_THRESHOLD_MS) {
+        // GREEN → AMBER transition
+        db.prepare('UPDATE commitments SET amber_notified_at = ? WHERE id = ?')
+          .run(new Date().toISOString(), c.id)
+
+        const owner = c.owner === 'you' ? 'You' : (c.assignee_name || c.owner)
+        const notification = new Notification({
+          title: 'Commitment due soon',
+          body: `${owner}: ${c.text} — due ${c.due_date}`,
+          silent: false,
+        })
+        notification.show()
+        notified++
+      }
+    } catch { /* skip malformed */ }
+  }
+
+  if (notified > 0) {
+    console.log(`[commitments] Sent ${notified} amber notification(s)`)
+  }
+  return notified
+}
+
+/**
+ * Clear amber_notified_at when commitment returns to GREEN (due date extended)
+ * or is completed. Called from updateCommitment/updateCommitmentStatus.
+ */
+export function clearAmberNotification(id: string): void {
+  getDb().prepare('UPDATE commitments SET amber_notified_at = NULL WHERE id = ?').run(id)
+}
+
+/**
+ * Override snooze for RED commitments — if snoozed but now overdue, clear snooze.
+ */
+export function clearSnoozeForOverdue(): void {
+  const result = getDb().prepare(`
+    UPDATE commitments SET snoozed_until = NULL
+    WHERE status = 'overdue' AND snoozed_until IS NOT NULL
+  `).run()
+  if ((result as any).changes > 0) {
+    console.log(`[commitments] Cleared snooze for ${(result as any).changes} overdue commitment(s)`)
   }
 }
 

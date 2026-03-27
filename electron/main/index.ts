@@ -77,11 +77,17 @@ app.whenReady().then(async () => {
     startSync()
   }
 
-  // Mark overdue commitments on startup + every 15 minutes
-  import('./memory/commitment-store').then(({ markOverdueCommitments }) => {
+  // Mark overdue commitments + check risk transitions on startup + every 15 minutes
+  import('./memory/commitment-store').then(({ markOverdueCommitments, checkAmberTransitions, clearSnoozeForOverdue }) => {
     markOverdueCommitments()
-    setInterval(() => markOverdueCommitments(), 15 * 60 * 1000)
-    console.log('[commitments] Overdue marking active (startup + 15min interval)')
+    checkAmberTransitions()
+    clearSnoozeForOverdue()
+    setInterval(() => {
+      markOverdueCommitments()
+      checkAmberTransitions()
+      clearSnoozeForOverdue()
+    }, 15 * 60 * 1000)
+    console.log('[commitments] Overdue marking + risk scoring active (startup + 15min interval)')
   }).catch(() => {})
 
   // Smart meeting reminders — 5 min before each meeting
@@ -89,9 +95,14 @@ app.whenReady().then(async () => {
     startMeetingReminders()
   }).catch(() => {})
 
-  // Schedule routines (daily brief, weekly recap, etc.)
-  import('./routines/routines-engine').then(({ scheduleAllRoutines }) => {
+  // Schedule routines (daily brief, weekly recap, etc.) + catch-up missed briefs
+  import('./routines/routines-engine').then(({ scheduleAllRoutines, catchUpMorningBrief, catchUpEndOfDay }) => {
     scheduleAllRoutines()
+    // Fire catch-up after a short delay to let DB settle
+    setTimeout(() => {
+      catchUpMorningBrief().catch(() => {})
+      catchUpEndOfDay().catch(() => {})
+    }, 3000)
     console.log('[routines] Scheduled all enabled routines on app start')
   }).catch(() => {})
 

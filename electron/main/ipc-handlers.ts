@@ -1089,6 +1089,76 @@ export function registerIPCHandlers(): void {
     return snoozeCommitment(id, until)
   })
 
+  // ── Proactive Intelligence Layer ───────────────────────────────────
+
+  ipcMain.handle('intelligence:daily-brief', async () => {
+    try {
+      const { assembleDailyBrief } = await import('./memory/daily-brief-assembler')
+      return assembleDailyBrief()
+    } catch (err: any) {
+      console.error('[intelligence:daily-brief]', err)
+      return { riskCommitments: [], staleDecisions: [], todayMeetingCount: 0, overdueSummary: { amber: 0, red: 0 } }
+    }
+  })
+
+  ipcMain.handle('intelligence:risk-levels', async () => {
+    try {
+      const { computeRiskLevels } = await import('./memory/daily-brief-assembler')
+      return computeRiskLevels()
+    } catch (err: any) {
+      console.error('[intelligence:risk-levels]', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('intelligence:stale-decisions', async () => {
+    try {
+      const { getStaleDecisions } = await import('./memory/daily-brief-assembler')
+      return getStaleDecisions()
+    } catch (err: any) {
+      console.error('[intelligence:stale-decisions]', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('intelligence:follow-up-draft', async (_e, commitmentId: string) => {
+    try {
+      const { generateFollowUpDraft } = await import('./memory/daily-brief-assembler')
+      const draft = generateFollowUpDraft(commitmentId)
+      if (draft) {
+        const { clipboard } = await import('electron')
+        clipboard.writeText(draft)
+        return { ok: true, draft }
+      }
+      return { ok: false, error: 'Commitment not found' }
+    } catch (err: any) {
+      console.error('[intelligence:follow-up-draft]', err)
+      return { ok: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('intelligence:latest-brief-run', async () => {
+    try {
+      const db = (await import('./storage/database')).getDb()
+      return db.prepare(`
+        SELECT rr.output, rr.status, rr.started_at
+        FROM routine_runs rr
+        JOIN routines r ON r.id = rr.routine_id
+        WHERE r.builtin_type IN ('morning_briefing', 'end_of_day')
+          AND rr.status = 'success'
+          AND rr.started_at >= date('now')
+        ORDER BY rr.started_at DESC LIMIT 1
+      `).get() ?? null
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('memory:decisions-update-status', async (_e, id: string, status: string) => {
+    const { updateDecisionStatus } = await import('./memory/decision-store')
+    return updateDecisionStatus(id, status as any)
+  })
+
   // Project link/unlink
   ipcMain.handle('memory:projects-link-note', async (_e, noteId: string, projectId: string) => {
     const { linkProjectToNote } = await import('./memory/project-store')

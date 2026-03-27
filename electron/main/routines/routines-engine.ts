@@ -34,6 +34,7 @@ export interface RoutineConfig {
   enabled: number
   builtin_type: string | null
   data_query: string | null
+  weekdays_only: number
   created_at: string
   updated_at: string
 }
@@ -185,6 +186,15 @@ export function stopAllRoutines(): void {
 // ── Execution ───────────────────────────────────────────────────────
 
 export async function executeRoutine(routine: RoutineConfig): Promise<any> {
+  // Weekday guard: skip execution on Saturday (6) and Sunday (0)
+  if (routine.weekdays_only) {
+    const day = new Date().getDay()
+    if (day === 0 || day === 6) {
+      console.log(`[routines] "${routine.name}" skipped (weekdays only, today is ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day]})`)
+      return { ok: true, skipped: true, reason: 'weekend' }
+    }
+  }
+
   const runId = randomUUID()
   const startedAt = new Date().toISOString()
   const startMs = Date.now()
@@ -255,12 +265,23 @@ function seedBuiltinRoutines(): void {
     {
       id: 'builtin-morning-briefing',
       name: 'Morning Briefing',
-      prompt: 'Prepare me for my day. Given today\'s meetings, open commitments, and active projects, write a concise 3-5 sentence briefing. Be specific — reference real names, dates, and commitments. If nothing is notable, say so briefly.',
+      prompt: 'Prepare me for my day. Given today\'s meetings, open commitments (especially at-risk ones), stale decisions, and active projects, write a concise 3-5 sentence briefing. Be specific — reference real names, dates, and commitments. If nothing is notable, say so briefly.',
       schedule_type: 'daily',
       schedule_hour: 8,
       schedule_minute: 30,
       delivery: 'both',
       builtin_type: 'morning_briefing',
+    },
+    {
+      id: 'builtin-end-of-day',
+      name: 'End of Day',
+      prompt: 'Summarize my day. Include: commitments created today, decisions made, coaching highlights if any, and preview tomorrow\'s meetings. Keep it under 5 sentences. Be specific.',
+      schedule_type: 'daily',
+      schedule_hour: 17,
+      schedule_minute: 30,
+      delivery: 'both',
+      builtin_type: 'end_of_day',
+      weekdays_only: 1,
     },
     {
       id: 'builtin-weekly-recap',
@@ -288,5 +309,65 @@ function seedBuiltinRoutines(): void {
   for (const r of builtins) {
     createRoutine(r as any)
   }
-  console.log('[routines] Seeded 3 built-in routines')
+  console.log('[routines] Seeded 4 built-in routines')
+}
+
+// ── Morning Brief Catch-up ─────────────────────────────────────────
+//
+// If the app wasn't running at 8:30am, catch up on launch.
+// Only fires if: (1) no successful run today, (2) current time < 10am.
+
+export async function catchUpMorningBrief(): Promise<void> {
+  const db = getDb()
+  const now = new Date()
+  const hour = now.getHours()
+
+  // Only catch up if before 10am
+  if (hour >= 10) return
+
+  const routine = db.prepare(
+    "SELECT * FROM routines WHERE builtin_type = 'morning_briefing' AND enabled = 1"
+  ).get() as RoutineConfig | undefined
+  if (!routine) return
+
+  // Check for a successful run today
+  const todayRun = db.prepare(`
+    SELECT COUNT(*) as cnt FROM routine_runs
+    WHERE routine_id = ? AND status = 'success' AND started_at >= date('now')
+  `).get(routine.id) as any
+  if (todayRun?.cnt > 0) return
+
+  console.log('[routines] Morning brief catch-up: firing now (app launched before 10am, no run today)')
+  await executeRoutine(routine)
+}
+
+/**
+ * End-of-day catch-up: fire if app launches after 5:30pm and before midnight.
+ */
+export async function catchUpEndOfDay(): Promise<void> {
+  const db = getDb()
+  const now = new Date()
+  const hour = now.getHours()
+  const minute = now.getMinutes()
+
+  // Only catch up if after 5:30pm and before midnight
+  if (hour < 17 || (hour === 17 && minute < 30)) return
+
+  const routine = db.prepare(
+    "SELECT * FROM routines WHERE builtin_type = 'end_of_day' AND enabled = 1"
+  ).get() as RoutineConfig | undefined
+  if (!routine) return
+
+  // Weekday check
+  const day = now.getDay()
+  if (routine.weekdays_only && (day === 0 || day === 6)) return
+
+  const todayRun = db.prepare(`
+    SELECT COUNT(*) as cnt FROM routine_runs
+    WHERE routine_id = ? AND status = 'success' AND started_at >= date('now')
+  `).get(routine.id) as any
+  if (todayRun?.cnt > 0) return
+
+  console.log('[routines] End-of-day catch-up: firing now')
+  await executeRoutine(routine)
 }
