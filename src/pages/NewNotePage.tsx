@@ -493,139 +493,101 @@ export default function NewNotePage() {
     const noteIdToSave = override?.noteId ?? noteId;
     const startTimeToUse = activeSession?.startTime;
 
-    let generatedSummary: SummaryData;
-    let preExtractedEntities: any | null = null;
-    let groundingScore = 1.0;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const startTimeMs = startTimeToUse ?? now.getTime() - elapsedSeconds * 1000;
+    const timeRange = formatTimeRange(startTimeMs, elapsedSeconds);
+
+    lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
+    lastGeneratedNotesRef.current = useNotes;
+
+    // Save the note immediately (without summary) so it's not lost if summarize hangs
     try {
-      if (api && selectedAIModel) {
-        try {
-          const templateId = meetingTemplateRef.current;
-          const customPrompt = BUILTIN_TEMPLATE_IDS.has(templateId)
-            ? undefined
-            : (await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null)) || undefined;
+      addNote({
+        id: noteIdToSave,
+        title: userHasEditedTitleRef.current ? (useTitle || noteTitle) : noteTitle,
+        date: dateStr,
+        time: timeStr,
+        duration: formatTime(elapsedSeconds),
+        timeRange,
+        calendarEventId: eventState?.eventId,
+        personalNotes: useNotes,
+        transcript: finalTranscript,
+        summary: null,
+        folderId: selectedFolderId,
+      });
+    } catch (err) {
+      console.error('Failed to save note:', err);
+      toast.error("Note could not be saved. Check console.");
+      setIsSummarizing(false);
+      return;
+    }
 
-          // Decision layer: use unified path for Ollama 8B+, two-call for everything else
-          const useUnified = api.llm.isUnifiedEligible ? await api.llm.isUnifiedEligible(selectedAIModel).catch(() => false) : false;
-
-          if (useUnified && api.llm.summarizeAndExtract) {
-            // Unified path: single LLM call for summary + entities (Ollama 8B+)
-            const result = await api.llm.summarizeAndExtract({
-              transcript: finalTranscript,
-              personalNotes: useNotes,
-              model: selectedAIModel,
-              meetingTemplateId: templateId,
-              customPrompt,
-              meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
-              meetingDuration: formatTime(elapsedSeconds),
-              accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
-            });
-            generatedSummary = result.summary;
-            preExtractedEntities = result.entities;
-            groundingScore = result.groundingScore;
-            console.log(`[Unified] Summary + entities in ${result.durationMs}ms, grounding=${groundingScore.toFixed(2)}`);
-          } else {
-            // Two-call path: summarize first, then extract separately
-            generatedSummary = await api.llm.summarize({
-              transcript: finalTranscript,
-              personalNotes: useNotes,
-              model: selectedAIModel,
-              meetingTemplateId: templateId,
-              customPrompt,
-              meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
-              meetingDuration: formatTime(elapsedSeconds),
-              accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
-            });
-          }
-        } catch (err) {
-          console.error('LLM summarization failed, using local fallback:', err);
-          generatedSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
-        }
-      } else {
-        await new Promise(r => setTimeout(r, 1500));
-        generatedSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
-      }
-
-      lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
-      lastGeneratedNotesRef.current = useNotes;
-      setSummary(generatedSummary);
-
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-      const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const startTimeMs = startTimeToUse ?? now.getTime() - elapsedSeconds * 1000;
-      const timeRange = formatTimeRange(startTimeMs, elapsedSeconds);
-
-      const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
-      const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
-      const aiTitle = generatedSummary.title && !isGenericTitle(generatedSummary.title) ? generatedSummary.title : null;
-
-      try {
-        // Granola-style: use user's title if they manually edited; otherwise use AI-generated (never generic)
-        const finalTitle = userHasEditedTitleRef.current
-          ? useTitle || noteTitle
-          : (aiTitle || noteTitle);
-        addNote({
-          id: noteIdToSave,
-          title: finalTitle,
-          date: dateStr,
-          time: timeStr,
-          duration: formatTime(elapsedSeconds),
-          timeRange,
-          calendarEventId: eventState?.eventId,
-          personalNotes: useNotes,
-          transcript: finalTranscript,
-          summary: generatedSummary,
-          folderId: selectedFolderId,
-        });
-
-        // Entity extraction: unified path already has entities, two-call path extracts separately
-        if (preExtractedEntities && api?.memory?.storeEntities) {
-          // Unified path: store pre-extracted entities directly
-          api.memory.storeEntities({
-            noteId: noteIdToSave,
-            entities: preExtractedEntities,
-            calendarAttendees: eventState?.attendees,
-            calendarTitle: eventState?.eventTitle,
-          }).then((result) => {
-            if (result.ok) {
-              console.log(`[Unified] Stored entities: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments, ${result.topicCount ?? 0} topics, ${result.decisionCount ?? 0} decisions`);
-            }
-          }).catch((err) => {
-            console.error('Entity storage failed (non-blocking):', err);
-          });
-        } else if (!preExtractedEntities && api?.memory?.extractEntities && selectedAIModel) {
-          // Two-call path: extract entities in background (fire and forget)
-          api.memory.extractEntities({
-            noteId: noteIdToSave,
-            summary: generatedSummary,
-            transcript: finalTranscript,
-            model: selectedAIModel,
-          }).then((result) => {
-            if (result.ok) {
-              console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments, ${result.topicCount ?? 0} topics`);
-            }
-          }).catch((err) => {
-            console.error('Entity extraction failed (non-blocking):', err);
-          });
-        }
-      } catch (err) {
-        console.error('Failed to save note:', err);
-        toast.error("Note could not be saved. Check console.");
-      }
-      // Granola-style: only auto-update title from summary if user hasn't manually edited and we got a real title
-      if (!userHasEditedTitleRef.current && generatedSummary.title && generatedSummary.title !== noteTitle && !isGenericTitle(generatedSummary.title)) {
-        setTitle(generatedSummary.title);
-      }
-    } finally {
+    if (api && selectedAIModel) {
+      // Fire-and-forget: summary runs in the main process; IPC event (note:summary-ready) updates state
+      const templateId = meetingTemplateRef.current;
+      const customPrompt = BUILTIN_TEMPLATE_IDS.has(templateId)
+        ? undefined
+        : (await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null)) || undefined;
+      api.llm.summarizeBackground(noteIdToSave, {
+        transcript: finalTranscript,
+        personalNotes: useNotes,
+        model: selectedAIModel,
+        meetingTemplateId: templateId,
+        customPrompt,
+        meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
+        meetingDuration: formatTime(elapsedSeconds),
+        accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
+      }).catch(console.error);
+      // isSummarizing stays true until note:summary-ready event clears it (see useEffect below)
+    } else {
+      // No AI model — generate local summary synchronously
+      const localSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
+      setSummary(localSummary);
+      api?.db?.notes?.update(noteIdToSave, { summary: localSummary }).catch(console.error);
       setIsSummarizing(false);
     }
-  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing, activeSession?.startTime, activeSession?.isRecording, activeSession, clearSession]);
+  }, [title, personalNotes, noteId, elapsedSeconds, selectedFolderId, addNote, api, selectedAIModel, usingRealAudio, isSummarizing, activeSession?.startTime, activeSession, eventState?.eventId, eventState?.eventTitle]);
   // Note: userHasEditedTitleRef is a ref, not in deps
 
   const generateNotesRef = useRef(generateNotes);
   useEffect(() => {
     generateNotesRef.current = generateNotes;
   }, [generateNotes]);
+
+  // Listen for background summary completion from main process
+  useEffect(() => {
+    if (!api?.llm?.onSummaryReady) return;
+    const unsubReady = api.llm.onSummaryReady((incomingNoteId: string, summary: any) => {
+      if (incomingNoteId !== noteId) return;
+      const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+      const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
+      setSummary(summary);
+      if (!userHasEditedTitleRef.current && summary.title && !isGenericTitle(summary.title)) {
+        setTitle(summary.title);
+        api?.db?.notes?.update(incomingNoteId, { title: summary.title }).catch(console.error);
+      }
+      // Entity extraction — fire and forget
+      if (api?.memory?.extractEntities && selectedAIModel) {
+        api.memory.extractEntities({
+          noteId: incomingNoteId,
+          summary,
+          transcript: transcriptRef.current,
+          model: selectedAIModel,
+        }).then((result: any) => {
+          if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
+        }).catch((err: any) => console.error('Entity extraction failed:', err));
+      }
+      setIsSummarizing(false);
+    });
+    const unsubFailed = api.llm.onSummaryFailed((incomingNoteId: string) => {
+      if (incomingNoteId !== noteId) return;
+      toast.error("Summary failed. You can regenerate it from the note.");
+      setIsSummarizing(false);
+    });
+    return () => { unsubReady(); unsubFailed(); };
+  }, [api, noteId, selectedAIModel]);
 
   // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
   useEffect(() => {

@@ -332,24 +332,25 @@ const Index = () => {
         )}
         <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
           <div className="flex-1 overflow-y-auto pb-24">
-            <div
-              className={cn(
-                "mx-auto max-w-2xl px-6 font-body",
-                isElectron && !sidebarOpen ? "pt-10 pb-8" : "py-8"
-              )}
-            >
-              <div className="flex items-center gap-3 mb-6">
+            <div className={cn("px-4", isElectron && !sidebarOpen ? "pt-10" : "pt-6")}>
+              <div className="relative flex items-center mb-4">
                 <SidebarTopBarLeft
                   backLabel="Back to home"
                   onBack={() => navigate("/")}
                   backIcon
                 />
-                <div className="flex items-center gap-2">
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                   <FolderOpen className="h-5 w-5 text-accent" />
                   <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
+                  <span className="text-xs text-muted-foreground ml-1">{folderNotes.length} notes</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{folderNotes.length} notes</span>
               </div>
+            </div>
+            <div
+              className={cn(
+                "mx-auto max-w-2xl px-6 font-body pb-8"
+              )}
+            >
 
               {folderNotes.length === 0 ? (
                 <div className="text-center py-16">

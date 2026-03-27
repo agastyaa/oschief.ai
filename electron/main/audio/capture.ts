@@ -101,6 +101,10 @@ const EARLY_TRIGGER_SAMPLES = 16000 * 4  // 4s: slightly longer for better conte
 // This gives the STT model continuity across chunk boundaries — dramatically improves WER at word boundaries.
 const OVERLAP_SAMPLES = SAMPLE_RATE * 2  // 2s = 32,000 samples
 const previousAudioTail: [Float32Array | null, Float32Array | null] = [null, null]
+// Per-channel word tail: last emitted text, used to strip re-transcribed overlap from next chunk
+const previousEmittedTail: [string, string] = ['', '']
+const OVERLAP_WORD_MATCH_MIN = 4   // min words that must match to trim (avoids over-trimming genuine repetition)
+const OVERLAP_WORD_MATCH_MAX = 25  // max words to look back in previous tail
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
@@ -609,9 +613,20 @@ async function processBufferedAudio(): Promise<void> {
 
       const filtered = filterHallucinatedTranscript(sttResult.text)
       if (filtered) {
+        // Strip re-transcribed overlap from previous chunk (Whisper overlap-context artifact)
+        const deoverlapped = trimOverlapTail(previousEmittedTail[channel], filtered)
+        if (!deoverlapped) {
+          // Entire chunk was re-transcribed overlap — discard
+          audioBuffers[channel].splice(0, chunkCount)
+          chunkRetryCount[channel] = 0
+          logMicCaptureDebug('skip_full_overlap', { preview: filtered.slice(0, 80) })
+          clearProcessingLock(true)
+          continue
+        }
+
         // Cross-channel dedup: skip if same/very similar text was emitted recently
         const now = Date.now()
-        const filteredNorm = filtered.toLowerCase().replace(/[,.\-!?\s]+/g, ' ').trim()
+        const filteredNorm = deoverlapped.toLowerCase().replace(/[,.\-!?\s]+/g, ' ').trim()
         // Prune old entries
         while (recentEmittedTexts.length > 0 && now - recentEmittedTexts[0].time > effectiveDedupWindowMs()) {
           recentEmittedTexts.shift()
@@ -619,8 +634,9 @@ async function processBufferedAudio(): Promise<void> {
         const isDuplicate = recentEmittedTexts.some(entry => {
           if (entry.text === filteredNorm) return true
           if (filteredNorm.includes(entry.text) || entry.text.includes(filteredNorm)) return true
-          // Fuzzy match for cross-channel echo (speaker bleed into mic)
-          if (entry.channel !== channel && textSimilarity(entry.text, filteredNorm) > effectiveFuzzyDedupThreshold()) return true
+          // Fuzzy match: strict threshold for same-channel (0.85), relaxed for cross-channel echo
+          const threshold = entry.channel !== channel ? effectiveFuzzyDedupThreshold() : 0.85
+          if (textSimilarity(entry.text, filteredNorm) > threshold) return true
           return false
         })
         if (isDuplicate) {
@@ -635,8 +651,9 @@ async function processBufferedAudio(): Promise<void> {
 
         lastSpeechTime = Date.now()
         const time = formatTimestamp(chunkStartSec)
-        transcriptCallback({ speaker, time, text: filtered, words: sttResult.words?.length ? sttResult.words : undefined })
-        setPreviousContextForChannel(channel as 0 | 1, filtered)
+        transcriptCallback({ speaker, time, text: deoverlapped, words: sttResult.words?.length ? sttResult.words : undefined })
+        previousEmittedTail[channel] = deoverlapped
+        setPreviousContextForChannel(channel as 0 | 1, deoverlapped)
         // Save last 2s of audio as overlap context for next chunk (improves WER at boundaries)
         const mergedForTail = new Float32Array(totalLength)
         let tailOffset = 0
@@ -837,6 +854,30 @@ function collapseRepetitions(text: string): string {
   out = collapseAdjacentDuplicateTokens(out)
 
   return out
+}
+
+/**
+ * Strip the re-transcribed overlap prefix from a new chunk.
+ * When Whisper uses the last 2s of audio as context for the next chunk, it re-transcribes
+ * those words at the start of the new result. Find the longest suffix of prevTail that
+ * matches a prefix of newText (word-normalized) and strip it.
+ */
+function trimOverlapTail(prevTail: string, newText: string): string {
+  if (!prevTail || !newText) return newText
+  const norm = (s: string) =>
+    s.toLowerCase().replace(/[,.\-!?'"]/g, '').trim().split(/\s+/).filter(Boolean)
+  const prev = norm(prevTail)
+  const next = norm(newText)
+  const maxLen = Math.min(prev.length, next.length, OVERLAP_WORD_MATCH_MAX)
+  for (let len = maxLen; len >= OVERLAP_WORD_MATCH_MIN; len--) {
+    if (prev.slice(-len).join(' ') === next.slice(0, len).join(' ')) {
+      const rawWords = newText.trim().split(/\s+/)
+      const trimmed = rawWords.slice(len).join(' ').trim()
+      logMicCaptureDebug('trim_overlap_tail', { removed: rawWords.slice(0, len).join(' '), kept: trimmed.slice(0, 60) })
+      return trimmed
+    }
+  }
+  return newText
 }
 
 /** Capitalize first letter of each sentence and " i " → " I ". */
