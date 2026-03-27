@@ -278,16 +278,16 @@ describe('groupTranscriptBySpeaker with time-gap splitting', () => {
     expect(groups[0].text).toContain('First topic.')
   })
 
-  it('splits same-speaker lines when time gap exceeds 5 seconds', () => {
+  it('splits same-speaker lines when time gap exceeds 45 seconds', () => {
     const items = [
       { speaker: 'Others', time: '0:10', text: 'First paragraph point.', originalIndex: 0 },
       { speaker: 'Others', time: '0:12', text: 'More detail here.', originalIndex: 1 },
-      { speaker: 'Others', time: '0:20', text: 'After a pause.', originalIndex: 2 },
+      { speaker: 'Others', time: '1:10', text: 'After a long pause.', originalIndex: 2 },
     ]
     const groups = groupTranscriptBySpeaker(items)
     expect(groups).toHaveLength(2)
     expect(groups[0].text).toContain('First paragraph point.')
-    expect(groups[1].text).toContain('After a pause.')
+    expect(groups[1].text).toContain('After a long pause.')
   })
 
   it('still splits on speaker change regardless of time gap', () => {
@@ -316,7 +316,7 @@ describe('groupTranscriptBySpeaker with time-gap splitting', () => {
     const items = [
       { speaker: 'Others', time: '0:10', text: 'A.', originalIndex: 0 },
       { speaker: 'Others', time: '0:12', text: 'B.', originalIndex: 1 },
-      { speaker: 'Others', time: '0:25', text: 'C.', originalIndex: 2 },
+      { speaker: 'Others', time: '1:10', text: 'C.', originalIndex: 2 },
     ]
     const groups = groupTranscriptBySpeaker(items)
     expect(groups).toHaveLength(2)
@@ -327,15 +327,16 @@ describe('groupTranscriptBySpeaker with time-gap splitting', () => {
 
 describe('max-sentence splitting', () => {
   it('splits a long same-speaker monologue by sentence count', () => {
-    const longText = 'Sentence one. Sentence two. Sentence three. Sentence four. Sentence five. Sentence six. Sentence seven.'
+    // 25 sentences to exceed MAX_SENTENCES_PER_GROUP (20)
+    const longText = Array.from({ length: 25 }, (_, i) => `Sentence ${i + 1}.`).join(' ')
     const items = [
       { speaker: 'Others', time: '0:10', text: longText, originalIndex: 0 },
     ]
     const groups = groupTranscriptBySpeaker(items)
     expect(groups.length).toBeGreaterThan(1)
-    // First group should have at most 5 sentences
+    // First group should have at most 20 sentences
     const firstSentences = groups[0].text.match(/[.!?]/g)
-    expect(firstSentences!.length).toBeLessThanOrEqual(5)
+    expect(firstSentences!.length).toBeLessThanOrEqual(20)
   })
 
   it('does not split short text', () => {

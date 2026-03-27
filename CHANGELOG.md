@@ -4,6 +4,14 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.0.6] — 2026-03-27
+
+### Fixed
+- **Whisper v3 turbo stops after first transcription** — replaced per-request `on`/`removeListener` pattern with a single permanent stdout listener + resolver queue (standard LSP/tsserver pattern). Second and subsequent transcription requests now work reliably. Full-precision and 8-bit MLX variants both fixed.
+- **Test suite sync** — updated 3 test files to reflect intentional threshold changes (`PAUSE_THRESHOLD_SEC` 5→45s, `MAX_SENTENCES_PER_GROUP` 5→20) and transcript exclusion from default markdown export.
+
+---
+
 ## [2.0.2] — 2026-03-26
 
 ### Fixed
