@@ -399,9 +399,18 @@ const electronAPI = {
       getAll: (filters?: any) => ipcRenderer.invoke('memory:decisions-get-all', filters) as Promise<any[]>,
       create: (data: { text: string; context?: string; noteId?: string; projectId?: string; date?: string }) => ipcRenderer.invoke('memory:decisions-create', data) as Promise<any>,
       delete: (id: string) => ipcRenderer.invoke('memory:decisions-delete', id) as Promise<boolean>,
+      updateStatus: (id: string, status: string) => ipcRenderer.invoke('memory:decisions-update-status', id, status) as Promise<boolean>,
     },
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
+  },
+
+  intelligence: {
+    getDailyBrief: () => ipcRenderer.invoke('intelligence:daily-brief'),
+    getRiskLevels: () => ipcRenderer.invoke('intelligence:risk-levels'),
+    getStaleDecisions: () => ipcRenderer.invoke('intelligence:stale-decisions'),
+    generateFollowUpDraft: (commitmentId: string) => ipcRenderer.invoke('intelligence:follow-up-draft', commitmentId) as Promise<{ ok: boolean; draft?: string; error?: string }>,
+    getLatestBriefRun: () => ipcRenderer.invoke('intelligence:latest-brief-run'),
   },
 
   sync: {
