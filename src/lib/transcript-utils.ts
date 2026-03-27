@@ -19,11 +19,11 @@ export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** When consecutive same-speaker chunks are ≥ this many seconds apart, start a new paragraph. */
-const PAUSE_THRESHOLD_SEC = 5;
+/** When consecutive same-speaker chunks are ≥ this many seconds apart, start a new block. */
+const PAUSE_THRESHOLD_SEC = 45;
 
 /** Maximum sentences per group before splitting into a new paragraph. */
-const MAX_SENTENCES_PER_GROUP = 5;
+const MAX_SENTENCES_PER_GROUP = 20;
 
 /** Returns true if the gap between two timestamps exceeds the threshold. */
 function hasTimePause(timeEnd: string, timeStart: string, thresholdSec: number): boolean {

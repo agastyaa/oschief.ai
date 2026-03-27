@@ -32,6 +32,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RoutinesPage from "./pages/RoutinesPage";
 import DecisionsPage from "./pages/DecisionsPage";
 import MeetingSeriesPage from "./pages/MeetingSeriesPage";
+import WeeklyDigestPage from "./pages/WeeklyDigestPage";
 import NotFound from "./pages/NotFound";
 import TrayAgendaPage from "./pages/TrayAgendaPage";
 import { TrayMenu } from "@/components/TrayMenu";
@@ -138,6 +139,7 @@ function AppContent() {
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/project/:id" element={<ProjectDetailPage />} />
         <Route path="/routines" element={<RoutinesPage />} />
+        <Route path="/digest" element={<WeeklyDigestPage />} />
         <Route path="/decisions" element={<DecisionsPage />} />
         <Route path="/series" element={<MeetingSeriesPage />} />
         <Route path="/settings" element={<SettingsPage />} />

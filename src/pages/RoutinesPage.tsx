@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
+import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { Zap, Play, Plus, Clock, Check, X, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
@@ -17,6 +18,12 @@ interface Routine {
   delivery: string
   enabled: number
   builtin_type: string | null
+}
+
+const ROUTINE_DESCRIPTIONS: Record<string, string> = {
+  'morning-briefing': "Your day at a glance: today's meetings with prep notes, overdue commitments, and who you're meeting for the first time.",
+  'weekly-recap': "What happened this week: meetings attended, decisions made, commitments kept vs. broken, and people you met.",
+  'overdue-commitments': "Things you promised but haven't delivered. Grouped by person so you can batch your follow-ups.",
 }
 
 interface RoutineRun {
@@ -119,11 +126,20 @@ export default function RoutinesPage() {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {sidebarOpen && <Sidebar />}
-      <main className="flex-1 overflow-y-auto">
+      {sidebarOpen && (
+        <div className="w-56 flex-shrink-0 overflow-hidden">
+          <Sidebar />
+        </div>
+      )}
+      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
+        <div className={cn("flex items-center px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
+          <SidebarCollapseButton />
+        </div>
+        <div className="px-6 pt-2">
+          <SectionTabs tabs={INTELLIGENCE_TABS} />
+        </div>
         <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 mb-1">
-            {!sidebarOpen && <SidebarCollapseButton />}
             <Zap className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Routines</h1>
             <div className="flex-1" />
@@ -189,6 +205,9 @@ export default function RoutinesPage() {
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium">{r.name}</div>
+                      {r.builtin_type && ROUTINE_DESCRIPTIONS[r.builtin_type] && (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{ROUTINE_DESCRIPTIONS[r.builtin_type]}</p>
+                      )}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <Clock className="h-3 w-3" />
                         {scheduleLabel(r)}

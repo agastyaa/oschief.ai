@@ -13,11 +13,14 @@ export type OllamaModelTier = {
  * Context caps prevent OOM from KV cache on consumer hardware.
  */
 export const MODEL_TIERS: OllamaModelTier[] = [
-  { tag: 'qwen3:4b', label: 'Qwen3 4B', size: '~2.5 GB', contextCap: 32768, minRamGB: 10 },
+  { tag: 'qwen3.5:4b', label: 'Qwen 3.5 4B', size: '~2.7 GB', contextCap: 32768, minRamGB: 10 },
   { tag: 'qwen3:8b', label: 'Qwen3 8B', size: '~5 GB', contextCap: 32768, minRamGB: 16 },
   { tag: 'qwen2.5:32b', label: 'Qwen 2.5 32B', size: '~20 GB', contextCap: 16384, minRamGB: 32 },
   { tag: 'llama3.3:70b', label: 'Llama 3.3 70B', size: '~40 GB', contextCap: 8192, minRamGB: 64 },
 ]
+
+/** Embedding model for retrieval. Pulled alongside the LLM tier. */
+export const EMBEDDING_MODEL = 'nomic-embed-text'
 
 /** Get total system RAM in GB. */
 export function getSystemRAMGB(): number {
@@ -109,6 +112,19 @@ export async function autoSetupOllamaModel(
     console.log(`[Ollama] Auto-pulling recommended model: ${tier.tag}`)
     await pullOllamaModel(tier.tag, onProgress)
     console.log(`[Ollama] Auto-pull complete: ${tier.tag}`)
+
+    // Also pull embedding model for retrieval (non-blocking if it fails)
+    try {
+      const hasEmbed = models.some(m => m.startsWith('nomic-embed'))
+      if (!hasEmbed) {
+        console.log(`[Ollama] Auto-pulling embedding model: ${EMBEDDING_MODEL}`)
+        await pullOllamaModel(EMBEDDING_MODEL)
+        console.log(`[Ollama] Embedding model ready: ${EMBEDDING_MODEL}`)
+      }
+    } catch (err: any) {
+      console.warn('[Ollama] Embedding model pull failed (non-blocking):', err.message?.slice(0, 100))
+    }
+
     return { pulled: true, model: tier.tag }
   } catch (err: any) {
     console.warn('[Ollama] Auto-setup failed (non-blocking):', err.message?.slice(0, 100))

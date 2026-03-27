@@ -15,6 +15,7 @@ import { Notification, BrowserWindow } from 'electron'
 import { getDb, getSetting } from '../storage/database'
 import { routeLLM } from '../cloud/router'
 import { assembleRoutineData } from './routines-data'
+import { resolveSelectedAIModel } from '../models/model-resolver'
 
 const MS_PER_DAY = 86_400_000
 const activeTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -192,8 +193,8 @@ export async function executeRoutine(routine: RoutineConfig): Promise<any> {
     // Assemble data
     const contextData = await assembleRoutineData(routine)
 
-    // Get the configured LLM model
-    const model = getSetting('summary-model') || getSetting('ai-model') || 'openai:gpt-4o-mini'
+    // Get the configured LLM model (uses the same model the user selected in Settings)
+    const model = resolveSelectedAIModel() || 'openai:gpt-4o-mini'
 
     // Call LLM
     const systemPrompt = `You are OSChief, an on-device chief of staff. ${routine.prompt}`

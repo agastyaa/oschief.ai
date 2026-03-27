@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
+import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
@@ -374,6 +375,11 @@ const Index = () => {
             </button>
           )}
         </div>
+        {viewAll && (
+          <div className="px-6 pt-2">
+            <SectionTabs tabs={MEETING_TABS} />
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body">
 

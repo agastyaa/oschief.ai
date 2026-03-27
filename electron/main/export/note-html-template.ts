@@ -106,14 +106,7 @@ export function noteToHtml(note: NoteData): string {
     sections.push(`<div class="section"><h2>Personal Notes</h2><div class="personal">${esc(note.personalNotes).replace(/\n/g, '<br>')}</div></div>`)
   }
 
-  if (note.transcript?.length) {
-    let html = '<div class="section transcript-section"><h2>Transcript</h2>'
-    for (const t of note.transcript) {
-      html += `<p class="transcript-line"><span class="ts">[${esc(t.time)}]</span> <strong>${esc(t.speaker)}:</strong> ${esc(t.text)}</p>`
-    }
-    html += '</div>'
-    sections.push(html)
-  }
+  // Transcript excluded from default export — summary is what gets shared.
 
   return `<!DOCTYPE html>
 <html lang="en">

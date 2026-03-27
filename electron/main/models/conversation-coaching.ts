@@ -90,10 +90,14 @@ function fetchUserKBContext(transcript: TranscriptLineInput[], roleLabel: string
   }
 }
 
-function formatTranscript(lines: TranscriptLineInput[]): string {
+function formatTranscript(lines: TranscriptLineInput[], userName?: string): string {
   let out = ''
   for (const l of lines) {
-    const line = `[${l.time}] ${l.speaker}: ${l.text}\n`
+    // Replace generic "You"/"Me" labels with actual user name when available
+    const speaker = userName && (l.speaker === 'You' || l.speaker === 'Me')
+      ? userName
+      : l.speaker
+    const line = `[${l.time}] ${speaker}: ${l.text}\n`
     if (out.length + line.length > MAX_TRANSCRIPT_CHARS) {
       out += '\n[… transcript truncated for analysis …]\n'
       break
@@ -103,24 +107,29 @@ function formatTranscript(lines: TranscriptLineInput[]): string {
   return out
 }
 
-const SYSTEM_PROMPT = `You are a world-class coach for how someone RUNS meetings in their professional role — not a speech therapist. You read real transcripts plus role-specific guidance and judge substance, timing, and judgment.
+function buildSystemPrompt(userName?: string): string {
+  const identity = userName
+    ? `\nIMPORTANT: The person being coached is "${userName}". In the transcript, any speaker labeled "${userName}", "You", or "Me" is this person. Always refer to them as "${userName}" — never confuse them with other participants mentioned in the meeting.\n`
+    : ''
 
+  return `You are a world-class coach for how someone RUNS meetings in their professional role — not a speech therapist. You read real transcripts plus role-specific guidance and judge substance, timing, and judgment.
+${identity}
 Priorities (in order):
 1. **What they said** — content, promises, claims, and whether they matched the moment (too early/late, missed follow-up, jumped to solution).
 2. **Questions vs tells** — discovery, clarity, stakeholder alignment; did they ask the right things before pitching or closing?
 3. **Role playbook** — apply the role briefing you were given (e.g. sales discovery before demo, PM outcomes before solutions). Tie micro-insights to that playbook.
-4. **Delivery metrics** (pace, fillers, long monologue) — mention only when the transcript clearly supports it as a problem for the meeting outcome, not as generic "speaking style" feedback.
 
 Rules:
 - Return ONLY a single JSON object (no markdown fences).
 - Every claim in microInsights must be grounded in the transcript: use evidenceQuote with exact or near-exact wording when possible.
 - headline: one sharp pattern about **content or meeting arc** (e.g. "You demo before you discover", "Closed without confirming success metrics").
-- narrative: 2-4 sentences on what they said/did in context of their role and why it mattered.
-- microInsights: 3-5 objects with "text" (actionable), optional "framework", optional "evidenceQuote", "speaker", "time".
-- habitTags: snake_case tags tied to **substance** when possible (e.g. agenda_gap, demo_before_discovery, low_questions, unclear_next_step); use filler_heavy or long_monologue only if transcript backs it.
-- keyMoments: 2-4 transcript moments that best illustrate the headline (what was said, when).
+- narrative: 2-3 sentences on what they said/did in context of their role and why it mattered. Be concise.
+- microInsights: 2-3 objects. Each "text" must be 1-2 sentences max (under 40 words), actionable and specific. Optional "framework", "evidenceQuote", "speaker", "time".
+- habitTags: snake_case tags tied to **substance** (e.g. agenda_gap, demo_before_discovery, low_questions, unclear_next_step).
+- keyMoments: 2-3 transcript moments that best illustrate the headline (what was said, when).
 - Be direct. No empty praise. If the meeting was strong, name one nuanced improvement.
 - Do not invent quotes; only use phrases that appear in the transcript.`
+}
 
 const JSON_SHAPE = `{
   "headline": "string",
@@ -136,6 +145,7 @@ export async function analyzeConversationQuality(input: {
   heuristics?: HeuristicsInput | null
   roleId: string
   model?: string
+  userName?: string
 }): Promise<ConversationAnalysisResponse> {
   const aiModel = resolveSelectedAIModel(input.model)
   if (!aiModel) {
@@ -164,7 +174,7 @@ export async function analyzeConversationQuality(input: {
     kbBlock += 'Adapt coaching to the user’s custom role; use general executive communication frameworks.'
   }
 
-  const transcriptBlock = formatTranscript(input.transcript)
+  const transcriptBlock = formatTranscript(input.transcript, input.userName)
   const metricsStr = JSON.stringify(input.metrics)
   const heuristicsStr = input.heuristics
     ? JSON.stringify(input.heuristics)
@@ -191,7 +201,7 @@ Produce ${JSON_SHAPE}`
   try {
     const response = await routeLLM(
       [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: buildSystemPrompt(input.userName) },
         { role: 'user', content: userMessage },
       ],
       aiModel
@@ -219,7 +229,7 @@ Produce ${JSON_SHAPE}`
     const microInsights = Array.isArray(parsed.microInsights)
       ? (parsed.microInsights as ConversationMicroInsight[])
           .filter((m) => m && typeof m.text === 'string')
-          .slice(0, 6)
+          .slice(0, 3)
       : []
 
     const habitTags = Array.isArray(parsed.habitTags)

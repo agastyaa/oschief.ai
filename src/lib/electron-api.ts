@@ -189,6 +189,7 @@ type ElectronAPI = {
   }
   context?: {
     assemble: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) => Promise<any>
+    liveExtract: (recentTranscript: string) => Promise<any>
   }
   prep?: {
     generate: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string; model: string }) => Promise<any>
@@ -354,6 +355,11 @@ type ElectronAPI = {
       focusNext: string
       recurringTags: string[]
     } | null>
+    analyzeAll: () => Promise<{ ok: boolean; total: number; completed: number; errors: string[] }>
+    onAnalyzeProgress: (callback: (data: { current: number; total: number; noteTitle?: string }) => void) => () => void
+  }
+  digest?: {
+    getWeekly: () => Promise<any>
   }
   kb?: {
     pickFolder: () => Promise<{ ok: boolean; path?: string; added?: number; updated?: number; removed?: number; total?: number; error?: string }>

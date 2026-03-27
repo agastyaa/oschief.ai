@@ -1,18 +1,14 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
+import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
-  Brain, Layers, ChevronDown, ChevronRight, Mic, Zap, MessageCircleWarning,
-  TrendingUp, TrendingDown, Minus, ArrowRight, RefreshCw,
+  Brain, TrendingUp, TrendingDown, Minus, ArrowRight, RefreshCw,
 } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  AreaChart, Area,
-} from "recharts";
 import type { CoachingMetrics, ConversationInsights } from "@/lib/coaching-analytics";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -128,26 +124,32 @@ export default function CoachingPage() {
   }, [notesWithInsights.length, accountRoleId, crossMeeting, crossLoading, runAggregateInsights]);
 
   // Metrics data
-  const [metricsExpanded, setMetricsExpanded] = useState(false);
-  const chartData = useMemo(() =>
-    meetings.map(m => ({
-      name: m.date, overall: m.metrics.overallScore, pacing: m.metrics.pacingScore,
-      conciseness: m.metrics.concisenessScore, listening: m.metrics.listeningScore,
-      wpm: m.metrics.wordsPerMinute, fillers: m.metrics.fillerWordsPerMinute,
-      talkRatio: Math.round(m.metrics.talkToListenRatio * 100),
-    })), [meetings]
-  );
-
-  const avgScore = meetings.length > 0 ? Math.round(meetings.reduce((s, m) => s + m.metrics.overallScore, 0) / meetings.length) : 0;
   const latestScore = meetings.length > 0 ? meetings[meetings.length - 1].metrics.overallScore : 0;
   const prevScore = meetings.length > 1 ? meetings[meetings.length - 2].metrics.overallScore : latestScore;
   const firstScore = meetings.length > 0 ? meetings[0].metrics.overallScore : 0;
+  const avgScore = meetings.length > 0 ? Math.round(meetings.reduce((s, m) => s + m.metrics.overallScore, 0) / meetings.length) : 0;
 
-  const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  const accentColor = isDark ? "hsl(24, 42%, 55%)" : "hsl(24, 45%, 42%)";
-  const emeraldColor = isDark ? "hsl(155, 50%, 45%)" : "hsl(155, 60%, 35%)";
-  const amberColor = isDark ? "hsl(38, 80%, 55%)" : "hsl(38, 90%, 45%)";
-  const tooltipStyle = { backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" };
+  // Batch coaching state
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; noteTitle?: string } | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
+
+  useEffect(() => {
+    if (!api?.coaching?.onAnalyzeProgress) return;
+    return api.coaching.onAnalyzeProgress((data) => setBatchProgress(data));
+  }, [api]);
+
+  const runBatchCoaching = useCallback(async () => {
+    if (!api || batchRunning) return;
+    setBatchRunning(true);
+    setBatchProgress({ current: 0, total: 0 });
+    try {
+      await (api as any).coaching?.analyzeAll?.();
+    } catch { /* silent */ }
+    setBatchRunning(false);
+    setBatchProgress(null);
+    // Refresh notes to show new coaching data
+    window.location.reload();
+  }, [api, batchRunning]);
 
   // ── Build the coach message ───────────────────────────────────────────
 
@@ -185,7 +187,7 @@ export default function CoachingPage() {
         all.push({ ...mi, meetingTitle: n.title || "Untitled", meetingId: n.id });
       }
     }
-    return all.slice(0, 5);
+    return all.slice(0, 3);
   }, [notesWithInsights]);
 
   const coachMsg = buildCoachMessage();
@@ -201,6 +203,9 @@ export default function CoachingPage() {
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3", !sidebarOpen && isElectron && "pl-20")}>
           <SidebarTopBarLeft />
           <div />
+        </div>
+        <div className="px-6 pt-2">
+          <SectionTabs tabs={INTELLIGENCE_TABS} />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -390,128 +395,25 @@ export default function CoachingPage() {
               </div>
             )}
 
-            {/* ── Speaking Metrics (collapsed) ── */}
+            {/* ── Analyze All Meetings ── */}
             {meetings.length > 0 && (
-              <div className="rounded-lg border border-border bg-card">
+              <div className="mb-6">
                 <button
-                  type="button"
-                  onClick={() => setMetricsExpanded(!metricsExpanded)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors rounded-lg"
+                  onClick={() => void runBatchCoaching()}
+                  disabled={batchRunning}
+                  className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
                 >
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Mic className="h-3 w-3" /> Speaking Metrics
-                  </span>
-                  {metricsExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <RefreshCw className={cn("h-3.5 w-3.5", batchRunning && "animate-spin")} />
+                  {batchRunning
+                    ? `Analyzing ${batchProgress?.current ?? 0}/${batchProgress?.total ?? '...'} — ${batchProgress?.noteTitle ?? ''}`
+                    : "Reanalyze all meetings"}
                 </button>
-                {metricsExpanded && (
-                  <div className="px-4 pb-4 space-y-4">
-                    {/* Overall Score Trend */}
-                    <div className="rounded-lg border border-border bg-background p-4">
-                      <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-4">Overall Score Trend</h4>
-                      <div className="h-[180px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chartData}>
-                            <defs><linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={accentColor} stopOpacity={0.2} /><stop offset="95%" stopColor={accentColor} stopOpacity={0} /></linearGradient></defs>
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={30} />
-                            <Tooltip contentStyle={tooltipStyle} />
-                            <Area type="monotone" dataKey="overall" stroke={accentColor} strokeWidth={2} fill="url(#scoreGradient)" dot={{ fill: accentColor, r: 3 }} name="Overall" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Score Breakdown + WPM */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border bg-background p-4">
-                        <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-4">Score Breakdown</h4>
-                        <div className="h-[160px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                              <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={24} />
-                              <Tooltip contentStyle={tooltipStyle} />
-                              <Line type="monotone" dataKey="pacing" stroke={accentColor} strokeWidth={1.5} dot={{ r: 2 }} name="Pacing" />
-                              <Line type="monotone" dataKey="conciseness" stroke={emeraldColor} strokeWidth={1.5} dot={{ r: 2 }} name="Conciseness" />
-                              <Line type="monotone" dataKey="listening" stroke={amberColor} strokeWidth={1.5} dot={{ r: 2 }} name="Listening" />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="flex justify-center gap-4 mt-2">
-                          <LegendDot color={accentColor} label="Pacing" />
-                          <LegendDot color={emeraldColor} label="Conciseness" />
-                          <LegendDot color={amberColor} label="Listening" />
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-border bg-background p-4">
-                        <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5"><Zap className="h-3 w-3" /> Words Per Minute</h4>
-                        <div className="h-[160px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                              <defs><linearGradient id="wpmGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={emeraldColor} stopOpacity={0.15} /><stop offset="95%" stopColor={emeraldColor} stopOpacity={0} /></linearGradient></defs>
-                              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                              <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={30} />
-                              <Tooltip contentStyle={tooltipStyle} />
-                              <Area type="monotone" dataKey="wpm" stroke={emeraldColor} strokeWidth={2} fill="url(#wpmGradient)" dot={{ fill: emeraldColor, r: 2 }} name="WPM" />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground/70 text-center mt-1">Ideal: 130-160 WPM</div>
-                      </div>
-                    </div>
-
-                    {/* Talk Ratio + Fillers */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border bg-background p-4">
-                        <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5"><Mic className="h-3 w-3" /> Talk-to-Listen Ratio</h4>
-                        <div className="h-[140px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                              <defs><linearGradient id="talkGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={amberColor} stopOpacity={0.15} /><stop offset="95%" stopColor={amberColor} stopOpacity={0} /></linearGradient></defs>
-                              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                              <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={24} tickFormatter={(v) => `${v}%`} />
-                              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, "Talk Ratio"]} />
-                              <Area type="monotone" dataKey="talkRatio" stroke={amberColor} strokeWidth={2} fill="url(#talkGradient)" dot={{ fill: amberColor, r: 2 }} name="Talk %" />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground/70 text-center mt-1">Ideal: 40-60%</div>
-                      </div>
-
-                      <div className="rounded-lg border border-border bg-background p-4">
-                        <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5"><MessageCircleWarning className="h-3 w-3" /> Fillers Per Minute</h4>
-                        <div className="h-[140px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                              <defs><linearGradient id="fillerGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(0, 60%, 50%)" stopOpacity={0.15} /><stop offset="95%" stopColor="hsl(0, 60%, 50%)" stopOpacity={0} /></linearGradient></defs>
-                              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                              <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={24} />
-                              <Tooltip contentStyle={tooltipStyle} />
-                              <Area type="monotone" dataKey="fillers" stroke="hsl(0, 60%, 50%)" strokeWidth={2} fill="url(#fillerGradient)" dot={{ fill: "hsl(0, 60%, 50%)", r: 2 }} name="Fillers/min" />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground/70 text-center mt-1">Lower is better — aim for under 2/min</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-      <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-      {label}
     </div>
   );
 }

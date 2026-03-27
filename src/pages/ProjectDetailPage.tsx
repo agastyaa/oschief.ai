@@ -29,6 +29,12 @@ export default function ProjectDetailPage() {
   const [draftName, setDraftName] = useState("")
   const [draftDesc, setDraftDesc] = useState("")
   const nameRef = useRef<HTMLInputElement>(null)
+  const [linkingMeeting, setLinkingMeeting] = useState(false)
+  const [allNotes, setAllNotes] = useState<any[]>([])
+  const [meetingSearch, setMeetingSearch] = useState("")
+  const [linkingPerson, setLinkingPerson] = useState(false)
+  const [allPeople, setAllPeople] = useState<any[]>([])
+  const [personSearch, setPersonSearch] = useState("")
 
   const saveField = async (field: "name" | "description", value: string) => {
     if (!id || !api?.memory?.projects) return
@@ -127,6 +133,100 @@ export default function ProjectDetailPage() {
             <StatCard icon={<Users className="h-3.5 w-3.5" />} label="People" value={timeline?.people.length ?? 0} />
             <StatCard icon={<CheckSquare className="h-3.5 w-3.5" />} label="Action Items" value={timeline?.commitments.length ?? 0} />
           </div>
+
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={async () => {
+                if (!api) return
+                const notes = await api.notes.getAll()
+                setAllNotes(notes || [])
+                setLinkingMeeting(true)
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <FileText className="h-3 w-3" /> Link Meeting
+            </button>
+            <button
+              onClick={async () => {
+                if (!api?.memory?.people) return
+                const people = await api.memory.people.getAll()
+                setAllPeople(people || [])
+                setLinkingPerson(true)
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <Users className="h-3 w-3" /> Add Person
+            </button>
+          </div>
+
+          {/* Link Meeting Picker */}
+          {linkingMeeting && (
+            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+              <input
+                value={meetingSearch}
+                onChange={e => setMeetingSearch(e.target.value)}
+                placeholder="Search meetings to link..."
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {allNotes
+                  .filter(n => !meetingSearch || (n.title || '').toLowerCase().includes(meetingSearch.toLowerCase()))
+                  .slice(0, 10)
+                  .map(n => (
+                    <button
+                      key={n.id}
+                      onClick={async () => {
+                        if (!id || !api?.memory?.projects) return
+                        await api.memory.projects.linkToNote(n.id, id)
+                        setLinkingMeeting(false)
+                        setMeetingSearch("")
+                        api.memory.projects.timeline(id).then(setTimeline)
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 transition-colors"
+                    >
+                      {n.title || "Untitled"} <span className="text-xs text-muted-foreground ml-2">{n.date}</span>
+                    </button>
+                  ))}
+              </div>
+              <button onClick={() => { setLinkingMeeting(false); setMeetingSearch("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+          )}
+
+          {/* Add Person Picker */}
+          {linkingPerson && (
+            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+              <input
+                value={personSearch}
+                onChange={e => setPersonSearch(e.target.value)}
+                placeholder="Search people to add..."
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {allPeople
+                  .filter(p => !personSearch || (p.name || '').toLowerCase().includes(personSearch.toLowerCase()))
+                  .slice(0, 10)
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      onClick={async () => {
+                        if (!id || !api?.memory?.projects) return
+                        await api.memory.projects.linkPerson(id, p.id)
+                        setLinkingPerson(false)
+                        setPersonSearch("")
+                        api.memory.projects.timeline(id).then(setTimeline)
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 transition-colors"
+                    >
+                      {p.name} <span className="text-xs text-muted-foreground ml-2">{p.company || p.role || ''}</span>
+                    </button>
+                  ))}
+              </div>
+              <button onClick={() => { setLinkingPerson(false); setPersonSearch("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+          )}
 
           {/* Meetings Timeline */}
           {timeline?.meetings.length ? (

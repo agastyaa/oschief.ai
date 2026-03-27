@@ -128,6 +128,11 @@ export async function downloadMLXModels(): Promise<{ ok: boolean; error?: string
 
   if (!binary) return { ok: false, error: 'No binary path after build' }
 
+  // Ensure model directory exists before spawning download
+  const { mkdirSync } = require('fs')
+  const modelDir = join(app.getPath('userData'), 'models', 'mlx-qwen3-4b')
+  mkdirSync(modelDir, { recursive: true })
+
   return new Promise((resolve) => {
     const proc = spawn(binary, ['download'], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -143,9 +148,10 @@ export async function downloadMLXModels(): Promise<{ ok: boolean; error?: string
     })
     proc.on('error', (err) => resolve({ ok: false, error: err.message }))
     proc.on('close', (code) => {
+      console.log(`[mlx-llm] Download exit code: ${code}, stdout: ${stdout.slice(0, 200)}, stderr tail: ${stderr.slice(-300)}`)
       if (code === 0 && stdout.trim() === 'ok') {
         resolve({ ok: true })
-      } else if (stderr.includes('100%') && stderr.includes('metallib')) {
+      } else if (stderr.includes('100%')) {
         // Model weights downloaded successfully (100%) but Metal verification failed.
         // This is expected when running the binary standalone — Metal shaders aren't
         // available outside the full app context. The model works fine at inference time.

@@ -234,7 +234,20 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
       proc.on('error', (err) => reject(new Error(`CoreML Parakeet failed: ${err.message}`)))
       proc.on('close', (code) => {
         if (code === 0) {
-          resolve(stdout.trim())
+          // Strip ONNX/CoreML runtime errors and FluidAudio debug prefixes from stdout
+          const cleaned = stdout
+            .replace(/E5RT encountered an STL exception[^.]*\./g, '')
+            .replace(/Failed to PropagateInputTensorShapes[^.]*\./g, '')
+            .replace(/std::runtime_error during type inference[^.]*\./g, '')
+            .replace(/slice_by_index: zero shape error\./g, '')
+            // FluidAudio outputs "Msg = <text>" debug lines — strip the prefix
+            .replace(/\bMsg\s*=\s*/g, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+          if (stdout !== cleaned) {
+            console.warn('[parakeet-coreml] Stripped ONNX runtime errors from transcript output')
+          }
+          resolve(cleaned)
         } else {
           // Include WAV details in error for debugging
           const detail = `WAV: ${sampleRate}Hz ${numChannels}ch ${bitsPerSample}bit ${wavBuffer.length}B`

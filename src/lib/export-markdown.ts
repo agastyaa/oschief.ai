@@ -70,12 +70,8 @@ export function buildMarkdownBody(note: SavedNote): string[] {
     parts.push(note.personalNotes.trim())
   }
 
-  if (note.transcript?.length) {
-    parts.push('## Transcript')
-    parts.push(note.transcript.map(t =>
-      `**[${t.time}] ${t.speaker}:** ${t.text}`
-    ).join('\n\n'))
-  }
+  // Transcript excluded from default export — too verbose for sharing.
+  // Use includeTranscript option or noteToMarkdownFull() for full export.
 
   return parts
 }

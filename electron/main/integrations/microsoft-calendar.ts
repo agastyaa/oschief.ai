@@ -51,7 +51,7 @@ export async function fetchMicrosoftCalendarEvents(
   const start = new Date(now.getTime() - daysPast * 24 * 60 * 60 * 1000)
   const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 
-  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body,attendees`
+  const url = `${GRAPH_CALENDAR_URL}?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=100&$orderby=start/dateTime&$select=id,subject,sensitivity,start,end,location,isAllDay,onlineMeeting,onlineMeetingUrl,body,attendees`
 
   const { statusCode, data } = await netFetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -76,9 +76,23 @@ export async function fetchMicrosoftCalendarEvents(
         responseStatus: a.status?.response || undefined,
       }))
 
+    // Handle events where subject is missing or limited
+    // Graph API returns "Busy" as literal subject when user has limited access or
+    // when the event organizer set show-as to "busy" without a real title
+    const isPrivate = evt.sensitivity === 'private' || evt.sensitivity === 'confidential'
+    let title = evt.subject || 'Untitled'
+    if (isPrivate && (!evt.subject || evt.subject === 'Busy')) {
+      title = '(Private event)'
+    } else if (evt.subject === 'Busy' && attendees.length > 0) {
+      // "Busy" with attendees = real meeting whose title wasn't returned
+      // Show attendee names as fallback title
+      const names = attendees.slice(0, 3).map((a: MicrosoftCalendarAttendee) => a.name || a.email.split('@')[0]).join(', ')
+      title = `Meeting with ${names}`
+    }
+
     events.push({
       id: evt.id,
-      title: evt.subject || 'Untitled',
+      title,
       start: evt.start?.dateTime ? new Date(evt.start.dateTime + 'Z').toISOString() : new Date().toISOString(),
       end: evt.end?.dateTime ? new Date(evt.end.dateTime + 'Z').toISOString() : new Date().toISOString(),
       joinLink,

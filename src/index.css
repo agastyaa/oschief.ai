@@ -38,7 +38,7 @@
     --secondary-foreground: 225 20% 16%;
 
     --muted: 226 10% 93%;
-    --muted-foreground: 225 12% 40%;
+    --muted-foreground: 225 14% 28%;
 
     --accent: 229 51% 37%;
     --accent-foreground: 0 0% 100%;
@@ -53,7 +53,7 @@
     --radius: 0.625rem; /* 10px — harmonises with macOS Tahoe Liquid Glass */
 
     --sidebar-background: 228 14% 95%;
-    --sidebar-foreground: 225 10% 40%;
+    --sidebar-foreground: 225 14% 30%;
     --sidebar-primary: 229 51% 37%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 229 51% 37%;

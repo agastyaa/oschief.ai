@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import { PrivacyIndicator } from "@/components/PrivacyIndicator";
 import { cn } from "@/lib/utils";
 import { isElectron } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -81,12 +82,35 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
   return (
     <div
       className={cn(
-        "flex flex-shrink-0 flex-col items-center",
+        "flex flex-shrink-0 flex-col items-center relative",
         isElectron ? "w-20 min-w-[5rem] pt-10" : "w-10 pt-2"
       )}
     >
+      {/* Drag region when sidebar is collapsed — allows window movement from the rail area */}
+      {isElectron && (
+        <div
+          className="absolute top-0 left-0 right-0 h-10 z-50"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        />
+      )}
       {children}
     </div>
+  );
+}
+
+/**
+ * Global drag region for Electron — covers the full top of the window when
+ * sidebar is collapsed. Pages that use `pl-20` instead of SidebarCollapseRail
+ * need this to remain draggable.
+ */
+export function GlobalDragRegion() {
+  const { sidebarOpen } = useSidebarVisibility();
+  if (!isElectron || sidebarOpen) return null;
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 h-10 z-40 pointer-events-auto"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    />
   );
 }
 
@@ -141,12 +165,25 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
+      {/* Drag region for window movement (Electron hiddenInset titlebar) */}
+      {isElectron && (
+        <div
+          className="absolute top-0 left-0 right-0 h-10 z-50"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        />
+      )}
       {/* Logo only — collapse is in content top bar via SidebarTopBarLeft */}
-      <div className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}>
+      <div
+        className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}
+        style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
+      >
         <div className="flex items-center gap-2">
           <OSChiefLogo size={24} showText />
         </div>
-        <SyncStatusIndicator />
+        <div className="flex items-center gap-1">
+          <PrivacyIndicator />
+          <SyncStatusIndicator />
+        </div>
       </div>
 
       {/* Search */}
@@ -161,146 +198,118 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Home */}
+      {/* Today */}
       <nav className="flex flex-col gap-0.5 px-3 mt-1">
-        <button
-          onClick={() => navigate("/")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-            isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder")
-              ? "bg-secondary text-foreground font-medium"
-              : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <Home className="h-3.5 w-3.5" />
-          Home
-        </button>
+        <NavItem icon={Home} label="Today" to="/" active={
+          isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder") && !location.search.includes("view=all")
+        } />
       </nav>
 
-      {/* Meetings section — includes All Notes, folders nested underneath, Series, Calendar */}
-      <div className="mt-4 px-3">
-        <div className="flex items-center px-2 mb-1">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Meetings</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {/* All Notes with create folder button */}
-          <div className="flex items-center">
-            <button
-              onClick={() => navigate("/?view=all")}
-              className={cn(
-                "flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
-                location.search.includes("view=all")
-                  ? "bg-secondary text-foreground font-medium"
-                  : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-              )}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              All Notes
-            </button>
-            <button
-              onClick={() => setCreatingFolder(true)}
-              className="rounded p-1 text-muted-foreground hover:text-foreground mr-1"
-              title="New folder"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-
-          {/* Folders nested under All Notes */}
-          {folders.length > 0 && (
-            <div className="flex flex-col gap-0.5 ml-3 border-l border-border/50 pl-2">
-              {folders.map((f) => {
-                const Icon = iconMap[f.icon] || FolderOpen;
-                return (
-                  <div
-                    key={f.id}
-                    className={cn(
-                      "group/folder flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors",
-                      new URLSearchParams(location.search).get("folder") === f.id
-                        ? "bg-secondary text-foreground font-medium"
-                        : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-                    )}
-                  >
-                    <button
-                      onClick={() => navigate(`/?folder=${f.id}`)}
-                      className="flex flex-1 items-center gap-2 min-w-0"
+      {/* Meetings — expands to show Notes | Calendar | Series via SectionTabs on target pages */}
+      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+        <NavItem
+          icon={FileText}
+          label="Meetings"
+          to="/?view=all"
+          active={
+            isActive("/calendar") || isActive("/series") || location.search.includes("view=all") || location.search.includes("folder")
+          }
+        />
+        {/* Folders nested under Meetings when expanded */}
+        {(isActive("/calendar") || isActive("/series") || location.search.includes("view=all") || location.search.includes("folder")) && (
+          <>
+            {folders.length > 0 && (
+              <div className="flex flex-col gap-0.5 ml-3 border-l border-border/50 pl-2 mt-0.5">
+                {folders.map((f) => {
+                  const Icon = iconMap[f.icon] || FolderOpen;
+                  return (
+                    <div
+                      key={f.id}
+                      className={cn(
+                        "group/folder flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors",
+                        new URLSearchParams(location.search).get("folder") === f.id
+                          ? "bg-secondary text-foreground font-medium"
+                          : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
+                      )}
                     >
-                      <div className={cn("flex h-3.5 w-3.5 items-center justify-center rounded flex-shrink-0", f.color)}>
-                        <Icon className="h-2 w-2" />
-                      </div>
-                      <span className="truncate">{f.name}</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteFolder(f.id);
-                        if (new URLSearchParams(location.search).get("folder") === f.id) navigate("/");
-                      }}
-                      className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
-                    >
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Inline create folder */}
-          {creatingFolder && (
-            <div className="flex items-center gap-1 ml-3 pl-2 border-l border-border/50 px-2 py-1">
-              <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-accent/20 text-accent flex-shrink-0">
-                <FolderOpen className="h-2 w-2" />
+                      <button
+                        onClick={() => navigate(`/?folder=${f.id}`)}
+                        className="flex flex-1 items-center gap-2 min-w-0"
+                      >
+                        <div className={cn("flex h-3.5 w-3.5 items-center justify-center rounded flex-shrink-0", f.color)}>
+                          <Icon className="h-2 w-2" />
+                        </div>
+                        <span className="truncate">{f.name}</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFolder(f.id);
+                          if (new URLSearchParams(location.search).get("folder") === f.id) navigate("/");
+                        }}
+                        className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
+                      >
+                        <Trash2 className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <input
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                }}
-                placeholder="Folder name"
-                className="flex-1 min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-              />
-              <button onClick={handleCreateFolder} className="rounded p-0.5 text-accent hover:text-accent/80">
-                <Check className="h-2.5 w-2.5" />
-              </button>
-              <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground">
-                <X className="h-2.5 w-2.5" />
+            )}
+            <div className="ml-3 border-l border-border/50 pl-2 mt-0.5">
+              <button
+                onClick={() => setCreatingFolder(true)}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-2.5 w-2.5" />
+                New folder
               </button>
             </div>
-          )}
+            {creatingFolder && (
+              <div className="flex items-center gap-1 ml-3 pl-2 border-l border-border/50 px-2 py-1">
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateFolder();
+                    if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                  }}
+                  placeholder="Folder name"
+                  className="flex-1 min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                <button onClick={handleCreateFolder} className="rounded p-0.5 text-accent hover:text-accent/80">
+                  <Check className="h-2.5 w-2.5" />
+                </button>
+                <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </nav>
 
-          <NavItem icon={Repeat} label="Series" to="/series" />
-          <NavItem icon={calendarIcon} label="Calendar" to="/calendar" />
-        </div>
-      </div>
+      {/* Your Work — People, Projects, Commitments, Decisions via SectionTabs */}
+      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+        <NavItem
+          icon={Briefcase}
+          label="Your Work"
+          to="/people"
+          active={isActive("/people") || isActive("/projects") || isActive("/project/") || isActive("/commitments") || isActive("/decisions")}
+        />
+      </nav>
 
-      {/* Work Graph section */}
-      <div className="mt-4 px-3">
-        <div className="flex items-center px-2 mb-1">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Your Work</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <NavItem icon={Contact} label="People" to="/people" />
-          <NavItem icon={FolderKanban} label="Projects" to="/projects" active={isActive("/projects") || isActive("/project/")} />
-          <NavItem icon={CheckCircle2} label="Commitments" to="/commitments" />
-          <NavItem icon={Gavel} label="Decisions" to="/decisions" />
-        </div>
-      </div>
-
-      {/* Intelligence section */}
-      <div className="mt-4 px-3">
-        <div className="flex items-center px-2 mb-1">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Intelligence</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <NavItem icon={Sparkles} label="Ask OSChief" to="/ask" iconClass="text-accent/90" />
-          <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
-          <NavItem icon={Zap} label="Routines" to="/routines" />
-        </div>
-      </div>
+      {/* Intelligence — Ask, Coaching, Routines via SectionTabs */}
+      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+        <NavItem
+          icon={Sparkles}
+          label="Intelligence"
+          to="/ask"
+          active={isActive("/ask") || isActive("/coaching") || isActive("/routines")}
+          iconClass="text-accent/90"
+        />
+      </nav>
 
       {/* Spacer */}
       <div className="flex-1" />

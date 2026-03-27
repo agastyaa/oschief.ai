@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, ChevronDown, ChevronRight, FileText, Square, Sparkles } from "lucide-react";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
+import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { useNotes } from "@/contexts/NotesContext";
@@ -191,6 +192,9 @@ export default function AskSyag() {
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
         </div>
+        <div className="px-6 pt-2">
+          <SectionTabs tabs={INTELLIGENCE_TABS} />
+        </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
             <div className="flex h-full flex-col items-center justify-center px-6 pb-8">
@@ -199,10 +203,10 @@ export default function AskSyag() {
                   <Sparkles className="h-7 w-7" aria-hidden />
                 </div>
                 <h1 className="font-display text-2xl sm:text-3xl text-foreground tracking-tight mb-2">
-                  Your Chief of Staff
+                  {localStorage.getItem('assistant-name') || 'Your Chief of Staff'}
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ask about your meetings, people, projects, and commitments. OSChief searches your full work graph to give answers grounded in what actually happened.
+                  Ask about your meetings, people, projects, and commitments. {localStorage.getItem('assistant-name') || 'OSChief'} searches your full work graph to give answers grounded in what actually happened.
                 </p>
                 {getActiveAIModelLabel() && (
                   <p className="mt-3 text-[11px] text-muted-foreground">
@@ -360,7 +364,7 @@ export default function AskSyag() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Follow up… (recipes from home screen)"
+                  placeholder="Ask about your meetings, people, or commitments…"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none min-w-0"
                 />
                 {isLoading ? (
