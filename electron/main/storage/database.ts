@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join, dirname } from 'path'
-import { mkdirSync, existsSync, copyFileSync } from 'fs'
+import { mkdirSync, existsSync, copyFileSync, readFileSync } from 'fs'
 import { homedir } from 'os'
+import { createHash } from 'crypto'
 import { runMigrations } from './migrations'
 import type { SyncableTable } from './sync-types'
 
@@ -60,6 +61,18 @@ function migrateFromSyagIfNeeded(): void {
     }
 
     copyFileSync(oldDbPath, newDbPath)
+    // SHA-256 checksum verification — retry once on mismatch
+    const sha256 = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
+    const srcHash = sha256(oldDbPath)
+    const dstHash = sha256(newDbPath)
+    if (srcHash !== dstHash) {
+      console.warn('[database] Checksum mismatch after copy, retrying...')
+      copyFileSync(oldDbPath, newDbPath)
+      const retryHash = sha256(newDbPath)
+      if (srcHash !== retryHash) {
+        throw new Error(`Database copy checksum mismatch: src=${srcHash} dst=${retryHash}`)
+      }
+    }
     // Also copy WAL/SHM if they exist (belt and suspenders)
     if (existsSync(oldDbPath + '-wal')) copyFileSync(oldDbPath + '-wal', newDbPath + '-wal')
     if (existsSync(oldDbPath + '-shm')) copyFileSync(oldDbPath + '-shm', newDbPath + '-shm')
@@ -328,6 +341,31 @@ function safeJsonParse<T>(str: string | null | undefined, fallback: T, context?:
     console.warn(`[DB] Corrupted JSON${context ? ` in ${context}` : ''}: ${(err as Error).message}`)
     return fallback
   }
+}
+
+// --- Pipeline Quality Log ---
+
+export function logPipelineQuality(entry: {
+  noteId?: string
+  gateName: string
+  outcome: string
+  retryCount?: number
+  groundingScore?: number
+  durationMs?: number
+  model?: string
+}): void {
+  getDb().prepare(`
+    INSERT INTO pipeline_quality_log (note_id, gate_name, outcome, retry_count, grounding_score, duration_ms, model)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    entry.noteId ?? null,
+    entry.gateName,
+    entry.outcome,
+    entry.retryCount ?? 0,
+    entry.groundingScore ?? null,
+    entry.durationMs ?? null,
+    entry.model ?? null,
+  )
 }
 
 function deserializeNote(row: any): any {

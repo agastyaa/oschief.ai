@@ -494,6 +494,8 @@ export default function NewNotePage() {
     const startTimeToUse = activeSession?.startTime;
 
     let generatedSummary: SummaryData;
+    let preExtractedEntities: any | null = null;
+    let groundingScore = 1.0;
     try {
       if (api && selectedAIModel) {
         try {
@@ -501,16 +503,39 @@ export default function NewNotePage() {
           const customPrompt = BUILTIN_TEMPLATE_IDS.has(templateId)
             ? undefined
             : (await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null)) || undefined;
-          generatedSummary = await api.llm.summarize({
-            transcript: finalTranscript,
-            personalNotes: useNotes,
-            model: selectedAIModel,
-            meetingTemplateId: templateId,
-            customPrompt,
-            meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
-            meetingDuration: formatTime(elapsedSeconds),
-            accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
-          });
+
+          // Decision layer: use unified path for Ollama 8B+, two-call for everything else
+          const useUnified = api.llm.isUnifiedEligible ? await api.llm.isUnifiedEligible(selectedAIModel).catch(() => false) : false;
+
+          if (useUnified && api.llm.summarizeAndExtract) {
+            // Unified path: single LLM call for summary + entities (Ollama 8B+)
+            const result = await api.llm.summarizeAndExtract({
+              transcript: finalTranscript,
+              personalNotes: useNotes,
+              model: selectedAIModel,
+              meetingTemplateId: templateId,
+              customPrompt,
+              meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
+              meetingDuration: formatTime(elapsedSeconds),
+              accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
+            });
+            generatedSummary = result.summary;
+            preExtractedEntities = result.entities;
+            groundingScore = result.groundingScore;
+            console.log(`[Unified] Summary + entities in ${result.durationMs}ms, grounding=${groundingScore.toFixed(2)}`);
+          } else {
+            // Two-call path: summarize first, then extract separately
+            generatedSummary = await api.llm.summarize({
+              transcript: finalTranscript,
+              personalNotes: useNotes,
+              model: selectedAIModel,
+              meetingTemplateId: templateId,
+              customPrompt,
+              meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
+              meetingDuration: formatTime(elapsedSeconds),
+              accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
+            });
+          }
         } catch (err) {
           console.error('LLM summarization failed, using local fallback:', err);
           generatedSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
@@ -552,8 +577,24 @@ export default function NewNotePage() {
           summary: generatedSummary,
           folderId: selectedFolderId,
         });
-        // Auto-extract entities (people, commitments, topics) in background — fire and forget
-        if (api?.memory?.extractEntities && selectedAIModel) {
+
+        // Entity extraction: unified path already has entities, two-call path extracts separately
+        if (preExtractedEntities && api?.memory?.storeEntities) {
+          // Unified path: store pre-extracted entities directly
+          api.memory.storeEntities({
+            noteId: noteIdToSave,
+            entities: preExtractedEntities,
+            calendarAttendees: eventState?.attendees,
+            calendarTitle: eventState?.eventTitle,
+          }).then((result) => {
+            if (result.ok) {
+              console.log(`[Unified] Stored entities: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments, ${result.topicCount ?? 0} topics, ${result.decisionCount ?? 0} decisions`);
+            }
+          }).catch((err) => {
+            console.error('Entity storage failed (non-blocking):', err);
+          });
+        } else if (!preExtractedEntities && api?.memory?.extractEntities && selectedAIModel) {
+          // Two-call path: extract entities in background (fire and forget)
           api.memory.extractEntities({
             noteId: noteIdToSave,
             summary: generatedSummary,

@@ -162,3 +162,86 @@ function probsToSegments(probs: number[], frameDuration: number, threshold: numb
 
   return merged
 }
+
+// ─── Pause Removal Filter (Anti-Hallucination) ─────────────────────────────
+
+/**
+ * Threshold for removing internal pauses from speech segments before STT.
+ * Silences > this threshold within a speech segment are removed to prevent
+ * Whisper hallucination (fabricated text during silence).
+ * Source: Whisper hallucination research — silences > 1s are the primary trigger.
+ * 1.5s provides margin while preserving natural speech rhythm.
+ */
+export const PAUSE_REMOVAL_THRESHOLD_MS = 1500
+
+/**
+ * Remove long internal pauses from audio samples using VAD probabilities.
+ * Returns a new Float32Array with pauses > PAUSE_REMOVAL_THRESHOLD_MS removed.
+ * This is applied AFTER VAD segments speech, BEFORE sending to Whisper STT.
+ */
+export function removeLongPauses(
+  samples: Float32Array,
+  sampleRate: number,
+  options?: VADOptions,
+): Float32Array {
+  // Quick path: short audio doesn't need filtering
+  const durationMs = (samples.length / sampleRate) * 1000
+  if (durationMs < PAUSE_REMOVAL_THRESHOLD_MS * 2) return samples
+
+  const threshold = options?.threshold ?? VAD_THRESHOLD_DEFAULT
+
+  // Compute per-frame speech probability using simple energy-based heuristic
+  // (Faster than running full Silero VAD for this secondary filter)
+  const frameSize = Math.floor(sampleRate * 0.032) // 32ms frames
+  const pauseThresholdSamples = Math.floor((PAUSE_REMOVAL_THRESHOLD_MS / 1000) * sampleRate)
+
+  // Find speech/silence segments using RMS energy
+  const rmsThreshold = 0.01 // ~-40dB
+  let silenceStart = -1
+  const pauseRegions: Array<{ start: number; end: number }> = []
+
+  for (let i = 0; i < samples.length; i += frameSize) {
+    const end = Math.min(i + frameSize, samples.length)
+    let sumSq = 0
+    for (let j = i; j < end; j++) sumSq += samples[j] * samples[j]
+    const rms = Math.sqrt(sumSq / (end - i))
+
+    if (rms < rmsThreshold) {
+      if (silenceStart === -1) silenceStart = i
+    } else {
+      if (silenceStart >= 0) {
+        const silenceLen = i - silenceStart
+        if (silenceLen >= pauseThresholdSamples) {
+          pauseRegions.push({ start: silenceStart, end: i })
+        }
+        silenceStart = -1
+      }
+    }
+  }
+
+  if (pauseRegions.length === 0) return samples
+
+  // Build new audio with pauses removed
+  const keepRegions: Array<{ start: number; end: number }> = []
+  let pos = 0
+  for (const pause of pauseRegions) {
+    if (pause.start > pos) keepRegions.push({ start: pos, end: pause.start })
+    pos = pause.end
+  }
+  if (pos < samples.length) keepRegions.push({ start: pos, end: samples.length })
+
+  const totalKeep = keepRegions.reduce((sum, r) => sum + (r.end - r.start), 0)
+  const result = new Float32Array(totalKeep)
+  let offset = 0
+  for (const region of keepRegions) {
+    result.set(samples.subarray(region.start, region.end), offset)
+    offset += region.end - region.start
+  }
+
+  const removedMs = Math.round((samples.length - totalKeep) / sampleRate * 1000)
+  if (removedMs > 100) {
+    console.log(`[VAD] Removed ${removedMs}ms of internal pauses (${pauseRegions.length} regions) to reduce STT hallucination`)
+  }
+
+  return result
+}

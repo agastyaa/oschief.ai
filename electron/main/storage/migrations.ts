@@ -251,6 +251,25 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `ALTER TABLE routines ADD COLUMN weekdays_only INTEGER DEFAULT 0`,
     ]
   },
+  {
+    version: 13,
+    up: [
+      // Pipeline quality telemetry — device-local, excluded from sync
+      `CREATE TABLE IF NOT EXISTS pipeline_quality_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id TEXT,
+        gate_name TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        retry_count INTEGER DEFAULT 0,
+        grounding_score REAL,
+        duration_ms INTEGER,
+        model TEXT,
+        timestamp TEXT DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_pql_note ON pipeline_quality_log(note_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_pql_timestamp ON pipeline_quality_log(timestamp)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

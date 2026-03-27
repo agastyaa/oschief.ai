@@ -31,11 +31,21 @@ export async function exportToPdf(note: NoteData, filePath: string): Promise<voi
   })
 
   try {
-    // Load the HTML content
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    // Load the HTML content (with 10s timeout)
+    await Promise.race([
+      win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('loadURL timed out after 10s')), 10000)),
+    ])
 
-    // Wait a moment for rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Wait for rendering to complete (timeout-guarded, 2s max)
+    await Promise.race([
+      new Promise<void>(resolve => {
+        win.webContents.once('did-finish-load', () => resolve())
+        // If did-finish-load already fired during loadURL, resolve after a short tick
+        setTimeout(resolve, 200)
+      }),
+      new Promise<void>(resolve => setTimeout(resolve, 2000)),
+    ])
 
     // Generate PDF
     const pdfBuffer = await win.webContents.printToPDF({
