@@ -2,23 +2,23 @@
 
 OSChief is your personal OS for work — a private, on‑device chief of staff for macOS.
 
-It sits beside your calls, transcribes in real time, turns meetings into structured plans, links everything back to people and projects, and exposes it all through a local API for agents and automations. By default, everything runs locally on your Mac — not in the cloud.
+It sits beside your calls, transcribes in real time, turns meetings into structured plans, tracks every commitment and decision across your work, and tells you every morning what moved, what you promised, and what's about to fall through. By default, everything runs locally on your Mac — not in the cloud.
 
 ---
 
 ## Why OSChief?
 
-Most “AI meeting tools” are narrow and leaky:
+Most "AI meeting tools" are narrow and leaky:
 
 - They only think in terms of one call at a time.
-- They ship your audio to someone else’s servers.
+- They ship your audio to someone else's servers.
 - They lock value inside their UI instead of your workflows.
 
 OSChief assumes:
 
 - Your **source of truth should live on your machine**.
 - Meetings are just one surface in a bigger personal OS.
-- The best AI features are ones you can **wire into your own tools**.
+- A chief of staff doesn't just record — they close the loop.
 
 Audio is processed locally. Transcripts and notes are written to disk. Cloud models are opt‑in, text‑only, and bring‑your‑own‑keys.
 
@@ -30,7 +30,7 @@ Audio is processed locally. Transcripts and notes are written to disk. Cloud mod
 
 **Record & transcribe**
 
-Capture mic + system audio with live, speaker‑labeled transcription (“You” vs “Others”). Works with Zoom, Meet, Teams, or any app that makes sound. Transcription runs fully on‑device.
+Capture mic + system audio with live, speaker‑labeled transcription ("You" vs "Others"). Works with Zoom, Meet, Teams, or any app that makes sound. Transcription runs fully on‑device.
 
 **Structured AI summaries**
 
@@ -42,84 +42,125 @@ Post‑meeting coaching tuned to your role (PM, engineer, sales, founder, design
 
 **Meeting‑safe UI**
 
-OSChief can be hidden from screen share with a single toggle so it never becomes the topic of the meeting. When minimized, a floating pill stays always‑on‑top with title + elapsed time; click to jump back into the full app.
+OSChief can be hidden from screen share with a single toggle. When minimized, a floating pill stays always‑on‑top with title + elapsed time; click to jump back.
 
-### 2. Personal OS layer
+### 2. Proactive intelligence (v2.0.4)
+
+**Morning Brief**
+
+Your home page is a daily command center. Every morning you see what's on your plate: meetings on record, open commitments, and a "Needs Attention" section that surfaces anything requiring action today. When Ollama is running locally, it synthesizes this into a 3–5 sentence brief.
+
+**Commitment risk scoring**
+
+Commitments with due dates are scored automatically:
+- 🟢 GREEN — more than 72 hours away
+- 🟡 AMBER — due within 48 hours
+- 🔴 RED — overdue
+
+AMBER and RED commitments appear in "Needs Attention" with nudge actions: mark done, snooze 24h, or draft a follow-up message to your clipboard.
+
+**At-risk indicator**
+
+A **"N at risk"** pill in the sidebar shows how many commitments need attention. Hidden when all is clear. Clicking it opens the Commitments page.
+
+**Stale decisions**
+
+Decisions unchanged for 14+ days surface automatically so nothing falls through the cracks.
+
+**Morning brief + end-of-day routines**
+
+Automated daily routines (weekdays only) fire on a schedule, catch up on launch if missed, and produce a structured brief from your actual data — no cloud required.
+
+### 3. Personal OS layer
 
 **Command Center**
 
-A homepage for your workday: upcoming meetings, recent notes, and quick actions in one place. Think of it as a launchpad for your brain, fully local.
-
-**Knowledge base search**
-
-Point OSChief at a folder of notes or reference docs (Obsidian vault, Notion exports, markdown, PDFs, etc.). During a call, it live‑searches and surfaces relevant talking points so you stay in flow instead of context‑switching.
+A homepage for your workday: upcoming meetings, recent notes, open commitments, and at-risk items in one place.
 
 **People & relationships**
 
-OSChief automatically extracts the people you meet with and builds a lightweight relationship graph. Merge and edit profiles, then see your history with each person across meetings — what you decided, what you owe them, and what they owe you.
+OSChief automatically extracts the people you meet with and builds a lightweight relationship graph. See your history with each person across meetings — what you decided, what you owe them, what they owe you.
+
+**Projects**
+
+Group meetings, commitments, and decisions under projects. Filter your commitments and decisions by project.
+
+**Commitments**
+
+Every action item extracted from your meetings lands here with owner, assignee, and due date. Add personal to-dos manually. Set deadlines inline. Mark done with one click.
+
+**Decisions**
+
+Every decision made in your meetings — searchable by project, person, or keyword. Full status lifecycle: Made → Assigned → In Progress → Done → Abandoned → Revisited.
 
 **Calendar‑aware**
 
-Connect Google Calendar or Microsoft 365. OSChief pulls upcoming meetings, auto‑detects when one starts, and suggests recording so important calls don’t slip through.
+Connect Google Calendar or Microsoft 365. OSChief pulls upcoming meetings, auto‑detects when one starts, and suggests recording.
 
-### 3. For agents & automations
+**Knowledge base search**
+
+Point OSChief at a folder of notes or reference docs. During a call, it live‑searches and surfaces relevant context.
+
+### 4. For agents & automations
 
 **Local Agent API**
 
-OSChief exposes a read‑only local API that surfaces meetings, notes, decisions, and action items to AI agents and tools. It is token‑authenticated, localhost‑only, and has zero network exposure by default.
-
-Use it to:
-
-- Generate follow‑up emails.
-- Sync action items into your task system.
-- Run analytics on conversations and decisions.
-- Build your own “staff tools” on top of your own data.
+OSChief exposes a read‑only local API that surfaces meetings, notes, decisions, and action items to AI agents and tools. Token‑authenticated, localhost‑only, zero network exposure by default.
 
 ---
 
 ## Privacy & security
 
-OSChief is designed to be boring from a security review standpoint.
-
 - All data stored locally under `~/Library/Application Support/OSChief/`
-- API keys encrypted via macOS Keychain (safe storage)
+- API keys encrypted via macOS Keychain
 - No telemetry, no analytics, no background sync
 - Fully local transcription via MLX Whisper / whisper.cpp
-- Local LLM support (Llama, Phi, Gemma via GGUF, including Ollama routing)
-- Cloud providers (OpenAI, Anthropic, Groq, Deepgram, etc.) are opt‑in and text‑only — audio never leaves your Mac
+- Local LLM support via Ollama (Llama, Phi, Gemma, etc.)
+- Cloud providers (OpenAI, Anthropic, Groq, Deepgram) are opt‑in and text‑only — audio never leaves your Mac
 
-You own your data. OSChief’s job is to make it usable.
+You own your data. OSChief's job is to make it usable.
 
-## Release
-
-https://github.com/iamsagar125/syag-note/releases
+---
 
 ## Install
 
-1. Download the latest `.dmg` from the Releases page.
+1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/syag-note/releases).
 2. Open the DMG and drag **OSChief** to **Applications**.
 3. Launch OSChief from Applications.
 
-**Platform:** macOS, Apple Silicon only.
+**Platform:** macOS, Apple Silicon only (M1/M2/M3/M4), macOS 13+.
 
-If macOS blocks the app because it’s not notarized yet:
-
-- Right‑click OSChief in Applications → **Open** → confirm; or
-- In Terminal:
+If macOS blocks the app because it's not notarized yet:
 
 ```bash
 xattr -cr /Applications/OSChief.app
 ```
 
+Or: right‑click OSChief in Applications → **Open** → confirm.
+
+---
+
+## What's new in v2.0.4
+
+- Morning brief home page with Needs Attention section
+- Commitment risk scoring (GREEN / AMBER / RED)
+- Inline deadline setting on commitments
+- "N at risk" pill indicator in sidebar (replaces dot)
+- Decision status lifecycle + stale detection
+- End-of-day routine (weekdays only)
+- DB migration v12 (automatic on first launch)
+
+Full notes: [github.com/iamsagar125/syag-note/releases/tag/v2.0.4](https://github.com/iamsagar125/syag-note/releases/tag/v2.0.4)
+
 ---
 
 ## Roadmap / status
 
-OSChief 2.0.0 (“Executive Utilitarian”) focuses on:
+OSChief 2.0 focuses on:
 
-- Differentiation beyond generic meeting bots: Command Center, Work Coach, relationship graph.
-- Stronger privacy and data‑ownership guarantees.
-- A clear surface for agents and automations via the local API.
+- The three primitives: **meetings**, **decisions**, **commitments**
+- Proactive intelligence: morning brief, risk scoring, loop-closing nudges
+- Full on-device operation — no cloud required for core features
 
 Breaking changes and detailed release notes are tracked in `CHANGELOG.md`.
 
@@ -127,14 +168,14 @@ Breaking changes and detailed release notes are tracked in `CHANGELOG.md`.
 
 ## Contributing
 
-This is an evolving project. Bug reports, feature ideas, and small focused PRs are welcome.
+Bug reports, feature ideas, and focused PRs are welcome.
 
 1. Fork the repository.
-2. Clone and install dependencies.
-3. Run the app in development mode (Electron + Vite).
-4. Open a pull request with a clear description and screenshots where relevant.
+2. Clone and install dependencies (`npm install`).
+3. Run in development mode: `npm run dev`
+4. Open a pull request with a clear description and screenshots.
 
-See `DESIGN.md` and `CLAUDE.md` for architecture, conventions, and assistant prompts.
+See `DESIGN.md` and `CLAUDE.md` for architecture, conventions, and design system.
 
 ---
 
