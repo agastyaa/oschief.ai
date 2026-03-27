@@ -584,13 +584,13 @@ const Index = () => {
               </div>
             )}
 
-            {/* ── Morning Brief ── */}
+            {/* ── Daily Brief ── */}
             <div className="mb-4">
               {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
                 <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
                 </div>
@@ -598,7 +598,7 @@ const Index = () => {
                 <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[12px] text-muted-foreground">
                     {[
@@ -617,14 +617,12 @@ const Index = () => {
                 <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Morning Brief</span>
+                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[12px] text-muted-foreground">
-                    {[
-                      notes.length > 0 && `${notes.length} meeting${notes.length !== 1 ? 's' : ''} on record`,
-                      openCommitments.length > 0 && `${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                    {' — '}set deadlines on commitments to see what needs attention.
+                    {notes.length} meeting{notes.length !== 1 ? 's' : ''} on record
+                    {openCommitments.length > 0 && ` · ${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`}
+                    {' — '}enable Ollama for an AI-written brief, or set deadlines to surface what needs attention.
                   </p>
                 </div>
               )}
