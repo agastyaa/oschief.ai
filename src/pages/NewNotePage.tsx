@@ -735,8 +735,9 @@ export default function NewNotePage() {
         return;
       }
 
-      // If we have an active session but no session in URL, preserve it so timer and state continue
-      if (!existingSessionId && activeSession?.noteId) {
+      // If we have an active RECORDING session but no session in URL, preserve it so timer and state continue.
+      // Only redirect if still recording — if stopped (e.g. summary generating), let the user create a new note.
+      if (!existingSessionId && activeSession?.noteId && activeSession.isRecording) {
         navigate(`/new-note?session=${activeSession.noteId}`, { replace: true });
         return;
       }
