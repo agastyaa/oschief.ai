@@ -2,9 +2,9 @@ import { cn } from "@/lib/utils";
 
 /** Shared shell for Ask OSChief inputs (full page + bottom bar composer). */
 export const askSyagInputShell = cn(
-  "rounded-2xl border border-border/70 bg-card/95 backdrop-blur-md shadow-[var(--card-shadow)]",
+  "rounded-2xl border border-border/70 bg-card/95 backdrop-blur-xl shadow-[var(--card-shadow)]",
   "transition-[box-shadow,border-color,ring] duration-200",
-  "focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/15"
+  "focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/20"
 );
 
 /** Floating chat panel + modals in the AskBar. */
