@@ -84,7 +84,7 @@ export async function assembleContext(
   // 3. Open commitments involving attendees
   const today = new Date().toISOString().slice(0, 10)
   const allOpenCommitments = db.prepare(`
-    SELECT c.text, c.owner, c.due_date, p.name as assignee_name
+    SELECT c.text, c.owner, c.due_date, c.assignee_id, p.name as assignee_name
     FROM commitments c
     LEFT JOIN people p ON p.id = c.assignee_id
     WHERE c.status = 'open'
@@ -93,15 +93,18 @@ export async function assembleContext(
       c.due_date ASC
   `).all() as any[]
 
-  // Filter to commitments relevant to attendees (owner='you' with attendee as assignee, or vice versa)
-  const attendeeIdSet = new Set(personIds.map(p => p.id))
-  const openCommitments = allOpenCommitments
+  // Filter to commitments relevant to attendees only
+  // If no attendees matched, show NO commitments (avoid dumping all open items for ad-hoc recordings)
+  const attendeeNameSet = new Set(personIds.map(p => p.name.toLowerCase()))
+  const openCommitments = personIds.length === 0 ? [] : allOpenCommitments
     .filter(c => {
-      // "you" promised something to an attendee
-      if (c.owner === 'you') return true
-      // An attendee promised something
-      const nameMatch = personIds.some(p => p.name.toLowerCase() === (c.owner || '').toLowerCase())
-      return nameMatch
+      // "you" promised something TO an attendee (assignee is an attendee)
+      if (c.owner === 'you' && c.assignee_name && attendeeNameSet.has(c.assignee_name.toLowerCase())) return true
+      // An attendee promised something (owner is an attendee)
+      if (attendeeNameSet.has((c.owner || '').toLowerCase())) return true
+      // "you" promised, and assignee matches a known attendee by note linkage
+      if (c.owner === 'you' && c.assignee_id && personIds.some(p => p.id === c.assignee_id)) return true
+      return false
     })
     .slice(0, 10) // Limit to 10
     .map(c => ({
