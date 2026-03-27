@@ -622,7 +622,7 @@ const Index = () => {
                   <p className="text-[12px] text-muted-foreground">
                     {notes.length} meeting{notes.length !== 1 ? 's' : ''} on record
                     {openCommitments.length > 0 && ` · ${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`}
-                    {' — '}enable Ollama for an AI-written brief, or set deadlines to surface what needs attention.
+                    {' — '}brief runs automatically each morning using your configured AI model.
                   </p>
                 </div>
               )}
