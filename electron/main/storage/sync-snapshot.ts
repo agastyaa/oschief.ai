@@ -6,34 +6,49 @@
  */
 
 import Database from 'better-sqlite3'
-import { existsSync, readdirSync, unlinkSync, copyFileSync } from 'fs'
+import { existsSync, readdirSync, unlinkSync, copyFileSync, statSync } from 'fs'
 import { join } from 'path'
 import { getDb } from './database'
 
 const SNAPSHOT_PREFIX = 'snapshot-'
 const MAX_SNAPSHOTS_PER_DEVICE = 2
 
-export function createSnapshot(dbPath: string, containerPath: string, deviceId: string): void {
+export async function createSnapshot(dbPath: string, containerPath: string, deviceId: string): Promise<void> {
   const snapshotName = `${SNAPSHOT_PREFIX}${deviceId}.db`
   const snapshotPath = join(containerPath, snapshotName)
 
-  // Use better-sqlite3's backup API for a consistent copy
+  // Use better-sqlite3's backup API for a consistent copy (with single retry on failure)
   const sourceDb = getDb()
-  sourceDb.backup(snapshotPath).then(() => {
-    // Convert the snapshot to DELETE journal mode (not WAL)
-    // This ensures no -wal/-shm sidecar files in iCloud
-    try {
-      const snap = new Database(snapshotPath)
-      snap.pragma('journal_mode = DELETE')
-      snap.close()
-    } catch (err) {
-      console.warn('[sync-snapshot] Failed to convert journal mode:', err)
-    }
+  const attemptBackup = async () => {
+    await sourceDb.backup(snapshotPath)
+    // Validate backup file size > 0
+    const size = statSync(snapshotPath).size
+    if (size <= 0) throw new Error('Backup file is empty (0 bytes)')
+  }
 
-    console.log(`[sync-snapshot] Created snapshot: ${snapshotName}`)
-  }).catch((err: any) => {
-    console.error('[sync-snapshot] Backup failed:', err)
-  })
+  try {
+    await attemptBackup()
+  } catch (firstErr: any) {
+    console.warn('[sync-snapshot] Backup failed, retrying once:', firstErr.message)
+    try {
+      await attemptBackup()
+    } catch (retryErr: any) {
+      console.error('[sync-snapshot] Backup failed after retry:', retryErr)
+      return
+    }
+  }
+
+  // Convert the snapshot to DELETE journal mode (not WAL)
+  // This ensures no -wal/-shm sidecar files in iCloud
+  try {
+    const snap = new Database(snapshotPath)
+    snap.pragma('journal_mode = DELETE')
+    snap.close()
+  } catch (err) {
+    console.warn('[sync-snapshot] Failed to convert journal mode:', err)
+  }
+
+  console.log(`[sync-snapshot] Created snapshot: ${snapshotName}`)
 }
 
 export async function restoreFromLatestSnapshot(

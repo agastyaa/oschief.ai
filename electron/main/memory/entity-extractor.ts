@@ -10,6 +10,7 @@
  */
 
 import { routeLLM } from '../cloud/router'
+import { getDb } from '../storage/database'
 import { randomUUID } from 'crypto'
 
 // Types for extraction results
@@ -191,110 +192,114 @@ export async function storeExtractedEntities(
   // Map of name -> personId for commitment/decision linking
   const nameToPersonId: Record<string, string> = {}
 
-  // 1. Process people
-  for (const p of entities.people) {
-    try {
-      let email = p.email
-      if (!email && calendarAttendees?.length) {
-        const attendee = calendarAttendees.find(
-          a => a.name && a.name.toLowerCase().includes(p.name.toLowerCase())
-        )
-        if (attendee?.email) email = attendee.email
-      }
-
-      const person = upsertPerson({
-        name: p.name,
-        email: email || undefined,
-        company: p.company,
-        role: p.role,
-        relationship: p.relationship,
-      })
-
-      if (person) {
-        linkPersonToNote(noteId, person.id, 'attendee')
-        nameToPersonId[p.name.toLowerCase()] = person.id
-        peopleCount++
-      }
-    } catch (err) {
-      console.error(`[entity-extractor] Failed to store person ${p.name}:`, err)
-    }
-  }
-
-  // 2. Process project (calendar title takes priority over LLM-extracted)
-  try {
-    const calendarProject = calendarTitle ? parseProjectFromCalendarTitle(calendarTitle) : null
-    const projectName = calendarProject || entities.project
-    if (projectName) {
-      const project = upsertProject(projectName)
-      if (project) {
-        linkProjectToNote(noteId, project.id)
-        projectId = project.id
-      }
-    }
-  } catch (err) {
-    console.error('[entity-extractor] Failed to store project:', err)
-  }
-
-  // 3. Process commitments
-  for (const c of entities.commitments) {
-    try {
-      let assigneeId: string | undefined
-      if (c.assignee) {
-        assigneeId = nameToPersonId[c.assignee.toLowerCase()]
-      }
-
-      // Normalize natural language dates to ISO format
-      const rawDueDate = c.dueDate || undefined
-      const normalizedDueDate = rawDueDate ? (normalizeDueDate(rawDueDate) ?? rawDueDate) : undefined
-
-      addCommitment({
-        noteId,
-        text: c.text,
-        owner: c.owner || 'you',
-        assigneeId,
-        dueDate: normalizedDueDate,
-        projectId,
-      })
-      commitmentCount++
-    } catch (err) {
-      console.error(`[entity-extractor] Failed to store commitment:`, err)
-    }
-  }
-
-  // 4. Process decisions
-  for (const d of entities.decisions || []) {
-    try {
-      const decision = addDecision({
-        noteId,
-        projectId,
-        text: d.text,
-        context: d.context,
-      })
-      if (decision) {
-        // Link all meeting attendees to the decision
-        const personIds = Object.values(nameToPersonId)
-        if (personIds.length > 0) {
-          linkDecisionToPeople(decision.id, personIds)
+  // Wrap all entity writes in a single transaction for atomicity and performance
+  // (SQLite batches writes into a single disk flush)
+  getDb().transaction(() => {
+    // 1. Process people
+    for (const p of entities.people) {
+      try {
+        let email = p.email
+        if (!email && calendarAttendees?.length) {
+          const attendee = calendarAttendees.find(
+            a => a.name && a.name.toLowerCase().includes(p.name.toLowerCase())
+          )
+          if (attendee?.email) email = attendee.email
         }
-        decisionCount++
-      }
-    } catch (err) {
-      console.error('[entity-extractor] Failed to store decision:', err)
-    }
-  }
 
-  // 5. Process topics
-  for (const label of entities.topics) {
+        const person = upsertPerson({
+          name: p.name,
+          email: email || undefined,
+          company: p.company,
+          role: p.role,
+          relationship: p.relationship,
+        })
+
+        if (person) {
+          linkPersonToNote(noteId, person.id, 'attendee')
+          nameToPersonId[p.name.toLowerCase()] = person.id
+          peopleCount++
+        }
+      } catch (err) {
+        console.error(`[entity-extractor] Failed to store person ${p.name}:`, err)
+      }
+    }
+
+    // 2. Process project (calendar title takes priority over LLM-extracted)
     try {
-      const topic = upsertTopic(label)
-      if (topic) {
-        linkTopicToNote(noteId, topic.id)
-        topicCount++
+      const calendarProject = calendarTitle ? parseProjectFromCalendarTitle(calendarTitle) : null
+      const projectName = calendarProject || entities.project
+      if (projectName) {
+        const project = upsertProject(projectName)
+        if (project) {
+          linkProjectToNote(noteId, project.id)
+          projectId = project.id
+        }
       }
     } catch (err) {
-      console.error(`[entity-extractor] Failed to store topic ${label}:`, err)
+      console.error('[entity-extractor] Failed to store project:', err)
     }
-  }
+
+    // 3. Process commitments
+    for (const c of entities.commitments) {
+      try {
+        let assigneeId: string | undefined
+        if (c.assignee) {
+          assigneeId = nameToPersonId[c.assignee.toLowerCase()]
+        }
+
+        // Normalize natural language dates to ISO format
+        const rawDueDate = c.dueDate || undefined
+        const normalizedDueDate = rawDueDate ? (normalizeDueDate(rawDueDate) ?? rawDueDate) : undefined
+
+        addCommitment({
+          noteId,
+          text: c.text,
+          owner: c.owner || 'you',
+          assigneeId,
+          dueDate: normalizedDueDate,
+          projectId,
+        })
+        commitmentCount++
+      } catch (err) {
+        console.error(`[entity-extractor] Failed to store commitment:`, err)
+      }
+    }
+
+    // 4. Process decisions
+    for (const d of entities.decisions || []) {
+      try {
+        const decision = addDecision({
+          noteId,
+          projectId,
+          text: d.text,
+          context: d.context,
+        })
+        if (decision) {
+          // Link all meeting attendees to the decision
+          const personIds = Object.values(nameToPersonId)
+          if (personIds.length > 0) {
+            linkDecisionToPeople(decision.id, personIds)
+          }
+          decisionCount++
+        }
+      } catch (err) {
+        console.error('[entity-extractor] Failed to store decision:', err)
+      }
+    }
+
+    // 5. Process topics
+    for (const label of entities.topics) {
+      try {
+        const topic = upsertTopic(label)
+        if (topic) {
+          linkTopicToNote(noteId, topic.id)
+          topicCount++
+        }
+      } catch (err) {
+        console.error(`[entity-extractor] Failed to store topic ${label}:`, err)
+      }
+    }
+  })()
 
   console.log(`[entity-extractor] Stored entities for note ${noteId}: ${peopleCount} people, ${commitmentCount} commitments, ${topicCount} topics, project=${projectId ? 'yes' : 'no'}, ${decisionCount} decisions`)
   return { peopleCount, commitmentCount, topicCount, projectId, decisionCount }

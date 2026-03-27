@@ -38,7 +38,7 @@ let currentSTTModel = ''
 let customVocabulary = ''
 let isProcessing = false
 let isProcessingSince = 0  // timestamp when isProcessing was set true; 0 when idle
-const MAX_PROCESSING_TIME_MS = 120_000  // 2 min safety timeout to unstick isProcessing
+const MAX_PROCESSING_TIME_MS = 30_000  // 30s safety timeout to unstick isProcessing
 
 function clearProcessingLock(notifyIdle = false): void {
   isProcessing = false
@@ -356,9 +356,6 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   // Clear stale dedup window — after a long pause, old entries would cause
   // false-positive dedup matches against new speech
   recentEmittedTexts.length = 0
-  // Flush audio buffers to discard noise/underrun from the pause period
-  audioBuffers[0].length = 0
-  audioBuffers[1].length = 0
   resumeStrictPassCountdown = [RESUME_STRICT_PASSES_PER_CHANNEL, RESUME_STRICT_PASSES_PER_CHANNEL]
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel
@@ -634,6 +631,7 @@ async function processBufferedAudio(): Promise<void> {
           continue
         }
         recentEmittedTexts.push({ text: filteredNorm, time: now, channel })
+        if (recentEmittedTexts.length > 100) recentEmittedTexts.splice(0, recentEmittedTexts.length - 100)
 
         lastSpeechTime = Date.now()
         const time = formatTimestamp(chunkStartSec)

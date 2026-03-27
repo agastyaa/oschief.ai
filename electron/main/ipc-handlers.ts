@@ -23,8 +23,8 @@ import { downloadModel, cancelDownload, deleteModel, listDownloadedModels } from
 import type { LocalSetupResult } from './models/stt-engine'
 import { netFetch } from './cloud/net-request'
 import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk } from './audio/capture'
-import { summarize } from './models/llm-engine'
-import { chat, getOptionalProviders } from './cloud/router'
+import { summarize, summarizeAndExtract, isOllama8BPlus } from './models/llm-engine'
+import { chat, getOptionalProviders, invalidateKeychainCache } from './cloud/router'
 import { checkAppleFoundationAvailable } from './cloud/apple-llm'
 import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
@@ -38,6 +38,30 @@ const keychainPath = () => {
 // In-memory keychain cache — load once from disk, write-through on changes.
 // Eliminates repeated sync disk I/O (was 10-50ms per API key access).
 let keychainCache: Record<string, string> | null = null
+
+// Promise-based mutex to prevent concurrent read-modify-write races on keychain
+let keychainLock: Promise<void> | null = null
+const KEYCHAIN_LOCK_TIMEOUT_MS = 5000
+
+async function withKeychainLock<T>(fn: () => T): Promise<T> {
+  // Wait for existing lock (with timeout)
+  if (keychainLock) {
+    await Promise.race([
+      keychainLock,
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Keychain lock timeout (5s)')), KEYCHAIN_LOCK_TIMEOUT_MS)
+      ),
+    ])
+  }
+  let releaseLock!: () => void
+  keychainLock = new Promise<void>(resolve => { releaseLock = resolve })
+  try {
+    return fn()
+  } finally {
+    keychainLock = null
+    releaseLock()
+  }
+}
 
 function loadKeychain(): Record<string, string> {
   if (keychainCache) return keychainCache
@@ -108,10 +132,20 @@ export function registerIPCHandlers(): void {
   const WHISPER_CPP_MODEL_IDS = ['whisper-large-v3-turbo']
   ipcMain.handle('models:download', async (_e, modelId: string) => {
     const sender = _e.sender
+    let downloadInProgress = true
+    // Clean up .tmp files if the renderer window is destroyed mid-download
+    const onDestroyed = () => {
+      if (downloadInProgress) {
+        console.warn(`[models] Window destroyed during download of ${modelId}, cancelling`)
+        cancelDownload(modelId)
+      }
+    }
+    sender.once('destroyed', onDestroyed)
     try {
       await downloadModel(modelId, (progress) => {
         sender.send('models:download-progress', progress)
       })
+      downloadInProgress = false
       let whisperCli: LocalSetupResult | undefined
       if (WHISPER_CPP_MODEL_IDS.includes(modelId)) {
         const { ensureWhisperCliSetupResult } = await import('./models/stt-engine')
@@ -120,8 +154,11 @@ export function registerIPCHandlers(): void {
       sender.send('models:download-complete', { modelId, success: true, whisperCli })
       return true
     } catch (err: any) {
+      downloadInProgress = false
       sender.send('models:download-complete', { modelId, success: false, error: err.message })
       return false
+    } finally {
+      sender.removeListener('destroyed', onDestroyed)
     }
   })
   ipcMain.handle('models:cancel-download', (_e, modelId: string) => { cancelDownload(modelId); return true })
@@ -354,6 +391,42 @@ export function registerIPCHandlers(): void {
       data.accountDisplayName,
     )
   })
+  ipcMain.handle('llm:summarize-and-extract', async (_e, data: any) => {
+    const result = await summarizeAndExtract(
+      data.transcript,
+      data.personalNotes,
+      data.model,
+      data.meetingTemplateId,
+      data.customPrompt,
+      data.meetingTitle,
+      data.meetingDuration,
+      data.attendees,
+      data.accountDisplayName,
+    )
+    // Log quality gate telemetry
+    try {
+      const { logPipelineQuality } = await import('./storage/database')
+      logPipelineQuality({
+        gateName: 'grounding',
+        outcome: result.groundingScore >= 0.5 ? 'pass' : result.groundingScore >= 0.3 ? 'borderline' : 'fail',
+        groundingScore: result.groundingScore,
+        durationMs: result.durationMs,
+        model: data.model,
+      })
+      logPipelineQuality({
+        gateName: 'entity_extraction',
+        outcome: result.entities ? 'pass' : 'fail',
+        durationMs: result.durationMs,
+        model: data.model,
+      })
+    } catch (err) {
+      console.warn('[quality-log] Failed to log pipeline quality:', err)
+    }
+    return result
+  })
+  ipcMain.handle('llm:is-unified-eligible', async (_e, _model: string) => {
+    return true  // Unified path is now the default for all models
+  })
   ipcMain.handle('llm:chat', async (_e, data: any) => {
     const sender = _e.sender
     const { resolveSelectedAIModel } = await import('./models/model-resolver')
@@ -457,17 +530,23 @@ export function registerIPCHandlers(): void {
     const chain = loadKeychain()
     return chain[service] ?? null
   })
-  ipcMain.handle('keychain:set', (_e, service: string, value: string) => {
-    const chain = loadKeychain()
-    chain[service] = value
-    saveKeychain(chain)
-    return true
+  ipcMain.handle('keychain:set', async (_e, service: string, value: string) => {
+    return withKeychainLock(() => {
+      const chain = loadKeychain()
+      chain[service] = value
+      saveKeychain(chain)
+      invalidateKeychainCache()
+      return true
+    })
   })
-  ipcMain.handle('keychain:delete', (_e, service: string) => {
-    const chain = loadKeychain()
-    delete chain[service]
-    saveKeychain(chain)
-    return true
+  ipcMain.handle('keychain:delete', async (_e, service: string) => {
+    return withKeychainLock(() => {
+      const chain = loadKeychain()
+      delete chain[service]
+      saveKeychain(chain)
+      invalidateKeychainCache()
+      return true
+    })
   })
 
   // --- Optional providers (enabled via userData/optional-providers/; not in repo) ---
@@ -1312,6 +1391,17 @@ export function registerIPCHandlers(): void {
     } catch (err: any) {
       console.error('[memory:extract-entities]', err)
       return { ok: false, error: err.message || 'Entity extraction failed' }
+    }
+  })
+
+  ipcMain.handle('memory:store-entities', async (_e, data: { noteId: string; entities: any; calendarAttendees?: any[]; calendarTitle?: string }) => {
+    try {
+      const { storeExtractedEntities } = await import('./memory/entity-extractor')
+      const result = await storeExtractedEntities(data.noteId, data.entities, data.calendarAttendees, data.calendarTitle)
+      return { ok: true, ...result }
+    } catch (err: any) {
+      console.error('[memory:store-entities]', err)
+      return { ok: false, error: err.message || 'Entity storage failed' }
     }
   })
 

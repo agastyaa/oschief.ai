@@ -40,6 +40,8 @@ export interface MeetingContext {
     meetingCount: number
     status: string
   }>
+  /** Whether all data sources were successfully fetched (false = partial data returned) */
+  completeness: boolean
 }
 
 /**
@@ -52,6 +54,7 @@ export async function assembleContext(
   eventTitle?: string
 ): Promise<MeetingContext> {
   const db = getDb()
+  let completeness = true
 
   // 1. Resolve attendees to person IDs
   const personIds: Array<{ id: string; name: string }> = []
@@ -88,6 +91,7 @@ export async function assembleContext(
     FROM commitments c
     LEFT JOIN people p ON p.id = c.assignee_id
     WHERE c.status = 'open'
+      AND (c.created_at > datetime('now', '-90 days') OR c.due_date > datetime('now', '-30 days'))
     ORDER BY
       CASE WHEN c.due_date IS NULL THEN 1 ELSE 0 END,
       c.due_date ASC
@@ -128,6 +132,7 @@ export async function assembleContext(
       }))
     } catch {
       // KB might not be configured — that's fine
+      completeness = false
     }
   }
 
@@ -168,6 +173,7 @@ export async function assembleContext(
       }
     } catch {
       // Project store might not be ready
+      completeness = false
     }
   }
 
@@ -193,8 +199,9 @@ export async function assembleContext(
       })))
     } catch {
       // decisions table might not exist yet
+      completeness = false
     }
   }
 
-  return { previousMeetings, openCommitments, recentDecisions, relatedNotes, projects }
+  return { previousMeetings, openCommitments, recentDecisions, relatedNotes, projects, completeness }
 }

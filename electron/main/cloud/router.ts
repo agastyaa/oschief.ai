@@ -25,6 +25,17 @@ export type OptionalProviderHandlers = {
 
 const optionalProviders = new Map<string, OptionalProviderHandlers>()
 
+// ─── Keychain cache — avoid re-reading + decrypting on every cloud call ──────
+let _keychainCache: Record<string, string> | null = null
+let _keychainCacheTime = 0
+const KEYCHAIN_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+/** Clear the in-memory keychain cache. Call after keychain writes. */
+export function invalidateKeychainCache(): void {
+  _keychainCache = null
+  _keychainCacheTime = 0
+}
+
 export function registerOptionalProvider(providerId: string, handlers: OptionalProviderHandlers): void {
   optionalProviders.set(providerId, handlers)
 }
@@ -49,6 +60,18 @@ export function getOptionalProviderHandlers(providerId: string): OptionalProvide
 }
 
 export function getApiKey(providerId: string): string {
+  // Return from cache if still fresh
+  if (_keychainCache && (Date.now() - _keychainCacheTime < KEYCHAIN_CACHE_TTL_MS)) {
+    const cached = _keychainCache[providerId]
+    if (cached && typeof cached === 'string' && cached.trim()) {
+      return cached.trim()
+    }
+    // Key not in cache — fall through to throw a helpful error
+    if (_keychainCache && !cached) {
+      throw new Error(`No API key for ${providerId}. Connect ${providerId} in Settings > AI Models and enter your API key.`)
+    }
+  }
+
   const { safeStorage } = require('electron')
   const { readFileSync, existsSync } = require('fs')
   const { join } = require('path')
@@ -63,6 +86,11 @@ export function getApiKey(providerId: string): string {
     const encrypted = readFileSync(keychainPath)
     const decrypted = safeStorage.decryptString(encrypted)
     const keys = JSON.parse(decrypted)
+
+    // Populate cache
+    _keychainCache = keys
+    _keychainCacheTime = Date.now()
+
     const key = keys[providerId]
     if (!key || typeof key !== 'string' || !key.trim()) {
       throw new Error(`No API key for ${providerId}. Connect ${providerId} in Settings > AI Models and enter your API key.`)

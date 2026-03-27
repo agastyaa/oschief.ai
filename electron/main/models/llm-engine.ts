@@ -3,7 +3,7 @@ import { routeLLM } from '../cloud/router'
 import { chatApple } from '../cloud/apple-llm'
 import { chatMLX } from '../cloud/mlx-llm'
 import { chatOllama } from '../cloud/ollama'
-import { getContextCap } from './ollama-manager'
+import { getContextCap, MODEL_TIERS } from './ollama-manager'
 import {
   getTemplate,
   detectMeetingTypeFromContent,
@@ -15,6 +15,7 @@ import {
   type MeetingContext,
 } from './templates'
 import { buildRoleCoachingSection } from './coaching-kb'
+import { extractEntities as extractEntitiesFallback, type ExtractedEntities } from '../memory/entity-extractor'
 
 // Module-level: stores the last transcript text for grounding validation in repairLocalSummary
 let _lastTranscriptForGrounding = ''
@@ -172,6 +173,48 @@ function buildMeetingContext(overrides?: Partial<MeetingContext>): MeetingContex
   }
 }
 
+// ─── Grounding Check ──────────────────────────────────────────────────────
+
+/**
+ * Check if a summary is grounded in the transcript by comparing proper nouns.
+ * Returns a score from 0 to 1: fraction of summary proper nouns found in transcript.
+ * Score > 0.5 = grounded, 0.3-0.5 = borderline, < 0.3 = likely hallucinated.
+ */
+export function isSummaryGrounded(summaryText: string, transcriptText: string): number {
+  const extractProperNouns = (text: string): string[] => {
+    // Match capitalized words that aren't at sentence start (crude but effective)
+    const matches = text.match(/(?<=[.!?\n]\s+|\b(?:with|to|from|and|by|for|of)\s+)[A-Z][a-z]{2,}/g) || []
+    // Also match multi-word names like "Sarah Chen"
+    const multiWord = text.match(/[A-Z][a-z]+\s+[A-Z][a-z]+/g) || []
+    const all = [...matches, ...multiWord.map(m => m.split(' ')).flat()]
+    // Deduplicate and filter common words
+    const common = new Set(['The', 'This', 'That', 'They', 'Their', 'There', 'These', 'What', 'When', 'Where', 'Which', 'While', 'After', 'Before', 'During', 'About', 'Also', 'Each', 'Every', 'Some', 'Most', 'Many', 'Other', 'Both', 'More', 'Next', 'Last', 'First', 'Second'])
+    return [...new Set(all.filter(n => !common.has(n) && n.length > 2))]
+  }
+
+  const summaryNouns = extractProperNouns(summaryText)
+  if (summaryNouns.length === 0) return 1.0 // No proper nouns to validate — assume grounded
+
+  const transcriptLower = transcriptText.toLowerCase()
+  const grounded = summaryNouns.filter(n => transcriptLower.includes(n.toLowerCase()))
+  return grounded.length / summaryNouns.length
+}
+
+// ─── Decision Layer ───────────────────────────────────────────────────────
+
+/**
+ * Check if a model is Ollama 8B+ (eligible for unified summarize+extract).
+ * Returns true for models with minRamGB >= 16 (8B, 32B, 70B tiers).
+ */
+function isOllama8BPlus(model: string): boolean {
+  if (!model.startsWith('ollama:')) return false
+  const modelName = model.replace('ollama:', '')
+  const tier = MODEL_TIERS.find(t => modelName.startsWith(t.tag.split(':')[0]))
+  return tier != null && tier.minRamGB >= 16
+}
+
+// ─── Summarize ────────────────────────────────────────────────────────────
+
 export async function summarize(
   transcript: any[],
   personalNotes: string,
@@ -224,10 +267,11 @@ export async function summarize(
     // Reserve ~3K tokens for system prompt + template + few-shot + meeting context
     const transcriptBudgetChars = (contextCap - 3000) * 4  // 1 token ≈ 4 chars
     if (transcriptText.length > transcriptBudgetChars && transcriptBudgetChars > 0) {
-      // Keep first 40% + last 40%, drop middle (preserves meeting open + close)
-      const keepChars = Math.floor(transcriptBudgetChars * 0.4)
-      const head = transcriptText.slice(0, keepChars)
-      const tail = transcriptText.slice(-keepChars)
+      // 30% head + 60% tail — end of meetings has action items and decisions
+      const headChars = Math.floor(transcriptBudgetChars * 0.3)
+      const tailChars = Math.floor(transcriptBudgetChars * 0.6)
+      const head = transcriptText.slice(0, headChars)
+      const tail = transcriptText.slice(-tailChars)
       finalTranscriptText = `${head}\n\n[... transcript trimmed — middle portion omitted for context limit ...]\n\n${tail}`
       console.log(`[LLM] Ollama transcript truncated: ${transcriptText.length} → ${finalTranscriptText.length} chars (budget: ${transcriptBudgetChars}, cap: ${contextCap} tokens)`)
     }
@@ -276,6 +320,263 @@ export async function summarize(
   const title = extractTitleFromResponse(finalResponse)
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
+
+// ─── Unified Summarize + Extract (Ollama 8B+ only) ─────────────────────────
+
+const UNIFIED_EXTRACTION_SUFFIX = `
+
+IMPORTANT — AFTER the meeting notes above, output a JSON block with extracted entities.
+The JSON block MUST be wrapped in triple backticks with "json" language tag.
+Do NOT mix entities into the notes — they must be in a separate block at the end.
+
+\`\`\`json
+{
+  "people": [{"name": "Full Name", "role": "Job Title", "company": "Company"}],
+  "commitments": [{"text": "What was promised", "owner": "you|Person Name", "dueDate": "date or null"}],
+  "topics": ["Topic 1", "Topic 2"],
+  "project": "Project Name or null",
+  "decisions": [{"text": "What was decided", "context": "Brief context"}]
+}
+\`\`\`
+
+Rules for the JSON block:
+- "you" = the meeting recorder. Use actual names for others.
+- Extract 2-5 topics. Be specific ("Q3 Budget"), not generic ("work").
+- Include due dates if mentioned (even "by end of week").
+- Return empty arrays if nothing found. Return null for project if none.`
+
+export interface SummarizeAndExtractResult {
+  summary: MeetingSummary
+  entities: ExtractedEntities | null
+  groundingScore: number
+  durationMs: number
+}
+
+/**
+ * Unified summarization + entity extraction in a single LLM call.
+ * Works with ALL model backends. Falls back to separate extractEntities() if JSON parsing fails.
+ */
+export async function summarizeAndExtract(
+  transcript: any[],
+  personalNotes: string,
+  model: string,
+  meetingTemplateId?: string,
+  customPrompt?: string,
+  meetingTitle?: string,
+  meetingDuration?: string | null,
+  attendees?: string[],
+  accountDisplayName?: string,
+): Promise<SummarizeAndExtractResult> {
+  const startTime = Date.now()
+  const transcriptText = transcript.map(t => `[${t.time}] ${t.speaker}: ${t.text}`).join('\n')
+
+  // Guard: thin transcript
+  const substantiveLines = transcript.filter(t => t.speaker !== 'System' && t.text.trim().length > 10)
+  if (substantiveLines.length < 3 && !personalNotes.trim()) {
+    console.log(`[LLM] Skipping unified summarize+extract — only ${substantiveLines.length} substantive lines.`)
+    return {
+      summary: {
+        overview: substantiveLines.length > 0 ? substantiveLines.map(l => l.text).join(' ') : 'No notes captured.',
+        keyPoints: [],
+        actionItems: [],
+      } as MeetingSummary,
+      entities: null,
+      groundingScore: 1.0,
+      durationMs: Date.now() - startTime,
+    }
+  }
+
+  const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
+  const template = getTemplate(templateId)
+  const context = buildMeetingContext({
+    ...(meetingTitle?.trim() ? { title: meetingTitle.trim() } : {}),
+    ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
+    ...(attendees?.length ? { attendees } : {}),
+  })
+  if (accountDisplayName?.trim()) {
+    context.user = { ...context.user, name: accountDisplayName.trim() }
+  }
+  const assigneeNormName = context.user.name
+
+  const templatePrompt = customPrompt ? `${template.prompt}\n\n${customPrompt}` : template.prompt
+  const effectiveTemplate = { ...template, prompt: templatePrompt }
+
+  // Smart transcript truncation — backend-aware context caps
+  let finalTranscriptText = transcriptText
+  let contextCap: number
+  if (model.startsWith('ollama:')) {
+    contextCap = getContextCap(model.replace('ollama:', ''))
+  } else if (model.startsWith('local:') || model.startsWith('apple:') || model.startsWith('mlx:')) {
+    contextCap = 4096  // Conservative default for on-device models
+  } else {
+    contextCap = 32000  // Generous default for cloud models
+  }
+  // Reserve extra tokens for the extraction suffix (~500 tokens)
+  const transcriptBudgetChars = (contextCap - 3500) * 4
+  if (transcriptText.length > transcriptBudgetChars && transcriptBudgetChars > 0) {
+    // 30% head + 60% tail — end of meetings has action items and decisions
+    const headChars = Math.floor(transcriptBudgetChars * 0.3)
+    const tailChars = Math.floor(transcriptBudgetChars * 0.6)
+    const head = transcriptText.slice(0, headChars)
+    const tail = transcriptText.slice(-tailChars)
+    finalTranscriptText = `${head}\n\n[... transcript trimmed — middle portion omitted for context limit ...]\n\n${tail}`
+    console.log(`[LLM] Unified: transcript truncated ${transcriptText.length} → ${finalTranscriptText.length} chars (cap: ${contextCap} tokens)`)
+  }
+
+  // Build the unified prompt: summarization template + extraction suffix
+  const isLocalModel = model.startsWith('ollama:') || model.startsWith('local:') || model.startsWith('apple:') || model.startsWith('mlx:')
+  const basePrompt = buildPrompt(effectiveTemplate, context, personalNotes, finalTranscriptText, isLocalModel)
+  const unifiedPrompt = basePrompt + UNIFIED_EXTRACTION_SUFFIX
+
+  try {
+    let response: string
+
+    if (model.startsWith('ollama:')) {
+      response = await chatOllama(
+        [{ role: 'user', content: unifiedPrompt }],
+        model.replace('ollama:', '')
+      )
+    } else if (model.startsWith('local:')) {
+      response = await chatWithLocal(
+        [{ role: 'user', content: unifiedPrompt }],
+        model.replace('local:', '')
+      )
+    } else if (model.startsWith('apple:')) {
+      response = await chatApple(
+        [{ role: 'user', content: unifiedPrompt }],
+        'foundation'
+      )
+    } else if (model.startsWith('mlx:')) {
+      response = await chatMLX(
+        [{ role: 'user', content: unifiedPrompt }],
+        model.replace('mlx:', '')
+      )
+    } else {
+      // Cloud LLM: apply anonymization if enabled
+      const { isAnonymizationEnabled, buildAnonymizationMap, anonymize, deanonymize } = await import('../memory/anonymizer')
+      let anonMap: ReturnType<typeof buildAnonymizationMap> | null = null
+      let cloudPrompt = unifiedPrompt
+      if (isAnonymizationEnabled() && attendees?.length) {
+        anonMap = buildAnonymizationMap(attendees)
+        cloudPrompt = anonymize(unifiedPrompt, anonMap)
+        console.log('[LLM] Anonymization active: replaced attendee names in cloud prompt')
+      }
+      const rawResponse = await routeLLM(
+        [{ role: 'user', content: cloudPrompt }],
+        model
+      )
+      response = anonMap ? deanonymize(rawResponse, anonMap) : rawResponse
+    }
+
+    // Split response into summary (markdown) and entities (JSON block)
+    const { markdownPart, jsonPart } = splitUnifiedResponse(response)
+
+    // Parse the summary from the markdown part
+    const parsed = parseEnhancedNotes(markdownPart)
+    const title = extractTitleFromResponse(markdownPart)
+    const summary = repairLocalSummary(
+      parsedToMeetingSummary(parsed, title, template.id, assigneeNormName),
+      markdownPart
+    )
+
+    // Parse entities from JSON block (if present)
+    let entities: ExtractedEntities | null = null
+    if (jsonPart) {
+      try {
+        entities = parseUnifiedEntities(jsonPart)
+      } catch {
+        console.warn('[LLM] Unified: entity JSON parse failed, will fall back to extract-only call')
+      }
+    }
+
+    // Fallback: if no entities extracted from unified response, fire separate extractEntities call
+    if (!entities) {
+      try {
+        console.log('[LLM] Unified: entities null, firing fallback extractEntities call')
+        entities = await extractEntitiesFallback(summary, transcript, model, attendees)
+      } catch (fallbackErr) {
+        console.warn('[LLM] Fallback entity extraction also failed:', fallbackErr)
+      }
+    }
+
+    // Grounding check
+    const groundingScore = isSummaryGrounded(
+      [summary.overview || '', ...(summary.keyPoints || [])].join(' '),
+      transcriptText
+    )
+
+    const durationMs = Date.now() - startTime
+    console.log(`[LLM] Unified summarize+extract complete: ${durationMs}ms, grounding=${groundingScore.toFixed(2)}, entities=${entities ? 'yes' : 'no'}`)
+
+    return { summary, entities, groundingScore, durationMs }
+  } catch (err: any) {
+    const msg = err?.message ?? String(err)
+    if (msg.includes('Cannot reach Ollama') || msg.includes('ECONNREFUSED')) {
+      throw new Error('Ollama is not running. Start it with `ollama serve` or open the Ollama app, then try again.')
+    }
+    if (msg.includes('not found')) {
+      throw new Error(`Model "${model}" is not available. Check Settings or pull the model.`)
+    }
+    throw new Error(`Unified summarize+extract failed: ${msg.slice(0, 120)}`)
+  }
+}
+
+/**
+ * Split a unified LLM response into markdown (summary) and JSON (entities) parts.
+ */
+function splitUnifiedResponse(response: string): { markdownPart: string; jsonPart: string | null } {
+  // Look for the JSON code block
+  const jsonBlockMatch = response.match(/```json\s*([\s\S]*?)```/)
+  if (jsonBlockMatch) {
+    const jsonPart = jsonBlockMatch[1].trim()
+    const markdownPart = response.slice(0, jsonBlockMatch.index!).trim()
+    return { markdownPart, jsonPart }
+  }
+
+  // Fallback: try to find a raw JSON object at the end
+  const lastBrace = response.lastIndexOf('}')
+  if (lastBrace > 0) {
+    // Walk backwards to find the opening brace
+    let depth = 0
+    let start = -1
+    for (let i = lastBrace; i >= 0; i--) {
+      if (response[i] === '}') depth++
+      if (response[i] === '{') depth--
+      if (depth === 0) { start = i; break }
+    }
+    if (start > 0) {
+      const candidate = response.slice(start, lastBrace + 1)
+      try {
+        JSON.parse(candidate)
+        return {
+          markdownPart: response.slice(0, start).trim(),
+          jsonPart: candidate,
+        }
+      } catch {
+        // Not valid JSON, treat entire response as markdown
+      }
+    }
+  }
+
+  return { markdownPart: response, jsonPart: null }
+}
+
+/**
+ * Parse entities from the JSON portion of a unified response.
+ */
+function parseUnifiedEntities(jsonStr: string): ExtractedEntities {
+  const parsed = JSON.parse(jsonStr)
+  return {
+    people: Array.isArray(parsed.people) ? parsed.people.filter((p: any) => p?.name) : [],
+    commitments: Array.isArray(parsed.commitments) ? parsed.commitments.filter((c: any) => c?.text) : [],
+    topics: Array.isArray(parsed.topics) ? parsed.topics.filter((t: any) => typeof t === 'string' && t.trim()) : [],
+    project: typeof parsed.project === 'string' && parsed.project.trim() ? parsed.project.trim() : undefined,
+    decisions: Array.isArray(parsed.decisions) ? parsed.decisions.filter((d: any) => d?.text) : [],
+  }
+}
+
+/** Check if a model should use the unified summarize+extract path. */
+export { isOllama8BPlus }
 
 // ─── Chat ───────────────────────────────────────────────────────────────────
 
@@ -355,10 +656,10 @@ function extractProperNouns(text: string): string[] {
 }
 
 /**
- * Check if LLM summary is grounded in the transcript.
- * Returns true if the summary references content from the actual meeting.
+ * Check if LLM summary is grounded in the transcript (legacy boolean version).
+ * Used by repairLocalSummary. See also the exported isSummaryGrounded() which returns a score.
  */
-function isSummaryGrounded(summary: MeetingSummary, transcriptText: string): boolean {
+function isSummaryGroundedBool(summary: MeetingSummary, transcriptText: string): boolean {
   const summaryText = [
     summary.overview || '',
     ...(summary.keyPoints || []),
@@ -380,7 +681,7 @@ function isSummaryGrounded(summary: MeetingSummary, transcriptText: string): boo
 function repairLocalSummary(summary: MeetingSummary, rawResponse: string, transcriptText?: string): MeetingSummary {
   // If the raw response doesn't reference any transcript content, skip repair —
   // making hallucinated content look structured is worse than showing nothing
-  if (transcriptText && !isSummaryGrounded(summary, transcriptText)) {
+  if (transcriptText && !isSummaryGroundedBool(summary, transcriptText)) {
     console.warn('[LLM] Summary failed grounding check — likely hallucinated. Skipping repair.')
     return {
       ...summary,
@@ -487,6 +788,37 @@ async function summarizeWithMLX(
 /** Limit context and CPU threads so local Llama doesn't overwhelm the machine. */
 const LLAMA_CONTEXT_OPTIONS = { contextSize: 8192, threads: 4 }
 
+// Singleton cache for node-llama-cpp model — avoids repeated load/dispose (~500ms per call)
+let _cachedLlamaModel: { modelPath: string; llama: any; model: any; dispose: () => Promise<void> } | null = null
+
+async function getOrCreateLlamaModel(modelPath: string): Promise<{ llama: any; model: any }> {
+  if (_cachedLlamaModel && _cachedLlamaModel.modelPath === modelPath) {
+    return _cachedLlamaModel
+  }
+  // Dispose old model if switching
+  if (_cachedLlamaModel) {
+    try { await _cachedLlamaModel.model.dispose() } catch {}
+    _cachedLlamaModel = null
+  }
+  const { getLlama } = await import('node-llama-cpp')
+  const llama = await getLlama()
+  const model = await llama.loadModel({ modelPath })
+  _cachedLlamaModel = {
+    modelPath,
+    llama,
+    model,
+    dispose: async () => { try { await model.dispose() } catch {}; _cachedLlamaModel = null },
+  }
+  return _cachedLlamaModel
+}
+
+/** Dispose the cached llama model (call on app quit or model change). */
+export async function disposeCachedLlamaModel(): Promise<void> {
+  if (_cachedLlamaModel) {
+    await _cachedLlamaModel.dispose()
+  }
+}
+
 /** Max chars for multi-turn local chat transcript (system + trailer reserved separately). */
 const LOCAL_CHAT_BODY_CHAR_CAP = 16_000
 const LOCAL_CHAT_TURN_GAP = '\n\n'
@@ -548,10 +880,8 @@ async function summarizeWithLocal(
   }
 
   try {
-    const { getLlama, LlamaChatSession } = await import('node-llama-cpp')
-
-    const llama = await getLlama()
-    const model = await llama.loadModel({ modelPath })
+    const { LlamaChatSession } = await import('node-llama-cpp')
+    const { model } = await getOrCreateLlamaModel(modelPath)
     const ctx = await model.createContext(LLAMA_CONTEXT_OPTIONS)
     const session = new LlamaChatSession({ contextSequence: ctx.getSequence() })
 
@@ -559,8 +889,6 @@ async function summarizeWithLocal(
       maxTokens: 2048,
       temperature: 0.3,
     })
-
-    await model.dispose()
 
     const parsed = parseEnhancedNotes(response)
     const title = extractTitleFromResponse(response)
@@ -585,10 +913,8 @@ export async function chatWithLocal(
   }
 
   try {
-    const { getLlama, LlamaChatSession } = await import('node-llama-cpp')
-
-    const llama = await getLlama()
-    const model = await llama.loadModel({ modelPath })
+    const { LlamaChatSession } = await import('node-llama-cpp')
+    const { model } = await getOrCreateLlamaModel(modelPath)
     const ctx = await model.createContext(LLAMA_CONTEXT_OPTIONS)
     const session = new LlamaChatSession({ contextSequence: ctx.getSequence() })
 
@@ -613,7 +939,6 @@ export async function chatWithLocal(
       })
     }
 
-    await model.dispose()
     return fullResponse
   } catch (err: any) {
     if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module') || err.message?.includes('node-llama-cpp')) {

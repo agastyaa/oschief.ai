@@ -147,6 +147,23 @@ const electronAPI = {
       attendees?: string[]
       accountDisplayName?: string
     }) => ipcRenderer.invoke('llm:summarize', data),
+    summarizeAndExtract: (data: {
+      transcript: any[]
+      personalNotes: string
+      model: string
+      meetingTemplateId?: string
+      customPrompt?: string
+      meetingTitle?: string
+      meetingDuration?: string | null
+      attendees?: string[]
+      accountDisplayName?: string
+    }) => ipcRenderer.invoke('llm:summarize-and-extract', data) as Promise<{
+      summary: any
+      entities: any | null
+      groundingScore: number
+      durationMs: number
+    }>,
+    isUnifiedEligible: (model: string) => ipcRenderer.invoke('llm:is-unified-eligible', model) as Promise<boolean>,
     chat: (data: { messages: any[]; context: any; model: string }) =>
       ipcRenderer.invoke('llm:chat', data),
     buildGraphContext: () => ipcRenderer.invoke('llm:build-graph-context') as Promise<string>,
@@ -411,6 +428,8 @@ const electronAPI = {
     },
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
+    storeEntities: (data: { noteId: string; entities: any; calendarAttendees?: any[]; calendarTitle?: string }) =>
+      ipcRenderer.invoke('memory:store-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
   },
 
   intelligence: {

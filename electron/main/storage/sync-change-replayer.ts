@@ -218,14 +218,24 @@ export class SyncChangeReplayer {
 
   private upsertNote(record: SyncChangeRecord, result: ReplayResult): void {
     const d = record.data!
-    const existing = this.db.prepare('SELECT updated_at FROM notes WHERE id = ?').get(record.entityId) as any
+    const existing = this.db.prepare('SELECT updated_at, sync_device_origin FROM notes WHERE id = ?').get(record.entityId) as any
 
     if (existing) {
       // LWW: only apply if remote is newer
-      if (existing.updated_at && record.timestamp <= existing.updated_at) {
+      if (existing.updated_at && record.timestamp < existing.updated_at) {
         result.conflicts++
         result.skipped++
         return
+      }
+      // Tiebreaker: when timestamps are equal, higher device-id wins (deterministic)
+      if (existing.updated_at && record.timestamp === existing.updated_at) {
+        const existingDevice = existing.sync_device_origin || ''
+        const remoteDevice = record.deviceId || ''
+        if (remoteDevice <= existingDevice) {
+          result.conflicts++
+          result.skipped++
+          return
+        }
       }
     }
 
@@ -261,11 +271,23 @@ export class SyncChangeReplayer {
 
   private upsertCommitment(record: SyncChangeRecord, result: ReplayResult): void {
     const d = record.data!
-    const existing = this.db.prepare('SELECT updated_at FROM commitments WHERE id = ?').get(record.entityId) as any
-    if (existing && existing.updated_at && record.timestamp <= existing.updated_at) {
-      result.conflicts++
-      result.skipped++
-      return
+    const existing = this.db.prepare('SELECT updated_at, sync_device_origin FROM commitments WHERE id = ?').get(record.entityId) as any
+    if (existing && existing.updated_at) {
+      if (record.timestamp < existing.updated_at) {
+        result.conflicts++
+        result.skipped++
+        return
+      }
+      // Tiebreaker: when timestamps are equal, higher device-id wins (deterministic)
+      if (record.timestamp === existing.updated_at) {
+        const existingDevice = existing.sync_device_origin || ''
+        const remoteDevice = record.deviceId || ''
+        if (remoteDevice <= existingDevice) {
+          result.conflicts++
+          result.skipped++
+          return
+        }
+      }
     }
 
     this.db.prepare(`

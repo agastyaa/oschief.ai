@@ -1,4 +1,5 @@
 import { getSetting } from '../storage/database'
+import { getRecommendedTier } from './ollama-manager'
 
 /**
  * Normalize model IDs to the prefixed form expected by llm-engine.
@@ -26,6 +27,7 @@ function normalizeModelId(raw: string): string {
  * 1) explicit arg
  * 2) legacy settings key: selected-ai-model
  * 3) current settings blob: model-settings.selectedAIModel
+ * 4) smart default: recommended Ollama tier based on system RAM
  *
  * Always normalizes to the prefixed form (e.g., "mlx:qwen3-4b").
  */
@@ -37,11 +39,19 @@ export function resolveSelectedAIModel(explicitModel?: string | null): string {
   if (legacy) return normalizeModelId(legacy)
 
   const modelSettingsRaw = getSetting('model-settings')
-  if (!modelSettingsRaw) return ''
-  try {
-    const parsed = JSON.parse(modelSettingsRaw) as { selectedAIModel?: string }
-    return normalizeModelId((parsed.selectedAIModel || '').trim())
-  } catch {
-    return ''
+  if (modelSettingsRaw) {
+    try {
+      const parsed = JSON.parse(modelSettingsRaw) as { selectedAIModel?: string }
+      const saved = normalizeModelId((parsed.selectedAIModel || '').trim())
+      if (saved) return saved
+    } catch {}
   }
+
+  // Smart default: recommend the best Ollama model for this machine's RAM
+  const tier = getRecommendedTier()
+  if (tier) {
+    return `ollama:${tier.tag}`
+  }
+
+  return ''
 }
