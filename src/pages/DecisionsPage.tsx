@@ -76,7 +76,7 @@ export default function DecisionsPage() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       {sidebarOpen && (
-        <div className="w-56 flex-shrink-0 overflow-hidden">
+        <div className="w-48 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}

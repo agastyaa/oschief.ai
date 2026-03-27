@@ -268,7 +268,7 @@ export default function CalendarPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
-        <div className="w-56 flex-shrink-0 overflow-hidden">
+        <div className="w-48 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}
