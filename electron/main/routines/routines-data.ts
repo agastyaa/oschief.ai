@@ -26,46 +26,51 @@ export async function assembleRoutineData(routine: RoutineConfig): Promise<strin
 }
 
 // ── Morning Briefing ────────────────────────────────────────────────
+//
+// Uses daily-brief-assembler as single source of truth for risk data,
+// then formats the structured data as text for the LLM prompt.
 
 async function assembleMorningBriefing(): Promise<string> {
+  const { assembleDailyBrief } = await import('../memory/daily-brief-assembler')
+  const brief = assembleDailyBrief()
   const db = getDb()
   const parts: string[] = []
   const today = localDate()
   const threeDaysAgo = localDate(-3)
+
+  // Risk commitments from assembler (replaces old manual query — DRY)
+  const redItems = brief.riskCommitments.filter(c => c.risk_level === 'red')
+  const amberItems = brief.riskCommitments.filter(c => c.risk_level === 'amber')
+
+  if (redItems.length > 0) {
+    parts.push('Overdue commitments:')
+    for (const c of redItems) {
+      const owner = c.owner === 'you' ? 'You' : (c.assignee_name || c.owner)
+      parts.push(`  - ${owner}: ${c.text} (${Math.abs(c.days_until_due)}d overdue)`)
+    }
+  }
+  if (amberItems.length > 0) {
+    parts.push('Due soon:')
+    for (const c of amberItems) {
+      const owner = c.owner === 'you' ? 'You' : (c.assignee_name || c.owner)
+      parts.push(`  - ${owner}: ${c.text} (due in ${c.days_until_due}d)`)
+    }
+  }
+
+  // Stale decisions from assembler
+  if (brief.staleDecisions.length > 0) {
+    parts.push('Decisions awaiting follow-up:')
+    for (const d of brief.staleDecisions.slice(0, 5)) {
+      parts.push(`  - ${d.text} (${d.days_stale}d without update)`)
+    }
+  }
 
   // Today's notes (already recorded today)
   const todayNotes = db.prepare(`
     SELECT title, date, time FROM notes WHERE date = ? ORDER BY time ASC
   `).all(today) as any[]
   if (todayNotes.length > 0) {
-    parts.push(`Already recorded today: ${todayNotes.map(n => n.title || 'Untitled').join(', ')}`)
-  }
-
-  // Open commitments (overdue + due today)
-  const commitments = db.prepare(`
-    SELECT c.text, c.owner, c.due_date, p.name as assignee_name
-    FROM commitments c
-    LEFT JOIN people p ON p.id = c.assignee_id
-    WHERE c.status = 'open'
-    ORDER BY c.due_date ASC NULLS LAST
-    LIMIT 10
-  `).all() as any[]
-
-  const overdue = commitments.filter(c => c.due_date && c.due_date < today)
-  const dueToday = commitments.filter(c => c.due_date === today)
-
-  if (overdue.length > 0) {
-    parts.push('Overdue commitments:')
-    for (const c of overdue) {
-      const days = Math.floor((Date.now() - new Date(c.due_date).getTime()) / 86400000)
-      parts.push(`  - ${c.owner === 'you' ? 'You' : c.assignee_name || c.owner}: ${c.text} (${days}d overdue)`)
-    }
-  }
-  if (dueToday.length > 0) {
-    parts.push('Due today:')
-    for (const c of dueToday) {
-      parts.push(`  - ${c.owner === 'you' ? 'You' : c.assignee_name || c.owner}: ${c.text}`)
-    }
+    parts.push(`Already recorded today: ${todayNotes.map((n: any) => n.title || 'Untitled').join(', ')}`)
   }
 
   // Active projects
@@ -76,7 +81,7 @@ async function assembleMorningBriefing(): Promise<string> {
     ORDER BY p.updated_at DESC LIMIT 5
   `).all() as any[]
   if (projects.length > 0) {
-    parts.push('Active projects: ' + projects.map(p => `${p.name} (${p.meetingCount} meetings)`).join(', '))
+    parts.push('Active projects: ' + projects.map((p: any) => `${p.name} (${p.meetingCount} meetings)`).join(', '))
   }
 
   // Recent meetings (last 3 days for context)
@@ -93,7 +98,7 @@ async function assembleMorningBriefing(): Promise<string> {
   if (recentNotes.length > 0) {
     parts.push('Recent meetings:')
     for (const n of recentNotes) {
-      parts.push(`  - ${n.date}: ${n.title || 'Untitled'}${n.attendees ? ` (with ${n.attendees})` : ''}`)
+      parts.push(`  - ${(n as any).date}: ${(n as any).title || 'Untitled'}${(n as any).attendees ? ` (with ${(n as any).attendees})` : ''}`)
     }
   }
 
