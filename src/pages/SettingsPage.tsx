@@ -2577,11 +2577,9 @@ export default function SettingsPage() {
                             {updateResult === "error" && (
                               <div className="text-right max-w-[240px]">
                                 <span className="text-[11px] text-destructive block">Update check failed</span>
-                                {updateErrorDetail && (
-                                  <span className="text-[10px] text-muted-foreground break-words block mt-0.5" title={updateErrorDetail}>
-                                    {updateErrorDetail}
-                                  </span>
-                                )}
+                                <span className="text-[10px] text-muted-foreground block mt-0.5">
+                                  Could not reach GitHub. Try again later.
+                                </span>
                               </div>
                             )}
                             <button
