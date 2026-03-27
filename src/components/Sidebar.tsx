@@ -3,7 +3,6 @@ import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Sta
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -131,17 +130,13 @@ export function Sidebar() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  // Commitment weather dot
+  // Commitment weather dot — fetch once on mount, refresh on location change (user navigated)
   const [riskLevels, setRiskLevels] = useState<any[]>([]);
   useEffect(() => {
     const api = getElectronAPI();
     if (!api?.intelligence?.getRiskLevels) return;
     api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
-    const interval = setInterval(() => {
-      api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [location.pathname]);
   const redCount = riskLevels.filter((c: any) => c.risk_level === 'RED').length;
   const amberCount = riskLevels.filter((c: any) => c.risk_level === 'AMBER').length;
 
@@ -198,24 +193,19 @@ export function Sidebar() {
         <div className="flex items-center gap-1">
           <PrivacyIndicator />
           <SyncStatusIndicator />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className="h-2 w-2 rounded-full transition-colors duration-150 ml-0.5"
-                style={{
-                  backgroundColor: redCount > 0
-                    ? 'hsl(25 65% 45%)'
-                    : amberCount > 0
-                    ? 'hsl(30 55% 64%)'
-                    : 'hsl(142 50% 45%)',
-                }}
-                aria-label={`${redCount + amberCount} commitments at risk`}
-              />
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              {redCount + amberCount > 0 ? `${redCount + amberCount} at risk` : 'All clear'}
-            </TooltipContent>
-          </Tooltip>
+          {redCount + amberCount > 0 ? (
+            <button
+              onClick={() => navigate('/commitments')}
+              className="ml-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80"
+              style={{
+                backgroundColor: redCount > 0 ? 'hsl(25 65% 45% / 0.15)' : 'hsl(30 55% 64% / 0.15)',
+                color: redCount > 0 ? 'hsl(25 65% 40%)' : 'hsl(30 55% 45%)',
+              }}
+              aria-label={`${redCount + amberCount} commitments at risk`}
+            >
+              {redCount + amberCount} at risk
+            </button>
+          ) : null}
         </div>
       </div>
 
