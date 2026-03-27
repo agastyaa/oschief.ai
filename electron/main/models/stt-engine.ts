@@ -696,6 +696,8 @@ let mlxWorker: ReturnType<typeof spawn> | null = null
 let mlxWorkerReady = false
 let mlxIdleTimer: ReturnType<typeof setTimeout> | null = null
 let mlxTranscribing = false
+let mlxBuffer = ''
+const mlxPendingResolvers: Array<{ resolve: (r: STTResult) => void; reject: (err: Error) => void }> = []
 const MLX_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle
 const MLX_STARTUP_READY_TIMEOUT_MS = 30000 // 30s to get "ready" after spawn (import only, no warmup)
 const MLX_HINT = ' Ensure Python 3 and mlx-whisper are installed (pip3 install mlx-whisper). First run may take several minutes to download the model.'
@@ -731,6 +733,37 @@ for line in sys.stdin:
         sys.stdout.write(json.dumps({"error": str(e)}) + '\\n')
         sys.stdout.flush()
 `
+
+// Permanent stdout handler — single listener attached once after worker is ready.
+// Resolves pending transcription requests in FIFO order.
+function onMLXData(data: Buffer): void {
+  mlxBuffer += data.toString()
+  const lines = mlxBuffer.split('\n')
+  mlxBuffer = lines.pop() ?? ''
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const pending = mlxPendingResolvers.shift()
+    if (!pending) {
+      console.warn('[MLX] Received data with no pending resolver:', trimmed.slice(0, 80))
+      continue
+    }
+    mlxTranscribing = false
+    resetMLXIdleTimer()
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.error) { pending.reject(new Error(parsed.error)); continue }
+      const text = cleanTranscriptText(parsed.text || '')
+      const words: WordTimestamp[] = (parsed.words || [])
+        .map((w: any) => ({ word: (w.word || '').trim(), start: w.start || 0, end: w.end || 0 }))
+        .filter((w: WordTimestamp) => w.word.length > 0)
+      if (text) console.log('[MLX] Result:', text.slice(0, 80) + (text.length > 80 ? '...' : ''))
+      pending.resolve({ text, words })
+    } catch {
+      pending.resolve({ text: cleanTranscriptText(trimmed), words: [] })
+    }
+  }
+}
 
 function ensureMLXWorker(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -779,6 +812,9 @@ function ensureMLXWorker(): Promise<void> {
             mlxWorkerReady = true
             resetMLXIdleTimer()
             console.log('[MLX] Worker ready (model will load on first transcription).')
+            // Attach the single permanent listener for all transcription responses
+            mlxBuffer = ''
+            mlxWorker?.stdout?.on('data', onMLXData)
             if (!resolved) {
               resolved = true
               resolve()
@@ -849,6 +885,10 @@ export function killMLXWorker(): void {
     try { mlxWorker.kill() } catch {}
     mlxWorker = null
     mlxWorkerReady = false
+    mlxBuffer = ''
+    for (const p of mlxPendingResolvers.splice(0)) {
+      p.reject(new Error('MLX worker was killed'))
+    }
   }
 }
 
@@ -946,44 +986,27 @@ async function processWithMLXWhisper(wavBuffer: Buffer, customVocabulary?: strin
     const request = JSON.stringify({ audio_path: tmpFile, prompt }) + '\n'
 
     const result = await new Promise<STTResult>((resolve, reject) => {
-      if (!mlxWorker || !mlxWorker.stdin || !mlxWorker.stdout) {
+      if (!mlxWorker || !mlxWorker.stdin) {
         reject(new Error('MLX worker not available'))
         return
       }
 
       console.log('[MLX] Sending chunk for transcription (first run may take several minutes to load model)...')
       mlxTranscribing = true
+
+      const pending: { resolve: (r: STTResult) => void; reject: (err: Error) => void } = {
+        resolve: (r) => { clearTimeout(timeout); resolve(r) },
+        reject: (e) => { clearTimeout(timeout); reject(e) },
+      }
       const timeout = setTimeout(() => {
         mlxTranscribing = false
+        const idx = mlxPendingResolvers.indexOf(pending)
+        if (idx >= 0) mlxPendingResolvers.splice(idx, 1)
         killMLXWorker() // Kill the hung worker so it respawns on next request
         reject(new Error('MLX transcription timed out (300s). First run may take several minutes to load the model.'))
       }, 300000)
 
-      const onData = (data: Buffer) => {
-        clearTimeout(timeout)
-        mlxTranscribing = false
-        mlxWorker?.stdout?.removeListener('data', onData)
-        resetMLXIdleTimer()
-
-        const line = data.toString().trim()
-        try {
-          const parsed = JSON.parse(line)
-          if (parsed.error) {
-            reject(new Error(parsed.error))
-            return
-          }
-          const text = cleanTranscriptText(parsed.text || '')
-          const words: WordTimestamp[] = (parsed.words || [])
-            .map((w: any) => ({ word: (w.word || '').trim(), start: w.start || 0, end: w.end || 0 }))
-            .filter((w: WordTimestamp) => w.word.length > 0)
-          if (text) console.log('[MLX] Result:', text.slice(0, 80) + (text.length > 80 ? '...' : ''))
-          resolve({ text, words })
-        } catch {
-          resolve({ text: cleanTranscriptText(line), words: [] })
-        }
-      }
-
-      mlxWorker.stdout.on('data', onData)
+      mlxPendingResolvers.push(pending)
       mlxWorker.stdin.write(request)
     })
 
@@ -1050,6 +1073,8 @@ for line in sys.stdin:
 let mlx8BitWorker: ReturnType<typeof spawn> | null = null
 let mlx8BitWorkerReady = false
 let mlx8BitIdleTimer: ReturnType<typeof setTimeout> | null = null
+let mlx8BitBuffer = ''
+const mlx8BitPendingResolvers: Array<{ resolve: (r: STTResult) => void; reject: (err: Error) => void }> = []
 const MLX_8BIT_IDLE_TIMEOUT_MS = 300000
 
 function resetMLX8BitIdleTimer(): void {
@@ -1065,6 +1090,38 @@ export function killMLX8BitWorker(): void {
     try { mlx8BitWorker.kill() } catch {}
     mlx8BitWorker = null
     mlx8BitWorkerReady = false
+    mlx8BitBuffer = ''
+    for (const p of mlx8BitPendingResolvers.splice(0)) {
+      p.reject(new Error('MLX 8-bit worker was killed'))
+    }
+  }
+}
+
+// Permanent stdout handler for 8-bit worker — single listener attached once after worker is ready.
+function onMLX8BitData(data: Buffer): void {
+  mlx8BitBuffer += data.toString()
+  const lines = mlx8BitBuffer.split('\n')
+  mlx8BitBuffer = lines.pop() ?? ''
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const pending = mlx8BitPendingResolvers.shift()
+    if (!pending) {
+      console.warn('[MLX 8-bit] Received data with no pending resolver:', trimmed.slice(0, 80))
+      continue
+    }
+    resetMLX8BitIdleTimer()
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.error) { pending.reject(new Error(parsed.error)); continue }
+      const text = cleanTranscriptText(parsed.text || '')
+      const words: WordTimestamp[] = (parsed.words || [])
+        .map((w: any) => ({ word: (w.word || '').trim(), start: w.start ?? 0, end: w.end ?? 0 }))
+        .filter((w: WordTimestamp) => w.word.length > 0)
+      pending.resolve({ text, words })
+    } catch {
+      pending.resolve({ text: cleanTranscriptText(trimmed), words: [] })
+    }
   }
 }
 
@@ -1096,6 +1153,9 @@ function ensureMLX8BitWorker(): Promise<void> {
         if (msg.status === 'ready') {
           mlx8BitWorkerReady = true
           resetMLX8BitIdleTimer()
+          // Attach the single permanent listener for all transcription responses
+          mlx8BitBuffer = ''
+          mlx8BitWorker?.stdout?.on('data', onMLX8BitData)
           if (!resolved) { resolved = true; resolve() }
         }
       } catch {}
@@ -1220,32 +1280,21 @@ async function processWithMLXWhisper8Bit(wavBuffer: Buffer, customVocabulary?: s
     const mlx8Prompt = promptParts.join(' ').slice(-500)
     const request = JSON.stringify({ audio_path: tmpFile, prompt: mlx8Prompt || undefined }) + '\n'
     const result = await new Promise<STTResult>((resolve, reject) => {
-      if (!mlx8BitWorker?.stdin || !mlx8BitWorker?.stdout) {
+      if (!mlx8BitWorker?.stdin) {
         reject(new Error('MLX 8-bit worker not available'))
         return
       }
-      const timeout = setTimeout(() => reject(new Error('MLX 8-bit transcription timed out (180s). First run may take several minutes to load the model.')), 180000)
-      const onData = (data: Buffer) => {
-        clearTimeout(timeout)
-        mlx8BitWorker?.stdout?.removeListener('data', onData)
-        resetMLX8BitIdleTimer()
-        const line = data.toString().trim()
-        try {
-          const parsed = JSON.parse(line)
-          if (parsed.error) {
-            reject(new Error(parsed.error))
-            return
-          }
-          const text = cleanTranscriptText(parsed.text || '')
-          const words: WordTimestamp[] = (parsed.words || [])
-            .map((w: any) => ({ word: (w.word || '').trim(), start: w.start ?? 0, end: w.end ?? 0 }))
-            .filter((w: WordTimestamp) => w.word.length > 0)
-          resolve({ text, words })
-        } catch {
-          resolve({ text: cleanTranscriptText(line), words: [] })
-        }
+      const pending: { resolve: (r: STTResult) => void; reject: (err: Error) => void } = {
+        resolve: (r) => { clearTimeout(timeout); resolve(r) },
+        reject: (e) => { clearTimeout(timeout); reject(e) },
       }
-      mlx8BitWorker.stdout.on('data', onData)
+      const timeout = setTimeout(() => {
+        const idx = mlx8BitPendingResolvers.indexOf(pending)
+        if (idx >= 0) mlx8BitPendingResolvers.splice(idx, 1)
+        killMLX8BitWorker()
+        reject(new Error('MLX 8-bit transcription timed out (180s). First run may take several minutes to load the model.'))
+      }, 180000)
+      mlx8BitPendingResolvers.push(pending)
       mlx8BitWorker.stdin.write(request)
     })
     return result
