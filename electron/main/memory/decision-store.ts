@@ -64,6 +64,8 @@ export function getAllDecisions(filters?: { projectId?: string; noteId?: string 
 
 // ── Write ───────────────────────────────────────────────────────────
 
+export type DecisionStatus = 'MADE' | 'ASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED' | 'REVISITED'
+
 export function addDecision(data: {
   noteId?: string
   projectId?: string
@@ -74,8 +76,8 @@ export function addDecision(data: {
   const id = randomUUID()
   const now = new Date().toISOString()
   getDb().prepare(`
-    INSERT INTO decisions (id, note_id, project_id, text, context, date, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO decisions (id, note_id, project_id, text, context, date, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'MADE', ?, ?)
   `).run(
     id,
     data.noteId ?? null,
@@ -83,11 +85,24 @@ export function addDecision(data: {
     data.text,
     data.context ?? null,
     data.date ?? now.slice(0, 10),
+    now,
     now
   )
   const created = getDecision(id)
   if (created) logDecisionSync('INSERT', id, created)
   return created
+}
+
+export function updateDecisionStatus(id: string, status: DecisionStatus): boolean {
+  const now = new Date().toISOString()
+  const result = getDb().prepare(`
+    UPDATE decisions SET status = ?, updated_at = ? WHERE id = ?
+  `).run(status, now, id)
+  if ((result as any).changes > 0) {
+    const updated = getDecision(id)
+    if (updated) logDecisionSync('UPDATE', id, updated)
+  }
+  return (result as any).changes > 0
 }
 
 export function deleteDecision(id: string): boolean {
