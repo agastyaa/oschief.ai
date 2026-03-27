@@ -376,6 +376,7 @@ const electronAPI = {
       add: (data: any) => ipcRenderer.invoke('memory:commitments-add', data),
       updateStatus: (id: string, status: string) => ipcRenderer.invoke('memory:commitments-update-status', id, status),
       update: (id: string, data: any) => ipcRenderer.invoke('memory:commitments-update', id, data),
+      delete: (id: string) => ipcRenderer.invoke('memory:commitments-delete', id),
       snooze: (id: string, until: string) => ipcRenderer.invoke('memory:commitments-snooze', id, until),
     },
     topics: {

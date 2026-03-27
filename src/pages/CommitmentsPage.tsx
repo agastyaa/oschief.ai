@@ -5,7 +5,7 @@ import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, Filter, ArrowRight, XCircle, Pencil } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
 import { toast } from "sonner"
@@ -47,6 +47,8 @@ const CommitmentsPage = () => {
   const [projects, setProjects] = useState<any[]>([])
   const [newTodoProjectId, setNewTodoProjectId] = useState<string | null>(null)
   const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
+  const [editingAssigneeId, setEditingAssigneeId] = useState<string | null>(null)
+  const [people, setPeople] = useState<any[]>([])
 
   const api = getElectronAPI()
   const accountName = useMemo(() => loadAccountFromStorage().name?.trim() || "", [])
@@ -77,6 +79,7 @@ const CommitmentsPage = () => {
   useEffect(() => {
     loadCommitments()
     api?.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setProjects(p || []))
+    api?.memory?.people?.getAll().then((p: any[]) => setPeople(p || []))
   }, [loadCommitments])
 
   const handleToggleStatus = useCallback(async (commitment: Commitment) => {
@@ -87,6 +90,17 @@ const CommitmentsPage = () => {
       loadCommitments()
     } catch (err) {
       console.error("Failed to update commitment:", err)
+    }
+  }, [api, loadCommitments])
+
+  const handleDelete = useCallback(async (id: string) => {
+    if (!api?.memory?.commitments?.delete) return
+    try {
+      await api.memory.commitments.delete(id)
+      loadCommitments()
+      toast.success("Deleted")
+    } catch (err) {
+      toast.error("Failed to delete")
     }
   }, [api, loadCommitments])
 
@@ -352,10 +366,45 @@ const CommitmentsPage = () => {
                                     Owner: {c.owner}
                                   </span>
                                 )}
-                                {c.assignee_name && (
-                                  <span className="text-[11px] text-muted-foreground">
+                                {editingAssigneeId === c.id ? (
+                                  <select
+                                    autoFocus
+                                    defaultValue={c.assignee_name || ""}
+                                    onBlur={(e) => {
+                                      setEditingAssigneeId(null)
+                                      const selected = people.find(p => p.name === e.target.value)
+                                      api?.memory?.commitments?.update(c.id, { assigneeId: selected?.id ?? null })
+                                        .then(() => loadCommitments())
+                                    }}
+                                    onChange={(e) => {
+                                      const selected = people.find(p => p.name === e.target.value)
+                                      api?.memory?.commitments?.update(c.id, { assigneeId: selected?.id ?? null })
+                                        .then(() => { loadCommitments(); setEditingAssigneeId(null) })
+                                    }}
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                  >
+                                    <option value="">No assignee</option>
+                                    {people.map(p => (
+                                      <option key={p.id} value={p.name}>{p.name}</option>
+                                    ))}
+                                  </select>
+                                ) : c.assignee_name ? (
+                                  <button
+                                    onClick={() => setEditingAssigneeId(c.id)}
+                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Click to change assignee"
+                                  >
                                     → {c.assignee_name}
-                                  </span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setEditingAssigneeId(c.id)}
+                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    title="Assign to someone"
+                                  >
+                                    <UserPlus className="h-2.5 w-2.5" />
+                                    Assign
+                                  </button>
                                 )}
                                 {!c.note_id && (
                                   <span className="text-[11px] text-muted-foreground">
@@ -411,16 +460,24 @@ const CommitmentsPage = () => {
                               </div>
                             </div>
 
-                            {/* Source meeting link */}
-                            {c.note_id && (
+                            {/* Actions: source meeting + delete */}
+                            <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {c.note_id && (
+                                <button
+                                  onClick={() => navigate(`/note/${c.note_id}`)}
+                                  title={c.note_title || "View meeting"}
+                                >
+                                  <FileText className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                </button>
+                              )}
                               <button
-                                onClick={() => navigate(`/note/${c.note_id}`)}
-                                className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title={c.note_title || "View meeting"}
+                                onClick={() => handleDelete(c.id)}
+                                title="Delete"
+                                className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                               >
-                                <FileText className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </button>
-                            )}
+                            </div>
                           </div>
                         )
                       })}
