@@ -42,9 +42,11 @@ const CommitmentsPage = () => {
   const [filter, setFilter] = useState<FilterStatus>("open")
   const [loading, setLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState("")
+  const [newTodoDueDate, setNewTodoDueDate] = useState("")
   const [addingTodo, setAddingTodo] = useState(false)
   const [projects, setProjects] = useState<any[]>([])
   const [newTodoProjectId, setNewTodoProjectId] = useState<string | null>(null)
+  const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
 
   const api = getElectronAPI()
   const accountName = useMemo(() => loadAccountFromStorage().name?.trim() || "", [])
@@ -140,8 +142,10 @@ const CommitmentsPage = () => {
         text,
         owner: "you",
         projectId: newTodoProjectId || undefined,
+        dueDate: newTodoDueDate || undefined,
       })
       setNewTodoText("")
+      setNewTodoDueDate("")
       setNewTodoProjectId(null)
       await loadCommitments()
     } catch (err) {
@@ -204,6 +208,13 @@ const CommitmentsPage = () => {
                   }}
                   placeholder="Write a to-do..."
                   className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <input
+                  type="date"
+                  value={newTodoDueDate}
+                  onChange={(e) => setNewTodoDueDate(e.target.value)}
+                  className="rounded-md border border-border bg-background px-2 py-2 text-xs text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  title="Due date (optional)"
                 />
                 {projects.length > 0 && (
                   <select
@@ -351,14 +362,46 @@ const CommitmentsPage = () => {
                                     Personal
                                   </span>
                                 )}
-                                {c.due_date && (
-                                  <span className={cn(
-                                    "text-[11px] flex items-center gap-1",
-                                    isOverdue ? "text-red-500" : "text-muted-foreground"
-                                  )}>
+                                {editingDueDateId === c.id ? (
+                                  <input
+                                    type="date"
+                                    defaultValue={c.due_date || ""}
+                                    autoFocus
+                                    onBlur={async (e) => {
+                                      setEditingDueDateId(null)
+                                      const val = e.target.value
+                                      if (val !== c.due_date) {
+                                        await api?.memory?.commitments?.update(c.id, { dueDate: val || null })
+                                        loadCommitments()
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Escape") setEditingDueDateId(null)
+                                      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+                                    }}
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                  />
+                                ) : c.due_date ? (
+                                  <button
+                                    onClick={() => setEditingDueDateId(c.id)}
+                                    className={cn(
+                                      "text-[11px] flex items-center gap-1 hover:opacity-70 transition-opacity",
+                                      isOverdue ? "text-red-500" : "text-muted-foreground"
+                                    )}
+                                    title="Click to change due date"
+                                  >
                                     <Clock className="h-2.5 w-2.5" />
                                     {c.due_date}
-                                  </span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setEditingDueDateId(c.id)}
+                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    title="Set due date"
+                                  >
+                                    <Clock className="h-2.5 w-2.5" />
+                                    Set deadline
+                                  </button>
                                 )}
                                 {c.jira_issue_key && (
                                   <span className="text-[11px] text-blue-500 font-mono">

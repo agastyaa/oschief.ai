@@ -18,6 +18,25 @@ interface Decision {
   project_name?: string
   participant_names?: string
   created_at: string
+  status?: string
+}
+
+const statusStyles: Record<string, string> = {
+  MADE: 'bg-muted text-muted-foreground',
+  ASSIGNED: 'bg-primary/10 text-primary',
+  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  ABANDONED: 'bg-muted text-muted-foreground line-through',
+  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+}
+
+const statusLabels: Record<string, string> = {
+  MADE: 'Made',
+  ASSIGNED: 'Assigned',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Done',
+  ABANDONED: 'Abandoned',
+  REVISITED: 'Revisited',
 }
 
 type FilterMode = "all" | "by-project" | "by-person"
@@ -36,6 +55,16 @@ export default function DecisionsPage() {
   const [newText, setNewText] = useState("")
   const [newContext, setNewContext] = useState("")
   const [newProjectId, setNewProjectId] = useState<string | null>(null)
+
+  const handleStatusChange = async (id: string, status: string) => {
+    await api?.memory?.decisions?.updateStatus(id, status)
+    // Refresh
+    if (filter === "by-project" && selectedProjectId) {
+      api?.memory?.decisions?.forProject(selectedProjectId).then(setDecisions)
+    } else {
+      api?.memory?.decisions?.getAll().then(setDecisions)
+    }
+  }
 
   useEffect(() => {
     if (!api?.memory?.decisions) return
@@ -210,7 +239,21 @@ export default function DecisionsPage() {
                   <div className="rounded-lg border border-border bg-card divide-y divide-border">
                     {items.map(d => (
                       <div key={d.id} className="px-4 py-3 space-y-1">
-                        <div className="text-sm">{d.text}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm flex-1">{d.text}</div>
+                          <select
+                            value={d.status || 'MADE'}
+                            onChange={(e) => { e.stopPropagation(); handleStatusChange(d.id, e.target.value) }}
+                            className={cn(
+                              "text-[11px] rounded-full px-2 py-0.5 border-0 cursor-pointer shrink-0 focus:outline-none focus:ring-1 focus:ring-primary/30",
+                              statusStyles[d.status || 'MADE']
+                            )}
+                          >
+                            {Object.entries(statusLabels).map(([val, label]) => (
+                              <option key={val} value={val}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
                         {d.context && (
                           <div className="text-xs text-muted-foreground italic">{d.context}</div>
                         )}
