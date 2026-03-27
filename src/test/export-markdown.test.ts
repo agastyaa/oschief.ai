@@ -43,14 +43,13 @@ describe("buildMarkdownBody", () => {
     expect(body).toContain("My private thoughts")
   })
 
-  it("includes transcript", () => {
+  it("excludes transcript by default (too verbose for sharing)", () => {
     const parts = buildMarkdownBody(mockNote({
       transcript: [{ speaker: "Jane", time: "0:01", text: "Hello" }]
     }))
     const body = parts.join("\n")
-    expect(body).toContain("## Transcript")
-    expect(body).toContain("Jane")
-    expect(body).toContain("Hello")
+    // Transcript is excluded from default export — use noteToMarkdownFull() for full export
+    expect(body).not.toContain("## Transcript")
   })
 
   it("marks done action items with [x]", () => {

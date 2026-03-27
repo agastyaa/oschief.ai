@@ -42,18 +42,18 @@ describe('groupTranscriptBySpeaker', () => {
     expect(groups[1].speaker).toBe('Others');
   });
 
-  it('splits on time gap >= 5 seconds', () => {
+  it('splits on time gap >= 45 seconds', () => {
     const items = [
       { speaker: 'You', time: '0:00', text: 'First.', originalIndex: 0 },
-      { speaker: 'You', time: '0:10', text: 'After a pause.', originalIndex: 1 },
+      { speaker: 'You', time: '1:00', text: 'After a long pause.', originalIndex: 1 },
     ];
     const groups = groupTranscriptBySpeaker(items);
     expect(groups).toHaveLength(2);
   });
 
   it('splits long groups exceeding max sentences', () => {
-    // Create a group with 8 sentences (max is 5)
-    const longText = Array.from({ length: 8 }, (_, i) => `Sentence ${i + 1}.`).join(' ');
+    // Create a group with 25 sentences (max is 20)
+    const longText = Array.from({ length: 25 }, (_, i) => `Sentence ${i + 1}.`).join(' ');
     const items = [{ speaker: 'You', time: '0:00', text: longText, originalIndex: 0 }];
     const groups = groupTranscriptBySpeaker(items);
     expect(groups.length).toBeGreaterThan(1);
