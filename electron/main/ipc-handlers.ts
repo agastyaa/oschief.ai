@@ -1084,6 +1084,10 @@ export function registerIPCHandlers(): void {
     const { updateCommitment } = await import('./memory/commitment-store')
     return updateCommitment(id, data)
   })
+  ipcMain.handle('memory:commitments-delete', async (_e, id: string) => {
+    const { deleteCommitment } = await import('./memory/commitment-store')
+    return deleteCommitment(id)
+  })
   ipcMain.handle('memory:commitments-snooze', async (_e, id: string, until: string) => {
     const { snoozeCommitment } = await import('./memory/commitment-store')
     return snoozeCommitment(id, until)

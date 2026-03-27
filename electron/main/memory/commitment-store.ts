@@ -129,6 +129,14 @@ export function updateCommitment(id: string, data: any): boolean {
   return true
 }
 
+export function deleteCommitment(id: string): boolean {
+  const existing = getCommitment(id)
+  if (!existing) return false
+  getDb().prepare('DELETE FROM commitments WHERE id = ?').run(id)
+  logCommitmentSync('DELETE', id, null)
+  return true
+}
+
 export function markOverdueCommitments(): void {
   const now = new Date().toISOString()
   const result = getDb().prepare(`
