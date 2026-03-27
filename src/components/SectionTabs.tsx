@@ -62,5 +62,6 @@ export const WORK_TABS: TabDef[] = [
 export const INTELLIGENCE_TABS: TabDef[] = [
   { label: "Ask", path: "/ask" },
   { label: "Coaching", path: "/coaching" },
+  { label: "Digest", path: "/digest" },
   { label: "Routines", path: "/routines" },
 ];

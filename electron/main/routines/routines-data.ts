@@ -9,6 +9,13 @@
 import { getDb } from '../storage/database'
 import type { RoutineConfig } from './routines-engine'
 
+/** Return YYYY-MM-DD in the user's local timezone (not UTC). */
+function localDate(offset = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export async function assembleRoutineData(routine: RoutineConfig): Promise<string> {
   switch (routine.builtin_type) {
     case 'morning_briefing': return assembleMorningBriefing()
@@ -23,7 +30,8 @@ export async function assembleRoutineData(routine: RoutineConfig): Promise<strin
 async function assembleMorningBriefing(): Promise<string> {
   const db = getDb()
   const parts: string[] = []
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate()
+  const threeDaysAgo = localDate(-3)
 
   // Today's notes (already recorded today)
   const todayNotes = db.prepare(`
@@ -77,11 +85,11 @@ async function assembleMorningBriefing(): Promise<string> {
     FROM notes n
     LEFT JOIN note_people np ON np.note_id = n.id
     LEFT JOIN people p ON p.id = np.person_id
-    WHERE n.date >= date('now', '-3 days') AND n.date < ?
+    WHERE n.date >= ? AND n.date < ?
     GROUP BY n.id
     ORDER BY n.date DESC, n.time DESC
     LIMIT 5
-  `).all(today) as any[]
+  `).all(threeDaysAgo, today) as any[]
   if (recentNotes.length > 0) {
     parts.push('Recent meetings:')
     for (const n of recentNotes) {
@@ -97,31 +105,33 @@ async function assembleMorningBriefing(): Promise<string> {
 async function assembleWeeklyRecap(): Promise<string> {
   const db = getDb()
   const parts: string[] = []
+  const today = localDate()
+  const sevenDaysAgo = localDate(-7)
 
   // Notes from past 7 days
   const weekNotes = db.prepare(`
-    SELECT n.id, n.title, n.date FROM notes
-    WHERE date >= date('now', '-7 days')
-    ORDER BY date DESC
-  `).all() as any[]
+    SELECT n.id, n.title, n.date FROM notes n
+    WHERE n.date >= ?
+    ORDER BY n.date DESC
+  `).all(sevenDaysAgo) as any[]
   parts.push(`Meetings this week: ${weekNotes.length}`)
   if (weekNotes.length > 0) {
     parts.push('  ' + weekNotes.map(n => `${n.date}: ${n.title || 'Untitled'}`).join('\n  '))
   }
 
   // Commitments stats
-  const created = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE created_at >= date('now', '-7 days')`).get() as any
-  const completed = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'completed' AND completed_at >= date('now', '-7 days')`).get() as any
-  const overdue = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'open' AND due_date < date('now')`).get() as any
+  const created = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE created_at >= ?`).get(sevenDaysAgo) as any
+  const completed = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'completed' AND completed_at >= ?`).get(sevenDaysAgo) as any
+  const overdue = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'open' AND due_date < ?`).get(today) as any
   parts.push(`Commitments: ${created?.cnt || 0} created, ${completed?.cnt || 0} completed, ${overdue?.cnt || 0} overdue`)
 
   // Decisions this week
   const decisions = db.prepare(`
     SELECT d.text, n.title as note_title FROM decisions d
     LEFT JOIN notes n ON n.id = d.note_id
-    WHERE d.created_at >= date('now', '-7 days')
+    WHERE d.created_at >= ?
     ORDER BY d.created_at DESC
-  `).all() as any[]
+  `).all(sevenDaysAgo) as any[]
   parts.push(`Decisions made: ${decisions.length}`)
   for (const d of decisions.slice(0, 5)) {
     parts.push(`  - ${d.text}${d.note_title ? ` (from: ${d.note_title})` : ''}`)
@@ -133,11 +143,11 @@ async function assembleWeeklyRecap(): Promise<string> {
     FROM people p
     JOIN note_people np ON np.person_id = p.id
     JOIN notes n ON n.id = np.note_id
-    WHERE n.date >= date('now', '-7 days')
+    WHERE n.date >= ?
     GROUP BY p.id
     ORDER BY cnt DESC
     LIMIT 5
-  `).all() as any[]
+  `).all(sevenDaysAgo) as any[]
   if (peopleSeen.length > 0) {
     parts.push('Most-seen people: ' + peopleSeen.map(p => `${p.name} (${p.cnt})`).join(', '))
   }
@@ -145,9 +155,9 @@ async function assembleWeeklyRecap(): Promise<string> {
   // Active projects
   const projects = db.prepare(`
     SELECT p.name,
-      (SELECT COUNT(*) FROM note_projects np JOIN notes n2 ON n2.id = np.note_id WHERE np.project_id = p.id AND n2.date >= date('now', '-7 days')) as weekMeetings
+      (SELECT COUNT(*) FROM note_projects np JOIN notes n2 ON n2.id = np.note_id WHERE np.project_id = p.id AND n2.date >= ?) as weekMeetings
     FROM projects p WHERE p.status = 'active'
-  `).all() as any[]
+  `).all(sevenDaysAgo) as any[]
   const activeProjects = projects.filter((p: any) => p.weekMeetings > 0)
   if (activeProjects.length > 0) {
     parts.push('Active projects: ' + activeProjects.map((p: any) => `${p.name} (${p.weekMeetings} meetings)`).join(', '))
@@ -160,7 +170,7 @@ async function assembleWeeklyRecap(): Promise<string> {
 
 async function assembleOverdueCommitments(): Promise<string> {
   const db = getDb()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate()
 
   const overdue = db.prepare(`
     SELECT c.text, c.owner, c.due_date, p.name as assignee_name, n.title as note_title
@@ -190,12 +200,14 @@ async function assembleCustom(dataQueryJson: string | null): Promise<string> {
   let dataQuery: any = {}
   try { if (dataQueryJson) dataQuery = JSON.parse(dataQueryJson) } catch { /* malformed query JSON, use defaults */ }
 
+  const fourteenDaysAgo = localDate(-14)
+
   // Recent notes (last 14 days)
   const notes = db.prepare(`
-    SELECT n.title, n.date, n.summary FROM notes
-    WHERE date >= date('now', '-14 days')
-    ORDER BY date DESC LIMIT 20
-  `).all() as any[]
+    SELECT n.title, n.date, n.summary FROM notes n
+    WHERE n.date >= ?
+    ORDER BY n.date DESC LIMIT 20
+  `).all(fourteenDaysAgo) as any[]
   parts.push(`Recent meetings (${notes.length}):`)
   for (const n of notes) {
     let overview = ''

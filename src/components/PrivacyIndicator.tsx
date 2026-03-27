@@ -22,10 +22,13 @@ export function PrivacyIndicator() {
   useEffect(() => {
     if (showDetail && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      // Ensure popup doesn't overflow viewport right edge (w-64 = 256px)
+      const popupWidth = 288;
+      const maxLeft = window.innerWidth - popupWidth - 8;
       setPopupStyle({
         position: "fixed",
         top: rect.bottom + 4,
-        left: Math.max(8, rect.left),
+        left: Math.min(Math.max(8, rect.left), maxLeft),
         zIndex: 9999,
       });
     }
@@ -49,28 +52,28 @@ export function PrivacyIndicator() {
       {showDetail && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setShowDetail(false)} />
-          <div style={popupStyle} className="w-64 rounded-lg border border-border bg-card p-3 shadow-lg text-xs space-y-2">
+          <div style={popupStyle} className="w-72 rounded-lg border border-border bg-card p-3 shadow-lg text-xs space-y-2">
             <div className="font-medium text-foreground">Data boundary</div>
-            <div className="flex items-center gap-2">
-              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+            <div className="flex items-start gap-2">
+              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
               <span><strong>Audio</strong> — always stays on your device</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               {isCloudSTT
-                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
               }
               <span><strong>Transcription</strong> — {isCloudSTT ? "text sent to cloud STT" : "processed on device"}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               {isCloudAI
-                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
               }
               <span><strong>AI notes & chat</strong> — {isCloudAI ? "text sent to cloud LLM" : "processed on device"}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+            <div className="flex items-start gap-2">
+              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
               <span><strong>Database</strong> — always local (SQLite)</span>
             </div>
           </div>

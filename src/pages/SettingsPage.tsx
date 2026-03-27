@@ -1176,11 +1176,6 @@ function AccountSection() {
 
   const handleSave = () => {
     localStorage.setItem(ACCOUNT_LS_KEY, JSON.stringify(account));
-    if (assistantName.trim()) {
-      localStorage.setItem('assistant-name', assistantName.trim());
-    } else {
-      localStorage.removeItem('assistant-name');
-    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -1205,8 +1200,6 @@ function AccountSection() {
     { key: "email", label: "Email", placeholder: "you@example.com" },
     { key: "company", label: "Company", placeholder: "e.g. Acme Inc." },
   ];
-
-  const [assistantName, setAssistantName] = useState(localStorage.getItem('assistant-name') || '');
 
   return (
     <>
@@ -1279,17 +1272,6 @@ function AccountSection() {
           </div>
         )}
 
-        {/* Assistant name customization */}
-        <div>
-          <label className="text-[13px] font-medium text-foreground">Assistant Name</label>
-          <input
-            value={assistantName}
-            onChange={(e) => { setAssistantName(e.target.value); setSaved(false); }}
-            placeholder="e.g. Copart Genie (defaults to OSChief)"
-            className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-          />
-          <p className="text-[11px] text-muted-foreground mt-1">Custom name shown on the Ask page</p>
-        </div>
       </div>
       <div className="flex items-center gap-2">
         <button

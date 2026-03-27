@@ -428,6 +428,8 @@ const electronAPI = {
   context: {
     assemble: (data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) =>
       ipcRenderer.invoke('context:assemble', data) as Promise<any>,
+    liveExtract: (recentTranscript: string) =>
+      ipcRenderer.invoke('context:live-extract', recentTranscript) as Promise<any>,
   },
 
   prep: {
@@ -502,6 +504,17 @@ const electronAPI = {
         focusNext: string
         recurringTags: string[]
       } | null>,
+    analyzeAll: () =>
+      ipcRenderer.invoke('coaching:analyze-all') as Promise<{ ok: boolean; total: number; completed: number; errors: string[] }>,
+    onAnalyzeProgress: (callback: (data: { current: number; total: number; noteTitle?: string }) => void) => {
+      const handler = (_e: any, data: any) => callback(data)
+      ipcRenderer.on('coaching:analyze-progress', handler)
+      return () => ipcRenderer.removeListener('coaching:analyze-progress', handler)
+    },
+  },
+
+  digest: {
+    getWeekly: () => ipcRenderer.invoke('digest:get-weekly') as Promise<any>,
   },
 
   kb: {

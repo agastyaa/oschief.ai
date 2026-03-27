@@ -259,6 +259,87 @@ export default function NewNotePage() {
     return () => { setMeetingContext(null); };
   }, [isCapturing, calendarEvents]);
 
+  // Live context pulse — every 2 minutes during recording, extract entities from recent transcript
+  useEffect(() => {
+    if (!isCapturing || !api?.context?.liveExtract) return;
+    const PULSE_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+    const LOOKBACK_LINES = 30; // last ~30 transcript lines
+
+    const interval = setInterval(async () => {
+      if (transcriptLines.length < 3) return; // need some transcript to analyze
+      const recent = transcriptLines.slice(-LOOKBACK_LINES).map(l => `${l.speaker}: ${l.text}`).join('\n');
+      try {
+        const liveResult = await api.context.liveExtract(recent);
+        if (!liveResult) return;
+        // Merge live-detected context into existing meetingContext
+        setMeetingContext(prev => {
+          if (!prev) {
+            // No existing context — create from live results
+            return {
+              previousMeetings: liveResult.matchedPeople.map((p: any) => ({
+                personName: p.name,
+                meetings: p.recentMeetings || [],
+              })),
+              openCommitments: liveResult.matchedPeople.flatMap((p: any) =>
+                (p.openCommitments || []).map((c: any) => ({
+                  text: c.text, owner: p.name.toLowerCase(), assignee: null,
+                  dueDate: c.dueDate, isOverdue: c.dueDate ? c.dueDate < new Date().toISOString().slice(0, 10) : false,
+                }))
+              ),
+              recentDecisions: liveResult.matchedProjects.flatMap((p: any) =>
+                (p.recentDecisions || []).map((d: any) => ({
+                  text: d.text, context: null, date: d.date, noteTitle: p.name,
+                }))
+              ),
+              relatedNotes: [],
+              projects: liveResult.matchedProjects.map((p: any) => ({
+                id: p.id, name: p.name, meetingCount: 0, status: p.status,
+              })),
+            };
+          }
+          // Merge into existing context — add new people/projects, avoid duplicates
+          const existingPeopleNames = new Set(prev.previousMeetings.map(pm => pm.personName.toLowerCase()));
+          const existingProjectIds = new Set(prev.projects.map(p => p.id));
+          const newPeople = (liveResult.matchedPeople || []).filter((p: any) => !existingPeopleNames.has(p.name.toLowerCase()));
+          const newProjects = (liveResult.matchedProjects || []).filter((p: any) => !existingProjectIds.has(p.id));
+
+          if (newPeople.length === 0 && newProjects.length === 0) return prev;
+
+          return {
+            ...prev,
+            previousMeetings: [
+              ...prev.previousMeetings,
+              ...newPeople.map((p: any) => ({ personName: p.name, meetings: p.recentMeetings || [] })),
+            ],
+            openCommitments: [
+              ...prev.openCommitments,
+              ...newPeople.flatMap((p: any) =>
+                (p.openCommitments || []).map((c: any) => ({
+                  text: c.text, owner: p.name.toLowerCase(), assignee: null,
+                  dueDate: c.dueDate, isOverdue: c.dueDate ? c.dueDate < new Date().toISOString().slice(0, 10) : false,
+                }))
+              ),
+            ],
+            recentDecisions: [
+              ...(prev.recentDecisions || []),
+              ...newProjects.flatMap((p: any) =>
+                (p.recentDecisions || []).map((d: any) => ({ text: d.text, context: null, date: d.date, noteTitle: p.name }))
+              ),
+            ],
+            projects: [
+              ...prev.projects,
+              ...newProjects.map((p: any) => ({ id: p.id, name: p.name, meetingCount: 0, status: p.status })),
+            ],
+          };
+        });
+      } catch (err) {
+        console.error('[live-context] Pulse failed:', err);
+      }
+    }, PULSE_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [isCapturing, api, transcriptLines.length > 0]);
+
   const activeSTTLabel = useMemo(() => {
     if (!selectedSTTModel) return null;
     if (selectedSTTModel === "system:default") return "Apple Speech (macOS)";

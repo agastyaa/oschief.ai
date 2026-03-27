@@ -1278,6 +1278,17 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- Live Context (mid-meeting entity extraction) ---
+  ipcMain.handle('context:live-extract', async (_e, recentTranscript: string) => {
+    try {
+      const { extractAndEnrich } = await import('./memory/live-context')
+      return await extractAndEnrich(recentTranscript)
+    } catch (err: any) {
+      console.error('[context:live-extract]', err)
+      return null
+    }
+  })
+
   // --- Prep Briefs ---
   ipcMain.handle('prep:generate', async (_e, data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string; model: string }) => {
     try {
@@ -1346,11 +1357,172 @@ export function registerIPCHandlers(): void {
   })
   ipcMain.handle('coaching:analyze-conversation', async (_e, payload: any) => {
     const { analyzeConversationQuality } = await import('./models/conversation-coaching')
+    // Inject user name from settings so coaching knows who "You"/"Me" is
+    if (!payload.userName) {
+      payload.userName = getSetting('accountDisplayName') || undefined
+    }
     return analyzeConversationQuality(payload)
   })
   ipcMain.handle('coaching:aggregate-insights', async (_e, meetings: any[], roleId: string, model?: string) => {
     const { aggregateCrossMeetingInsights } = await import('./models/conversation-coaching')
     return aggregateCrossMeetingInsights(meetings, roleId, model)
+  })
+
+  // Batch-analyze all meetings that have transcripts but no conversation insights
+  ipcMain.handle('coaching:analyze-all', async (_e) => {
+    const { analyzeConversationQuality } = await import('./models/conversation-coaching')
+    const { computeCoachingMetrics } = await import('../preload/index').catch(() => ({ computeCoachingMetrics: null }))
+    const db = (await import('./storage/database')).getDb()
+    const userName = getSetting('accountDisplayName') || undefined
+    const roleId = getSetting('accountRoleId') || 'pm'
+
+    // Find notes with transcript but missing conversationInsights
+    const notes = db.prepare(`
+      SELECT id, title, transcript, coaching_metrics FROM notes
+      WHERE transcript IS NOT NULL AND transcript != '' AND transcript != '[]'
+    `).all() as any[]
+
+    const needsAnalysis = notes.filter(n => {
+      if (!n.transcript) return false
+      try {
+        const cm = n.coaching_metrics ? JSON.parse(n.coaching_metrics) : null
+        return !cm?.conversationInsights?.headline
+      } catch { return true }
+    })
+
+    const win = BrowserWindow.getAllWindows()[0]
+    let completed = 0
+    const total = needsAnalysis.length
+    const errors: string[] = []
+
+    for (const note of needsAnalysis) {
+      try {
+        let transcript: any[]
+        try { transcript = JSON.parse(note.transcript) } catch { continue }
+        if (!Array.isArray(transcript) || transcript.length === 0) continue
+
+        // Compute basic metrics from transcript
+        const yourLines = transcript.filter((l: any) => l.speaker === 'You' || l.speaker === 'Me')
+        const otherLines = transcript.filter((l: any) => l.speaker !== 'You' && l.speaker !== 'Me')
+        const yourWords = yourLines.reduce((sum: number, l: any) => sum + (l.text?.split(/\s+/).length || 0), 0)
+        const otherWords = otherLines.reduce((sum: number, l: any) => sum + (l.text?.split(/\s+/).length || 0), 0)
+        const totalWords = yourWords + otherWords
+        const metrics = {
+          yourSpeakingTimeSec: yourLines.length * 10,
+          othersSpeakingTimeSec: otherLines.length * 10,
+          talkToListenRatio: totalWords > 0 ? yourWords / totalWords : 0.5,
+          wordsPerMinute: 0,
+          fillerWordsPerMinute: 0,
+          overallScore: 50,
+        }
+
+        const result = await analyzeConversationQuality({
+          transcript,
+          metrics,
+          roleId,
+          userName,
+        })
+
+        if (result.ok) {
+          // Merge into existing coaching_metrics
+          let existing: any = {}
+          try { if (note.coaching_metrics) existing = JSON.parse(note.coaching_metrics) } catch {}
+          existing.conversationInsights = result.data
+          db.prepare('UPDATE notes SET coaching_metrics = ? WHERE id = ?')
+            .run(JSON.stringify(existing), note.id)
+        } else {
+          errors.push(`${note.title || note.id}: ${result.message}`)
+        }
+      } catch (err: any) {
+        errors.push(`${note.title || note.id}: ${err.message}`)
+      }
+
+      completed++
+      if (win) {
+        win.webContents.send('coaching:analyze-progress', { current: completed, total, noteTitle: note.title })
+      }
+    }
+
+    return { ok: true, total, completed, errors }
+  })
+
+  // --- Weekly Digest ---
+  ipcMain.handle('digest:get-weekly', async () => {
+    const db = (await import('./storage/database')).getDb()
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const sevenAgo = new Date(now.getTime() - 7 * 86400000)
+    const sevenDaysAgo = `${sevenAgo.getFullYear()}-${String(sevenAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenAgo.getDate()).padStart(2, '0')}`
+
+    // Meetings this week
+    const meetings = db.prepare(`
+      SELECT n.id, n.title, n.date, n.time, n.duration, n.coaching_metrics
+      FROM notes n WHERE n.date >= ? ORDER BY n.date DESC
+    `).all(sevenDaysAgo) as any[]
+
+    // Decisions
+    const decisions = db.prepare(`
+      SELECT d.id, d.text, d.context, d.date, n.title as noteTitle, n.id as noteId
+      FROM decisions d LEFT JOIN notes n ON n.id = d.note_id
+      WHERE d.created_at >= ? ORDER BY d.created_at DESC
+    `).all(sevenDaysAgo) as any[]
+
+    // Commitments
+    const commitmentsCreated = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE created_at >= ?`).get(sevenDaysAgo) as any
+    const commitmentsCompleted = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'completed' AND completed_at >= ?`).get(sevenDaysAgo) as any
+    const commitmentsOverdue = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'open' AND due_date < ?`).get(today) as any
+    const overdueItems = db.prepare(`
+      SELECT c.text, c.owner, c.due_date, p.name as assigneeName
+      FROM commitments c LEFT JOIN people p ON p.id = c.assignee_id
+      WHERE c.status = 'open' AND c.due_date < ? ORDER BY c.due_date ASC LIMIT 5
+    `).all(today) as any[]
+
+    // People met
+    const people = db.prepare(`
+      SELECT p.id, p.name, p.company, p.role, COUNT(np.note_id) as meetingCount
+      FROM people p JOIN note_people np ON np.person_id = p.id
+      JOIN notes n ON n.id = np.note_id
+      WHERE n.date >= ?
+      GROUP BY p.id ORDER BY meetingCount DESC LIMIT 10
+    `).all(sevenDaysAgo) as any[]
+
+    // Active projects with this week's activity
+    const projects = db.prepare(`
+      SELECT p.id, p.name, p.status,
+        (SELECT COUNT(*) FROM note_projects np2 JOIN notes n2 ON n2.id = np2.note_id WHERE np2.project_id = p.id AND n2.date >= ?) as weekMeetings
+      FROM projects p WHERE p.status = 'active'
+    `).all(sevenDaysAgo) as any[]
+    const activeProjects = projects.filter((p: any) => p.weekMeetings > 0)
+
+    // Coaching trend
+    const coachingScores = meetings
+      .filter((m: any) => {
+        try { return m.coaching_metrics && JSON.parse(m.coaching_metrics)?.overallScore > 0 } catch { return false }
+      })
+      .map((m: any) => {
+        const cm = JSON.parse(m.coaching_metrics)
+        return { date: m.date, score: cm.overallScore, headline: cm.conversationInsights?.headline || null }
+      })
+
+    // Total meeting duration
+    const totalDurationMin = meetings.reduce((sum: number, m: any) => sum + (m.duration || 0), 0)
+
+    return {
+      weekRange: { from: sevenDaysAgo, to: today },
+      meetings: meetings.map((m: any) => ({ id: m.id, title: m.title, date: m.date, time: m.time, duration: m.duration })),
+      meetingCount: meetings.length,
+      totalDurationMin,
+      decisions,
+      commitments: {
+        created: commitmentsCreated?.cnt || 0,
+        completed: commitmentsCompleted?.cnt || 0,
+        overdue: commitmentsOverdue?.cnt || 0,
+        overdueItems,
+      },
+      people,
+      projects: activeProjects,
+      coachingScores,
+    }
   })
 
   // --- Knowledge Base ---
