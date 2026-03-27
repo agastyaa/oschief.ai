@@ -26,16 +26,16 @@ export function SectionTabs({ tabs }: { tabs: TabDef[] }) {
   };
 
   return (
-    <div className="flex gap-1 border-b border-border px-1 pb-0">
+    <div className="flex gap-0.5 px-1">
       {tabs.map((tab) => (
         <button
           key={tab.path + (tab.matchQuery || "")}
           onClick={() => navigate(tab.path + (tab.matchQuery ? `?${tab.matchQuery}` : ""))}
           className={cn(
-            "px-3 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px",
+            "px-2.5 py-1.5 text-[13px] font-medium transition-colors rounded-md",
             isTabActive(tab)
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              ? "bg-secondary text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
           )}
         >
           {tab.label}

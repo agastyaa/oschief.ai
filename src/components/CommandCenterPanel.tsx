@@ -96,7 +96,7 @@ export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
   return (
     <div className="w-[280px] border-l border-border bg-card/50 overflow-y-auto flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      <div className="flex items-center justify-between px-3 py-2">
         <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">Context</span>
         <button onClick={() => setCollapsed(true)} className="p-0.5 rounded hover:bg-secondary">
           <ChevronRight className="h-3 w-3 text-muted-foreground" />
@@ -246,11 +246,11 @@ export default function CommandCenterPanel({ context, onLookupPerson }: Props) {
 
 function ContextSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-card">
-      <div className="px-2 py-1.5 border-b border-border">
-        <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">{title}</span>
+    <div className="mt-3">
+      <div className="px-1 mb-1.5">
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{title}</span>
       </div>
-      <div className="divide-y divide-border/50">
+      <div className="space-y-0.5">
         {children}
       </div>
     </div>

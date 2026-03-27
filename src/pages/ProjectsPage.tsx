@@ -234,12 +234,30 @@ export default function ProjectsPage() {
                     </div>
                   )}
                   {project.status === "active" && (
+                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleArchive(project.id)}
+                        className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                        title="Archive"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Delete "${project.name}"? This cannot be undone.`)) handleDelete(project.id) }}
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {(project.status === "archived" || project.status === "completed") && (
                     <button
-                      onClick={e => { e.stopPropagation(); handleArchive(project.id) }}
-                      className="p-1 rounded hover:bg-secondary text-muted-foreground"
-                      title="Archive"
+                      onClick={e => { e.stopPropagation(); if (confirm(`Delete "${project.name}"?`)) handleDelete(project.id) }}
+                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                      title="Delete"
                     >
-                      <Archive className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>

@@ -148,9 +148,9 @@ export function Sidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  // Reusable nav item — reduces 15 lines per button to 1
+  // Reusable nav item — icon is optional (Dia-style: labels-only for primary nav)
   const NavItem = ({ icon: Icon, label, to, onClick, active, iconClass }: {
-    icon: any; label: string; to?: string; onClick?: () => void;
+    icon?: any; label: string; to?: string; onClick?: () => void;
     active?: boolean; iconClass?: string;
   }) => {
     const isItemActive = active ?? (to ? isActive(to) : false);
@@ -158,13 +158,13 @@ export function Sidebar() {
       <button
         onClick={onClick || (() => to && navigate(to))}
         className={cn(
-          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+          "flex items-center gap-2 rounded-md px-2 py-1 text-[13px] transition-colors",
           isItemActive
             ? "bg-secondary text-foreground font-medium"
             : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
         )}
       >
-        <Icon className={cn("h-3.5 w-3.5", iconClass)} />
+        {Icon && <Icon className={cn("h-3.5 w-3.5", iconClass)} />}
         {label}
       </button>
     );
@@ -179,7 +179,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-56 flex-shrink-0 flex-col bg-sidebar">
+    <aside className="flex h-screen w-48 flex-shrink-0 flex-col bg-sidebar">
       {/* Drag region for window movement (Electron hiddenInset titlebar) */}
       {isElectron && (
         <div
@@ -233,15 +233,14 @@ export function Sidebar() {
 
       {/* Today */}
       <nav className="flex flex-col gap-0.5 px-3 mt-1">
-        <NavItem icon={Home} label="Today" to="/" active={
+        <NavItem label="Today" to="/" active={
           isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder") && !location.search.includes("view=all")
         } />
       </nav>
 
       {/* Meetings — expands to show Notes | Calendar | Series via SectionTabs on target pages */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+      <nav className="flex flex-col gap-0.5 px-3 mt-2">
         <NavItem
-          icon={FileText}
           label="Meetings"
           to="/?view=all"
           active={
@@ -324,9 +323,8 @@ export function Sidebar() {
       </nav>
 
       {/* Your Work — People, Projects, Commitments, Decisions via SectionTabs */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+      <nav className="flex flex-col gap-0.5 px-3 mt-2">
         <NavItem
-          icon={Briefcase}
           label="Your Work"
           to="/people"
           active={isActive("/people") || isActive("/projects") || isActive("/project/") || isActive("/commitments") || isActive("/decisions")}
@@ -334,13 +332,11 @@ export function Sidebar() {
       </nav>
 
       {/* Intelligence — Ask, Coaching, Routines via SectionTabs */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-3">
+      <nav className="flex flex-col gap-0.5 px-3 mt-2">
         <NavItem
-          icon={Sparkles}
           label="Intelligence"
           to="/ask"
-          active={isActive("/ask") || isActive("/coaching") || isActive("/routines")}
-          iconClass="text-accent/90"
+          active={isActive("/ask") || isActive("/coaching") || isActive("/routines") || isActive("/digest")}
         />
       </nav>
 

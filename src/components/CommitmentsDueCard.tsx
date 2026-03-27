@@ -59,7 +59,7 @@ export function CommitmentsDueCard({ commitments }: CommitmentsDueCardProps) {
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-[var(--card-shadow-hover)]"
+      className="rounded-lg border border-border bg-card p-4 card-lift"
       style={{ boxShadow: "var(--card-shadow)" }}
     >
       <div className="flex items-center justify-between mb-3">

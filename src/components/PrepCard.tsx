@@ -61,7 +61,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 cursor-pointer transition-shadow hover:shadow-[var(--card-shadow-hover)]"
+      className="rounded-lg border border-border bg-card p-4 cursor-pointer card-lift"
       style={{ boxShadow: "var(--card-shadow)" }}
       onClick={() => onStartNote?.(event)}
     >

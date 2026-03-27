@@ -877,6 +877,24 @@ export function registerIPCHandlers(): void {
     }
   })
 
+  // --- Apple Calendar (macOS Calendar.app via AppleScript) ---
+  ipcMain.handle('apple:calendar-fetch', async (_e, range?: { daysPast?: number; daysAhead?: number }) => {
+    try {
+      const { fetchAppleCalendarEvents } = await import('./integrations/apple-calendar')
+      return fetchAppleCalendarEvents(range ?? { daysPast: 7, daysAhead: 14 })
+    } catch (err: any) {
+      return { ok: false, events: [], error: err.message }
+    }
+  })
+  ipcMain.handle('apple:calendar-check', async () => {
+    try {
+      const { checkAppleCalendarAccess } = await import('./integrations/apple-calendar')
+      return { ok: await checkAppleCalendarAccess() }
+    } catch {
+      return { ok: false }
+    }
+  })
+
   ipcMain.handle('calendar-local-blocks:list', () => getAllLocalCalendarBlocks())
   ipcMain.handle('calendar-local-blocks:add', (_e, block: { id: string; title: string; startIso: string; endIso: string; noteId?: string | null }) => {
     addLocalCalendarBlock(block)

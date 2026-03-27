@@ -247,11 +247,6 @@ const Index = () => {
           selected ? "bg-accent/8 ring-1 ring-accent/25" : "hover:bg-card/80",
         )}
       >
-        {/* Accent bar */}
-        <span
-          className="w-[3px] shrink-0 rounded-l-lg self-stretch"
-          style={{ backgroundColor: accentFromId(n.id) }}
-        />
         {/* Checkbox area */}
         <button
           onClick={(e) => { e.stopPropagation(); toggleSelect(n.id); }}
@@ -274,16 +269,21 @@ const Index = () => {
         {/* Content */}
         <button
           onClick={() => navigate(isRecording ? `/new-note?session=${n.id}` : `/note/${n.id}`)}
-          className="flex flex-1 items-center gap-3 text-left min-w-0 py-2.5 pr-1"
+          className="flex flex-1 items-center gap-3 text-left min-w-0 py-2 pr-1"
         >
           <div className="flex-1 min-w-0">
             <h3 className="font-body text-[13.5px] font-medium text-foreground truncate leading-snug">
               {n.title}
             </h3>
+            {n.summary?.overview && (
+              <p className="text-[12px] text-muted-foreground/70 truncate leading-snug mt-0.5">
+                {n.summary.overview.slice(0, 80)}
+              </p>
+            )}
           </div>
         </button>
-        <div className="flex items-center gap-2 pr-2 shrink-0">
-          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums">
+        <div className="flex items-center gap-2 pr-2 shrink-0 justify-end">
+          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums text-right whitespace-nowrap">
             {n.timeRange ?? n.time}
           </span>
           {isRecording && (
@@ -308,7 +308,7 @@ const Index = () => {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
         {sidebarOpen && (
-          <div className="w-56 flex-shrink-0 overflow-hidden">
+          <div className="w-48 flex-shrink-0 overflow-hidden">
             <Sidebar />
           </div>
         )}
@@ -326,7 +326,7 @@ const Index = () => {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
         {sidebarOpen && (
-          <div className="w-56 flex-shrink-0 overflow-hidden">
+          <div className="w-48 flex-shrink-0 overflow-hidden">
             <Sidebar />
           </div>
         )}
@@ -399,7 +399,7 @@ const Index = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
-        <div className="w-56 flex-shrink-0 overflow-hidden">
+        <div className="w-48 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}
@@ -422,7 +422,7 @@ const Index = () => {
           </div>
         )}
         <div className="flex-1 overflow-y-auto pb-24">
-          <div className="mx-auto max-w-2xl px-6 py-6 font-body">
+          <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
             {/* ── Header ── */}
             <div className="mb-6">

@@ -226,11 +226,15 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
         // Use full note context for all prompts — Quick Prompts deserve the same quality as Ask page
         const effectiveNotes = noteContext;
 
-        // Build graph context for richer answers (people, projects, decisions)
+        // Build graph context for richer answers — but ONLY on standalone pages.
+        // In-meeting AskBar should answer from the transcript/notes only, not cross-reference
+        // the entire knowledge base (which causes irrelevant commitments/decisions to surface).
         let graphContext = '';
-        try {
-          graphContext = await api?.llm?.buildGraphContext?.() || '';
-        } catch {}
+        if (context !== 'meeting') {
+          try {
+            graphContext = await api?.llm?.buildGraphContext?.() || '';
+          } catch {}
+        }
 
         const contextData: any = {};
         if (effectiveNotes) contextData.notes = effectiveNotes;

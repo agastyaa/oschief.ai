@@ -1709,7 +1709,7 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
-        <div className="w-56 flex-shrink-0 overflow-hidden">
+        <div className="w-48 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}
@@ -1721,7 +1721,7 @@ export default function SettingsPage() {
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
           <div className="flex gap-8">
-            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 sticky top-4 self-start">
+            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 sticky top-0 self-start pt-1">
               {sections.map((s) => (
                 <button
                   key={s.id}
@@ -2512,6 +2512,7 @@ export default function SettingsPage() {
                 <div className="space-y-5 mt-6 border-t border-border pt-5">
                   <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
                   <div className="space-y-2">
+                    <AppleCalendarIntegrationRow />
                     <JiraIntegrationRow />
                     <GoogleCalendarIntegrationRow />
                     <MicrosoftCalendarIntegrationRow />
@@ -2577,11 +2578,9 @@ export default function SettingsPage() {
                             {updateResult === "error" && (
                               <div className="text-right max-w-[240px]">
                                 <span className="text-[11px] text-destructive block">Update check failed</span>
-                                {updateErrorDetail && (
-                                  <span className="text-[10px] text-muted-foreground break-words block mt-0.5" title={updateErrorDetail}>
-                                    {updateErrorDetail}
-                                  </span>
-                                )}
+                                <span className="text-[10px] text-muted-foreground block mt-0.5">
+                                  Could not reach GitHub. Try again later.
+                                </span>
                               </div>
                             )}
                             <button
@@ -2816,6 +2815,63 @@ function SlackIntegrationRow() {
         }}
       />
     </>
+  );
+}
+
+// ── Apple Calendar Integration Row ────────────────────────────────────────
+
+function AppleCalendarIntegrationRow() {
+  const [enabled, setEnabled] = useState(() => localStorage.getItem("syag_apple_calendar_enabled") === "true");
+  const { refreshCalendarConnections } = useCalendar();
+
+  const toggle = async () => {
+    const next = !enabled;
+    localStorage.setItem("syag_apple_calendar_enabled", next ? "true" : "false");
+    setEnabled(next);
+    if (next) {
+      // Check access
+      const api = getElectronAPI();
+      const result = await (api as any)?.apple?.calendarCheck?.();
+      if (!result?.ok) {
+        toast.error("Calendar access denied. Allow OSChief in System Settings → Privacy & Security → Calendars.");
+        localStorage.setItem("syag_apple_calendar_enabled", "false");
+        setEnabled(false);
+        return;
+      }
+      toast.success("Apple Calendar connected");
+    } else {
+      toast.success("Apple Calendar disconnected");
+    }
+    await refreshCalendarConnections();
+  };
+
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border bg-card p-3">
+      <div className="flex items-center gap-2.5">
+        <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="3" width="20" height="19" rx="2" fill="#FF3B30"/>
+          <rect x="2" y="3" width="20" height="5" fill="#D32D26"/>
+          <text x="12" y="17" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">31</text>
+        </svg>
+        <div>
+          <span className="text-[13px] font-medium text-foreground">Apple Calendar</span>
+          <p className="text-[11px] text-muted-foreground">
+            {enabled ? "Reading events from macOS Calendar.app" : "Sync with all calendars on your Mac"}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={toggle}
+        className={cn(
+          "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
+          enabled
+            ? "bg-secondary text-foreground hover:bg-secondary/80"
+            : "bg-primary text-primary-foreground hover:opacity-90"
+        )}
+      >
+        {enabled ? "Disconnect" : "Connect"}
+      </button>
+    </div>
   );
 }
 
