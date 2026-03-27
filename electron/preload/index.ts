@@ -348,6 +348,13 @@ const electronAPI = {
       ipcRenderer.invoke('microsoft:calendar-refresh', clientId, refreshToken) as Promise<{ ok: boolean; accessToken?: string; expiresIn?: number; error?: string }>,
   },
 
+  apple: {
+    calendarFetch: (range?: { daysPast?: number; daysAhead?: number }) =>
+      ipcRenderer.invoke('apple:calendar-fetch', range) as Promise<{ ok: boolean; events: any[]; error?: string }>,
+    calendarCheck: () =>
+      ipcRenderer.invoke('apple:calendar-check') as Promise<{ ok: boolean }>,
+  },
+
   memory: {
     people: {
       getAll: () => ipcRenderer.invoke('memory:people-get-all'),

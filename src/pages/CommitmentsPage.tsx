@@ -74,7 +74,7 @@ const CommitmentsPage = () => {
 
   useEffect(() => {
     loadCommitments()
-    api?.memory?.projects?.getAll().then((p: any[]) => setProjects(p || []))
+    api?.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setProjects(p || []))
   }, [loadCommitments])
 
   const handleToggleStatus = useCallback(async (commitment: Commitment) => {
