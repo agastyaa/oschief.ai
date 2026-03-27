@@ -235,15 +235,27 @@ export async function transcribeWithParakeetCoreML(wavBuffer: Buffer): Promise<s
       proc.on('close', (code) => {
         if (code === 0) {
           // Strip ONNX/CoreML runtime errors and FluidAudio debug prefixes from stdout
-          const cleaned = stdout
-            .replace(/E5RT encountered an STL exception[^.]*\./g, '')
-            .replace(/Failed to PropagateInputTensorShapes[^.]*\./g, '')
-            .replace(/std::runtime_error during type inference[^.]*\./g, '')
-            .replace(/slice_by_index: zero shape error\./g, '')
-            // FluidAudio outputs "Msg = <text>" debug lines — strip the prefix
-            .replace(/\bMsg\s*=\s*/g, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim()
+          // FluidAudio outputs lines like "Msg = <text>" — process line-by-line to extract text reliably
+          const lines = stdout.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean)
+          const textLines: string[] = []
+          for (const line of lines) {
+            // Strip "Msg = " or "Msg=" prefix (case-insensitive, with/without spaces)
+            const msgMatch = line.match(/^Msg\s*=\s*(.*)$/i)
+            if (msgMatch) {
+              const content = msgMatch[1].trim()
+              if (content) textLines.push(content)
+            } else {
+              // Non-Msg line: strip known ONNX/CoreML errors, keep anything else
+              const errStripped = line
+                .replace(/E5RT encountered an STL exception[^.]*\./g, '')
+                .replace(/Failed to PropagateInputTensorShapes[^.]*\./g, '')
+                .replace(/std::runtime_error during type inference[^.]*\./g, '')
+                .replace(/slice_by_index: zero shape error\./g, '')
+                .trim()
+              if (errStripped) textLines.push(errStripped)
+            }
+          }
+          const cleaned = textLines.join(' ').replace(/\s{2,}/g, ' ').trim()
           if (stdout !== cleaned) {
             console.warn('[parakeet-coreml] Stripped ONNX runtime errors from transcript output')
           }

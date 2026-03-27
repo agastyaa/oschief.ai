@@ -869,6 +869,8 @@ function filterHallucinatedTranscript(text: string): string | null {
   for (const pat of PROMPT_SUBSTRINGS_TO_STRIP) {
     cleaned = cleaned.replace(pat, '')
   }
+  // Safety net: strip any leaked "Msg = " prefixes from FluidAudio/Parakeet CoreML output
+  cleaned = cleaned.replace(/\bMsg\s*=\s*/gi, '')
   cleaned = cleaned.replace(/\s{2,}/g, ' ').trim()
   if (!cleaned) return null
 
