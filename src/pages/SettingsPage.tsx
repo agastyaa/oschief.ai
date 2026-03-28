@@ -1987,7 +1987,7 @@ export default function SettingsPage() {
                                       <Check className="h-3 w-3" />
                                       Ready
                                     </span>
-                                    {model.id.includes('mlx') && (
+                                    {model.id.startsWith('mlx-whisper') && (
                                       <button
                                         onClick={() => handleRepairModel(model.id)}
                                         className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"

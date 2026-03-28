@@ -38,7 +38,11 @@ export function LiveMeetingIndicator() {
   }, [activeSession, location.pathname]);
 
   const handleGoToNote = useCallback(() => {
-    navigate(`/new-note?session=${activeSession?.noteId}`);
+    if (activeSession?.noteId) {
+      navigate(`/new-note?session=${activeSession.noteId}`);
+    } else {
+      navigate('/new-note');
+    }
   }, [activeSession?.noteId, navigate]);
 
   const prefs = loadPreferences();
@@ -55,7 +59,9 @@ export function LiveMeetingIndicator() {
   return (
     <div
       className="fixed top-3 right-4 z-[9999]"
+      onClick={handleGoToNote}
       style={{
+        cursor: "pointer",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(-8px)",
         transition: "transform 0.25s ease, opacity 0.2s ease",

@@ -11,6 +11,7 @@ let mainWindow: BrowserWindow | null = null
 // Meeting state for tray
 let currentMeeting: { title: string; startTime: number } | null = null
 let isRecording = false
+let recordingStartTime = 0
 let titleUpdateInterval: ReturnType<typeof setInterval> | null = null
 
 const TRAY_ICON_NAME = 'tray-icon-template-2x.png'
@@ -91,15 +92,17 @@ function stopTitleUpdater(): void {
 function updateTrayTitle(): void {
   if (!tray) return
 
-  if (isRecording && currentMeeting) {
-    // Show: "Meeting Name  00:42" next to the tray icon (like Apple Music shows song title)
-    const elapsed = formatElapsed(currentMeeting.startTime)
-    const shortTitle = currentMeeting.title.length > 20
-      ? currentMeeting.title.slice(0, 18) + '…'
-      : currentMeeting.title
-    tray.setTitle(` ${shortTitle}  ${elapsed}`)
-  } else if (isRecording) {
-    tray.setTitle(' Recording')
+  // Discreet mode: never show "Recording" or meeting title in menu bar text.
+  // Other people on screen share can see the menu bar — only show a subtle
+  // elapsed timer so the user knows recording is active without broadcasting it.
+  if (isRecording) {
+    const startTime = currentMeeting?.startTime || recordingStartTime
+    if (startTime) {
+      const elapsed = formatElapsed(startTime)
+      tray.setTitle(` ${elapsed}`)
+    } else {
+      tray.setTitle('')
+    }
   } else {
     tray.setTitle('')
   }
@@ -229,11 +232,13 @@ export function updateTrayRecordingState(recording: boolean): void {
   tray.setImage(recording ? createRecordingIcon() : createTrayIcon())
 
   if (recording) {
+    if (!recordingStartTime) recordingStartTime = Date.now()
     startTitleUpdater()
   } else {
     stopTitleUpdater()
     tray.setTitle('')
     currentMeeting = null
+    recordingStartTime = 0
   }
 
   rebuildMenu()

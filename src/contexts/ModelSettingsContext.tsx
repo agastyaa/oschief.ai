@@ -751,7 +751,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       }
     }
     localModels
-      .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded")
+      .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded" && m.id !== "mlx-qwen3-4b")
       .forEach((m) => models.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local" }));
     Object.entries(connectedProviders)
       .filter(([_, v]) => v.connected)

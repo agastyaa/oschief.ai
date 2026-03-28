@@ -19,6 +19,9 @@ import {
   FileText,
   TicketCheck,
   ClipboardList,
+  Users,
+  History,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { askSyagInputShell, askSyagPanelShell, askSyagPanelHeader } from "@/lib/ask-syag-styles";
@@ -30,7 +33,7 @@ import { ChatMessageContent } from "@/components/ChatMessageContent";
 export const WHAT_SHOULD_I_SAY_PROMPT =
   "What should I say next? Using this meeting’s transcript and notes, give 2–4 short, concrete things I could say. If I was just mentioned by name, address that first.";
 
-type SlashPromptGroup = "live" | "catch_up" | "growth" | "output";
+type SlashPromptGroup = "live" | "catch_up" | "growth" | "output" | "context";
 
 export type SlashPromptDefinition = {
   label: string;
@@ -42,6 +45,7 @@ export type SlashPromptDefinition = {
 
 const SLASH_GROUP_LABEL: Record<SlashPromptGroup, string> = {
   live: "In the moment",
+  context: "Context",
   catch_up: "Catch up",
   growth: "Level up",
   output: "Generate",
@@ -55,6 +59,27 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
     icon: MessageCircle,
     group: "live",
     prompt: WHAT_SHOULD_I_SAY_PROMPT,
+  },
+  {
+    label: "What do I owe?",
+    description: "Open commitments from past meetings",
+    icon: CheckSquare,
+    group: "context",
+    prompt: "Based on the meeting context, what are my open commitments and promises? List anything overdue first, then upcoming items. Include who I owe them to and any due dates.",
+  },
+  {
+    label: "Meeting history",
+    description: "Past meetings with these attendees",
+    icon: History,
+    group: "context",
+    prompt: "Based on the meeting context, summarize my meeting history with the current attendees. What have we discussed before? What decisions were made? What projects are we working on together?",
+  },
+  {
+    label: "Who's in this meeting?",
+    description: "Context on attendees and relationships",
+    icon: Users,
+    group: "context",
+    prompt: "Based on the meeting context, tell me about the people in this meeting. What's our history? What projects do we share? Any open items between us?",
   },
   {
     label: "TL;DR",
@@ -130,6 +155,8 @@ interface AskBarProps {
   context?: "home" | "meeting";
   meetingTitle?: string;
   noteContext?: string;
+  /** Formatted meeting graph context (people, commitments, decisions, projects) for on-demand context. */
+  meetingGraphContext?: string;
   coachingMetrics?: any;
   leftSlot?: React.ReactNode;
   /** Slot for Generate summary button, shown beside pause when paused */
@@ -149,7 +176,7 @@ interface AskBarProps {
   onTriggerMentionLLM?: () => Promise<void>;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
+export function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -226,11 +253,14 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
         // Use full note context for all prompts — Quick Prompts deserve the same quality as Ask page
         const effectiveNotes = noteContext;
 
-        // Build graph context for richer answers — but ONLY on standalone pages.
-        // In-meeting AskBar should answer from the transcript/notes only, not cross-reference
-        // the entire knowledge base (which causes irrelevant commitments/decisions to surface).
+        // Build graph context for richer answers.
+        // In meeting mode: use the pre-formatted meetingGraphContext (people, commitments, decisions)
+        // instead of the full knowledge base (which causes irrelevant results).
+        // On standalone pages: fetch full graph context from the knowledge base.
         let graphContext = '';
-        if (context !== 'meeting') {
+        if (context === 'meeting') {
+          graphContext = meetingGraphContext || '';
+        } else {
           try {
             graphContext = await api?.llm?.buildGraphContext?.() || '';
           } catch {}
@@ -271,7 +301,7 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
       ]);
     }
     setIsLoading(false);
-  }, [input, messages, api, selectedAIModel, noteContext, getActiveAIModelLabel]);
+  }, [input, messages, api, selectedAIModel, noteContext, meetingGraphContext, getActiveAIModelLabel]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showSlashMenu) {
@@ -522,8 +552,8 @@ export function AskBar({ context = "home", meetingTitle, noteContext, coachingMe
                 </div>
                 <div className="overflow-y-auto py-1.5 px-1.5">
                   {SLASH_PROMPT_ITEMS.filter(item => {
-                    // On home page, hide meeting-only prompts (live/output groups)
-                    if (context === 'home') return item.group !== 'live' && item.group !== 'output'
+                    // On home page, hide meeting-only prompts (live/output/context groups)
+                    if (context === 'home') return item.group !== 'live' && item.group !== 'output' && item.group !== 'context'
                     return true
                   }).map((item, index) => {
                     const Icon = item.icon;
