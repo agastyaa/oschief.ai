@@ -38,7 +38,7 @@ let currentSTTModel = ''
 let customVocabulary = ''
 let isProcessing = false
 let isProcessingSince = 0  // timestamp when isProcessing was set true; 0 when idle
-const MAX_PROCESSING_TIME_MS = 30_000  // 30s safety timeout to unstick isProcessing
+const MAX_PROCESSING_TIME_MS = 90_000  // 90s safety timeout to unstick isProcessing (MLX Whisper can take 30-60s on longer chunks)
 
 function clearProcessingLock(notifyIdle = false): void {
   isProcessing = false
@@ -90,6 +90,10 @@ const recentEmittedTexts: Array<{ text: string; time: number; channel: number }>
 const DEDUP_WINDOW_MS_DEFAULT = 15000 // 15s window — if same/similar text was emitted recently, skip (up from 12s)
 const FUZZY_DEDUP_THRESHOLD_DEFAULT = 0.65 // Jaccard word-overlap threshold for cross-channel echo suppression (tightened from 0.75)
 
+/** Recent emitted sentences for inter-chunk sentence-level dedup (prevents cross-chunk sentence repetition). */
+const recentEmittedSentences: Array<{ norm: string; time: number }> = []
+const SENTENCE_DEDUP_WINDOW_MS = 30000 // 30s — sentences older than this are pruned
+
 // Near real-time: process every 6s when active (up from 4s — longer context = better WER), 15s when idle
 const CHUNK_INTERVAL_ACTIVE_MS = 6000
 const CHUNK_INTERVAL_IDLE_MS = 15000
@@ -103,13 +107,13 @@ const OVERLAP_SAMPLES = SAMPLE_RATE * 2  // 2s = 32,000 samples
 const previousAudioTail: [Float32Array | null, Float32Array | null] = [null, null]
 // Per-channel word tail: last emitted text, used to strip re-transcribed overlap from next chunk
 const previousEmittedTail: [string, string] = ['', '']
-const OVERLAP_WORD_MATCH_MIN = 4   // min words that must match to trim (avoids over-trimming genuine repetition)
+const OVERLAP_WORD_MATCH_MIN = 2   // min words that must match to trim (lowered from 4 to catch shorter overlaps at chunk boundaries)
 const OVERLAP_WORD_MATCH_MAX = 25  // max words to look back in previous tail
 // Diarization is channel-based: channel 0 = mic (You), channel 1 = system audio (Others).
 // When you're muted, mic may still send silence/comfort noise; we use stricter gates for "You" to avoid false labels.
 const SPEAKER_BY_CHANNEL = ['You', 'Others'] as const
-const MIN_ENERGY_BY_CHANNEL = [0.0002, 0.00005] as const   // You: relaxed to catch softer speech; Others: lowered for quieter speakers
-const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0006, 0.0002] as const  // You: halved — too strict was dropping normal speech after first sentence
+const MIN_ENERGY_BY_CHANNEL = [0.0002, 0.00002] as const   // You: relaxed to catch softer speech; Others: lowered further for system audio (YouTube, calls)
+const MIN_SPEECH_ENERGY_BY_CHANNEL = [0.0006, 0.0001] as const  // You: halved; Others: halved again — system audio energy is lower than mic
 // You: lowered so short replies ("yes", "got it") aren't dropped
 const MIN_SPEECH_DURATION_SEC_BY_CHANNEL = [0.35, 0.5] as const
 
@@ -145,8 +149,8 @@ function effectiveFuzzyDedupThreshold(): number {
  */
 let resumeStrictPassCountdown: [number, number] = [0, 0]
 const RESUME_STRICT_PASSES_PER_CHANNEL = 1
-const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.3
-const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.15
+const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.1   // lowered from 1.3 — context reset on resume reduces hallucination risk
+const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.05  // lowered from 1.15
 
 /** Log mic-channel skip reasons when SYAG_DEBUG_AUDIO=1 or setting debug-audio-capture=true (see docs/transcript-me-them.md). */
 function isDebugAudioCapture(): boolean {
@@ -360,6 +364,14 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   // Clear stale dedup window — after a long pause, old entries would cause
   // false-positive dedup matches against new speech
   recentEmittedTexts.length = 0
+  // Clear stale Whisper context — after a pause, old text causes hallucinated continuations
+  resetContext()
+  // Clear overlap tails — stale overlap from pre-pause audio would cause false trimming
+  previousEmittedTail[0] = ''
+  previousEmittedTail[1] = ''
+  previousAudioTail[0] = null
+  previousAudioTail[1] = null
+  recentEmittedSentences.length = 0
   resumeStrictPassCountdown = [RESUME_STRICT_PASSES_PER_CHANNEL, RESUME_STRICT_PASSES_PER_CHANNEL]
   if (options?.sttModel != null && options.sttModel !== currentSTTModel) {
     currentSTTModel = options.sttModel
@@ -480,8 +492,27 @@ async function processBufferedAudio(): Promise<void> {
           currentChunkIntervalMs = CHUNK_INTERVAL_IDLE_MS
           restartChunkTimer()
         }
+        // After extended silence (~3 min), force back to active interval so shorter chunks
+        // have more concentrated energy when speech returns (breaks the idle-mode deadlock)
+        if (consecutiveSilentChunks >= 12) {
+          consecutiveSilentChunks = 0
+          if (currentChunkIntervalMs > CHUNK_INTERVAL_ACTIVE_MS) {
+            currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
+            restartChunkTimer()
+          }
+        }
         clearProcessingLock(true)
         continue
+      }
+
+      // Energy gate passed — audio is not silent. Reset silence counter immediately
+      // (don't wait for VAD confirmation) so we don't get stuck in idle mode.
+      if (consecutiveSilentChunks > 0) {
+        consecutiveSilentChunks = 0
+        if (currentChunkIntervalMs > CHUNK_INTERVAL_ACTIVE_MS) {
+          currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
+          restartChunkTimer()
+        }
       }
 
       let speechAudio = merged
@@ -497,10 +528,10 @@ async function processBufferedAudio(): Promise<void> {
           if (winEnergy < minWindowEnergy) minWindowEnergy = winEnergy
         }
         const ambientEnergy = minWindowEnergy === Infinity ? 0 : minWindowEnergy
-        // VAD thresholds: lowered slightly to catch quieter speakers; energy gates + hallucination filter prevent noise
+        // VAD thresholds: lowered for system audio (YouTube, calls have different energy profile than mic)
         const vadThreshold = channel === 0
           ? Math.max(0.40, Math.min(0.60, 0.45 + ambientEnergy * 100))
-          : Math.max(0.35, Math.min(0.55, 0.40 + ambientEnergy * 100))
+          : Math.max(0.30, Math.min(0.50, 0.35 + ambientEnergy * 100))
 
         const vadSegments = await runVAD(merged, SAMPLE_RATE, { threshold: vadThreshold })
         if (vadSegments.length === 0) {
@@ -614,12 +645,22 @@ async function processBufferedAudio(): Promise<void> {
       const filtered = filterHallucinatedTranscript(sttResult.text)
       if (filtered) {
         // Strip re-transcribed overlap from previous chunk (Whisper overlap-context artifact)
-        const deoverlapped = trimOverlapTail(previousEmittedTail[channel], filtered)
+        let deoverlapped = trimOverlapTail(previousEmittedTail[channel], filtered)
         if (!deoverlapped) {
           // Entire chunk was re-transcribed overlap — discard
           audioBuffers[channel].splice(0, chunkCount)
           chunkRetryCount[channel] = 0
           logMicCaptureDebug('skip_full_overlap', { preview: filtered.slice(0, 80) })
+          clearProcessingLock(true)
+          continue
+        }
+        // Fuzzy boundary dedup: catch 2-3 word near-duplicates at chunk edges missed by trimOverlapTail
+        deoverlapped = trimFuzzyBoundaryOverlap(previousEmittedTail[channel], deoverlapped)
+        // Inter-chunk sentence dedup: strip sentences already emitted in the last 30s
+        deoverlapped = deduplicateSentencesAcrossChunks(deoverlapped)
+        if (!deoverlapped.trim()) {
+          audioBuffers[channel].splice(0, chunkCount)
+          chunkRetryCount[channel] = 0
           clearProcessingLock(true)
           continue
         }
@@ -880,18 +921,118 @@ function trimOverlapTail(prevTail: string, newText: string): string {
   return newText
 }
 
-/** Capitalize first letter of each sentence and " i " → " I ". */
+/**
+ * Inter-chunk sentence-level dedup: strip sentences that were already emitted recently.
+ * This catches cross-chunk duplicates like "So instead of comparing..." repeated across chunks.
+ */
+function deduplicateSentencesAcrossChunks(text: string): string {
+  const now = Date.now()
+  // Prune old sentences
+  while (recentEmittedSentences.length > 0 && now - recentEmittedSentences[0].time > SENTENCE_DEDUP_WINDOW_MS) {
+    recentEmittedSentences.shift()
+  }
+
+  // Split into sentences (by . ! ? or long phrases separated by ,)
+  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean)
+  if (sentences.length <= 1) {
+    // Single sentence — don't dedup (would kill entire chunk)
+    return text
+  }
+
+  const kept: string[] = []
+  for (const sentence of sentences) {
+    const norm = sentence.toLowerCase().replace(/[,.\-!?\s]+/g, ' ').trim()
+    if (norm.length < 15) {
+      // Too short to reliably dedup across chunks
+      kept.push(sentence)
+      continue
+    }
+    // Check if this sentence (or very similar) was emitted recently
+    const isDup = recentEmittedSentences.some(entry => {
+      if (entry.norm === norm) return true
+      // Fuzzy: >80% word overlap for sentences
+      if (norm.length > 20 && entry.norm.length > 20 && textSimilarity(entry.norm, norm) > 0.80) return true
+      // Substring containment for long phrases
+      if (norm.length > 30 && (entry.norm.includes(norm) || norm.includes(entry.norm))) return true
+      return false
+    })
+    if (!isDup) {
+      kept.push(sentence)
+    }
+  }
+
+  const result = kept.join(' ').trim()
+  // Track all sentences from this chunk for future dedup
+  for (const sentence of sentences) {
+    const norm = sentence.toLowerCase().replace(/[,.\-!?\s]+/g, ' ').trim()
+    if (norm.length >= 15) {
+      recentEmittedSentences.push({ norm, time: now })
+    }
+  }
+  // Cap size
+  if (recentEmittedSentences.length > 200) recentEmittedSentences.splice(0, recentEmittedSentences.length - 200)
+
+  return result || text
+}
+
+/** Known acronyms / proper-noun patterns to preserve in uppercase. */
+const PRESERVE_UPPER_RE = /^(?:[A-Z]{2,}|I|OK|AI|API|AWS|GCP|CEO|CTO|CFO|VP|HR|PR|QA|UI|UX|OKR|KPI|SLA|SQL|SDK|CI|CD|ML|NLP|LLM|HTTP|URL|DNS|VPN|IPC|CPU|GPU|RAM|SSD|iOS|macOS|PDF|CSV|JSON|XML|HTML|CSS|MVP|POC|ROI|SaaS|B2B|B2C)$/
+
+/** Capitalize first letter of each sentence, fix " i " → " I ", and lowercase random mid-sentence caps from Whisper. */
 function normalizeSentenceCasing(text: string): string {
   const segments = text.split(/(?<=[.!?])\s+|\n+/)
   return segments
     .map((seg) => {
       const t = seg.trim()
       if (!t) return t
-      const capped = t.charAt(0).toUpperCase() + t.slice(1)
-      return capped.replace(/\s+i\s+/g, ' I ')
+      const words = t.split(/\s+/)
+      const fixed = words.map((word, i) => {
+        // First word: capitalize first letter, lowercase rest (unless acronym)
+        if (i === 0) {
+          if (PRESERVE_UPPER_RE.test(word)) return word
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        }
+        // Standalone "i"
+        if (word.toLowerCase() === 'i') return 'I'
+        // Preserve known acronyms and all-caps words (2+ chars)
+        if (PRESERVE_UPPER_RE.test(word)) return word
+        // Preserve contractions like "I'm", "don't" — just return as-is if contains apostrophe
+        if (word.includes("'")) return word.toLowerCase()
+        // Proper name pattern: starts uppercase, rest lowercase (e.g. "Andrew", "Monday") — preserve
+        if (/^[A-Z][a-z]{2,}$/.test(word)) return word
+        // Random mixed case mid-sentence (e.g. "SHould", "tHe") — lowercase
+        if (word.length > 1 && word !== word.toLowerCase() && word !== word.toUpperCase()) {
+          return word.toLowerCase()
+        }
+        return word
+      })
+      return fixed.join(' ')
     })
     .filter(Boolean)
     .join(' ')
+}
+
+/**
+ * Fuzzy boundary overlap: catch near-duplicate 2-3 word phrases at chunk boundaries
+ * that trimOverlapTail missed due to punctuation/capitalization differences.
+ */
+function trimFuzzyBoundaryOverlap(prevTail: string, newText: string): string {
+  if (!prevTail || !newText) return newText
+  const normWord = (s: string) => s.toLowerCase().replace(/[,.\-!?'"]/g, '').trim()
+  const prevWords = prevTail.trim().split(/\s+/).map(normWord).filter(Boolean)
+  const newWords = newText.trim().split(/\s+/)
+  if (prevWords.length < 2 || newWords.length < 2) return newText
+
+  // Check if last 2-3 words of prev match first 2-3 words of new (normalized)
+  for (let len = Math.min(3, prevWords.length, newWords.length); len >= 2; len--) {
+    const tailSlice = prevWords.slice(-len).join(' ')
+    const headSlice = newWords.slice(0, len).map(normWord).join(' ')
+    if (tailSlice === headSlice) {
+      const trimmed = newWords.slice(len).join(' ').trim()
+      return trimmed || newText
+    }
+  }
+  return newText
 }
 
 /** Filter known Whisper/STT hallucinations; collapse repetitions instead of dropping. */

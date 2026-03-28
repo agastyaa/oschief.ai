@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KBSuggestionsPanel, type KBSuggestion } from "@/components/KBSuggestionsPanel";
-import CommandCenterPanel from "@/components/CommandCenterPanel";
+// CommandCenterPanel removed — context now flows through Ask OSChief
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -386,6 +386,10 @@ export default function NewNotePage() {
 
   const usingRealAudio = isElectron;
   const elapsedSeconds = useElapsedTime(activeSession?.startTime ?? null, activeSession?.isRecording ?? false);
+  // Track last non-zero elapsed so it survives session clearing (for resume after stop)
+  const lastElapsedRef = useRef(0);
+  if (elapsedSeconds > 0) lastElapsedRef.current = elapsedSeconds;
+  const effectiveElapsed = elapsedSeconds > 0 ? elapsedSeconds : lastElapsedRef.current;
   const currentTranscript = usingRealAudio ? transcriptLines : fakeTranscriptLines.slice(0, visibleLines);
 
   // Build context string for AskBar so it can answer questions about the live meeting
@@ -397,6 +401,43 @@ export default function NewNotePage() {
     if (lines) parts.push(`TRANSCRIPT:\n${lines}`);
     return parts.join('\n\n') || undefined;
   }, [usingRealAudio, transcriptLines, personalNotes]);
+
+  // Format meeting graph context (people, commitments, decisions, projects) for Ask OSChief
+  const meetingGraphContextText = useMemo(() => {
+    if (!meetingContext) return undefined;
+    const parts: string[] = [];
+    // Previous meetings with attendees
+    if (meetingContext.previousMeetings?.length > 0) {
+      const lines = meetingContext.previousMeetings.map(pm =>
+        `${pm.personName}: ${pm.meetings.map(m => `${m.title} (${m.date})`).join(', ')}`
+      );
+      parts.push(`PREVIOUS MEETINGS:\n${lines.join('\n')}`);
+    }
+    // Open commitments
+    if (meetingContext.openCommitments?.length > 0) {
+      const lines = meetingContext.openCommitments.map(c => {
+        const due = c.dueDate ? ` (due ${c.dueDate}${c.isOverdue ? ', OVERDUE' : ''})` : '';
+        const assignee = c.assignee ? ` → ${c.assignee}` : '';
+        return `- ${c.text} [${c.owner}${assignee}]${due}`;
+      });
+      parts.push(`OPEN COMMITMENTS:\n${lines.join('\n')}`);
+    }
+    // Recent decisions
+    if (meetingContext.recentDecisions?.length) {
+      const lines = meetingContext.recentDecisions.map(d =>
+        `- ${d.text}${d.context ? ` (${d.context})` : ''} — ${d.noteTitle}, ${d.date}`
+      );
+      parts.push(`RECENT DECISIONS:\n${lines.join('\n')}`);
+    }
+    // Projects
+    if (meetingContext.projects?.length > 0) {
+      const lines = meetingContext.projects.map(p =>
+        `- ${p.name} [${p.status}] (${p.meetingCount} meetings)`
+      );
+      parts.push(`ACTIVE PROJECTS:\n${lines.join('\n')}`);
+    }
+    return parts.length > 0 ? `MEETING CONTEXT (from your meeting history):\n\n${parts.join('\n\n')}` : undefined;
+  }, [meetingContext]);
 
   const { mentionHint, mentionHintLoading, onDismissMentionHint, triggerMentionLLM } = useNameMentionContext(
     transcriptLines,
@@ -420,6 +461,12 @@ export default function NewNotePage() {
     !!selectedSTTModel &&
     ((lastSuccessfulTranscriptTime != null && Date.now() - lastSuccessfulTranscriptTime > 45000) ||
       (lastSuccessfulTranscriptTime == null && elapsedSeconds > 45));
+
+  const [sttStaleDismissed, setSttStaleDismissed] = useState(false);
+  // Auto-reset dismissed state when transcript resumes (stale clears)
+  useEffect(() => {
+    if (!sttStale) setSttStaleDismissed(false);
+  }, [sttStale]);
 
   /** Show prominent "no transcript" warning when session has run 2+ min with zero transcript (recording or paused). */
   const noTranscriptYet =
@@ -496,8 +543,8 @@ export default function NewNotePage() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
     const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const startTimeMs = startTimeToUse ?? now.getTime() - elapsedSeconds * 1000;
-    const timeRange = formatTimeRange(startTimeMs, elapsedSeconds);
+    const startTimeMs = startTimeToUse ?? now.getTime() - effectiveElapsed * 1000;
+    const timeRange = formatTimeRange(startTimeMs, effectiveElapsed);
 
     lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
     lastGeneratedNotesRef.current = useNotes;
@@ -509,7 +556,7 @@ export default function NewNotePage() {
         title: userHasEditedTitleRef.current ? (useTitle || noteTitle) : noteTitle,
         date: dateStr,
         time: timeStr,
-        duration: formatTime(elapsedSeconds),
+        duration: formatTime(effectiveElapsed),
         timeRange,
         calendarEventId: eventState?.eventId,
         personalNotes: useNotes,
@@ -537,7 +584,7 @@ export default function NewNotePage() {
         meetingTemplateId: templateId,
         customPrompt,
         meetingTitle: (eventState?.eventTitle || useTitle || "").trim() || undefined,
-        meetingDuration: formatTime(elapsedSeconds),
+        meetingDuration: formatTime(effectiveElapsed),
         accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
       }).catch(console.error);
       // isSummarizing stays true until note:summary-ready event clears it (see useEffect below)
@@ -805,7 +852,7 @@ export default function NewNotePage() {
       title: title || "New note",
       date: dateStr,
       time: timeStr,
-      duration: formatTime(elapsedSeconds),
+      duration: formatTime(effectiveElapsed),
       timeRange,
       calendarEventId: eventState?.eventId,
       personalNotes,
@@ -903,7 +950,7 @@ export default function NewNotePage() {
     setTranscriptVisible(true);
     if (recordingState === "stopped") {
       // Restore session without clearing transcript, then restart capture so new chunks append
-      resumeSession(noteId, title || "New note", elapsedSeconds);
+      resumeSession(noteId, title || "New note", effectiveElapsed);
       setSummary(null);
       setUserHasStartedCapture(true);
       if (usingRealAudio) {
@@ -914,11 +961,11 @@ export default function NewNotePage() {
       resumingRef.current = usingRealAudio;
       // Re-anchor wall clock so the timer does not count time spent paused (useElapsedTime uses Date.now() - startTime).
       if (!activeSession) {
-        resumeSession(noteId, title || "New note", elapsedSeconds);
+        resumeSession(noteId, title || "New note", effectiveElapsed);
       } else {
         updateSession({
-          startTime: Date.now() - elapsedSeconds * 1000,
-          elapsedSeconds,
+          startTime: Date.now() - effectiveElapsed * 1000,
+          elapsedSeconds: effectiveElapsed,
         });
       }
       setSummary(null);
@@ -936,7 +983,7 @@ export default function NewNotePage() {
         updateSession({ isRecording: true });
       }
     }
-  }, [recordingState, resumeSession, updateSession, noteId, title, elapsedSeconds, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel, activeSession]);
+  }, [recordingState, resumeSession, updateSession, noteId, title, effectiveElapsed, usingRealAudio, startAudioCapture, resumeAudioCapture, selectedSTTModel, activeSession]);
 
   const handleViewModeChange = useCallback(async (mode: "my-notes" | "ai-notes") => {
     if (mode === "ai-notes" && viewMode === "my-notes") {
@@ -956,7 +1003,7 @@ export default function NewNotePage() {
             meetingTemplateId: tid,
             customPrompt,
             meetingTitle: (eventState?.eventTitle || title || "").trim() || undefined,
-            meetingDuration: formatTime(elapsedSeconds),
+            meetingDuration: formatTime(effectiveElapsed),
             accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
           });
           setSummary(newSummary);
@@ -1019,10 +1066,10 @@ export default function NewNotePage() {
     navigate("/");
   };
 
-  const elapsed = formatTime(elapsedSeconds);
+  const elapsed = formatTime(effectiveElapsed);
   const displayTimeRange =
     activeSession?.startTime != null
-      ? formatTimeRange(activeSession.startTime, elapsedSeconds)
+      ? formatTimeRange(activeSession.startTime, effectiveElapsed)
       : elapsed;
   const isStopped = recordingState === "stopped";
   const showSummaryPanel = (recordingState === "paused" || recordingState === "stopped") && (summary || isSummarizing);
@@ -1311,6 +1358,7 @@ export default function NewNotePage() {
                 context="meeting"
                 meetingTitle={title || "New note"}
                 noteContext={askBarNoteContext}
+                meetingGraphContext={meetingGraphContextText}
                 recordingState={recordingState}
                 mentionContextHint={mentionHint}
                 mentionHintLoading={mentionHintLoading}
@@ -1547,9 +1595,14 @@ export default function NewNotePage() {
                     STT error: {sttErrorMessage.length > 60 ? sttErrorMessage.slice(0, 57) + "…" : sttErrorMessage}
                   </p>
                 )}
-                {!transcriptSearch && sttStale && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 pt-0.5">
-                    No real-time speech detected for a while. Check your STT model, network, mic, and system audio permissions — or try higher capture sensitivity in Settings → AI Models → Transcription.
+                {!transcriptSearch && sttStale && !sttStaleDismissed && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 pt-0.5 flex items-start gap-1">
+                    <span className="flex-1">No real-time speech detected for a while. Check your STT model, network, mic, and system audio permissions — or try higher capture sensitivity in Settings → AI Models → Transcription.</span>
+                    <button
+                      onClick={() => setSttStaleDismissed(true)}
+                      className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 shrink-0 ml-1 leading-none"
+                      title="Dismiss"
+                    >×</button>
                   </p>
                 )}
                 {transcriptSearch && currentTranscript.filter(l => l.text.toLowerCase().includes(transcriptSearch.toLowerCase())).length === 0 && (
@@ -1574,16 +1627,7 @@ export default function NewNotePage() {
 
       </main>
 
-      {/* Command Center — context panel during recording */}
-      {isCapturing && <CommandCenterPanel
-        context={meetingContext}
-        onLookupPerson={(name) => {
-          if (!api?.context?.assemble) return
-          api.context.assemble({ attendeeNames: [name], attendeeEmails: [], eventTitle: title || undefined })
-            .then(ctx => { if (ctx) setMeetingContext(ctx) })
-            .catch(err => console.error('[command-center] Lookup failed:', err))
-        }}
-      />}
+      {/* Context panel removed — meeting context now flows through Ask OSChief on demand */}
     </div>
   );
 }
