@@ -140,19 +140,7 @@ Or: right‑click OSChief in Applications → **Open** → confirm.
 
 ---
 
-## What's new in v2.0.4
 
-- Morning brief home page with Needs Attention section
-- Commitment risk scoring (GREEN / AMBER / RED)
-- Inline deadline setting on commitments
-- "N at risk" pill indicator in sidebar (replaces dot)
-- Decision status lifecycle + stale detection
-- End-of-day routine (weekdays only)
-- DB migration v12 (automatic on first launch)
-
-Full notes: [github.com/iamsagar125/syag-note/releases/tag/v2.0.4](https://github.com/iamsagar125/syag-note/releases/tag/v2.0.4)
-
----
 
 ## Roadmap / status
 
