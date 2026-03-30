@@ -11,22 +11,21 @@ export function formatMeetingIndicatorTime(seconds: number): string {
 const pillStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
-  padding: "8px 14px",
-  borderRadius: 24,
+  gap: 6,
+  padding: "5px 10px",
+  borderRadius: 20,
   background: "rgba(30, 28, 25, 0.92)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
   color: "#fff",
   cursor: "pointer",
   fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 500,
   userSelect: "none",
   overflow: "hidden",
-  minWidth: 200,
-  maxWidth: 280,
-  boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
+  maxWidth: 240,
+  boxShadow: "0 2px 16px rgba(0,0,0,0.2)",
 };
 
 export type MeetingIndicatorPillProps = {
@@ -55,8 +54,8 @@ export function MeetingIndicatorPill({
         {isRecording ? (
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 6,
+              height: 6,
               borderRadius: "50%",
               background: "#ef4444",
               flexShrink: 0,
@@ -66,8 +65,8 @@ export function MeetingIndicatorPill({
         ) : (
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 6,
+              height: 6,
               borderRadius: "50%",
               background: "#f59e0b",
               flexShrink: 0,
