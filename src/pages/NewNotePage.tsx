@@ -607,15 +607,7 @@ export default function NewNotePage() {
   useEffect(() => {
     if (!api?.llm?.onSummaryReady) return;
     const unsubReady = api.llm.onSummaryReady((incomingNoteId: string, summary: any) => {
-      if (incomingNoteId !== noteId) return;
-      const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
-      const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
-      setSummary(summary);
-      if (!userHasEditedTitleRef.current && summary.title && !isGenericTitle(summary.title)) {
-        setTitle(summary.title);
-        api?.db?.notes?.update(incomingNoteId, { title: summary.title }).catch(console.error);
-      }
-      // Entity extraction — fire and forget
+      // Always run entity extraction (DB was already updated by backend)
       if (api?.memory?.extractEntities && selectedAIModel) {
         api.memory.extractEntities({
           noteId: incomingNoteId,
@@ -626,6 +618,18 @@ export default function NewNotePage() {
           if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
         }).catch((err: any) => console.error('Entity extraction failed:', err));
       }
+      // Only update UI state if this summary belongs to the currently displayed note
+      if (incomingNoteId !== noteId) {
+        console.log(`[summary] Received summary for ${incomingNoteId} but current note is ${noteId} — DB updated, UI skipped`);
+        return;
+      }
+      const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+      const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
+      setSummary(summary);
+      if (!userHasEditedTitleRef.current && summary.title && !isGenericTitle(summary.title)) {
+        setTitle(summary.title);
+        api?.db?.notes?.update(incomingNoteId, { title: summary.title }).catch(console.error);
+      }
       setIsSummarizing(false);
     });
     const unsubFailed = api.llm.onSummaryFailed((incomingNoteId: string) => {
@@ -635,6 +639,24 @@ export default function NewNotePage() {
     });
     return () => { unsubReady(); unsubFailed(); };
   }, [api, noteId, selectedAIModel]);
+
+  // Load summary from DB when returning to a note that already has one (handles race condition
+  // where summary was generated while user was on a different note)
+  useEffect(() => {
+    if (!api?.db?.notes?.get || !noteId) return;
+    api.db.notes.get(noteId).then((note: any) => {
+      if (note?.summary && !summary) {
+        setSummary(note.summary);
+        if (!userHasEditedTitleRef.current && note.summary.title) {
+          const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+          if (!genericTitles.includes((note.summary.title || "").toLowerCase())) {
+            setTitle(note.summary.title);
+          }
+        }
+        setIsSummarizing(false);
+      }
+    }).catch(() => {});
+  }, [api, noteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
   useEffect(() => {
