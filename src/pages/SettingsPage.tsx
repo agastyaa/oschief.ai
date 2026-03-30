@@ -3185,9 +3185,9 @@ function MicrosoftCalendarIntegrationRow() {
             <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Microsoft Teams / Outlook</span>
+            <span className="text-[13px] font-medium text-foreground">Microsoft Outlook</span>
             <p className="text-[11px] text-muted-foreground">
-              {connected ? `Connected — ${email}` : "Sync Teams calls and Outlook calendar"}
+              {connected ? `Connected — ${email}` : "Sync Outlook calendar and Teams calls"}
             </p>
           </div>
         </div>
@@ -3217,7 +3217,7 @@ function MicrosoftCalendarIntegrationRow() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-foreground">Connect Microsoft Teams / Outlook</h2>
+              <h2 className="text-base font-semibold text-foreground">Connect Microsoft Outlook</h2>
               <button onClick={() => setShowSetup(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">
                 <span className="text-lg">&times;</span>
               </button>

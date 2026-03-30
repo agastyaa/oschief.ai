@@ -56,7 +56,6 @@ export const WORK_TABS: TabDef[] = [
   { label: "People", path: "/people" },
   { label: "Projects", path: "/projects" },
   { label: "Commitments", path: "/commitments" },
-  { label: "Decisions", path: "/decisions" },
 ];
 
 export const INTELLIGENCE_TABS: TabDef[] = [

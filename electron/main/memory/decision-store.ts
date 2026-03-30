@@ -46,6 +46,19 @@ export function getDecisionsForProject(projectId: string): any[] {
   `).all(projectId) as any[]
 }
 
+export function getUnassignedDecisions(): any[] {
+  return getDb().prepare(`
+    SELECT d.*, n.title as note_title, GROUP_CONCAT(p.name, ', ') as participant_names
+    FROM decisions d
+    LEFT JOIN notes n ON n.id = d.note_id
+    LEFT JOIN decision_people dp ON dp.decision_id = d.id
+    LEFT JOIN people p ON p.id = dp.person_id
+    WHERE d.project_id IS NULL
+    GROUP BY d.id
+    ORDER BY d.created_at DESC
+  `).all() as any[]
+}
+
 export function getAllDecisions(filters?: { projectId?: string; noteId?: string }): any[] {
   let sql = `
     SELECT d.*, n.title as note_title, pr.name as project_name

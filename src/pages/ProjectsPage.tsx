@@ -4,7 +4,7 @@ import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { FolderKanban, Search, Check, Archive, Trash2, X, Plus } from "lucide-react"
+import { FolderKanban, Search, Check, Archive, Trash2, X, Plus, Gavel, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -21,6 +21,19 @@ interface Project {
 
 type Tab = "active" | "suggested" | "archived"
 
+const decisionStatusStyles: Record<string, string> = {
+  MADE: 'bg-muted text-muted-foreground',
+  ASSIGNED: 'bg-primary/10 text-primary',
+  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  ABANDONED: 'bg-muted text-muted-foreground line-through',
+  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+}
+const decisionStatusLabels: Record<string, string> = {
+  MADE: 'Made', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress',
+  DONE: 'Done', ABANDONED: 'Abandoned', REVISITED: 'Revisited',
+}
+
 export default function ProjectsPage() {
   const { sidebarOpen } = useSidebarVisibility()
   const navigate = useNavigate()
@@ -31,6 +44,9 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
+  const [projectDecisions, setProjectDecisions] = useState<Record<string, any[]>>({})
+  const [unassignedDecisions, setUnassignedDecisions] = useState<any[]>([])
 
   const loadProjects = async () => {
     if (!api?.memory?.projects) return
@@ -38,7 +54,25 @@ export default function ProjectsPage() {
     setProjects(all)
   }
 
-  useEffect(() => { loadProjects() }, [api])
+  useEffect(() => {
+    loadProjects()
+    if (api?.memory?.decisions?.getUnassigned) {
+      api.memory.decisions.getUnassigned().then(setUnassignedDecisions).catch(() => {})
+    }
+  }, [api])
+
+  const toggleDecisions = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (expandedProjectId === projectId) {
+      setExpandedProjectId(null)
+      return
+    }
+    setExpandedProjectId(projectId)
+    if (!projectDecisions[projectId] && api?.memory?.decisions?.forProject) {
+      const decisions = await api.memory.decisions.forProject(projectId)
+      setProjectDecisions(prev => ({ ...prev, [projectId]: decisions }))
+    }
+  }
 
   const handleCreateProject = async () => {
     if (!newName.trim() || !api?.memory?.projects) return
@@ -196,8 +230,8 @@ export default function ProjectsPage() {
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               {filtered.map((project, i) => (
+                <div key={project.id}>
                 <div
-                  key={project.id}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition-colors",
                     i > 0 && "border-t border-border"
@@ -212,7 +246,24 @@ export default function ProjectsPage() {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                     <span>{project.meetingCount} meetings</span>
-                    <span>{project.decisionCount} decisions</span>
+                    {project.decisionCount > 0 ? (
+                      <button
+                        onClick={(e) => toggleDecisions(project.id, e)}
+                        className={cn(
+                          "flex items-center gap-1 hover:text-foreground transition-colors",
+                          expandedProjectId === project.id && "text-foreground"
+                        )}
+                      >
+                        <Gavel className="h-3 w-3" />
+                        {project.decisionCount}
+                        <ChevronDown className={cn(
+                          "h-3 w-3 transition-transform duration-200",
+                          expandedProjectId === project.id && "rotate-180"
+                        )} />
+                      </button>
+                    ) : (
+                      <span>{project.decisionCount} decisions</span>
+                    )}
                   </div>
                   <StatusPill status={project.status} />
                   {project.status === "suggested" && (
@@ -261,7 +312,63 @@ export default function ProjectsPage() {
                     </button>
                   )}
                 </div>
+                {expandedProjectId === project.id && (
+                  <div className="px-4 py-2 bg-secondary/30 border-t border-border">
+                    {(projectDecisions[project.id] || []).length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-1">No decisions yet</div>
+                    ) : (
+                      <>
+                        {(projectDecisions[project.id] || []).slice(0, 5).map((d: any) => (
+                          <div key={d.id} className="flex items-center gap-2 py-1.5">
+                            <span className="text-[13px] text-foreground flex-1 truncate">{d.text}</span>
+                            <span className={cn(
+                              "text-[11px] rounded-full px-2 py-0.5 shrink-0",
+                              decisionStatusStyles[d.status || 'MADE']
+                            )}>
+                              {decisionStatusLabels[d.status || 'MADE']}
+                            </span>
+                          </div>
+                        ))}
+                        {(projectDecisions[project.id]?.length || 0) > 5 && (
+                          <button
+                            onClick={() => navigate(`/project/${project.id}`)}
+                            className="text-xs text-primary hover:underline mt-1"
+                          >
+                            View all {projectDecisions[project.id]?.length} decisions
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                </div>
               ))}
+            </div>
+          )}
+
+          {/* Unassigned decisions — not linked to any project */}
+          {unassignedDecisions.length > 0 && (
+            <div className="mt-8">
+              <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-2">
+                Unassigned Decisions
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Decisions not linked to any project.
+              </p>
+              <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                {unassignedDecisions.map((d: any) => (
+                  <div key={d.id} className="flex items-center gap-2 px-4 py-2.5">
+                    <span className="text-sm flex-1 truncate">{d.text}</span>
+                    <span className={cn(
+                      "text-[11px] rounded-full px-2 py-0.5 shrink-0",
+                      decisionStatusStyles[d.status || 'MADE']
+                    )}>
+                      {decisionStatusLabels[d.status || 'MADE']}
+                    </span>
+                    {d.date && <span className="text-[11px] text-muted-foreground shrink-0">{d.date}</span>}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
