@@ -149,9 +149,9 @@ function effectiveFuzzyDedupThreshold(): number {
  * require stronger speech energy and slightly longer VAD segments before calling the model.
  */
 let resumeStrictPassCountdown: [number, number] = [0, 0]
-const RESUME_STRICT_PASSES_PER_CHANNEL = 1
-const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.1   // lowered from 1.3 — context reset on resume reduces hallucination risk
-const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.05  // lowered from 1.15
+const RESUME_STRICT_PASSES_PER_CHANNEL = 2  // raised: filter 2 chunks post-resume to catch reconnection noise
+const RESUME_STRICT_SPEECH_ENERGY_MULT = 1.25  // raised: require stronger speech energy after resume
+const RESUME_STRICT_MIN_SPEECH_SEC_MULT = 1.15  // raised: require longer VAD segments after resume
 
 /** Log mic-channel skip reasons when SYAG_DEBUG_AUDIO=1 or setting debug-audio-capture=true (see docs/transcript-me-them.md). */
 function isDebugAudioCapture(): boolean {
@@ -1111,11 +1111,13 @@ function filterHallucinatedTranscript(text: string): string | null {
     /^\(music\)$/i, /^\(applause\)$/i, /^\(laughter\)$/i, /^\(silence\)$/i,
     /^\[inaudible\]$/i, /^\(inaudible\)$/i,
     // Common Whisper "meeting filler" on silence / reconnect noise (esp. after pause→resume)
-    /let me add (a few )?thoughts on (this |the )?topic/i,
+    /let me add (a few )?(more )?thoughts on (this |the )?topic/i,
     /consider the timeline (for|of) next steps/i,
     /wrap up the remaining items/i,
     /let's move on to the next/i,
-    /i think (that's|we) (a good|the right) point/i,
+    /i think (that's|we) (a good|the right|we can) point/i,
+    /this is working/i,
+    /i think we can wrap up/i,
     /^\.+$/,  // Just periods/dots
     /^,+$/,   // Just commas
     // Single foreign-language words that Whisper hallucinates on silence
