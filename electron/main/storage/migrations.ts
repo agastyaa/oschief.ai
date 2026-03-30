@@ -283,14 +283,30 @@ export function runMigrations(db: Database.Database): void {
 
   if (pending.length === 0) return
 
-  const migrate = db.transaction(() => {
-    for (const migration of pending) {
+  for (const migration of pending) {
+    try {
+      const migrate = db.transaction(() => {
+        for (const sql of migration.up) {
+          db.exec(sql)
+        }
+        db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
+      })
+      migrate()
+    } catch (err: any) {
+      // If the whole transaction fails (e.g. ALTER TABLE on existing column), try each statement individually
+      console.warn(`[migrations] Transaction for v${migration.version} failed: ${err.message}. Retrying statements individually...`)
+      let allOk = true
       for (const sql of migration.up) {
-        db.exec(sql)
+        try { db.exec(sql) } catch (e: any) {
+          // "duplicate column" is safe to ignore — column already exists from a partial previous run
+          if (/duplicate column|already exists/i.test(e.message)) continue
+          console.error(`[migrations] v${migration.version} statement failed: ${e.message}`)
+          allOk = false
+        }
       }
-      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
+      if (allOk) {
+        try { db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(migration.version) } catch {}
+      }
     }
-  })
-
-  migrate()
+  }
 }
