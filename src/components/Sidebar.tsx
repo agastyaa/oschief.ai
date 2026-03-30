@@ -317,7 +317,7 @@ export function Sidebar() {
         <NavItem
           label="Your Work"
           to="/people"
-          active={isActive("/people") || isActive("/projects") || isActive("/project/") || isActive("/commitments") || isActive("/decisions")}
+          active={isActive("/people") || isActive("/projects") || isActive("/project/") || isActive("/commitments")}
         />
       </nav>
 
