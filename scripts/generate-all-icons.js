@@ -28,6 +28,7 @@ const dockIcon1024 = path.join(root, 'public', 'dock-icon-1024.png')
 const TRAY_SIZE = 44
 // Pixels darker than this become transparent (removes dark background from tray asset)
 const DARK_BG_THRESHOLD = 80
+// In-app icon: use dock icon directly (no background stripping needed — it has its own rounded bg)
 // macOS app icon: content inset so graphic doesn't touch edges (HIG)
 const DOCK_ICON_INSET = 0.12
 
@@ -36,7 +37,7 @@ function luminance(r, g, b) {
 }
 
 /** Strip dark background: set alpha to 0 for pixels with luminance <= threshold. */
-async function stripDarkBackground(inputBuf) {
+async function stripDarkBackground(inputBuf, threshold = DARK_BG_THRESHOLD) {
   const { data, info } = await sharp(inputBuf)
     .ensureAlpha()
     .raw()
@@ -44,7 +45,7 @@ async function stripDarkBackground(inputBuf) {
   const { width, height, channels } = info
   for (let i = 0; i < data.length; i += channels) {
     const lum = luminance(data[i], data[i + 1], data[i + 2])
-    if (lum <= DARK_BG_THRESHOLD) data[i + 3] = 0
+    if (lum <= threshold) data[i + 3] = 0
   }
   return sharp(Buffer.from(data), { raw: { width, height, channels: 4 } })
     .png({ compressionLevel: 6 })
@@ -137,7 +138,13 @@ export const TRAY_ICON_RECORDING_BASE64 = '${trayPng.toString('base64')}'
   }
 
   // ─── 2. In-app icon ─── use in-app-icon.png when present; strip black background only (design as-is, no black)
-  if (fs.existsSync(inAppIconAsIs)) {
+  if (fs.existsSync(dockIcon1024)) {
+    // Use dock icon as in-app logo (already has clean rounded background, no stripping needed)
+    const inAppBuf = await sharp(fs.readFileSync(dockIcon1024)).resize(96, 96).png().toBuffer()
+    fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppBuf)
+    fs.writeFileSync(path.join(root, 'src', 'assets', 'syag-logo-inapp.png'), inAppBuf)
+    console.log('Wrote public/syag-logo-inapp.png and src/assets/syag-logo-inapp.png (from dock icon)')
+  } else if (fs.existsSync(inAppIconAsIs)) {
     let inAppBuf = fs.readFileSync(inAppIconAsIs)
     inAppBuf = await stripDarkBackground(inAppBuf)
     fs.writeFileSync(path.join(root, 'public', 'syag-logo-inapp.png'), inAppBuf)
