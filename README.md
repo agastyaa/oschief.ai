@@ -124,7 +124,7 @@ You own your data. OSChief's job is to make it usable.
 
 ## Install
 
-1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/syag-note/releases).
+1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/oschief.ai/releases).
 2. Open the DMG and drag **OSChief** to **Applications**.
 3. Launch OSChief from Applications.
 
