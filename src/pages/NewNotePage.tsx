@@ -588,6 +588,13 @@ export default function NewNotePage() {
         accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
       }).catch(console.error);
       // isSummarizing stays true until note:summary-ready event clears it (see useEffect below)
+      // Safety timeout: if LLM call hangs or event is missed, clear after 3 minutes
+      setTimeout(() => {
+        setIsSummarizing(prev => {
+          if (prev) console.warn('[summary] Safety timeout: clearing isSummarizing after 3 min');
+          return false;
+        });
+      }, 180000);
     } else {
       // No AI model — generate local summary synchronously
       const localSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
