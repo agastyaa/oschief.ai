@@ -1,0 +1,83 @@
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 228 14% 96%;
+    --foreground: 225 22% 10%;
+    --card: 228 12% 99%;
+    --card-foreground: 225 22% 10%;
+    --primary: 229 51% 37%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 228 12% 93%;
+    --secondary-foreground: 225 20% 16%;
+    --muted: 226 10% 93%;
+    --muted-foreground: 225 14% 28%;
+    --border: 228 11% 89%;
+    --radius: 0.625rem;
+    --card-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.02);
+    --card-shadow-hover: 0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    --amber: 30 55% 64%;
+    --amber-bg: 30 55% 95%;
+    --amber-text: 30 60% 30%;
+    --green: 142 50% 45%;
+    --green-bg: 142 50% 94%;
+    --green-text: 142 50% 20%;
+  }
+
+  .dark {
+    --background: 225 18% 8%;
+    --foreground: 228 12% 93%;
+    --card: 225 16% 12%;
+    --card-foreground: 228 12% 93%;
+    --primary: 229 45% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 14% 17%;
+    --secondary-foreground: 228 12% 82%;
+    --muted: 225 12% 19%;
+    --muted-foreground: 228 8% 55%;
+    --border: 225 12% 19%;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.25), 0 1px 6px rgba(0,0,0,0.15);
+    --card-shadow-hover: 0 6px 20px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2);
+    --amber: 30 50% 58%;
+    --amber-bg: 30 30% 14%;
+    --amber-text: 30 40% 75%;
+    --green: 142 45% 50%;
+    --green-bg: 142 30% 12%;
+    --green-text: 142 40% 70%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

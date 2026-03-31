@@ -1,0 +1,53 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-border bg-card">
+  <div class="max-w-content mx-auto px-6 py-12">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <!-- Brand -->
+      <div class="col-span-2 md:col-span-1">
+        <div class="flex items-center gap-2 mb-3">
+          <img src="/images/app-icon.png" alt="OSChief" width="24" height="24" class="rounded-sm" />
+          <span class="font-sans font-semibold text-sm text-foreground">OSChief</span>
+        </div>
+        <p class="text-xs text-muted-foreground leading-relaxed">
+          On-device chief of staff for macOS.
+        </p>
+      </div>
+
+      <!-- Product -->
+      <div>
+        <h4 class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-3">Product</h4>
+        <ul class="space-y-2">
+          <li><a href="#features" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
+          <li><a href="#pricing" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Pricing</a></li>
+          <li><a href="#privacy" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Privacy</a></li>
+        </ul>
+      </div>
+
+      <!-- Resources -->
+      <div>
+        <h4 class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-3">Resources</h4>
+        <ul class="space-y-2">
+          <li><a href="https://github.com/iamsagar125/oschief.ai" target="_blank" rel="noopener" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">GitHub</a></li>
+          <li><a href="https://github.com/iamsagar125/oschief.ai/releases" target="_blank" rel="noopener" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Changelog</a></li>
+        </ul>
+      </div>
+
+      <!-- Legal -->
+      <div>
+        <h4 class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-3">Open Source</h4>
+        <ul class="space-y-2">
+          <li><span class="text-[13px] text-muted-foreground">MIT License</span></li>
+          <li><a href="https://github.com/iamsagar125/oschief.ai/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" class="text-[13px] text-muted-foreground hover:text-foreground transition-colors">Contributing</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p class="text-xs text-muted-foreground">&copy; {year} OSChief. Made for macOS.</p>
+      <p class="text-xs text-muted-foreground">Apple Silicon (M1/M2/M3/M4)</p>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,68 @@
+<section class="py-16 md:py-24 bg-card" data-animate>
+  <div class="max-w-content mx-auto px-6 text-center">
+    <h2 class="font-display text-[32px] md:text-[40px] leading-[1.1] text-foreground mb-4">
+      Get early access
+    </h2>
+    <p class="text-[15px] text-muted-foreground max-w-[440px] mx-auto mb-8">
+      OSChief is launching soon. Join the waitlist and be the first to try it.
+    </p>
+
+    <form id="waitlist-form-bottom" class="flex flex-col sm:flex-row gap-3 max-w-[440px] mx-auto">
+      <input
+        type="email"
+        name="email"
+        required
+        placeholder="you@company.com"
+        class="flex-1 h-10 px-3.5 text-[13.5px] bg-background border border-border rounded-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+      />
+      <button
+        type="submit"
+        class="h-10 px-5 text-[13px] font-medium bg-primary text-primary-foreground rounded-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+      >
+        Join waitlist
+      </button>
+    </form>
+
+    <div id="waitlist-success-bottom" class="hidden mt-3 text-[13px] text-green">
+      You're on the list. We'll let you know when OSChief is ready.
+    </div>
+    <div id="waitlist-error-bottom" class="hidden mt-3 text-[13px] text-red-500">
+      Something went wrong. Please try again.
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  const form2 = document.getElementById('waitlist-form-bottom');
+  const success2 = document.getElementById('waitlist-success-bottom');
+  const error2 = document.getElementById('waitlist-error-bottom');
+
+  form2?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    success2?.classList.add('hidden');
+    error2?.classList.add('hidden');
+
+    const email = new FormData(form2).get('email');
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        success2?.classList.remove('hidden');
+        form2.reset();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'already_subscribed') {
+          success2?.classList.remove('hidden');
+          success2.textContent = "You're already on the list!";
+        } else {
+          error2?.classList.remove('hidden');
+        }
+      }
+    } catch {
+      error2?.classList.remove('hidden');
+    }
+  });
+</script>

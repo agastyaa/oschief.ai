@@ -1,0 +1,41 @@
+---
+const pillars = [
+  {
+    step: '01',
+    title: 'Record',
+    accent: 'border-primary',
+    description: 'Capture mic + system audio with live, speaker-labeled transcription. Works with Zoom, Meet, Teams, or any app. Local AI by default — no API keys, no cloud, no cost.',
+  },
+  {
+    step: '02',
+    title: 'Understand',
+    accent: 'border-green',
+    description: 'AI structures every meeting into decisions, commitments with owners, open questions, and people. Not a transcript dump — a professional brief you can act on.',
+  },
+  {
+    step: '03',
+    title: 'Act',
+    accent: 'border-amber',
+    description: 'Morning briefs surface what matters. Risk scoring flags slipping commitments. Stale decision alerts close the loop. OSChief nudges you before things fall through.',
+  },
+];
+---
+
+<section id="features" class="py-16 md:py-24 bg-card" data-animate>
+  <div class="max-w-content mx-auto px-6">
+    <p class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-4">How it works</p>
+    <h2 class="font-display text-[32px] md:text-[40px] leading-[1.1] text-foreground mb-10">
+      Record. Understand. Act.
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {pillars.map((p) => (
+        <div class={`bg-background border border-border rounded-md p-5 border-l-[3px] ${p.accent} transition-shadow hover:shadow-[var(--card-shadow-hover)]`}>
+          <span class="font-mono text-[11px] text-muted-foreground">{p.step}</span>
+          <h3 class="font-sans font-semibold text-[18px] text-foreground mt-1 mb-3">{p.title}</h3>
+          <p class="text-[13.5px] text-muted-foreground leading-relaxed">{p.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

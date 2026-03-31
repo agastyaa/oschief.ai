@@ -1,0 +1,71 @@
+---
+const features = [
+  {
+    label: 'MEETING INTELLIGENCE',
+    title: 'Every meeting, structured and searchable',
+    items: [
+      'Live speaker-labeled transcription (You vs Others)',
+      'AI summaries: decisions, action items, open questions',
+      'Role-based coaching (PM, engineer, founder, sales, 10+ roles)',
+      'Talk-time metrics, filler detection, conversation analysis',
+    ],
+  },
+  {
+    label: 'PROACTIVE INTELLIGENCE',
+    title: 'Your morning starts with clarity',
+    items: [
+      'Daily morning brief synthesized from your calendar and commitments',
+      'Commitment risk scoring: GREEN / AMBER / RED',
+      'Stale decision detection — 14+ days with no movement',
+      'End-of-day routine and weekly intelligence digest',
+    ],
+  },
+  {
+    label: 'PEOPLE & PROJECTS',
+    title: 'Know everyone. Track everything.',
+    items: [
+      'Auto-built relationship graph from meetings',
+      'Per-person history: what you decided, what you owe, what they owe you',
+      'Projects group meetings, decisions, and commitments',
+      'Decision lifecycle: Made, Assigned, In Progress, Done, Revisited',
+    ],
+  },
+  {
+    label: 'INTEGRATIONS',
+    title: 'Fits where you already work',
+    items: [
+      'Google Calendar + Microsoft 365',
+      'Obsidian vault export with wikilinks and YAML frontmatter',
+      'Jira ticket creation from action items',
+      'Slack and Teams webhook posting',
+      'Gmail read-only for meeting prep context',
+    ],
+  },
+];
+---
+
+<section class="py-16 md:py-24" data-animate>
+  <div class="max-w-content mx-auto px-6">
+    <p class="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-4">What you get</p>
+    <h2 class="font-display text-[32px] md:text-[40px] leading-[1.1] text-foreground mb-12">
+      Not another meeting recorder
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {features.map((f) => (
+        <div class="border border-border rounded-md p-6 bg-card transition-shadow hover:shadow-[var(--card-shadow-hover)]">
+          <p class="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">{f.label}</p>
+          <h3 class="font-sans font-semibold text-[16px] text-foreground mb-4">{f.title}</h3>
+          <ul class="space-y-2">
+            {f.items.map((item) => (
+              <li class="flex items-start gap-2 text-[13.5px] text-muted-foreground leading-relaxed">
+                <svg class="w-4 h-4 text-green mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
