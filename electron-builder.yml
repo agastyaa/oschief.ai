@@ -3,7 +3,7 @@ productName: OSChief
 publish:
   provider: github
   owner: iamsagar125
-  repo: syag-note
+  repo: oschief.ai
   releaseType: release
 directories:
   buildResources: electron/resources
