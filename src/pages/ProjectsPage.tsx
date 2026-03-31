@@ -4,7 +4,7 @@ import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { FolderKanban, Search, Check, Archive, Trash2, X, Plus, Gavel, ChevronDown } from "lucide-react"
+import { FolderKanban, Search, Check, Archive, Trash2, X, Plus, Gavel, ChevronDown, GitMerge } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -44,6 +44,8 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
+  const [mergingId, setMergingId] = useState<string | null>(null)
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null)
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
   const [projectDecisions, setProjectDecisions] = useState<Record<string, any[]>>({})
   const [unassignedDecisions, setUnassignedDecisions] = useState<any[]>([])
@@ -111,6 +113,17 @@ export default function ProjectsPage() {
     if (!api?.memory?.projects) return
     await api.memory.projects.delete(id)
     toast.success("Project deleted")
+    loadProjects()
+  }
+
+  const handleMerge = async () => {
+    if (!mergingId || !mergeTargetId || !api?.memory?.projects?.merge) return
+    const sourceName = projects.find(p => p.id === mergingId)?.name
+    const targetName = projects.find(p => p.id === mergeTargetId)?.name
+    await api.memory.projects.merge(mergeTargetId, mergingId)
+    toast.success(`Merged "${sourceName}" into "${targetName}"`)
+    setMergingId(null)
+    setMergeTargetId(null)
     loadProjects()
   }
 
@@ -287,6 +300,13 @@ export default function ProjectsPage() {
                   {project.status === "active" && (
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
                       <button
+                        onClick={() => { setMergingId(project.id); setMergeTargetId(null) }}
+                        className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                        title="Merge into another project"
+                      >
+                        <GitMerge className="h-3.5 w-3.5" />
+                      </button>
+                      <button
                         onClick={() => handleArchive(project.id)}
                         className="p-1 rounded hover:bg-secondary text-muted-foreground"
                         title="Archive"
@@ -343,6 +363,36 @@ export default function ProjectsPage() {
                 )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Merge picker */}
+          {mergingId && (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-card p-3 space-y-2">
+              <p className="text-xs text-foreground font-medium">
+                Merge "{projects.find(p => p.id === mergingId)?.name}" into:
+              </p>
+              <select
+                autoFocus
+                value={mergeTargetId || ""}
+                onChange={e => setMergeTargetId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Select target project...</option>
+                {projects.filter(p => p.id !== mergingId && p.status === "active").map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={handleMerge}
+                  disabled={!mergeTargetId}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  Merge
+                </button>
+                <button onClick={() => { setMergingId(null); setMergeTargetId(null) }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
             </div>
           )}
 

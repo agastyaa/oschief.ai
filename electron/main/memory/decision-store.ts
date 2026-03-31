@@ -118,6 +118,23 @@ export function updateDecisionStatus(id: string, status: DecisionStatus): boolea
   return (result as any).changes > 0
 }
 
+export function updateDecision(id: string, data: { text?: string; context?: string; projectId?: string | null }): boolean {
+  const sets: string[] = []
+  const values: any[] = []
+  if (data.text !== undefined) { sets.push('text = ?'); values.push(data.text) }
+  if (data.context !== undefined) { sets.push('context = ?'); values.push(data.context) }
+  if (data.projectId !== undefined) { sets.push('project_id = ?'); values.push(data.projectId) }
+  if (sets.length === 0) return false
+  sets.push('updated_at = ?'); values.push(new Date().toISOString())
+  values.push(id)
+  const result = getDb().prepare(`UPDATE decisions SET ${sets.join(', ')} WHERE id = ?`).run(...values)
+  if ((result as any).changes > 0) {
+    const updated = getDecision(id)
+    if (updated) logDecisionSync('UPDATE', id, updated)
+  }
+  return (result as any).changes > 0
+}
+
 export function deleteDecision(id: string): boolean {
   const db = getDb()
   db.prepare('DELETE FROM decision_people WHERE decision_id = ?').run(id)

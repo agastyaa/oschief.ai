@@ -5,7 +5,7 @@ import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
 import { toast } from "sonner"
@@ -26,7 +26,7 @@ interface Commitment {
   note_date?: string
 }
 
-type FilterStatus = "all" | "open" | "completed" | "overdue" | "my"
+type FilterStatus = "all" | "open" | "completed" | "overdue" | "my" | "upcoming"
 
 const STATUS_CONFIG = {
   open: { label: "Open", icon: Circle, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -48,6 +48,7 @@ const CommitmentsPage = () => {
   const [newTodoProjectId, setNewTodoProjectId] = useState<string | null>(null)
   const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
   const [editingAssigneeId, setEditingAssigneeId] = useState<string | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [people, setPeople] = useState<any[]>([])
 
   const api = getElectronAPI()
@@ -130,11 +131,16 @@ const CommitmentsPage = () => {
     setEditingId(null)
   }, [api, editingId, editText, loadCommitments])
 
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  const isUpcoming = (c: Commitment) =>
+    (c.status === "open" || c.status === "overdue") && c.due_date && c.due_date <= sevenDaysFromNow
+
   const counts = {
     open: commitments.filter(c => c.status === "open").length,
     completed: commitments.filter(c => c.status === "completed").length,
     overdue: commitments.filter(c => c.status === "overdue").length,
     my: commitments.filter(c => isMyCommitment(c) && (c.status === "open" || c.status === "overdue")).length,
+    upcoming: commitments.filter(isUpcoming).length,
   }
 
   const totalOpen = commitments.filter(c => c.status === "open" || c.status === "overdue").length
@@ -144,6 +150,7 @@ const CommitmentsPage = () => {
     if (filter === "my") {
       return commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
     }
+    if (filter === "upcoming") return commitments.filter(isUpcoming)
     return commitments.filter((c) => c.status === filter)
   }, [commitments, filter, isMyCommitment])
 
@@ -254,7 +261,7 @@ const CommitmentsPage = () => {
 
             {/* Filter tabs */}
             <div className="flex items-center gap-1 mb-6 border-b border-border pb-2">
-              {(["my", "open", "completed", "overdue", "all"] as const).map((f) => (
+              {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -265,7 +272,7 @@ const CommitmentsPage = () => {
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   )}
                 >
-                  {f === "all" ? "All" : f === "my" ? "My" : STATUS_CONFIG[f].label}
+                  {f === "all" ? "All" : f === "my" ? "My" : f === "upcoming" ? "Upcoming" : STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label}
                   {f !== "all" && f === "open" && counts.open > 0 && (
                     <span className="ml-1.5 text-[10px] opacity-60">{counts.open}</span>
                   )}
@@ -274,6 +281,9 @@ const CommitmentsPage = () => {
                   )}
                   {f === "my" && counts.my > 0 && (
                     <span className="ml-1.5 text-[10px] opacity-60">{counts.my}</span>
+                  )}
+                  {f === "upcoming" && counts.upcoming > 0 && (
+                    <span className="ml-1.5 text-[10px] opacity-60">{counts.upcoming}</span>
                   )}
                 </button>
               ))}
@@ -456,6 +466,32 @@ const CommitmentsPage = () => {
                                   <span className="text-[11px] text-blue-500 font-mono">
                                     {c.jira_issue_key}
                                   </span>
+                                )}
+                                {editingProjectId === c.id ? (
+                                  <select
+                                    autoFocus
+                                    defaultValue={(c as any).project_id || ""}
+                                    onBlur={() => setEditingProjectId(null)}
+                                    onChange={(e) => {
+                                      api?.memory?.commitments?.update(c.id, { projectId: e.target.value || null })
+                                        .then(() => { loadCommitments(); setEditingProjectId(null) })
+                                    }}
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                  >
+                                    <option value="">No project</option>
+                                    {projects.map(p => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <button
+                                    onClick={() => setEditingProjectId(c.id)}
+                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    title="Assign to project"
+                                  >
+                                    <FolderKanban className="h-2.5 w-2.5" />
+                                    {(c as any).project_name || "Project"}
+                                  </button>
                                 )}
                               </div>
                             </div>
