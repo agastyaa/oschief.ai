@@ -2150,11 +2150,20 @@ export default function SettingsPage() {
                             </p>
                           )}
 
-                          <p className="text-[10px] text-muted-foreground">
-                            Want other models? Run{" "}
-                            <code className="rounded bg-muted px-1 py-0.5 text-[9px]">ollama pull &lt;model&gt;</code>{" "}
-                            in Terminal — they'll appear in the model picker automatically.
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-muted-foreground flex-1">
+                              Want other models? Run{" "}
+                              <code className="rounded bg-muted px-1 py-0.5 text-[9px]">ollama pull &lt;model&gt;</code>{" "}
+                              in Terminal, then click Refresh.
+                            </p>
+                            <button
+                              onClick={() => refreshOllama()}
+                              className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors shrink-0"
+                            >
+                              <RefreshCw className="h-2.5 w-2.5" />
+                              Refresh
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>

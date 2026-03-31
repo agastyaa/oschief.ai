@@ -59,6 +59,7 @@ export function LiveMeetingIndicator() {
   return (
     <div
       className="fixed top-3 right-4 z-[9999]"
+      onClick={handleGoToNote}
       style={{
         cursor: "pointer",
         opacity: visible ? 1 : 0,
