@@ -124,7 +124,7 @@ You own your data. OSChief's job is to make it usable.
 
 ## Install
 
-1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/syag-note/releases).
+1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/oschief.ai/releases).
 2. Open the DMG and drag **OSChief** to **Applications**.
 3. Launch OSChief from Applications.
 
@@ -140,19 +140,7 @@ Or: right‑click OSChief in Applications → **Open** → confirm.
 
 ---
 
-## What's new in v2.0.4
 
-- Morning brief home page with Needs Attention section
-- Commitment risk scoring (GREEN / AMBER / RED)
-- Inline deadline setting on commitments
-- "N at risk" pill indicator in sidebar (replaces dot)
-- Decision status lifecycle + stale detection
-- End-of-day routine (weekdays only)
-- DB migration v12 (automatic on first launch)
-
-Full notes: [github.com/iamsagar125/syag-note/releases/tag/v2.0.4](https://github.com/iamsagar125/syag-note/releases/tag/v2.0.4)
-
----
 
 ## Roadmap / status
 
