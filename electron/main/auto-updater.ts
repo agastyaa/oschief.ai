@@ -7,6 +7,12 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
+  // Private repo: use GH_TOKEN env var for authentication
+  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
+  if (ghToken) {
+    autoUpdater.requestHeaders = { Authorization: `token ${ghToken}` }
+  }
+
   // Check for updates on launch (silent — errors are swallowed)
   autoUpdater.checkForUpdatesAndNotify().catch(() => {})
 

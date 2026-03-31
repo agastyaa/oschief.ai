@@ -2554,7 +2554,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''} <span className="text-[11px] font-normal text-primary/70">(testing_perf_optimization)</span></p>
+                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
                         <p className="text-[11px] text-muted-foreground">macOS (Apple Silicon)</p>
                       </div>
                       <div className="flex items-center gap-2">
