@@ -997,7 +997,8 @@ export default function NewNotePage() {
           elapsedSeconds: effectiveElapsed,
         });
       }
-      setSummary(null);
+      // Don't clear summary on resume from pause — it will regenerate when user pauses/stops again
+      // Only clear if there's significant new transcript (handled by generateNotes guard)
       if (usingRealAudio) {
         resumeAudioCapture(selectedSTTModel || '')
           .catch((err) => {
@@ -1262,8 +1263,20 @@ export default function NewNotePage() {
                       userHasEditedTitleRef.current = true;
                       setTitle(e.target.value);
                     }}
-                    onBlur={() => setIsEditingTitle(false)}
-                    onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
+                    onBlur={() => {
+                      setIsEditingTitle(false);
+                      if (title.trim() && noteId) {
+                        api?.db?.notes?.update(noteId, { title: title.trim() }).catch(console.error);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setIsEditingTitle(false);
+                        if (title.trim() && noteId) {
+                          api?.db?.notes?.update(noteId, { title: title.trim() }).catch(console.error);
+                        }
+                      }
+                    }}
                     className="mb-3 w-full font-display text-2xl text-foreground bg-transparent border-none outline-none focus:ring-0"
                     placeholder="New note"
                   />
