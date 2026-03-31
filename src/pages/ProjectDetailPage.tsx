@@ -5,9 +5,10 @@ import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   FolderKanban, ArrowLeft, FileText, Users, Gavel, CheckSquare,
-  Calendar, ChevronRight
+  Calendar, ChevronRight, Archive, Trash2, Unlink
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface ProjectTimeline {
   meetings: any[]
@@ -108,6 +109,32 @@ export default function ProjectDetailPage() {
             <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-medium ml-2", statusStyles[project.status] || statusStyles.archived)}>
               {project.status}
             </span>
+            <div className="flex-1" />
+            {project.status === "active" && (
+              <button
+                onClick={async () => {
+                  await api?.memory?.projects?.archive(id!)
+                  toast.success("Project archived")
+                  navigate("/projects")
+                }}
+                className="p-1.5 rounded hover:bg-secondary text-muted-foreground"
+                title="Archive project"
+              >
+                <Archive className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete "${project.name}"? This cannot be undone.`)) return
+                await api?.memory?.projects?.delete(id!)
+                toast.success("Project deleted")
+                navigate("/projects")
+              }}
+              className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+              title="Delete project"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
           {editingDesc ? (
             <input
@@ -195,14 +222,16 @@ export default function ProjectDetailPage() {
                   .map(n => (
                     <button
                       key={n.id}
-                      onClick={async () => {
+                      onMouseDown={async (e) => {
+                        e.preventDefault()
                         if (!id || !api?.memory?.projects) return
                         await api.memory.projects.linkToNote(n.id, id)
                         setLinkingMeeting(false)
                         setMeetingSearch("")
                         api.memory.projects.timeline(id).then(setTimeline)
+                        toast.success("Meeting linked")
                       }}
-                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 cursor-pointer transition-colors"
                     >
                       {n.title || "Untitled"} <span className="text-xs text-muted-foreground ml-2">{n.date}</span>
                     </button>
@@ -229,14 +258,16 @@ export default function ProjectDetailPage() {
                   .map(p => (
                     <button
                       key={p.id}
-                      onClick={async () => {
+                      onMouseDown={async (e) => {
+                        e.preventDefault()
                         if (!id || !api?.memory?.projects) return
                         await api.memory.projects.linkPerson(id, p.id)
                         setLinkingPerson(false)
                         setPersonSearch("")
                         api.memory.projects.timeline(id).then(setTimeline)
+                        toast.success(`Added ${p.name}`)
                       }}
-                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-secondary/50 cursor-pointer transition-colors"
                     >
                       {p.name} <span className="text-xs text-muted-foreground ml-2">{p.company || p.role || ''}</span>
                     </button>
@@ -370,13 +401,26 @@ export default function ProjectDetailPage() {
                 <div
                   key={meeting.id}
                   onClick={() => navigate(`/note/${meeting.id}`)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-secondary/50 cursor-pointer transition-colors"
+                  className="group flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-secondary/50 cursor-pointer transition-colors"
                 >
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{meeting.title || "Untitled Meeting"}</div>
                     <div className="text-xs text-muted-foreground">{meeting.date}{meeting.duration ? ` · ${meeting.duration}` : ""}</div>
                   </div>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      if (!confirm(`Unlink "${meeting.title || 'this meeting'}" from project?`)) return
+                      await api?.memory?.projects?.unlinkFromNote(meeting.id, id!)
+                      api?.memory?.projects?.timeline(id!).then(setTimeline)
+                      toast.success("Meeting unlinked")
+                    }}
+                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    title="Unlink from project"
+                  >
+                    <Unlink className="h-3 w-3" />
+                  </button>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               ))}

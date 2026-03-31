@@ -1397,6 +1397,10 @@ export function registerIPCHandlers(): void {
     return deleteDecision(id)
   })
 
+  ipcMain.handle('memory:decisions-update', async (_e, id: string, data: any) => {
+    const { updateDecision } = await import('./memory/decision-store')
+    return updateDecision(id, data)
+  })
   ipcMain.handle('memory:decisions-unassigned', async () => {
     const { getUnassignedDecisions } = await import('./memory/decision-store')
     return getUnassignedDecisions()

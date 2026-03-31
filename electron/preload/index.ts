@@ -446,6 +446,7 @@ const electronAPI = {
       create: (data: { text: string; context?: string; noteId?: string; projectId?: string; date?: string }) => ipcRenderer.invoke('memory:decisions-create', data) as Promise<any>,
       delete: (id: string) => ipcRenderer.invoke('memory:decisions-delete', id) as Promise<boolean>,
       updateStatus: (id: string, status: string) => ipcRenderer.invoke('memory:decisions-update-status', id, status) as Promise<boolean>,
+      update: (id: string, data: { text?: string; context?: string; projectId?: string | null }) => ipcRenderer.invoke('memory:decisions-update', id, data) as Promise<boolean>,
       getUnassigned: () => ipcRenderer.invoke('memory:decisions-unassigned') as Promise<any[]>,
     },
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
