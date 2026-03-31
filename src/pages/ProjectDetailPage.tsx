@@ -35,6 +35,12 @@ export default function ProjectDetailPage() {
   const [linkingPerson, setLinkingPerson] = useState(false)
   const [allPeople, setAllPeople] = useState<any[]>([])
   const [personSearch, setPersonSearch] = useState("")
+  const [addingActionItem, setAddingActionItem] = useState(false)
+  const [actionItemText, setActionItemText] = useState("")
+  const [actionItemOwner, setActionItemOwner] = useState("you")
+  const [addingDecision, setAddingDecision] = useState(false)
+  const [decisionText, setDecisionText] = useState("")
+  const [decisionContext, setDecisionContext] = useState("")
 
   const saveField = async (field: "name" | "description", value: string) => {
     if (!id || !api?.memory?.projects) return
@@ -158,6 +164,18 @@ export default function ProjectDetailPage() {
             >
               <Users className="h-3 w-3" /> Add Person
             </button>
+            <button
+              onClick={() => setAddingActionItem(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <CheckSquare className="h-3 w-3" /> Add Action Item
+            </button>
+            <button
+              onClick={() => setAddingDecision(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <Gavel className="h-3 w-3" /> Add Decision
+            </button>
           </div>
 
           {/* Link Meeting Picker */}
@@ -225,6 +243,123 @@ export default function ProjectDetailPage() {
                   ))}
               </div>
               <button onClick={() => { setLinkingPerson(false); setPersonSearch("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+          )}
+
+          {/* Add Action Item Form */}
+          {addingActionItem && (
+            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+              <input
+                value={actionItemText}
+                onChange={e => setActionItemText(e.target.value)}
+                placeholder="What needs to be done?"
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && actionItemText.trim()) {
+                    api?.memory?.commitments?.add({
+                      text: actionItemText.trim(),
+                      owner: actionItemOwner,
+                      projectId: id,
+                      status: 'open',
+                    }).then(() => {
+                      setActionItemText("")
+                      setActionItemOwner("you")
+                      setAddingActionItem(false)
+                      if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
+                    })
+                  }
+                  if (e.key === 'Escape') { setAddingActionItem(false); setActionItemText("") }
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <select
+                  value={actionItemOwner}
+                  onChange={e => setActionItemOwner(e.target.value)}
+                  className="px-2 py-1 text-xs bg-background border border-border rounded-md"
+                >
+                  <option value="you">Assigned to: You</option>
+                  <option value="others">Assigned to: Others</option>
+                </select>
+                <div className="flex-1" />
+                <button
+                  onClick={() => {
+                    if (!actionItemText.trim()) return
+                    api?.memory?.commitments?.add({
+                      text: actionItemText.trim(),
+                      owner: actionItemOwner,
+                      projectId: id,
+                      status: 'open',
+                    }).then(() => {
+                      setActionItemText("")
+                      setActionItemOwner("you")
+                      setAddingActionItem(false)
+                      if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
+                    })
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90"
+                >
+                  Add
+                </button>
+                <button onClick={() => { setAddingActionItem(false); setActionItemText("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Add Decision Form */}
+          {addingDecision && (
+            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+              <input
+                value={decisionText}
+                onChange={e => setDecisionText(e.target.value)}
+                placeholder="What was decided?"
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && decisionText.trim()) {
+                    api?.memory?.decisions?.create({
+                      text: decisionText.trim(),
+                      context: decisionContext.trim() || undefined,
+                      projectId: id,
+                      date: new Date().toISOString().slice(0, 10),
+                    }).then(() => {
+                      setDecisionText("")
+                      setDecisionContext("")
+                      setAddingDecision(false)
+                      if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
+                    })
+                  }
+                  if (e.key === 'Escape') { setAddingDecision(false); setDecisionText(""); setDecisionContext("") }
+                }}
+              />
+              <input
+                value={decisionContext}
+                onChange={e => setDecisionContext(e.target.value)}
+                placeholder="Context (optional)"
+                className="w-full px-3 py-2 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    if (!decisionText.trim()) return
+                    api?.memory?.decisions?.create({
+                      text: decisionText.trim(),
+                      context: decisionContext.trim() || undefined,
+                      projectId: id,
+                      date: new Date().toISOString().slice(0, 10),
+                    }).then(() => {
+                      setDecisionText("")
+                      setDecisionContext("")
+                      setAddingDecision(false)
+                      if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
+                    })
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90"
+                >
+                  Add
+                </button>
+                <button onClick={() => { setAddingDecision(false); setDecisionText(""); setDecisionContext("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
             </div>
           )}
 
