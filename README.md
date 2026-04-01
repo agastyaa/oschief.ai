@@ -44,7 +44,7 @@ Post‑meeting coaching tuned to your role (PM, engineer, sales, founder, design
 
 OSChief can be hidden from screen share with a single toggle. When minimized, a floating pill stays always‑on‑top with title + elapsed time; click to jump back.
 
-### 2. Proactive intelligence (v2.0.4)
+### 2. Proactive intelligence 
 
 **Morning Brief**
 
