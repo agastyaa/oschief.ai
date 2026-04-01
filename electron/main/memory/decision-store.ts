@@ -88,7 +88,13 @@ export function addDecision(data: {
 }): any {
   const id = randomUUID()
   const now = new Date().toISOString()
-  getDb().prepare(`
+  const db = getDb()
+
+  // Ensure v12 columns exist (may be missing if ALTER TABLE failed on a previous version)
+  try { db.exec(`ALTER TABLE decisions ADD COLUMN status TEXT DEFAULT 'MADE'`) } catch {}
+  try { db.exec(`ALTER TABLE decisions ADD COLUMN updated_at TEXT`) } catch {}
+
+  db.prepare(`
     INSERT INTO decisions (id, note_id, project_id, text, context, date, status, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, 'MADE', ?, ?)
   `).run(

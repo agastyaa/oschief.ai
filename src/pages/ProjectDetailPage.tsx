@@ -172,7 +172,7 @@ export default function ProjectDetailPage() {
             <button
               onClick={async () => {
                 if (!api) return
-                const notes = await api.notes.getAll()
+                const notes = await api.db.notes.getAll()
                 setAllNotes(notes || [])
                 setLinkingMeeting(true)
               }}
@@ -292,13 +292,13 @@ export default function ProjectDetailPage() {
                       text: actionItemText.trim(),
                       owner: actionItemOwner,
                       projectId: id,
-                      status: 'open',
                     }).then(() => {
+                      toast.success("Action item added")
                       setActionItemText("")
                       setActionItemOwner("you")
                       setAddingActionItem(false)
                       if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
-                    })
+                    }).catch(() => toast.error("Failed to add action item"))
                   }
                   if (e.key === 'Escape') { setAddingActionItem(false); setActionItemText("") }
                 }}
@@ -320,13 +320,13 @@ export default function ProjectDetailPage() {
                       text: actionItemText.trim(),
                       owner: actionItemOwner,
                       projectId: id,
-                      status: 'open',
                     }).then(() => {
+                      toast.success("Action item added")
                       setActionItemText("")
                       setActionItemOwner("you")
                       setAddingActionItem(false)
                       if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
-                    })
+                    }).catch(() => toast.error("Failed to add action item"))
                   }}
                   className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90"
                 >
@@ -354,11 +354,12 @@ export default function ProjectDetailPage() {
                       projectId: id,
                       date: new Date().toISOString().slice(0, 10),
                     }).then(() => {
+                      toast.success("Decision added")
                       setDecisionText("")
                       setDecisionContext("")
                       setAddingDecision(false)
                       if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
-                    })
+                    }).catch(() => toast.error("Failed to add decision"))
                   }
                   if (e.key === 'Escape') { setAddingDecision(false); setDecisionText(""); setDecisionContext("") }
                 }}
@@ -379,11 +380,12 @@ export default function ProjectDetailPage() {
                       projectId: id,
                       date: new Date().toISOString().slice(0, 10),
                     }).then(() => {
+                      toast.success("Decision added")
                       setDecisionText("")
                       setDecisionContext("")
                       setAddingDecision(false)
                       if (id) api?.memory?.projects?.timeline(id).then(setTimeline)
-                    })
+                    }).catch(() => toast.error("Failed to add decision"))
                   }}
                   className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90"
                 >
@@ -412,16 +414,17 @@ export default function ProjectDetailPage() {
                     onClick={async (e) => {
                       e.stopPropagation()
                       if (!confirm(`Unlink "${meeting.title || 'this meeting'}" from project?`)) return
-                      await api?.memory?.projects?.unlinkFromNote(meeting.id, id!)
-                      api?.memory?.projects?.timeline(id!).then(setTimeline)
-                      toast.success("Meeting unlinked")
+                      try {
+                        await api?.memory?.projects?.unlinkFromNote(meeting.id, id!)
+                        api?.memory?.projects?.timeline(id!).then(setTimeline)
+                        toast.success("Meeting unlinked")
+                      } catch (err) { toast.error("Failed to unlink meeting") }
                     }}
-                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0"
                     title="Unlink from project"
                   >
-                    <Unlink className="h-3 w-3" />
+                    <Unlink className="h-3.5 w-3.5" />
                   </button>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               ))}
             </Section>
@@ -431,13 +434,30 @@ export default function ProjectDetailPage() {
           {timeline?.decisions.length ? (
             <Section title="DECISIONS" count={timeline.decisions.length}>
               {timeline.decisions.map(decision => (
-                <div key={decision.id} className="px-3 py-2.5">
-                  <div className="text-sm">{decision.text}</div>
-                  {decision.context && <div className="text-xs text-muted-foreground mt-0.5">{decision.context}</div>}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {decision.note_title && <span>From: {decision.note_title}</span>}
-                    {decision.participant_names && <span className="ml-2">· {decision.participant_names}</span>}
+                <div key={decision.id} className="group flex items-start gap-2 px-3 py-2.5">
+                  <Gavel className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm">{decision.text}</div>
+                    {decision.context && <div className="text-xs text-muted-foreground mt-0.5">{decision.context}</div>}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {decision.note_title && <span>From: {decision.note_title}</span>}
+                      {decision.participant_names && <span className="ml-2">· {decision.participant_names}</span>}
+                    </div>
                   </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Delete this decision?")) return
+                      try {
+                        await api?.memory?.decisions?.delete(decision.id)
+                        api?.memory?.projects?.timeline(id!).then(setTimeline)
+                        toast.success("Decision deleted")
+                      } catch (err) { toast.error("Failed to delete decision") }
+                    }}
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    title="Delete decision"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </Section>
@@ -466,8 +486,20 @@ export default function ProjectDetailPage() {
           {timeline?.commitments.length ? (
             <Section title="ACTION ITEMS" count={timeline.commitments.length}>
               {timeline.commitments.map(c => (
-                <div key={c.id} className="flex items-start gap-2 px-3 py-2">
-                  <CheckSquare className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", c.status === "completed" ? "text-green-500" : "text-muted-foreground")} />
+                <div key={c.id} className="group flex items-start gap-2 px-3 py-2">
+                  <button
+                    onClick={async () => {
+                      const newStatus = c.status === "completed" ? "open" : "completed"
+                      try {
+                        await api?.memory?.commitments?.updateStatus(c.id, newStatus)
+                        api?.memory?.projects?.timeline(id!).then(setTimeline)
+                      } catch { toast.error("Failed to update status") }
+                    }}
+                    className="mt-0.5 shrink-0 hover:scale-110 transition-transform"
+                    title={c.status === "completed" ? "Mark as open" : "Mark as done"}
+                  >
+                    <CheckSquare className={cn("h-3.5 w-3.5", c.status === "completed" ? "text-green-500" : "text-muted-foreground hover:text-primary")} />
+                  </button>
                   <div className="flex-1">
                     <div className={cn("text-sm", c.status === "completed" && "line-through text-muted-foreground")}>{c.text}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -475,6 +507,20 @@ export default function ProjectDetailPage() {
                       {c.due_date && <span className={cn("ml-2", c.status === "open" && new Date(c.due_date) < new Date() ? "text-amber-600 dark:text-amber-400 font-medium" : "")}>Due {c.due_date}</span>}
                     </div>
                   </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Delete this action item?")) return
+                      try {
+                        await api?.memory?.commitments?.delete(c.id)
+                        api?.memory?.projects?.timeline(id!).then(setTimeline)
+                        toast.success("Action item deleted")
+                      } catch (err) { toast.error("Failed to delete action item") }
+                    }}
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    title="Delete action item"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </Section>

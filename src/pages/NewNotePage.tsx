@@ -208,7 +208,7 @@ export default function NewNotePage() {
   /** Granola-style: if user manually edited title, don't overwrite with AI-generated one */
   const userHasEditedTitleRef = useRef(false);
   const { folders, createFolder } = useFolders();
-  const { addNote, deleteNote } = useNotes();
+  const { addNote, deleteNote, updateNote } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
 
   const MEETING_TEMPLATES = useMemo(() => {
@@ -547,7 +547,7 @@ export default function NewNotePage() {
     const timeRange = formatTimeRange(startTimeMs, effectiveElapsed);
 
     lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
-    lastGeneratedNotesRef.current = useNotes;
+    lastGeneratedNotesRef.current = override?.personalNotes ?? personalNotes;
 
     // Save the note immediately (without summary) so it's not lost if summarize hangs
     try {
@@ -625,6 +625,8 @@ export default function NewNotePage() {
           if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
         }).catch((err: any) => console.error('Entity extraction failed:', err));
       }
+      // Sync summary to NotesContext so home page sees it immediately
+      updateNote(incomingNoteId, { summary });
       // Only update UI state if this summary belongs to the currently displayed note
       if (incomingNoteId !== noteId) {
         console.log(`[summary] Received summary for ${incomingNoteId} but current note is ${noteId} — DB updated, UI skipped`);
@@ -635,7 +637,7 @@ export default function NewNotePage() {
       setSummary(summary);
       if (!userHasEditedTitleRef.current && summary.title && !isGenericTitle(summary.title)) {
         setTitle(summary.title);
-        api?.db?.notes?.update(incomingNoteId, { title: summary.title }).catch(console.error);
+        updateNote(incomingNoteId, { title: summary.title });
       }
       setIsSummarizing(false);
     });
@@ -1266,14 +1268,14 @@ export default function NewNotePage() {
                     onBlur={() => {
                       setIsEditingTitle(false);
                       if (title.trim() && noteId) {
-                        api?.db?.notes?.update(noteId, { title: title.trim() }).catch(console.error);
+                        updateNote(noteId, { title: title.trim() });
                       }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         setIsEditingTitle(false);
                         if (title.trim() && noteId) {
-                          api?.db?.notes?.update(noteId, { title: title.trim() }).catch(console.error);
+                          updateNote(noteId, { title: title.trim() });
                         }
                       }
                     }}

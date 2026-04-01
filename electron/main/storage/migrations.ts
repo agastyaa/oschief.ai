@@ -270,6 +270,19 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pql_timestamp ON pipeline_quality_log(timestamp)`,
     ]
   },
+  {
+    version: 14,
+    up: [
+      `CREATE TABLE IF NOT EXISTS project_people (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT 'member',
+        created_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (project_id, person_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_project_people_person ON project_people(person_id)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {
