@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 
@@ -54,6 +54,15 @@ interface RecordingContextType {
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
 
+/** Lightweight context for session state only — does NOT include transcriptLines.
+ *  Components that only need isActive/activeSession should use useRecordingSession()
+ *  to avoid re-rendering on every transcript chunk. */
+interface RecordingSessionContextType {
+  activeSession: RecordingSession | null;
+  isActive: boolean;
+}
+const RecordingSessionContext = createContext<RecordingSessionContextType | undefined>(undefined);
+
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<RecordingSession | null>(null);
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
@@ -75,6 +84,44 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const api = getElectronAPI();
 
+  // --- Batched transcript updates: accumulate chunks in a ref, flush every 300ms ---
+  const pendingChunksRef = useRef<TranscriptLine[]>([]);
+  const pendingCorrectionsRef = useRef<Array<{ time: string; speaker: string; text: string; originalText: string }>>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushTranscriptBatch = useCallback(() => {
+    const chunks = pendingChunksRef.current;
+    const corrections = pendingCorrectionsRef.current;
+    pendingChunksRef.current = [];
+    pendingCorrectionsRef.current = [];
+    flushTimerRef.current = null;
+
+    if (chunks.length === 0 && corrections.length === 0) return;
+
+    setTranscriptLines((prev) => {
+      let updated = chunks.length > 0 ? [...prev, ...chunks] : prev;
+
+      // Apply any corrections to the combined array
+      for (const corrected of corrections) {
+        const idx = updated.findIndex(
+          (l) => l.time === corrected.time && l.speaker === corrected.speaker && l.text === corrected.originalText
+        );
+        if (idx !== -1) {
+          if (updated === prev) updated = [...prev]; // copy-on-write
+          updated[idx] = { ...updated[idx], text: corrected.text };
+        }
+      }
+
+      return updated;
+    });
+  }, []);
+
+  const scheduleFlush = useCallback(() => {
+    if (!flushTimerRef.current) {
+      flushTimerRef.current = setTimeout(flushTranscriptBatch, 300);
+    }
+  }, [flushTranscriptBatch]);
+
   const setSessionScratch = useCallback((scratch: { personalNotes?: string; title?: string; userEditedTitle?: boolean }) => {
     sessionScratchRef.current = { ...sessionScratchRef.current, ...scratch };
   }, []);
@@ -91,21 +138,14 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         // Only real You/Others lines count for "stale transcript" — ignore [STT: …] system hints
         setLastSuccessfulTranscriptTime(Date.now());
       }
-      setTranscriptLines((prev) => [...prev, chunk]);
+      pendingChunksRef.current.push(chunk);
+      scheduleFlush();
     });
 
-    // LLM post-processing: replace raw transcript line with corrected version
+    // LLM post-processing: replace raw transcript line with corrected version (batched)
     const cleanupCorrected = api.recording.onCorrectedTranscript?.((corrected) => {
-      setTranscriptLines((prev) => {
-        // Find the matching line by time + speaker + original text
-        const idx = prev.findIndex(
-          (l) => l.time === corrected.time && l.speaker === corrected.speaker && l.text === corrected.originalText
-        );
-        if (idx === -1) return prev;
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], text: corrected.text };
-        return updated;
-      });
+      pendingCorrectionsRef.current.push(corrected);
+      scheduleFlush();
     });
 
     // Note: auto-paused/auto-resumed are not currently emitted (auto-pause on silence is disabled in capture.ts).
@@ -126,7 +166,15 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
     cleanupRef.current = cleanupTranscript;
 
-    return () => { cleanupTranscript(); cleanupCorrected?.(); cleanupStatus(); };
+    return () => {
+      cleanupTranscript(); cleanupCorrected?.(); cleanupStatus();
+      // Flush any pending batched chunks before teardown
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushTranscriptBatch();
+    };
   }, []);
 
   const removeTranscriptLineAt = useCallback((index: number) => {
@@ -173,6 +221,13 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   }, [api]);
 
   const clearSession = useCallback(() => {
+    // Flush any pending batched transcript chunks before clearing
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    pendingChunksRef.current = [];
+    pendingCorrectionsRef.current = [];
     setActiveSession(null);
     setTranscriptLines([]);
     setSttStatus('idle');
@@ -502,22 +557,42 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const isActive = !!activeSession;
 
+  // Memoize session-only value so RecordingSessionContext consumers don't re-render
+  // on transcript/stt changes — only on session identity changes.
+  const sessionValue = useMemo(() => ({
+    activeSession,
+    isActive,
+  }), [activeSession, isActive]);
+
   return (
-    <RecordingContext.Provider value={{
-      activeSession, isActive, startSession, resumeSession, updateSession, clearSession,
-      transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError,
-      sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime,
-      startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture,
-      setSessionScratch, getSessionScratch,
-      meetingContext, setMeetingContext
-    }}>
-      {children}
-    </RecordingContext.Provider>
+    <RecordingSessionContext.Provider value={sessionValue}>
+      <RecordingContext.Provider value={{
+        activeSession, isActive, startSession, resumeSession, updateSession, clearSession,
+        transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError,
+        sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime,
+        startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture,
+        setSessionScratch, getSessionScratch,
+        meetingContext, setMeetingContext
+      }}>
+        {children}
+      </RecordingContext.Provider>
+    </RecordingSessionContext.Provider>
   );
 }
 
+/** Full recording context — includes transcriptLines, sttStatus, capture methods.
+ *  Use this in NewNotePage and NoteDetailPage where you need the full API. */
 export function useRecording() {
   const ctx = useContext(RecordingContext);
   if (!ctx) throw new Error("useRecording must be used within RecordingProvider");
+  return ctx;
+}
+
+/** Lightweight session-only hook — only re-renders when activeSession changes.
+ *  Use this in components that only need isActive/activeSession (Sidebar, CalendarPage, etc.)
+ *  to avoid re-rendering on every transcript chunk. */
+export function useRecordingSession() {
+  const ctx = useContext(RecordingSessionContext);
+  if (!ctx) throw new Error("useRecordingSession must be used within RecordingProvider");
   return ctx;
 }

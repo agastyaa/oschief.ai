@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { toast } from "sonner";
 import type { CoachingMetrics } from "@/lib/coaching-analytics";
 
 export interface SavedNote {
@@ -37,6 +38,12 @@ interface NotesContextType {
   updateNoteFolder: (noteId: string, folderId: string | null) => void;
   getNotesInFolder: (folderId: string) => SavedNote[];
   refreshNotes: () => Promise<void>;
+  /** Set of note IDs currently being summarized in the background. */
+  summarizingNoteIds: Set<string>;
+  /** Mark a note as "summarizing" (call before firing summarizeBackground IPC). */
+  addSummarizingNote: (noteId: string) => void;
+  /** Last summary-ready event: { noteId, durationMs } — consumed by NewNotePage to update inline. */
+  lastSummaryReady: { noteId: string; summary: any; durationMs: number } | null;
 }
 
 const STORAGE_KEY = "syag-notes";
@@ -60,7 +67,12 @@ const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 export function NotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<SavedNote[]>(() => isElectron ? [] : loadNotesFromLS());
+  const [summarizingNoteIds, setSummarizingNoteIds] = useState<Set<string>>(new Set());
+  const [lastSummaryReady, setLastSummaryReady] = useState<{ noteId: string; summary: any; durationMs: number } | null>(null);
   const api = getElectronAPI();
+
+  // _activeNewNotePageIds (module-level Set) tracks noteIds viewed on NewNotePage
+  // to suppress redundant toasts — see useRegisterActiveNewNotePage() below
 
   useEffect(() => {
     if (api) {
@@ -76,6 +88,58 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     });
     return unsub;
   }, [api]);
+
+  // Global summary-ready listener — fires regardless of which page the user is on
+  useEffect(() => {
+    if (!api?.llm) return;
+
+    const cleanupReady = api.llm.onSummaryReady((noteId: string, summary: any, durationMs: number) => {
+      // Remove from summarizing set
+      setSummarizingNoteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(noteId);
+        return next;
+      });
+
+      // Update the note in context state with the new summary
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, summary } : n)));
+
+      // Publish for NewNotePage to pick up inline
+      setLastSummaryReady({ noteId, summary, durationMs });
+
+      // Show toast ONLY if user is NOT on the NewNotePage for this specific note
+      // (NewNotePage shows the summary inline — toast would be redundant)
+      if (!_activeNewNotePageIds.has(noteId)) {
+        const note = notes.find((n) => n.id === noteId);
+        const title = note?.title || "Meeting";
+        const durationLabel = durationMs > 0 ? ` (${Math.round(durationMs / 1000)}s)` : "";
+        toast.success(`Summary ready: ${title}${durationLabel}`, {
+          duration: 8000,
+          action: {
+            label: "View",
+            onClick: () => {
+              // Navigate to the note — use hash router path
+              window.location.hash = `#/note/${noteId}`;
+            },
+          },
+        });
+      }
+    });
+
+    const cleanupFailed = api.llm.onSummaryFailed((noteId: string) => {
+      setSummarizingNoteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(noteId);
+        return next;
+      });
+
+      if (!_activeNewNotePageIds.has(noteId)) {
+        toast.error("Summary generation failed. Try again from the note.");
+      }
+    });
+
+    return () => { cleanupReady(); cleanupFailed(); };
+  }, [api, notes]);
 
   useEffect(() => {
     if (!api) saveNotesToLS(notes);
@@ -131,8 +195,19 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     [notes]
   );
 
+  const addSummarizingNote = useCallback((noteId: string) => {
+    setSummarizingNoteIds((prev) => {
+      const next = new Set(prev);
+      next.add(noteId);
+      return next;
+    });
+  }, []);
+
   return (
-    <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, updateNoteFolder, getNotesInFolder, refreshNotes }}>
+    <NotesContext.Provider value={{
+      notes, addNote, updateNote, deleteNote, updateNoteFolder, getNotesInFolder, refreshNotes,
+      summarizingNoteIds, addSummarizingNote, lastSummaryReady,
+    }}>
       {children}
     </NotesContext.Provider>
   );
@@ -143,3 +218,22 @@ export function useNotes() {
   if (!ctx) throw new Error("useNotes must be used within NotesProvider");
   return ctx;
 }
+
+/**
+ * Register a noteId as "actively viewed on NewNotePage" so the global
+ * summary-ready toast is suppressed (summary appears inline instead).
+ * Call from NewNotePage's useEffect with the current noteId.
+ */
+export function useRegisterActiveNewNotePage(noteId: string | null) {
+  const api = getElectronAPI();
+  useEffect(() => {
+    if (!noteId) return;
+    // Access the ref via a module-level approach — we store it on the context provider
+    // For simplicity, we use a global set that the provider also reads
+    _activeNewNotePageIds.add(noteId);
+    return () => { _activeNewNotePageIds.delete(noteId); };
+  }, [noteId]);
+}
+
+// Module-level set shared between provider and useRegisterActiveNewNotePage hook
+const _activeNewNotePageIds = new Set<string>();

@@ -88,7 +88,7 @@ export function groupTranscriptBySpeaker(
     speaker: items[0].speaker,
     timeStart: items[0].time,
     timeEnd: items[0].time,
-    text: items[0].text.trim(),
+    text: (items[0].text ?? '').trim(),
     indices: [items[0].originalIndex],
   };
 
@@ -99,7 +99,7 @@ export function groupTranscriptBySpeaker(
 
     if (sameSpeaker && !timePause) {
       current.timeEnd = item.time;
-      current.text = `${current.text} ${item.text.trim()}`.trim();
+      current.text = `${current.text} ${(item.text ?? '').trim()}`.trim();
       current.indices.push(item.originalIndex);
     } else {
       groups.push(current);
@@ -107,7 +107,7 @@ export function groupTranscriptBySpeaker(
         speaker: item.speaker,
         timeStart: item.time,
         timeEnd: item.time,
-        text: item.text.trim(),
+        text: (item.text ?? '').trim(),
         indices: [item.originalIndex],
       };
     }

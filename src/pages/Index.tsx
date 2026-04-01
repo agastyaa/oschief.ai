@@ -4,7 +4,7 @@ import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -33,7 +33,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const { sidebarOpen } = useSidebarVisibility();
   const { folders, createFolder } = useFolders();
-  const { notes, deleteNote, updateNoteFolder, updateNote } = useNotes();
+  const { notes, deleteNote, updateNoteFolder, updateNote, summarizingNoteIds } = useNotes();
   const { activeSession, clearSession } = useRecording();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -238,6 +238,7 @@ const Index = () => {
 
   const NoteRow = ({ n }: { n: (typeof notes)[0] }) => {
     const isRecording = activeSession?.noteId === n.id && !n.summary;
+    const isSummarizing = summarizingNoteIds.has(n.id);
     const score = n.coachingMetrics?.overallScore;
     const selected = selectedIds.has(n.id);
     return (
@@ -275,11 +276,16 @@ const Index = () => {
             <h3 className="font-body text-[13.5px] font-medium text-foreground truncate leading-snug">
               {n.title}
             </h3>
-            {n.summary?.overview && (
+            {isSummarizing ? (
+              <p className="text-[12px] text-muted-foreground/70 truncate leading-snug mt-0.5 flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Summarizing...</span>
+              </p>
+            ) : n.summary?.overview ? (
               <p className="text-[12px] text-muted-foreground/70 truncate leading-snug mt-0.5">
                 {n.summary.overview.slice(0, 80)}
               </p>
-            )}
+            ) : null}
           </div>
         </button>
         <div className="flex items-center gap-2 pr-2 shrink-0 justify-end">

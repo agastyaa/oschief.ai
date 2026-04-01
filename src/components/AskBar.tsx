@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -176,7 +176,7 @@ interface AskBarProps {
   onTriggerMentionLLM?: () => Promise<void>;
 }
 
-export function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
+export const AskBar = memo(function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -641,4 +641,4 @@ export function AskBar({ context = "home", meetingTitle, noteContext, meetingGra
       </div>
     </div>
   );
-}
+});

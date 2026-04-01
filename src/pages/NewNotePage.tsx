@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { KBSuggestionsPanel, type KBSuggestion } from "@/components/KBSuggestionsPanel";
 // CommandCenterPanel removed — context now flows through Ask OSChief
 import { useFolders } from "@/contexts/FolderContext";
-import { useNotes } from "@/contexts/NotesContext";
+import { useNotes, useRegisterActiveNewNotePage } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
@@ -27,6 +27,7 @@ import type { SummaryData } from "@/components/EditableSummary";
 import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAppVisibility } from "@/hooks/useAppVisibility";
 
 import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATE_IDS } from "@/data/templates";
 import { loadAccountFromStorage } from "@/lib/account-context";
@@ -143,6 +144,7 @@ export default function NewNotePage() {
   const eventState = location.state as { eventTitle?: string; eventId?: string; joinLink?: string; startFresh?: boolean; triggerPauseAndSummarize?: boolean } | null;
   const { activeSession, startSession, resumeSession, updateSession, clearSession, transcriptLines, removeTranscriptLineAt, removeTranscriptLinesAt, isCapturing, usingWebSpeech, captureError, clearCaptureError, sttStatus, sttErrorMessage, lastSuccessfulTranscriptTime, startAudioCapture, stopAudioCapture, pauseAudioCapture, resumeAudioCapture, setSessionScratch, getSessionScratch, meetingContext, setMeetingContext } = useRecording();
   const { selectedSTTModel, selectedAIModel, useLocalModels } = useModelSettings();
+  const { isAppHidden } = useAppVisibility();
   const api = getElectronAPI();
 
   const searchParams = new URLSearchParams(location.search);
@@ -183,6 +185,8 @@ export default function NewNotePage() {
   const [showRealTimeTranscript, setShowRealTimeTranscript] = useState(true);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(true);
   const [noteId, setNoteId] = useState(() => isReturning ? existingSessionId! : crypto.randomUUID());
+  // Register this noteId so the global summary-ready toast is suppressed (we show inline)
+  useRegisterActiveNewNotePage(noteId);
   /** Granola-style: only start mic when user explicitly clicks Start. Prevents mic use when app opens or meeting detected. */
   const [userHasStartedCapture, setUserHasStartedCapture] = useState(false);
   const [kbSuggestions, setKbSuggestions] = useState<KBSuggestion[]>([]);
@@ -208,7 +212,7 @@ export default function NewNotePage() {
   /** Granola-style: if user manually edited title, don't overwrite with AI-generated one */
   const userHasEditedTitleRef = useRef(false);
   const { folders, createFolder } = useFolders();
-  const { addNote, deleteNote, updateNote } = useNotes();
+  const { addNote, deleteNote, updateNote, addSummarizingNote, summarizingNoteIds, lastSummaryReady } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
 
   const MEETING_TEMPLATES = useMemo(() => {
@@ -449,12 +453,13 @@ export default function NewNotePage() {
   );
 
   // Tick every 10s while recording so we can show "no transcription for a while" after 45s
+  // Paused when app is hidden — cosmetic UI only, no data loss
   const [, setStaleTick] = useState(0);
   useEffect(() => {
-    if (recordingState !== "recording" || !selectedSTTModel) return;
+    if (recordingState !== "recording" || !selectedSTTModel || isAppHidden) return;
     const id = setInterval(() => setStaleTick((n) => n + 1), 10000);
     return () => clearInterval(id);
-  }, [recordingState, selectedSTTModel]);
+  }, [recordingState, selectedSTTModel, isAppHidden]);
 
   const sttStale =
     recordingState === "recording" &&
@@ -483,8 +488,9 @@ export default function NewNotePage() {
   }, [api]);
 
   // Poll for KB suggestions every 30s while recording
+  // Paused when app is hidden — suggestions are only useful when user is looking
   useEffect(() => {
-    if (recordingState !== "recording" || !kbHasFolder.current || !api?.kb) return;
+    if (recordingState !== "recording" || !kbHasFolder.current || !api?.kb || isAppHidden) return;
     let cancelled = false;
 
     const poll = async () => {
@@ -504,7 +510,7 @@ export default function NewNotePage() {
     poll();
     const id = setInterval(poll, 30_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [recordingState, transcriptLines.length, api]);
+  }, [recordingState, transcriptLines.length, api, isAppHidden]);
 
   // Sync personalNotes, title, and user-edited state to session scratch so indicator pause-and-summarize can restore when navigating back
   useEffect(() => {
@@ -577,6 +583,7 @@ export default function NewNotePage() {
       const customPrompt = BUILTIN_TEMPLATE_IDS.has(templateId)
         ? undefined
         : (await api.db.settings.get(`template-prompt-${templateId}`).catch(() => null)) || undefined;
+      addSummarizingNote(noteIdToSave);
       api.llm.summarizeBackground(noteIdToSave, {
         transcript: finalTranscript,
         personalNotes: useNotes,
@@ -610,44 +617,43 @@ export default function NewNotePage() {
     generateNotesRef.current = generateNotes;
   }, [generateNotes]);
 
-  // Listen for background summary completion from main process
+  // React to summary-ready events from global NotesContext listener.
+  // The context handles toast notifications and note state updates.
+  // Here we handle NewNotePage-specific logic (title update, entity extraction, local state).
+  // React to summary-ready events from global NotesContext listener.
+  // The context handles toast notifications, note state updates, and summarizingNoteIds.
+  // Here we handle NewNotePage-specific logic: title update, entity extraction, local UI state.
   useEffect(() => {
-    if (!api?.llm?.onSummaryReady) return;
-    const unsubReady = api.llm.onSummaryReady((incomingNoteId: string, summary: any) => {
-      // Always run entity extraction (DB was already updated by backend)
-      if (api?.memory?.extractEntities && selectedAIModel) {
-        api.memory.extractEntities({
-          noteId: incomingNoteId,
-          summary,
-          transcript: transcriptRef.current,
-          model: selectedAIModel,
-        }).then((result: any) => {
-          if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
-        }).catch((err: any) => console.error('Entity extraction failed:', err));
-      }
-      // Sync summary to NotesContext so home page sees it immediately
-      updateNote(incomingNoteId, { summary });
-      // Only update UI state if this summary belongs to the currently displayed note
-      if (incomingNoteId !== noteId) {
-        console.log(`[summary] Received summary for ${incomingNoteId} but current note is ${noteId} — DB updated, UI skipped`);
-        return;
-      }
-      const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
-      const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
-      setSummary(summary);
-      if (!userHasEditedTitleRef.current && summary.title && !isGenericTitle(summary.title)) {
-        setTitle(summary.title);
-        updateNote(incomingNoteId, { title: summary.title });
-      }
-      setIsSummarizing(false);
-    });
-    const unsubFailed = api.llm.onSummaryFailed((incomingNoteId: string) => {
-      if (incomingNoteId !== noteId) return;
-      toast.error("Summary failed. You can regenerate it from the note.");
-      setIsSummarizing(false);
-    });
-    return () => { unsubReady(); unsubFailed(); };
-  }, [api, noteId, selectedAIModel]);
+    if (!lastSummaryReady) return;
+    const { noteId: readyNoteId, summary: readySummary } = lastSummaryReady;
+
+    // Always run entity extraction for any note (DB was already updated by backend)
+    if (api?.memory?.extractEntities && selectedAIModel) {
+      api.memory.extractEntities({
+        noteId: readyNoteId,
+        summary: readySummary,
+        transcript: transcriptRef.current,
+        model: selectedAIModel,
+      }).then((result: any) => {
+        if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
+      }).catch((err: any) => console.error('Entity extraction failed:', err));
+    }
+
+    // Only update UI state if this summary belongs to the currently displayed note
+    if (readyNoteId !== noteId) {
+      console.log(`[summary] Received summary for ${readyNoteId} but current note is ${noteId} — context updated, UI skipped`);
+      return;
+    }
+
+    const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+    const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
+    setSummary(readySummary);
+    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitle(readySummary.title)) {
+      setTitle(readySummary.title);
+      updateNote(noteId, { title: readySummary.title });
+    }
+    setIsSummarizing(false);
+  }, [lastSummaryReady, noteId, api, selectedAIModel, updateNote]);
 
   // Load summary from DB when returning to a note that already has one (handles race condition
   // where summary was generated while user was on a different note)

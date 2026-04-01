@@ -35,6 +35,7 @@ const electronAPI = {
       set: (key: string, value: string) => ipcRenderer.invoke('db:settings-set', key, value),
       getAll: () => ipcRenderer.invoke('db:settings-get-all'),
     },
+    pipelineQualityStats: () => ipcRenderer.invoke('db:pipeline-quality-stats') as Promise<any[]>,
   },
 
   models: {
@@ -175,8 +176,8 @@ const electronAPI = {
       attendees?: string[]
       accountDisplayName?: string
     }) => ipcRenderer.invoke('llm:summarize-background', noteId, data),
-    onSummaryReady: (callback: (noteId: string, summary: any) => void) => {
-      const handler = (_event: any, noteId: string, summary: any) => callback(noteId, summary)
+    onSummaryReady: (callback: (noteId: string, summary: any, durationMs: number) => void) => {
+      const handler = (_event: any, noteId: string, summary: any, durationMs: number) => callback(noteId, summary, durationMs ?? 0)
       ipcRenderer.on('note:summary-ready', handler)
       return () => ipcRenderer.removeListener('note:summary-ready', handler)
     },
@@ -277,8 +278,8 @@ const electronAPI = {
       ipcRenderer.invoke('meeting:set-calendar-events', events),
     updateTrayMeetingInfo: (info: { title: string; startTime: number } | null) =>
       ipcRenderer.invoke('tray:update-meeting-info', info),
-    onPowerModeChanged: (callback: (data: { onBattery: boolean }) => void) => {
-      const handler = (_event: any, data: { onBattery: boolean }) => callback(data)
+    onPowerModeChanged: (callback: (data: { onBattery: boolean; hidden: boolean; mode: string }) => void) => {
+      const handler = (_event: any, data: { onBattery: boolean; hidden: boolean; mode: string }) => callback(data)
       ipcRenderer.on('power:mode-changed', handler)
       return () => ipcRenderer.removeListener('power:mode-changed', handler)
     },

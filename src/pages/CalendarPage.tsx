@@ -15,7 +15,7 @@ import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useNotes } from "@/contexts/NotesContext";
-import { useRecording } from "@/contexts/RecordingContext";
+import { useRecordingSession } from "@/contexts/RecordingContext";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { ICSDialog } from "@/components/ICSDialog";
@@ -113,7 +113,7 @@ export default function CalendarPage() {
     deleteLocalBlock,
   } = useCalendar();
   const { notes } = useNotes();
-  const { activeSession } = useRecording();
+  const { activeSession } = useRecordingSession();
 
   const hasSyncedSource = calendarSources.length > 0;
   const showMainCalendar = hasSyncedSource || events.length > 0;
