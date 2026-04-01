@@ -296,19 +296,18 @@ describe('TypeScript type definitions match preload', () => {
 // 9. Auto-updater reads GitHub token from settings
 // ============================================================
 describe('Auto-updater GitHub token', () => {
-  it('reads token from getSetting before env vars', async () => {
+  it('reads token from shell profile as fallback', async () => {
     const fs = await import('fs')
     const path = await import('path')
     const filePath = path.resolve(__dirname, '../../electron/main/auto-updater.ts')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    // Must import getSetting
-    expect(source).toContain("import { getSetting }")
+    expect(source).toContain("readTokenFromShellProfile")
 
-    // getSetting should come FIRST in the token resolution chain
     const tokenLine = source.match(/const ghToken\s*=\s*(.+)/)
     expect(tokenLine).not.toBeNull()
-    expect(tokenLine![1]).toMatch(/getSetting.*\|\|.*process\.env/)
+    expect(tokenLine![1]).toContain('process.env')
+    expect(tokenLine![1]).toContain('readTokenFromShellProfile')
   })
 })
 

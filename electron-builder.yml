@@ -2,7 +2,7 @@ appId: com.oschief.app
 productName: OSChief
 publish:
   provider: github
-  owner: iamsagar125
+  owner: agastyaa
   repo: oschief.ai
   releaseType: release
 directories:
