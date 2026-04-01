@@ -9,7 +9,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { useNotes } from "@/contexts/NotesContext";
-import { useRecording } from "@/contexts/RecordingContext";
+import { useRecordingSession } from "@/contexts/RecordingContext";
 import { FileText } from "lucide-react";
 
 const SearchCommandContext = createContext<{ open: () => void } | null>(null);
@@ -23,7 +23,7 @@ export function SearchCommandProvider({ children }: { children: React.ReactNode 
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { notes } = useNotes();
-  const { activeSession } = useRecording();
+  const { activeSession } = useRecordingSession();
 
   const openSearch = useCallback(() => setOpen(true), []);
 

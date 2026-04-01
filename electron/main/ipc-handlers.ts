@@ -8,6 +8,7 @@ import {
   getAllFolders, addFolder, updateFolder, deleteFolder,
   getSetting, setSetting, getAllSettings,
   getAllLocalCalendarBlocks, addLocalCalendarBlock, deleteLocalCalendarBlock,
+  getPipelineQualityStats,
 } from './storage/database'
 import {
   setTrayAgendaCache,
@@ -114,6 +115,7 @@ export function registerIPCHandlers(): void {
   })
 
   // --- Folders ---
+  ipcMain.handle('db:pipeline-quality-stats', () => getPipelineQualityStats())
   ipcMain.handle('db:folders-get-all', () => getAllFolders())
   ipcMain.handle('db:folders-add', (_e, folder: any) => { addFolder(folder); return true })
   ipcMain.handle('db:folders-update', (_e, id: string, data: any) => { updateFolder(id, data); return true })
@@ -430,6 +432,7 @@ export function registerIPCHandlers(): void {
   // Non-blocking background summarize: saves note immediately, returns to renderer, pushes result when done
   ipcMain.handle('llm:summarize-background', async (event, noteId: string, data: any) => {
     ;(async () => {
+      const startMs = Date.now()
       try {
         const { resolveSelectedAIModel } = await import('./models/model-resolver')
         const model = resolveSelectedAIModel(data.model)
@@ -444,10 +447,13 @@ export function registerIPCHandlers(): void {
           data.attendees,
           data.accountDisplayName,
         )
+        const durationMs = Date.now() - startMs
         updateNote(noteId, { summary })
-        event.sender.send('note:summary-ready', noteId, summary)
+        console.log(`[summarize-background] ${noteId} done in ${(durationMs / 1000).toFixed(1)}s (${model})`)
+        event.sender.send('note:summary-ready', noteId, summary, durationMs)
       } catch (err) {
-        console.error('[summarize-background] failed:', err)
+        const durationMs = Date.now() - startMs
+        console.error(`[summarize-background] ${noteId} failed after ${(durationMs / 1000).toFixed(1)}s:`, err)
         event.sender.send('note:summary-failed', noteId)
       }
     })()

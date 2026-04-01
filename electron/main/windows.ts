@@ -13,7 +13,7 @@ export function createMainWindow(): BrowserWindow {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'under-window',
-    visualEffectState: 'active',
+    visualEffectState: 'followsWindowActivity',
     backgroundColor: '#FAF8F5',
     show: false,
     webPreferences: {

@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAppVisibility } from './useAppVisibility';
 
 /**
  * Hook that derives elapsed seconds from a start time.
- * Only components that call this hook re-render every second —
+ * Only components that call this hook re-render on the timer tick —
  * isolating the timer from the global RecordingContext.
+ *
+ * Performance: when the app is hidden, the tick interval slows from 1s to 5s
+ * to reduce CPU wakeups. The elapsed value is still correct (derived from
+ * wall clock), just updates less frequently when nobody is looking.
  *
  * When `isActive` becomes false (paused) but `startTime` is still set,
  * the timer freezes at the last value instead of resetting.
@@ -14,6 +19,7 @@ import { useState, useEffect, useRef } from 'react';
 export function useElapsedTime(startTime: number | null, isActive: boolean): number {
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { isAppHidden } = useAppVisibility();
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -34,9 +40,13 @@ export function useElapsedTime(startTime: number | null, isActive: boolean): num
       return;
     }
 
+    // When hidden, tick every 5s instead of 1s to reduce CPU wakeups.
+    // The elapsed value is still accurate (derived from wall clock).
+    const tickMs = isAppHidden ? 5000 : 1000;
+
     intervalRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
+    }, tickMs);
 
     return () => {
       if (intervalRef.current) {
@@ -44,7 +54,7 @@ export function useElapsedTime(startTime: number | null, isActive: boolean): num
         intervalRef.current = null;
       }
     };
-  }, [startTime, isActive]);
+  }, [startTime, isActive, isAppHidden]);
 
   return elapsed;
 }

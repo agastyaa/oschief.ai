@@ -368,6 +368,20 @@ export function logPipelineQuality(entry: {
   )
 }
 
+/** Get aggregate summary benchmark stats grouped by model. */
+export function getPipelineQualityStats(): any[] {
+  return getDb().prepare(`
+    SELECT model,
+           COUNT(*) as count,
+           ROUND(AVG(duration_ms) / 1000.0, 1) as avg_seconds,
+           ROUND(MIN(duration_ms) / 1000.0, 1) as min_seconds,
+           ROUND(MAX(duration_ms) / 1000.0, 1) as max_seconds
+    FROM pipeline_quality_log
+    WHERE gate_name = 'grounding' AND duration_ms IS NOT NULL
+    GROUP BY model ORDER BY avg_seconds ASC
+  `).all()
+}
+
 function deserializeNote(row: any): any {
   return {
     id: row.id,

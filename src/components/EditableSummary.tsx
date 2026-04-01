@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import {
   CheckCircle2, Circle, Pencil, Users, X, Copy, Check, ExternalLink
 } from "lucide-react";
@@ -132,7 +132,7 @@ interface EditableSummaryProps {
   meetingDate?: string;
 }
 
-export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }: EditableSummaryProps) {
+export const EditableSummary = memo(function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }: EditableSummaryProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localSummary, setLocalSummary] = useState<SummaryData>(summary);
   const [jiraDialogItem, setJiraDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
@@ -728,4 +728,4 @@ export function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }
       )}
     </div>
   );
-}
+});

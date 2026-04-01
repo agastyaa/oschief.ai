@@ -652,7 +652,7 @@ export default function NoteDetailPage() {
                   const allLines = [...note.transcript, ...newLines];
                   const filtered = allLines
                     .map((line, idx) => ({ line, originalIndex: idx }))
-                    .filter(({ line }) => !transcriptSearch || line.text.toLowerCase().includes(transcriptSearch.toLowerCase()));
+                    .filter(({ line }) => !transcriptSearch || (line.text ?? '').toLowerCase().includes(transcriptSearch.toLowerCase()));
                   const groups = groupTranscriptBySpeaker(filtered.map(({ line, originalIndex }) => ({ ...line, originalIndex })));
                   const searchRegex = transcriptSearch ? new RegExp(`(${transcriptSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi") : null;
                   const totalSaved = note.transcript.length;

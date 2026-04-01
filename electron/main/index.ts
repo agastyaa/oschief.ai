@@ -12,6 +12,7 @@ import { setupPowerMonitor } from './power-manager'
 import { startApiServer, stopApiServer, getApiToken } from './api/server'
 import { loadOptionalProviders } from './cloud/optional-providers-loader'
 import { setupAutoUpdater } from './auto-updater'
+import { registerTask, stopScheduler } from './scheduler'
 
 app.setName('OSChief')
 
@@ -78,16 +79,14 @@ app.whenReady().then(async () => {
   }
 
   // Mark overdue commitments + check risk transitions on startup + every 15 minutes
+  // Uses central scheduler instead of independent setInterval (reduces event loop wakeups)
   import('./memory/commitment-store').then(({ markOverdueCommitments, checkAmberTransitions, clearSnoozeForOverdue }) => {
-    markOverdueCommitments()
-    checkAmberTransitions()
-    clearSnoozeForOverdue()
-    setInterval(() => {
+    registerTask('commitments', 15 * 60 * 1000, () => {
       markOverdueCommitments()
       checkAmberTransitions()
       clearSnoozeForOverdue()
-    }, 15 * 60 * 1000)
-    console.log('[commitments] Overdue marking + risk scoring active (startup + 15min interval)')
+    }, { pauseWhenHidden: true, runImmediately: true })
+    console.log('[commitments] Overdue marking + risk scoring active (startup + 15min interval, via scheduler)')
   }).catch(() => {})
 
   // Smart meeting reminders — 5 min before each meeting
@@ -188,6 +187,7 @@ app.on('will-quit', () => {
 })
 
 app.on('before-quit', () => {
+  stopScheduler()
   stopSync()
   stopMeetingDetection()
   stopApiServer().catch(() => {})

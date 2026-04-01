@@ -20,6 +20,7 @@ export async function chatOllama(
         model: modelName,
         messages,
         stream: true,
+        keep_alive: '5m', // Auto-unload model from GPU/RAM after 5 min idle to reduce thermal load
       }),
     })
   } catch (err: any) {

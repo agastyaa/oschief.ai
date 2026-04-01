@@ -3,7 +3,7 @@ import {
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
   Volume2, Save, Sliders, Monitor, Sun, Moon, FileText, ChevronDown, ChevronUp,
   Search, Info, MicOff, MonitorSpeaker, CheckCircle2, XCircle, Loader2,
-  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff
+  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
@@ -1451,6 +1451,7 @@ export default function SettingsPage() {
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateResult, setUpdateResult] = useState<string | null>(null);
   const [updateErrorDetail, setUpdateErrorDetail] = useState<string | null>(null);
+  const [benchmarkStats, setBenchmarkStats] = useState<any[]>([]);
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({ ...DEFAULT_TOGGLES });
   const [togglesLoaded, setTogglesLoaded] = useState(false);
@@ -1496,6 +1497,11 @@ export default function SettingsPage() {
       } catch {
         /* defaults */
       }
+      // Fetch summary benchmark stats
+      try {
+        const stats = await api.db.pipelineQualityStats?.();
+        if (stats?.length) setBenchmarkStats(stats);
+      } catch { /* no stats yet */ }
     })();
   }, [api]);
 
@@ -2257,6 +2263,38 @@ export default function SettingsPage() {
                       })}
                     </div>
                   </div>
+                  {/* Summary Benchmark Stats */}
+                  {benchmarkStats.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-accent" />
+                        Summary Generation Speed
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground/70">Average time to generate meeting summaries, by model.</p>
+                      <div className="rounded-md border border-border overflow-hidden">
+                        <table className="w-full text-[12px]">
+                          <thead>
+                            <tr className="bg-muted/30 border-b border-border">
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Model</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Avg</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Range</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Samples</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {benchmarkStats.map((s: any) => (
+                              <tr key={s.model} className="border-b border-border/50 last:border-0">
+                                <td className="px-3 py-1.5 text-foreground font-mono text-[11px] truncate max-w-[180px]">{s.model}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">{s.avg_seconds}s</td>
+                                <td className="px-3 py-1.5 text-right text-muted-foreground tabular-nums">{s.min_seconds}s – {s.max_seconds}s</td>
+                                <td className="px-3 py-1.5 text-right text-muted-foreground tabular-nums">{s.count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </div>
               )}

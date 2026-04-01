@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useRecording } from "@/contexts/RecordingContext";
 import { ModelSettingsProvider } from "@/contexts/ModelSettingsContext";
 import { FolderProvider } from "@/contexts/FolderContext";
@@ -15,26 +15,29 @@ import { SidebarVisibilityProvider } from "@/contexts/SidebarVisibilityContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
 import { loadPreferences, applyAppearance } from "@/pages/SettingsPage";
 import { isOnboardingComplete } from "@/pages/OnboardingPage";
-import Index from "./pages/Index";
-import AllNotes from "./pages/AllNotes";
-import AskSyag from "./pages/AskSyag";
 
+// Eager imports — critical paths that must be immediately available
+import Index from "./pages/Index";
 import NewNotePage from "./pages/NewNotePage";
-import CalendarPage from "./pages/CalendarPage";
-import CoachingPage from "./pages/CoachingPage";
-import SettingsPage from "./pages/SettingsPage";
-import NoteDetailPage from "./pages/NoteDetailPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import PeoplePage from "./pages/PeoplePage";
-import CommitmentsPage from "./pages/CommitmentsPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import ProjectDetailPage from "./pages/ProjectDetailPage";
-import RoutinesPage from "./pages/RoutinesPage";
-import DecisionsPage from "./pages/DecisionsPage";
-import MeetingSeriesPage from "./pages/MeetingSeriesPage";
-import WeeklyDigestPage from "./pages/WeeklyDigestPage";
-import NotFound from "./pages/NotFound";
-import TrayAgendaPage from "./pages/TrayAgendaPage";
+
+// Lazy imports — loaded on first navigation, reduces initial JS parse/compile
+const AllNotes = lazy(() => import("./pages/AllNotes"));
+const AskSyag = lazy(() => import("./pages/AskSyag"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const CoachingPage = lazy(() => import("./pages/CoachingPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const NoteDetailPage = lazy(() => import("./pages/NoteDetailPage"));
+const PeoplePage = lazy(() => import("./pages/PeoplePage"));
+const CommitmentsPage = lazy(() => import("./pages/CommitmentsPage"));
+const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+const ProjectDetailPage = lazy(() => import("./pages/ProjectDetailPage"));
+const RoutinesPage = lazy(() => import("./pages/RoutinesPage"));
+const DecisionsPage = lazy(() => import("./pages/DecisionsPage"));
+const MeetingSeriesPage = lazy(() => import("./pages/MeetingSeriesPage"));
+const WeeklyDigestPage = lazy(() => import("./pages/WeeklyDigestPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const TrayAgendaPage = lazy(() => import("./pages/TrayAgendaPage"));
 import { TrayMenu } from "@/components/TrayMenu";
 import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
 import { TrayAgendaSync } from "@/components/TrayAgendaSync";
@@ -119,37 +122,39 @@ function AppContent() {
       <MeetingDetectionHandler />
       {isElectron && <TrayAgendaSync />}
       <TrayNavigationHandler />
-      <Routes>
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/" element={<Index />} />
-        <Route path="/notes" element={<AllNotes />} />
-        <Route path="/ask" element={<AskSyag />} />
-        
-        <Route path="/note/:id" element={<NoteDetailPage />} />
-        <Route path="/new-note" element={
-          <ErrorBoundary>
-            <NewNotePage />
-          </ErrorBoundary>
-        } />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/tray-agenda" element={<TrayAgendaPage />} />
-        <Route path="/coaching" element={<CoachingPage />} />
-        <Route path="/people" element={<PeoplePage />} />
-        <Route path="/commitments" element={<CommitmentsPage />} />
-        <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/project/:id" element={<ProjectDetailPage />} />
-        <Route path="/routines" element={<RoutinesPage />} />
-        <Route path="/digest" element={<WeeklyDigestPage />} />
-        <Route path="/decisions" element={<DecisionsPage />} />
-        <Route path="/series" element={<MeetingSeriesPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/tray-preview" element={
-          <div className="flex items-center justify-center min-h-screen bg-muted/50">
-            <TrayMenu />
-          </div>
-        } />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-pulse text-muted-foreground text-sm">Loading...</div></div>}>
+        <Routes>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/notes" element={<AllNotes />} />
+          <Route path="/ask" element={<AskSyag />} />
+
+          <Route path="/note/:id" element={<NoteDetailPage />} />
+          <Route path="/new-note" element={
+            <ErrorBoundary>
+              <NewNotePage />
+            </ErrorBoundary>
+          } />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/tray-agenda" element={<TrayAgendaPage />} />
+          <Route path="/coaching" element={<CoachingPage />} />
+          <Route path="/people" element={<PeoplePage />} />
+          <Route path="/commitments" element={<CommitmentsPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/project/:id" element={<ProjectDetailPage />} />
+          <Route path="/routines" element={<RoutinesPage />} />
+          <Route path="/digest" element={<WeeklyDigestPage />} />
+          <Route path="/decisions" element={<DecisionsPage />} />
+          <Route path="/series" element={<MeetingSeriesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/tray-preview" element={
+            <div className="flex items-center justify-center min-h-screen bg-muted/50">
+              <TrayMenu />
+            </div>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

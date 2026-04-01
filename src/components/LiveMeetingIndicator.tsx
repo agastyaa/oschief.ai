@@ -1,4 +1,4 @@
-import { useRecording } from "@/contexts/RecordingContext";
+import { useRecordingSession } from "@/contexts/RecordingContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
@@ -7,7 +7,7 @@ import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { MeetingIndicatorPill } from "@/components/MeetingIndicatorPill";
 
 export function LiveMeetingIndicator() {
-  const { activeSession } = useRecording();
+  const { activeSession } = useRecordingSession();
   const navigate = useNavigate();
   const location = useLocation();
   const [manuallyHidden, setManuallyHidden] = useState(false);

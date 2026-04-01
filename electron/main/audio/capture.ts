@@ -9,12 +9,18 @@ import { routeSTT, routeLLM } from '../cloud/router'
 import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
 import { getSetting } from '../storage/database'
+import { notifyRecordingStateChanged } from '../power-manager'
+import { getThermalState } from '../thermal-monitor'
 
 export type TranscriptCallback = (chunk: { speaker: string; time: string; text: string; words?: { word: string; start: number; end: number }[] }) => void
 export type CorrectionCallback = (chunk: { speaker: string; time: string; text: string; originalText: string }) => void
 export type StatusCallback = (status: { state: string; error?: string }) => void
 
 let isRecording = false
+
+export function getIsRecording(): boolean {
+  return isRecording
+}
 let isPaused = false
 let transcriptCallback: TranscriptCallback | null = null
 let correctionCallback: CorrectionCallback | null = null
@@ -217,6 +223,7 @@ export async function startRecording(
   isPaused = false
   clearProcessingLock()
   autoPaused = false
+  notifyRecordingStateChanged()
   transcriptCallback = onTranscript
   correctionCallback = onCorrectedTranscript || null
   statusCallback = onStatus || null
@@ -305,6 +312,7 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
   isRecording = false
   isPaused = false
   autoPaused = false
+  notifyRecordingStateChanged()
 
   if (chunkTimer) {
     clearInterval(chunkTimer)
@@ -436,8 +444,18 @@ async function processBufferedAudio(): Promise<void> {
     const totalLength = audioBuffers[channel].reduce((sum, c) => sum + c.length, 0)
     if (totalLength < MIN_SAMPLES_PER_CHANNEL) continue
 
-    // Yield to event loop between channels so UI stays responsive during STT
-    if (channel === 1) await new Promise(r => setImmediate(r))
+    // Yield to event loop between channels so UI stays responsive during STT.
+    // When thermal state is elevated, add a cooldown pause to let CPU cool down.
+    if (channel === 1) {
+      const thermal = getThermalState()
+      if (thermal === 'hot') {
+        await new Promise(r => setTimeout(r, 3000)) // 3s cooldown when hot
+      } else if (thermal === 'warm') {
+        await new Promise(r => setTimeout(r, 1000)) // 1s cooldown when warm
+      } else {
+        await new Promise(r => setImmediate(r))
+      }
+    }
 
     // Copy chunks — keep originals in buffer until STT succeeds
     const chunkCount = audioBuffers[channel].length
