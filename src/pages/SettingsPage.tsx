@@ -2630,6 +2630,8 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+
+
                   {/* What OSChief does */}
                   <div className="space-y-2">
                     <h3 className="text-[13px] font-semibold text-foreground">What OSChief does</h3>

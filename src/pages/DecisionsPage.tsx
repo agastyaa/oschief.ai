@@ -48,6 +48,7 @@ export default function DecisionsPage() {
   const api = isElectron ? getElectronAPI() : null
 
   const [decisions, setDecisions] = useState<Decision[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<FilterMode>("all")
   const [projects, setProjects] = useState<any[]>([])
@@ -81,7 +82,7 @@ export default function DecisionsPage() {
 
   useEffect(() => {
     if (!api?.memory?.decisions) return
-    api.memory.decisions.getAll().then(setDecisions)
+    api.memory.decisions.getAll().then(d => { setDecisions(d); setLoading(false) })
     api.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setProjects(p || []))
   }, [api])
 
@@ -236,7 +237,12 @@ export default function DecisionsPage() {
           </div>
 
           {/* Timeline */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <p className="text-sm">Loading decisions...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">No decisions recorded yet.</p>

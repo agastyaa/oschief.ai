@@ -33,7 +33,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const { sidebarOpen } = useSidebarVisibility();
   const { folders, createFolder } = useFolders();
-  const { notes, deleteNote, updateNoteFolder } = useNotes();
+  const { notes, deleteNote, updateNoteFolder, updateNote } = useNotes();
   const { activeSession, clearSession } = useRecording();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -294,9 +294,11 @@ const Index = () => {
           )}
           <NoteCardMenu
             noteId={n.id}
+            noteTitle={n.title}
             currentFolderId={n.folderId}
             onDelete={handleDeleteNote}
             onMoveToFolder={updateNoteFolder}
+            onRename={(id, newTitle) => updateNote(id, { title: newTitle })}
           />
         </div>
       </div>

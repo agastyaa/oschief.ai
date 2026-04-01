@@ -1,21 +1,25 @@
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, Trash2, FolderOpen, Share2, Plus, Check, X } from "lucide-react";
+import { MoreHorizontal, Trash2, FolderOpen, Share2, Plus, Check, X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFolders } from "@/contexts/FolderContext";
 import { toast } from "sonner";
 
 interface NoteCardMenuProps {
   noteId: string;
+  noteTitle?: string;
   currentFolderId: string | null;
   onDelete: (id: string) => void;
   onMoveToFolder: (noteId: string, folderId: string | null) => void;
+  onRename?: (noteId: string, newTitle: string) => void;
 }
 
-export function NoteCardMenu({ noteId, currentFolderId, onDelete, onMoveToFolder }: NoteCardMenuProps) {
+export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onMoveToFolder, onRename }: NoteCardMenuProps) {
   const [open, setOpen] = useState(false);
   const [showFolders, setShowFolders] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const { folders, createFolder } = useFolders();
 
@@ -54,7 +58,42 @@ export function NoteCardMenu({ noteId, currentFolderId, onDelete, onMoveToFolder
       {open && (
         <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
           {!showFolders ? (
+            renaming ? (
+              <div className="px-3 py-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Rename</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => { e.stopPropagation(); setRenameValue(e.target.value); }}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter" && renameValue.trim()) {
+                        onRename?.(noteId, renameValue.trim());
+                        setRenaming(false);
+                        setOpen(false);
+                      }
+                      if (e.key === "Escape") { setRenaming(false); setRenameValue(""); }
+                    }}
+                    placeholder="Note title"
+                    className="flex-1 min-w-0 bg-background text-xs text-foreground border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  />
+                  <button onClick={(e) => { e.stopPropagation(); if (renameValue.trim()) { onRename?.(noteId, renameValue.trim()); setRenaming(false); setOpen(false); } }} className="text-primary"><Check className="h-3.5 w-3.5" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setRenaming(false); setRenameValue(""); }} className="text-muted-foreground"><X className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+            ) : (
             <>
+              {onRename && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setRenameValue(noteTitle || ""); setRenaming(true); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  Rename
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowFolders(true); }}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
@@ -78,6 +117,7 @@ export function NoteCardMenu({ noteId, currentFolderId, onDelete, onMoveToFolder
                 Move to trash
               </button>
             </>
+            )
           ) : (
             <>
               <div className="px-3 py-2 border-b border-border">

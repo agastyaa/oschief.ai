@@ -40,6 +40,7 @@ export default function ProjectsPage() {
   const api = isElectron ? getElectronAPI() : null
 
   const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>("active")
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
@@ -54,6 +55,7 @@ export default function ProjectsPage() {
     if (!api?.memory?.projects) return
     const all = await api.memory.projects.getAll()
     setProjects(all)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -206,7 +208,12 @@ export default function ProjectsPage() {
           </div>
 
           {/* Project list */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <p className="text-sm">Loading projects...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">

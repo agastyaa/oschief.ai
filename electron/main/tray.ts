@@ -1,6 +1,4 @@
 import { Tray, Menu, BrowserWindow, nativeImage, app, Notification } from 'electron'
-import { getSetting } from './storage/database'
-import { toggleTrayAgendaWindow } from './tray-agenda-window'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { TRAY_ICON_BASE64, TRAY_ICON_RECORDING_BASE64 } from './tray-icons.generated'
@@ -125,10 +123,6 @@ export function setupTray(win: BrowserWindow): void {
       mainWindow?.webContents.send('tray:navigate-to-meeting')
       return
     }
-    if (getSetting('tray-calendar-agenda') === 'true' && tray) {
-      toggleTrayAgendaWindow(tray.getBounds())
-      return
-    }
     if (mainWindow?.isVisible()) {
       mainWindow.focus()
     } else {
@@ -139,12 +133,6 @@ export function setupTray(win: BrowserWindow): void {
 
 function rebuildMenu(): void {
   if (!tray || !mainWindow) return
-
-  // Agenda popover carries New note / Go to app / Quit — hide duplicate native menu while idle.
-  if (getSetting('tray-calendar-agenda') === 'true' && !isRecording) {
-    tray.setContextMenu(null)
-    return
-  }
 
   const template: Electron.MenuItemConstructorOptions[] = []
 
