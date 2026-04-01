@@ -4,7 +4,7 @@ import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { FolderKanban, Search, Check, Archive, Trash2, X, Plus } from "lucide-react"
+import { FolderKanban, Search, Check, Archive, Trash2, X, Plus, Gavel, ChevronDown, GitMerge } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -21,24 +21,62 @@ interface Project {
 
 type Tab = "active" | "suggested" | "archived"
 
+const decisionStatusStyles: Record<string, string> = {
+  MADE: 'bg-muted text-muted-foreground',
+  ASSIGNED: 'bg-primary/10 text-primary',
+  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  ABANDONED: 'bg-muted text-muted-foreground line-through',
+  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+}
+const decisionStatusLabels: Record<string, string> = {
+  MADE: 'Made', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress',
+  DONE: 'Done', ABANDONED: 'Abandoned', REVISITED: 'Revisited',
+}
+
 export default function ProjectsPage() {
   const { sidebarOpen } = useSidebarVisibility()
   const navigate = useNavigate()
   const api = isElectron ? getElectronAPI() : null
 
   const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>("active")
   const [search, setSearch] = useState("")
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
+  const [mergingId, setMergingId] = useState<string | null>(null)
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null)
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
+  const [projectDecisions, setProjectDecisions] = useState<Record<string, any[]>>({})
+  const [unassignedDecisions, setUnassignedDecisions] = useState<any[]>([])
 
   const loadProjects = async () => {
     if (!api?.memory?.projects) return
     const all = await api.memory.projects.getAll()
     setProjects(all)
+    setLoading(false)
   }
 
-  useEffect(() => { loadProjects() }, [api])
+  useEffect(() => {
+    loadProjects()
+    if (api?.memory?.decisions?.getUnassigned) {
+      api.memory.decisions.getUnassigned().then(setUnassignedDecisions).catch(() => {})
+    }
+  }, [api])
+
+  const toggleDecisions = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (expandedProjectId === projectId) {
+      setExpandedProjectId(null)
+      return
+    }
+    setExpandedProjectId(projectId)
+    if (!projectDecisions[projectId] && api?.memory?.decisions?.forProject) {
+      const decisions = await api.memory.decisions.forProject(projectId)
+      setProjectDecisions(prev => ({ ...prev, [projectId]: decisions }))
+    }
+  }
 
   const handleCreateProject = async () => {
     if (!newName.trim() || !api?.memory?.projects) return
@@ -77,6 +115,17 @@ export default function ProjectsPage() {
     if (!api?.memory?.projects) return
     await api.memory.projects.delete(id)
     toast.success("Project deleted")
+    loadProjects()
+  }
+
+  const handleMerge = async () => {
+    if (!mergingId || !mergeTargetId || !api?.memory?.projects?.merge) return
+    const sourceName = projects.find(p => p.id === mergingId)?.name
+    const targetName = projects.find(p => p.id === mergeTargetId)?.name
+    await api.memory.projects.merge(mergeTargetId, mergingId)
+    toast.success(`Merged "${sourceName}" into "${targetName}"`)
+    setMergingId(null)
+    setMergeTargetId(null)
     loadProjects()
   }
 
@@ -159,7 +208,12 @@ export default function ProjectsPage() {
           </div>
 
           {/* Project list */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <p className="text-sm">Loading projects...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">
@@ -196,8 +250,8 @@ export default function ProjectsPage() {
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               {filtered.map((project, i) => (
+                <div key={project.id}>
                 <div
-                  key={project.id}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition-colors",
                     i > 0 && "border-t border-border"
@@ -212,7 +266,24 @@ export default function ProjectsPage() {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                     <span>{project.meetingCount} meetings</span>
-                    <span>{project.decisionCount} decisions</span>
+                    {project.decisionCount > 0 ? (
+                      <button
+                        onClick={(e) => toggleDecisions(project.id, e)}
+                        className={cn(
+                          "flex items-center gap-1 hover:text-foreground transition-colors",
+                          expandedProjectId === project.id && "text-foreground"
+                        )}
+                      >
+                        <Gavel className="h-3 w-3" />
+                        {project.decisionCount}
+                        <ChevronDown className={cn(
+                          "h-3 w-3 transition-transform duration-200",
+                          expandedProjectId === project.id && "rotate-180"
+                        )} />
+                      </button>
+                    ) : (
+                      <span>{project.decisionCount} decisions</span>
+                    )}
                   </div>
                   <StatusPill status={project.status} />
                   {project.status === "suggested" && (
@@ -235,6 +306,13 @@ export default function ProjectsPage() {
                   )}
                   {project.status === "active" && (
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setMergingId(project.id); setMergeTargetId(null) }}
+                        className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                        title="Merge into another project"
+                      >
+                        <GitMerge className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         onClick={() => handleArchive(project.id)}
                         className="p-1 rounded hover:bg-secondary text-muted-foreground"
@@ -261,7 +339,93 @@ export default function ProjectsPage() {
                     </button>
                   )}
                 </div>
+                {expandedProjectId === project.id && (
+                  <div className="px-4 py-2 bg-secondary/30 border-t border-border">
+                    {(projectDecisions[project.id] || []).length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-1">No decisions yet</div>
+                    ) : (
+                      <>
+                        {(projectDecisions[project.id] || []).slice(0, 5).map((d: any) => (
+                          <div key={d.id} className="flex items-center gap-2 py-1.5">
+                            <span className="text-[13px] text-foreground flex-1 truncate">{d.text}</span>
+                            <span className={cn(
+                              "text-[11px] rounded-full px-2 py-0.5 shrink-0",
+                              decisionStatusStyles[d.status || 'MADE']
+                            )}>
+                              {decisionStatusLabels[d.status || 'MADE']}
+                            </span>
+                          </div>
+                        ))}
+                        {(projectDecisions[project.id]?.length || 0) > 5 && (
+                          <button
+                            onClick={() => navigate(`/project/${project.id}`)}
+                            className="text-xs text-primary hover:underline mt-1"
+                          >
+                            View all {projectDecisions[project.id]?.length} decisions
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                </div>
               ))}
+            </div>
+          )}
+
+          {/* Merge picker */}
+          {mergingId && (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-card p-3 space-y-2">
+              <p className="text-xs text-foreground font-medium">
+                Merge "{projects.find(p => p.id === mergingId)?.name}" into:
+              </p>
+              <select
+                autoFocus
+                value={mergeTargetId || ""}
+                onChange={e => setMergeTargetId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Select target project...</option>
+                {projects.filter(p => p.id !== mergingId && p.status === "active").map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={handleMerge}
+                  disabled={!mergeTargetId}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  Merge
+                </button>
+                <button onClick={() => { setMergingId(null); setMergeTargetId(null) }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Unassigned decisions — not linked to any project */}
+          {unassignedDecisions.length > 0 && (
+            <div className="mt-8">
+              <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-2">
+                Unassigned Decisions
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Decisions not linked to any project.
+              </p>
+              <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                {unassignedDecisions.map((d: any) => (
+                  <div key={d.id} className="flex items-center gap-2 px-4 py-2.5">
+                    <span className="text-sm flex-1 truncate">{d.text}</span>
+                    <span className={cn(
+                      "text-[11px] rounded-full px-2 py-0.5 shrink-0",
+                      decisionStatusStyles[d.status || 'MADE']
+                    )}>
+                      {decisionStatusLabels[d.status || 'MADE']}
+                    </span>
+                    {d.date && <span className="text-[11px] text-muted-foreground shrink-0">{d.date}</span>}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

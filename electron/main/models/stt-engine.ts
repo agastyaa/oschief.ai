@@ -55,6 +55,8 @@ export function killAllSTTProcesses(): void {
   // Kill MLX workers
   killMLXWorker()
   killMLX8BitWorker()
+  // Kill Parakeet persistent worker
+  import('../audio/stt-parakeet-coreml').then(({ killWorker }) => killWorker()).catch(() => {})
 }
 
 /** Remove stale temp files from previous sessions. Call on app startup. */
@@ -75,6 +77,8 @@ export function cleanStaleTempFiles(): void {
       } catch {}
     }
   } catch {}
+  // Also clean Parakeet temp files
+  import('../audio/stt-parakeet-coreml').then(({ cleanupParakeetTempFiles }) => cleanupParakeetTempFiles()).catch(() => {})
 }
 
 export function getContext(): string {
@@ -1743,8 +1747,8 @@ except ImportError:
 // ── CoreML Parakeet (Apple Neural Engine — no Python needed) ────────
 
 async function processWithParakeetCoreML(wavBuffer: Buffer): Promise<STTResult> {
-  // WAV header is 44 bytes; Parakeet needs at least ~0.5s of audio (8000 samples at 16kHz = 16000 bytes)
-  const MIN_WAV_SIZE = 44 + 16000
+  // WAV header is 44 bytes; Parakeet needs at least ~1.5s of audio to avoid FluidAudio fatalError
+  const MIN_WAV_SIZE = 44 + 16000 * 2 * 0.8 // 0.8s at 16kHz 16-bit mono (padding handles 0.8–1.5s)
   if (wavBuffer.length < MIN_WAV_SIZE) {
     console.log(`[stt] Parakeet CoreML: audio too short (${wavBuffer.length} bytes), skipping`)
     return { text: '', words: [] }

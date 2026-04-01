@@ -2,8 +2,8 @@ appId: com.oschief.app
 productName: OSChief
 publish:
   provider: github
-  owner: iamsagar125
-  repo: syag-note
+  owner: agastyaa
+  repo: oschief.ai
   releaseType: release
 directories:
   buildResources: electron/resources

@@ -46,6 +46,19 @@ export function getDecisionsForProject(projectId: string): any[] {
   `).all(projectId) as any[]
 }
 
+export function getUnassignedDecisions(): any[] {
+  return getDb().prepare(`
+    SELECT d.*, n.title as note_title, GROUP_CONCAT(p.name, ', ') as participant_names
+    FROM decisions d
+    LEFT JOIN notes n ON n.id = d.note_id
+    LEFT JOIN decision_people dp ON dp.decision_id = d.id
+    LEFT JOIN people p ON p.id = dp.person_id
+    WHERE d.project_id IS NULL
+    GROUP BY d.id
+    ORDER BY d.created_at DESC
+  `).all() as any[]
+}
+
 export function getAllDecisions(filters?: { projectId?: string; noteId?: string }): any[] {
   let sql = `
     SELECT d.*, n.title as note_title, pr.name as project_name
@@ -75,7 +88,13 @@ export function addDecision(data: {
 }): any {
   const id = randomUUID()
   const now = new Date().toISOString()
-  getDb().prepare(`
+  const db = getDb()
+
+  // Ensure v12 columns exist (may be missing if ALTER TABLE failed on a previous version)
+  try { db.exec(`ALTER TABLE decisions ADD COLUMN status TEXT DEFAULT 'MADE'`) } catch {}
+  try { db.exec(`ALTER TABLE decisions ADD COLUMN updated_at TEXT`) } catch {}
+
+  db.prepare(`
     INSERT INTO decisions (id, note_id, project_id, text, context, date, status, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, 'MADE', ?, ?)
   `).run(
@@ -98,6 +117,23 @@ export function updateDecisionStatus(id: string, status: DecisionStatus): boolea
   const result = getDb().prepare(`
     UPDATE decisions SET status = ?, updated_at = ? WHERE id = ?
   `).run(status, now, id)
+  if ((result as any).changes > 0) {
+    const updated = getDecision(id)
+    if (updated) logDecisionSync('UPDATE', id, updated)
+  }
+  return (result as any).changes > 0
+}
+
+export function updateDecision(id: string, data: { text?: string; context?: string; projectId?: string | null }): boolean {
+  const sets: string[] = []
+  const values: any[] = []
+  if (data.text !== undefined) { sets.push('text = ?'); values.push(data.text) }
+  if (data.context !== undefined) { sets.push('context = ?'); values.push(data.context) }
+  if (data.projectId !== undefined) { sets.push('project_id = ?'); values.push(data.projectId) }
+  if (sets.length === 0) return false
+  sets.push('updated_at = ?'); values.push(new Date().toISOString())
+  values.push(id)
+  const result = getDb().prepare(`UPDATE decisions SET ${sets.join(', ')} WHERE id = ?`).run(...values)
   if ((result as any).changes > 0) {
     const updated = getDecision(id)
     if (updated) logDecisionSync('UPDATE', id, updated)

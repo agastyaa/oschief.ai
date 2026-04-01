@@ -2,6 +2,7 @@
 ///
 /// Usage:
 ///   syag-parakeet-coreml transcribe <wav-path>     → prints transcription to stdout
+///   syag-parakeet-coreml serve                     → persistent mode: reads WAV paths from stdin, writes text to stdout
 ///   syag-parakeet-coreml check                     → prints "ok" if models are ready
 ///   syag-parakeet-coreml download                  → downloads models, prints progress to stderr
 ///
@@ -63,6 +64,28 @@ struct ParakeetCLI {
                 exit(1)
             }
 
+            // Pre-validate WAV duration before FluidAudio — it hits fatalError on borderline-short audio
+            // which bypasses Swift's do/catch. Reject < 1.0s with a clean exit instead.
+            do {
+                let fileData = try Data(contentsOf: url)
+                if fileData.count >= 44 {
+                    let dataChunkSize = fileData.withUnsafeBytes { $0.load(fromByteOffset: 40, as: UInt32.self) }
+                    let wavSampleRate = fileData.withUnsafeBytes { $0.load(fromByteOffset: 24, as: UInt32.self) }
+                    let channels = fileData.withUnsafeBytes { $0.load(fromByteOffset: 22, as: UInt16.self) }
+                    let bitsPerSample = fileData.withUnsafeBytes { $0.load(fromByteOffset: 34, as: UInt16.self) }
+                    let bytesPerSecond = Double(wavSampleRate) * Double(channels) * Double(bitsPerSample) / 8.0
+                    let durationSec = bytesPerSecond > 0 ? Double(dataChunkSize) / bytesPerSecond : 0
+                    if durationSec < 1.0 {
+                        fputs("Audio too short for Parakeet: \(String(format: "%.2f", durationSec))s (need >= 1.0s)\n", stderr)
+                        print("")
+                        return
+                    }
+                }
+            } catch {
+                fputs("Warning: could not pre-validate WAV: \(error.localizedDescription)\n", stderr)
+                // Continue to transcription — let FluidAudio handle the error
+            }
+
             // If bundled models exist, ensure FluidAudio can find them by symlinking to its cache
             ensureBundledModelsLinked()
 
@@ -82,8 +105,86 @@ struct ParakeetCLI {
                 print("")
             }
 
+        case "serve":
+            // Persistent mode: load models once, read WAV paths from stdin, write transcriptions to stdout.
+            // Protocol: one WAV path per line on stdin → one line of text on stdout (empty line = empty result).
+            // Send empty line for heartbeat (responds with empty line). Send "quit" or close stdin to exit.
+            ensureBundledModelsLinked()
+
+            fputs("[serve] Loading models...\n", stderr)
+            let serveModels = try await AsrModels.downloadAndLoad(version: .v2)
+            let serveManager = AsrManager(config: .default)
+            try await serveManager.initialize(models: serveModels)
+            fputs("[serve] Ready\n", stderr)
+            // Signal readiness to parent process
+            print("READY")
+            fflush(stdout)
+
+            while let line = readLine(strippingNewline: true) {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+                // Heartbeat or empty line
+                if trimmed.isEmpty {
+                    print("")
+                    fflush(stdout)
+                    continue
+                }
+
+                // Quit command
+                if trimmed == "quit" {
+                    fputs("[serve] Quit requested\n", stderr)
+                    break
+                }
+
+                // Transcribe the WAV file at the given path
+                let wavURL = URL(fileURLWithPath: trimmed)
+                guard FileManager.default.fileExists(atPath: trimmed) else {
+                    fputs("[serve] WAV not found: \(trimmed)\n", stderr)
+                    print("RESULT:")
+                    fflush(stdout)
+                    continue
+                }
+
+                // Pre-validate duration (same as transcribe command)
+                var skipTranscription = false
+                do {
+                    let fileData = try Data(contentsOf: wavURL)
+                    if fileData.count >= 44 {
+                        let dataChunkSize = fileData.withUnsafeBytes { $0.load(fromByteOffset: 40, as: UInt32.self) }
+                        let wavSampleRate = fileData.withUnsafeBytes { $0.load(fromByteOffset: 24, as: UInt32.self) }
+                        let channels = fileData.withUnsafeBytes { $0.load(fromByteOffset: 22, as: UInt16.self) }
+                        let bitsPerSample = fileData.withUnsafeBytes { $0.load(fromByteOffset: 34, as: UInt16.self) }
+                        let bytesPerSecond = Double(wavSampleRate) * Double(channels) * Double(bitsPerSample) / 8.0
+                        let durationSec = bytesPerSecond > 0 ? Double(dataChunkSize) / bytesPerSecond : 0
+                        if durationSec < 1.0 {
+                            fputs("[serve] Audio too short: \(String(format: "%.2f", durationSec))s\n", stderr)
+                            skipTranscription = true
+                        }
+                    }
+                } catch {
+                    fputs("[serve] WAV validation warning: \(error.localizedDescription)\n", stderr)
+                }
+
+                if skipTranscription {
+                    print("RESULT:")
+                    fflush(stdout)
+                    continue
+                }
+
+                do {
+                    let result = try await serveManager.transcribe(wavURL)
+                    // Prefix with RESULT: so the TypeScript parser can distinguish from FluidAudio debug output
+                    let text = result.text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
+                    print("RESULT:\(text)")
+                } catch {
+                    fputs("[serve] Transcription error: \(error.localizedDescription)\n", stderr)
+                    print("RESULT:")
+                }
+                fflush(stdout)
+            }
+
         default:
-            fputs("Unknown command: \(command). Use: transcribe, check, download\n", stderr)
+            fputs("Unknown command: \(command). Use: transcribe, serve, check, download\n", stderr)
             exit(1)
         }
     }

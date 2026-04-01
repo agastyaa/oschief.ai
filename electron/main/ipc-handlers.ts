@@ -1403,14 +1403,20 @@ export function registerIPCHandlers(): void {
     return deleteDecision(id)
   })
 
+  ipcMain.handle('memory:decisions-update', async (_e, id: string, data: any) => {
+    const { updateDecision } = await import('./memory/decision-store')
+    return updateDecision(id, data)
+  })
+  ipcMain.handle('memory:decisions-unassigned', async () => {
+    const { getUnassignedDecisions } = await import('./memory/decision-store')
+    return getUnassignedDecisions()
+  })
+
   // --- Projects: link people ---
   ipcMain.handle('memory:projects-link-person', async (_e, projectId: string, personId: string) => {
     const { getDb } = await import('./storage/database')
     const db = getDb()
-    const existing = db.prepare('SELECT 1 FROM note_people WHERE note_id = ? AND person_id = ?').get(projectId, personId)
-    if (!existing) {
-      db.prepare('INSERT OR IGNORE INTO note_people (note_id, person_id, role) VALUES (?, ?, ?)').run(projectId, personId, 'project-member')
-    }
+    db.prepare('INSERT OR IGNORE INTO project_people (project_id, person_id, role) VALUES (?, ?, ?)').run(projectId, personId, 'member')
     return true
   })
 

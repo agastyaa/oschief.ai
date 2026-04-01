@@ -272,6 +272,8 @@ type ElectronAPI = {
       add: (data: any) => Promise<any>
       updateStatus: (id: string, status: string) => Promise<boolean>
       update: (id: string, data: any) => Promise<boolean>
+      delete: (id: string) => Promise<boolean>
+      snooze: (id: string, until: string) => Promise<boolean>
     }
     topics: {
       getAll: () => Promise<any[]>
@@ -291,11 +293,19 @@ type ElectronAPI = {
       delete: (id: string) => Promise<boolean>
       merge: (keepId: string, mergeId: string) => Promise<boolean>
       timeline: (projectId: string) => Promise<any>
+      linkToNote: (noteId: string, projectId: string) => Promise<boolean>
+      unlinkFromNote: (noteId: string, projectId: string) => Promise<boolean>
+      linkPerson: (projectId: string, personId: string) => Promise<boolean>
     }
     decisions: {
       forNote: (noteId: string) => Promise<any[]>
       forProject: (projectId: string) => Promise<any[]>
       getAll: (filters?: any) => Promise<any[]>
+      create: (data: { text: string; context?: string; noteId?: string; projectId?: string; date?: string }) => Promise<any>
+      delete: (id: string) => Promise<boolean>
+      updateStatus: (id: string, status: string) => Promise<boolean>
+      update: (id: string, data: { text?: string; context?: string; projectId?: string | null }) => Promise<boolean>
+      getUnassigned: () => Promise<any[]>
     }
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>
   }

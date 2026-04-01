@@ -2156,11 +2156,20 @@ export default function SettingsPage() {
                             </p>
                           )}
 
-                          <p className="text-[10px] text-muted-foreground">
-                            Want other models? Run{" "}
-                            <code className="rounded bg-muted px-1 py-0.5 text-[9px]">ollama pull &lt;model&gt;</code>{" "}
-                            in Terminal — they'll appear in the model picker automatically.
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-muted-foreground flex-1">
+                              Want other models? Run{" "}
+                              <code className="rounded bg-muted px-1 py-0.5 text-[9px]">ollama pull &lt;model&gt;</code>{" "}
+                              in Terminal, then click Refresh.
+                            </p>
+                            <button
+                              onClick={() => refreshOllama()}
+                              className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors shrink-0"
+                            >
+                              <RefreshCw className="h-2.5 w-2.5" />
+                              Refresh
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -2592,7 +2601,7 @@ export default function SettingsPage() {
                   <div className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''} <span className="text-[11px] font-normal text-primary/70">(testing_perf_optimization)</span></p>
+                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
                         <p className="text-[11px] text-muted-foreground">macOS (Apple Silicon)</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2658,6 +2667,8 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </div>
+
+
 
                   {/* What OSChief does */}
                   <div className="space-y-2">
@@ -3223,9 +3234,9 @@ function MicrosoftCalendarIntegrationRow() {
             <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Microsoft Teams / Outlook</span>
+            <span className="text-[13px] font-medium text-foreground">Microsoft Outlook</span>
             <p className="text-[11px] text-muted-foreground">
-              {connected ? `Connected — ${email}` : "Sync Teams calls and Outlook calendar"}
+              {connected ? `Connected — ${email}` : "Sync Outlook calendar and Teams calls"}
             </p>
           </div>
         </div>
@@ -3255,7 +3266,7 @@ function MicrosoftCalendarIntegrationRow() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-foreground">Connect Microsoft Teams / Outlook</h2>
+              <h2 className="text-base font-semibold text-foreground">Connect Microsoft Outlook</h2>
               <button onClick={() => setShowSetup(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">
                 <span className="text-lg">&times;</span>
               </button>

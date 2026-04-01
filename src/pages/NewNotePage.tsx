@@ -212,7 +212,7 @@ export default function NewNotePage() {
   /** Granola-style: if user manually edited title, don't overwrite with AI-generated one */
   const userHasEditedTitleRef = useRef(false);
   const { folders, createFolder } = useFolders();
-  const { addNote, deleteNote, addSummarizingNote, summarizingNoteIds, lastSummaryReady } = useNotes();
+  const { addNote, deleteNote, updateNote, addSummarizingNote, summarizingNoteIds, lastSummaryReady } = useNotes();
   const [customTemplates, setCustomTemplates] = useState<Array<{ id: string; name: string; prompt: string }>>([]);
 
   const MEETING_TEMPLATES = useMemo(() => {
@@ -553,7 +553,7 @@ export default function NewNotePage() {
     const timeRange = formatTimeRange(startTimeMs, effectiveElapsed);
 
     lastGeneratedTranscriptLengthRef.current = finalTranscript.length;
-    lastGeneratedNotesRef.current = useNotes;
+    lastGeneratedNotesRef.current = override?.personalNotes ?? personalNotes;
 
     // Save the note immediately (without summary) so it's not lost if summarize hangs
     try {
@@ -595,6 +595,13 @@ export default function NewNotePage() {
         accountDisplayName: loadAccountFromStorage().name?.trim() || undefined,
       }).catch(console.error);
       // isSummarizing stays true until note:summary-ready event clears it (see useEffect below)
+      // Safety timeout: if LLM call hangs or event is missed, clear after 3 minutes
+      setTimeout(() => {
+        setIsSummarizing(prev => {
+          if (prev) console.warn('[summary] Safety timeout: clearing isSummarizing after 3 min');
+          return false;
+        });
+      }, 180000);
     } else {
       // No AI model — generate local summary synchronously
       const localSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
@@ -613,20 +620,17 @@ export default function NewNotePage() {
   // React to summary-ready events from global NotesContext listener.
   // The context handles toast notifications and note state updates.
   // Here we handle NewNotePage-specific logic (title update, entity extraction, local state).
+  // React to summary-ready events from global NotesContext listener.
+  // The context handles toast notifications, note state updates, and summarizingNoteIds.
+  // Here we handle NewNotePage-specific logic: title update, entity extraction, local UI state.
   useEffect(() => {
-    if (!lastSummaryReady || lastSummaryReady.noteId !== noteId) return;
-    const { summary: readySummary } = lastSummaryReady;
-    const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
-    const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
-    setSummary(readySummary);
-    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitle(readySummary.title)) {
-      setTitle(readySummary.title);
-      api?.db?.notes?.update(noteId, { title: readySummary.title }).catch(console.error);
-    }
-    // Entity extraction — fire and forget
+    if (!lastSummaryReady) return;
+    const { noteId: readyNoteId, summary: readySummary } = lastSummaryReady;
+
+    // Always run entity extraction for any note (DB was already updated by backend)
     if (api?.memory?.extractEntities && selectedAIModel) {
       api.memory.extractEntities({
-        noteId,
+        noteId: readyNoteId,
         summary: readySummary,
         transcript: transcriptRef.current,
         model: selectedAIModel,
@@ -634,8 +638,40 @@ export default function NewNotePage() {
         if (result.ok) console.log(`Entity extraction: ${result.peopleCount ?? 0} people, ${result.commitmentCount ?? 0} commitments`);
       }).catch((err: any) => console.error('Entity extraction failed:', err));
     }
+
+    // Only update UI state if this summary belongs to the currently displayed note
+    if (readyNoteId !== noteId) {
+      console.log(`[summary] Received summary for ${readyNoteId} but current note is ${noteId} — context updated, UI skipped`);
+      return;
+    }
+
+    const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+    const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
+    setSummary(readySummary);
+    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitle(readySummary.title)) {
+      setTitle(readySummary.title);
+      updateNote(noteId, { title: readySummary.title });
+    }
     setIsSummarizing(false);
-  }, [lastSummaryReady, noteId, api, selectedAIModel]);
+  }, [lastSummaryReady, noteId, api, selectedAIModel, updateNote]);
+
+  // Load summary from DB when returning to a note that already has one (handles race condition
+  // where summary was generated while user was on a different note)
+  useEffect(() => {
+    if (!api?.db?.notes?.get || !noteId) return;
+    api.db.notes.get(noteId).then((note: any) => {
+      if (note?.summary && !summary) {
+        setSummary(note.summary);
+        if (!userHasEditedTitleRef.current && note.summary.title) {
+          const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+          if (!genericTitles.includes((note.summary.title || "").toLowerCase())) {
+            setTitle(note.summary.title);
+          }
+        }
+        setIsSummarizing(false);
+      }
+    }).catch(() => {});
+  }, [api, noteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
   useEffect(() => {
@@ -969,7 +1005,8 @@ export default function NewNotePage() {
           elapsedSeconds: effectiveElapsed,
         });
       }
-      setSummary(null);
+      // Don't clear summary on resume from pause — it will regenerate when user pauses/stops again
+      // Only clear if there's significant new transcript (handled by generateNotes guard)
       if (usingRealAudio) {
         resumeAudioCapture(selectedSTTModel || '')
           .catch((err) => {
@@ -1234,8 +1271,20 @@ export default function NewNotePage() {
                       userHasEditedTitleRef.current = true;
                       setTitle(e.target.value);
                     }}
-                    onBlur={() => setIsEditingTitle(false)}
-                    onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
+                    onBlur={() => {
+                      setIsEditingTitle(false);
+                      if (title.trim() && noteId) {
+                        updateNote(noteId, { title: title.trim() });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setIsEditingTitle(false);
+                        if (title.trim() && noteId) {
+                          updateNote(noteId, { title: title.trim() });
+                        }
+                      }
+                    }}
                     className="mb-3 w-full font-display text-2xl text-foreground bg-transparent border-none outline-none focus:ring-0"
                     placeholder="New note"
                   />

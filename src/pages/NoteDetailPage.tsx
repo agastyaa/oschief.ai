@@ -203,13 +203,26 @@ export default function NoteDetailPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showTemplateMenu]);
 
-  // If this note has content but no summary, it may have been saved before summary completed.
-  // Show shimmer and listen for the background summary IPC event.
+  // If this note has content but no summary in context, check DB first (summary may have
+  // been generated while user was on a different page). Then listen for the IPC event as fallback.
   useEffect(() => {
     if (!note || note.summary || !api?.llm?.onSummaryReady) return;
     const hasContent = (note.transcript?.length ?? 0) > 0 || (note.personalNotes || '').trim().length > 0;
     if (!hasContent) return;
-    setIsSummarizing(true);
+
+    // Check DB first — summary may already be saved but context missed the update
+    api.db?.notes?.get(id!)?.then((dbNote: any) => {
+      if (dbNote?.summary) {
+        updateNote(id!, { summary: dbNote.summary });
+        setIsSummarizing(false);
+        return;
+      }
+      // Not in DB either — show shimmer and wait for the event
+      setIsSummarizing(true);
+    }).catch(() => {
+      setIsSummarizing(true);
+    });
+
     const unsubReady = api.llm.onSummaryReady((incomingId: string, summary: any) => {
       if (incomingId !== id) return;
       updateNote(id!, { summary });

@@ -196,26 +196,32 @@ export function getProjectTimeline(projectId: string): {
     ORDER BY d.created_at DESC
   `).all(projectId) as any[]
 
-  // People who attended meetings linked to this project
+  // People: from meetings linked to this project + directly linked via project_people
   const people = db.prepare(`
-    SELECT DISTINCT p.id, p.name, p.email, p.company, p.role, COUNT(np2.note_id) as meetingCount
+    SELECT p.id, p.name, p.email, p.company, p.role, COUNT(DISTINCT np2.note_id) as meetingCount
     FROM people p
-    JOIN note_people np2 ON np2.person_id = p.id
-    JOIN note_projects nproj ON nproj.note_id = np2.note_id
-    WHERE nproj.project_id = ?
+    LEFT JOIN note_people np2 ON np2.person_id = p.id
+    LEFT JOIN note_projects nproj ON nproj.note_id = np2.note_id AND nproj.project_id = ?
+    WHERE p.id IN (
+      SELECT np2i.person_id FROM note_people np2i
+      JOIN note_projects nproji ON nproji.note_id = np2i.note_id
+      WHERE nproji.project_id = ?
+      UNION
+      SELECT pp.person_id FROM project_people pp WHERE pp.project_id = ?
+    )
     GROUP BY p.id
     ORDER BY meetingCount DESC
-  `).all(projectId) as any[]
+  `).all(projectId, projectId, projectId) as any[]
 
-  // Commitments from meetings linked to this project
+  // Commitments: from meetings linked to this project + directly assigned to project
   const commitments = db.prepare(`
     SELECT c.*, p.name as assignee_name
     FROM commitments c
     LEFT JOIN people p ON p.id = c.assignee_id
-    JOIN note_projects nproj ON nproj.note_id = c.note_id
-    WHERE nproj.project_id = ?
+    WHERE c.project_id = ?
+       OR c.note_id IN (SELECT note_id FROM note_projects WHERE project_id = ?)
     ORDER BY c.created_at DESC
-  `).all(projectId) as any[]
+  `).all(projectId, projectId) as any[]
 
   return { meetings, decisions, people, commitments }
 }

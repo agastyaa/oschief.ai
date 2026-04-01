@@ -62,6 +62,7 @@ export function LiveMeetingIndicator() {
       onClick={handleGoToNote}
       style={{
         cursor: "pointer",
+        WebkitAppRegion: "no-drag" as any,
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(-8px)",
         transition: "transform 0.25s ease, opacity 0.2s ease",

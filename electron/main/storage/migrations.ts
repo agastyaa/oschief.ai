@@ -270,6 +270,19 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pql_timestamp ON pipeline_quality_log(timestamp)`,
     ]
   },
+  {
+    version: 14,
+    up: [
+      `CREATE TABLE IF NOT EXISTS project_people (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT 'member',
+        created_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (project_id, person_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_project_people_person ON project_people(person_id)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {
@@ -283,14 +296,30 @@ export function runMigrations(db: Database.Database): void {
 
   if (pending.length === 0) return
 
-  const migrate = db.transaction(() => {
-    for (const migration of pending) {
+  for (const migration of pending) {
+    try {
+      const migrate = db.transaction(() => {
+        for (const sql of migration.up) {
+          db.exec(sql)
+        }
+        db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
+      })
+      migrate()
+    } catch (err: any) {
+      // If the whole transaction fails (e.g. ALTER TABLE on existing column), try each statement individually
+      console.warn(`[migrations] Transaction for v${migration.version} failed: ${err.message}. Retrying statements individually...`)
+      let allOk = true
       for (const sql of migration.up) {
-        db.exec(sql)
+        try { db.exec(sql) } catch (e: any) {
+          // "duplicate column" is safe to ignore — column already exists from a partial previous run
+          if (/duplicate column|already exists/i.test(e.message)) continue
+          console.error(`[migrations] v${migration.version} statement failed: ${e.message}`)
+          allOk = false
+        }
       }
-      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
+      if (allOk) {
+        try { db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(migration.version) } catch {}
+      }
     }
-  })
-
-  migrate()
+  }
 }

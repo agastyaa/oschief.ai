@@ -48,6 +48,7 @@ export default function DecisionsPage() {
   const api = isElectron ? getElectronAPI() : null
 
   const [decisions, setDecisions] = useState<Decision[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<FilterMode>("all")
   const [projects, setProjects] = useState<any[]>([])
@@ -56,6 +57,18 @@ export default function DecisionsPage() {
   const [newText, setNewText] = useState("")
   const [newContext, setNewContext] = useState("")
   const [newProjectId, setNewProjectId] = useState<string | null>(null)
+  const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
+  const [editingContextId, setEditingContextId] = useState<string | null>(null)
+  const [editContext, setEditContext] = useState("")
+
+  const refreshDecisions = () => {
+    if (filter === "by-project" && selectedProjectId) {
+      api?.memory?.decisions?.forProject(selectedProjectId).then(setDecisions)
+    } else {
+      api?.memory?.decisions?.getAll().then(setDecisions)
+    }
+  }
 
   const handleStatusChange = async (id: string, status: string) => {
     await api?.memory?.decisions?.updateStatus(id, status)
@@ -69,7 +82,7 @@ export default function DecisionsPage() {
 
   useEffect(() => {
     if (!api?.memory?.decisions) return
-    api.memory.decisions.getAll().then(setDecisions)
+    api.memory.decisions.getAll().then(d => { setDecisions(d); setLoading(false) })
     api.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setProjects(p || []))
   }, [api])
 
@@ -224,7 +237,12 @@ export default function DecisionsPage() {
           </div>
 
           {/* Timeline */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <p className="text-sm">Loading decisions...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">No decisions recorded yet.</p>
@@ -241,7 +259,34 @@ export default function DecisionsPage() {
                     {items.map(d => (
                       <div key={d.id} className="group px-4 py-3 space-y-1 relative">
                         <div className="flex items-center gap-2">
-                          <div className="text-sm flex-1">{d.text}</div>
+                          {editingTextId === d.id ? (
+                            <input
+                              autoFocus
+                              value={editText}
+                              onChange={e => setEditText(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && editText.trim()) {
+                                  api?.memory?.decisions?.update?.(d.id, { text: editText.trim() })
+                                    .then(() => { refreshDecisions(); setEditingTextId(null) })
+                                }
+                                if (e.key === 'Escape') setEditingTextId(null)
+                              }}
+                              onBlur={() => {
+                                if (editText.trim() && editText !== d.text) {
+                                  api?.memory?.decisions?.update?.(d.id, { text: editText.trim() })
+                                    .then(() => refreshDecisions())
+                                }
+                                setEditingTextId(null)
+                              }}
+                              className="text-sm flex-1 bg-transparent border-b border-primary focus:outline-none"
+                            />
+                          ) : (
+                            <div
+                              className="text-sm flex-1 cursor-pointer hover:text-primary/80 transition-colors"
+                              onClick={() => { setEditingTextId(d.id); setEditText(d.text) }}
+                              title="Click to edit"
+                            >{d.text}</div>
+                          )}
                           <select
                             value={d.status || 'MADE'}
                             onChange={(e) => { e.stopPropagation(); handleStatusChange(d.id, e.target.value) }}
@@ -266,8 +311,39 @@ export default function DecisionsPage() {
                             <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
-                        {d.context && (
-                          <div className="text-xs text-muted-foreground italic">{d.context}</div>
+                        {editingContextId === d.id ? (
+                          <input
+                            autoFocus
+                            value={editContext}
+                            onChange={e => setEditContext(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                api?.memory?.decisions?.update?.(d.id, { context: editContext.trim() })
+                                  .then(() => { refreshDecisions(); setEditingContextId(null) })
+                              }
+                              if (e.key === 'Escape') setEditingContextId(null)
+                            }}
+                            onBlur={() => {
+                              api?.memory?.decisions?.update?.(d.id, { context: editContext.trim() })
+                                .then(() => refreshDecisions())
+                              setEditingContextId(null)
+                            }}
+                            placeholder="Add context..."
+                            className="text-xs text-muted-foreground italic bg-transparent border-b border-primary/40 focus:outline-none w-full"
+                          />
+                        ) : d.context ? (
+                          <div
+                            className="text-xs text-muted-foreground italic cursor-pointer hover:text-foreground/70 transition-colors"
+                            onClick={() => { setEditingContextId(d.id); setEditContext(d.context || "") }}
+                            title="Click to edit context"
+                          >{d.context}</div>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingContextId(d.id); setEditContext("") }}
+                            className="text-xs text-muted-foreground/40 hover:text-muted-foreground italic opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Add context...
+                          </button>
                         )}
                         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                           {d.note_title && (
