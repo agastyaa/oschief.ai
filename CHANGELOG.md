@@ -4,6 +4,20 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.7] — 2026-04-01
+
+### Changed
+- **Unified design system across all pages** — 39 files updated to match the Professional Memory aesthetic: `rounded-[10px]` on all card containers, 3px semantic left accent borders, `p-5` padding, standardized UPPERCASE Caption section labels.
+- **Overdue items use amber** — overdue commitments now show amber ("hey, don't forget") instead of red ("error") per DESIGN.md, applied across CommitmentsPage and CommitmentsWidget.
+- **Empty state icons standardized** — all empty states now use consistent h-10 w-10 icons.
+- **Stronger focus rings** — interactive elements (selects, inputs) upgraded from ring-1/30 to ring-2/40 for keyboard accessibility.
+
+### Fixed
+- **Accessibility** — `aria-label` added to all icon-only buttons (Delete, Mark done, Snooze, Unlink, Archive, Edit) across every page.
+- **Cards consistency** — PrepCard, IntelligenceFeed, CommitmentsWidget, CoachingCard, CalendarAgendaList, all dialogs/modals updated to consistent border radius and padding.
+
+---
+
 ## [2.1.6] — 2026-04-01
 
 ### Added

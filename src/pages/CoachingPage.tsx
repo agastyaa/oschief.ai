@@ -236,7 +236,7 @@ export default function CoachingPage() {
 
             {/* ── Empty state: meetings but no role ── */}
             {meetings.length > 0 && !accountRoleId && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 mb-6">
+              <div className="rounded-[10px] border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 mb-6">
                 <p className="text-sm text-foreground">Set your role in Settings so I can give you role-specific coaching.</p>
                 <button onClick={() => navigate("/settings?section=account")} className="text-xs font-medium text-primary hover:underline mt-1">
                   Go to Settings →
@@ -347,7 +347,7 @@ export default function CoachingPage() {
             {meetings.length > 0 && (
               <div className="mb-6">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">RECENT COACHING</p>
-                <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
+                <div className="rounded-[10px] border border-border bg-card overflow-hidden divide-y divide-border">
                   {[...meetings].reverse().slice(0, 5).map(m => (
                     <button
                       key={m.id}

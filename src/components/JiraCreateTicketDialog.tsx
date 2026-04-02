@@ -134,7 +134,7 @@ export function JiraCreateTicketDialog({
   if (!jiraConfig) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl text-center">
+        <div className="w-full max-w-sm rounded-[10px] border border-border bg-card p-6 shadow-xl text-center">
           <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Jira Not Connected</h3>
           <p className="text-xs text-muted-foreground mb-4">
@@ -150,7 +150,7 @@ export function JiraCreateTicketDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-foreground">Create Jira Ticket</h2>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">

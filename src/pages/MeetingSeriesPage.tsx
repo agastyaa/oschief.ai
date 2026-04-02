@@ -124,7 +124,7 @@ export default function MeetingSeriesPage() {
 
           {series.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <Repeat className="h-8 w-8 mx-auto mb-3 opacity-40" />
+              <Repeat className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No recurring meetings detected yet.</p>
               <p className="text-xs mt-1">Record 2+ meetings with similar titles and they will appear here.</p>
             </div>
@@ -134,7 +134,7 @@ export default function MeetingSeriesPage() {
                 const isExpanded = expandedKey === s.key
                 const details = seriesDetails[s.key]
                 return (
-                <div key={s.key} className="rounded-lg border border-border bg-card overflow-hidden">
+                <div key={s.key} className="rounded-[10px] border border-border bg-card overflow-hidden">
                   <div
                     className="p-4 hover:bg-secondary/30 cursor-pointer transition-colors"
                     onClick={() => {

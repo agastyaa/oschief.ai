@@ -87,7 +87,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
 
   if (meetingDurationSec <= 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-center">
+      <div className="rounded-[10px] border border-border bg-card p-6 text-center">
         <p className="text-sm text-muted-foreground">No speech data available for coaching analysis.</p>
       </div>
     );
@@ -97,7 +97,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
     <div className="space-y-4">
       {/* Overall Score Banner */}
       <div className={cn(
-        "rounded-xl border p-4 flex items-center justify-between",
+        "rounded-[10px] border p-4 flex items-center justify-between",
         scoreBg(metrics.overallScore)
       )}>
         <div>
@@ -119,7 +119,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
       {/* Speaking Time Pie + Stats */}
       <div className="grid grid-cols-2 gap-3">
         {/* Pie Chart */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[10px] border border-border bg-card p-5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Mic className="h-3 w-3" /> Talk vs Listen
           </h4>
@@ -163,7 +163,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
         </div>
 
         {/* Speaking Stats */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[10px] border border-border bg-card p-5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Timer className="h-3 w-3" /> Speaking Stats
           </h4>
@@ -181,7 +181,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
       {/* Pacing + Interruptions */}
       <div className="grid grid-cols-2 gap-3">
         {/* Pacing */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[10px] border border-border bg-card p-5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Zap className="h-3 w-3" /> Pacing
           </h4>
@@ -202,7 +202,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
         </div>
 
         {/* Interruptions */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[10px] border border-border bg-card p-5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <MessageCircleWarning className="h-3 w-3" /> Interruptions
           </h4>
@@ -236,7 +236,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
 
       {/* Filler Words */}
       {metrics.totalFillerCount > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[10px] border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filler Words</h4>
             <span className="text-xs text-muted-foreground tabular-nums">
@@ -285,7 +285,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
 
 function ScoreTile({ label, score, detail }: { label: string; score: number; detail: string }) {
   return (
-    <div className={cn("rounded-xl border p-3 text-center", scoreBg(score))}>
+    <div className={cn("rounded-[10px] border p-3 text-center", scoreBg(score))}>
       <div className={cn("flex items-center justify-center gap-1", scoreColor(score))}>
         {scoreIcon(score)}
         <span className="text-xl font-bold tabular-nums">{score}</span>

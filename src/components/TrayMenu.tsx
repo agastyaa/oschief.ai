@@ -28,7 +28,7 @@ export function TrayMenu() {
   return (
     <div
       className={cn(
-        "w-72 rounded-xl border shadow-2xl overflow-hidden font-body transition-colors",
+        "w-72 rounded-[10px] border shadow-2xl overflow-hidden font-body transition-colors",
         isDark
           ? "bg-[hsl(20,10%,10%)] border-[hsl(20,8%,17%)] text-[hsl(30,15%,90%)]"
           : "bg-card border-border text-foreground"

@@ -333,7 +333,7 @@ const Index = () => {
         )}
         <main className={cn("flex flex-1 flex-col min-w-0 relative items-center justify-center", !sidebarOpen && isElectron && "pl-20")}>
           <div className="text-center">
-            <FolderOpen className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
+            <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
             <p className="text-sm text-muted-foreground">Loading folder...</p>
           </div>
         </main>
@@ -520,12 +520,12 @@ const Index = () => {
             {/* ── Schedule (skip first event to avoid duplication with Prep Card) ── */}
             {icsSource && upcomingEventsList.length > 1 && (
               <div className="mb-4">
-                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-primary" />
                       Coming Up
-                    </h3>
+                    </span>
                     <button onClick={() => navigate("/calendar?view=list")} className="text-[11px] text-primary hover:underline">
                       Full calendar
                     </button>
@@ -545,13 +545,13 @@ const Index = () => {
             {/* ── Needs Attention (risk commitments + stale decisions) ── */}
             {(atRisk.length > 0 || staleDecisions.length > 0) && (
               <div className="mb-4">
-                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[13px] font-semibold text-foreground flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" style={{ color: 'hsl(25 65% 45%)' }} />
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+                      <AlertCircle className="h-3.5 w-3.5" style={{ color: 'hsl(25 65% 45%)' }} />
                       Needs Attention
-                      <span className="text-[11px] font-normal text-muted-foreground">{atRisk.length + staleDecisions.length}</span>
-                    </h3>
+                      <span className="text-[11px] font-normal">{atRisk.length + staleDecisions.length}</span>
+                    </span>
                     <button onClick={() => navigate('/commitments')} className="text-[11px] text-primary hover:underline">
                       View all
                     </button>
@@ -592,7 +592,7 @@ const Index = () => {
                             <button
                               onClick={() => handleMarkDone(c.id)}
                               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
-                              title="Mark done"
+                              title="Mark done" aria-label="Mark done"
                             >
                               <Check className="h-3 w-3" />
                               <span className="hidden sm:inline">Done</span>
@@ -600,7 +600,7 @@ const Index = () => {
                             <button
                               onClick={() => handleSnooze(c.id)}
                               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
-                              title="Snooze 24h"
+                              title="Snooze 24h" aria-label="Snooze"
                             >
                               <Pause className="h-3 w-3" />
                               <span className="hidden sm:inline">Snooze</span>
@@ -644,10 +644,11 @@ const Index = () => {
             {/* ── Top People ── */}
             {!viewAll && memoryStats && memoryStats.topPeople.length > 0 && (
               <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
-                </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
                   {memoryStats.topPeople.map((person) => (
                     <button
                       key={person.id}
@@ -664,6 +665,7 @@ const Index = () => {
                       <span className="text-[10px] text-muted-foreground">{person.meetingCount}</span>
                     </button>
                   ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -671,18 +673,18 @@ const Index = () => {
             {/* ── Daily Brief ── */}
             <div className="mb-4">
               {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
-                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
                 </div>
               ) : (todayEvents.length > 0 || atRisk.length > 0 || staleDecisions.length > 0) ? (
-                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[12px] text-muted-foreground">
                     {[
@@ -693,15 +695,15 @@ const Index = () => {
                   </p>
                 </div>
               ) : notes.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-card/30 p-6 text-center">
-                  <Briefcase className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <div className="rounded-[10px] border border-dashed border-border bg-card/30 p-6 text-center">
+                  <Briefcase className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)" }}>
+                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[12px] text-muted-foreground">
                     {notes.length} meeting{notes.length !== 1 ? 's' : ''} on record
@@ -715,18 +717,18 @@ const Index = () => {
             {/* ── Projects (compact) ── */}
             {activeProjects.length > 0 && (
               <div className="mb-4">
-                <button onClick={() => navigate("/projects")} className="w-full rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)" }}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Projects</span>
-                    </div>
+                <button onClick={() => navigate("/projects")} className="w-full rounded-[10px] border border-border bg-card p-5 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--green, 142 50% 45%))' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+                      <FolderKanban className="h-3.5 w-3.5" />
+                      Active Projects
+                    </span>
                     <ChevronRight className="h-3 w-3 text-muted-foreground" />
                   </div>
-                  <div className="mt-1.5 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {activeProjects.map((p: any) => (
-                      <span key={p.id} className="text-[13px] text-foreground">
-                        {p.name} <span className="text-xs text-muted-foreground">({p.meetingCount || 0})</span>
+                      <span key={p.id} className="text-[13px] text-foreground font-medium">
+                        {p.name} <span className="text-[11px] text-muted-foreground font-normal">({p.meetingCount || 0})</span>
                       </span>
                     ))}
                   </div>
@@ -737,7 +739,7 @@ const Index = () => {
 
             {/* ── Recent Meetings (collapsible on homepage, always-expanded in All Notes) ── */}
             {notes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card/30 px-6 py-8 text-center">
+              <div className="rounded-[10px] border border-dashed border-border bg-card/30 px-6 py-8 text-center">
                 {!icsSource ? (
                   /* No calendar connected — guide to connect first */
                   <>
@@ -837,7 +839,7 @@ const Index = () => {
                   Move to folder
                 </button>
                 {bulkFolderOpen && (
-                  <div className="absolute bottom-full mb-2 left-0 w-48 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+                  <div className="absolute bottom-full mb-2 left-0 w-48 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
                     <div className="px-3 py-2 border-b border-border">
                       <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Choose folder</span>
                     </div>

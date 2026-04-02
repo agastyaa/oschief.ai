@@ -31,7 +31,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
 
   if (!event) {
     return (
-      <div className="rounded-lg border border-dashed border-border/60 bg-card/50 p-4">
+      <div className="rounded-[10px] border border-dashed border-border/60 bg-card/50 p-5">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="h-4 w-4" />
           <p className="text-[13px]">No upcoming meetings today. <span className="text-primary cursor-pointer hover:underline" onClick={() => onConnectCalendar ? onConnectCalendar() : navigate('/calendar')}>Connect calendar</span></p>
@@ -61,8 +61,8 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 cursor-pointer card-lift"
-      style={{ boxShadow: "var(--card-shadow)" }}
+      className="rounded-[10px] border border-border bg-card p-5 cursor-pointer card-lift"
+      style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}
       onClick={() => onStartNote?.(event)}
     >
       <div className="flex items-start justify-between gap-3">

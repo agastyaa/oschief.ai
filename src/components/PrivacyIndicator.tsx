@@ -52,7 +52,7 @@ export function PrivacyIndicator() {
       {showDetail && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setShowDetail(false)} />
-          <div style={popupStyle} className="w-72 rounded-lg border border-border bg-card p-3 shadow-lg text-xs space-y-2">
+          <div style={popupStyle} className="w-72 rounded-[10px] border border-border bg-card p-3 shadow-lg text-xs space-y-2">
             <div className="font-medium text-foreground">Data boundary</div>
             <div className="flex items-start gap-2">
               <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />

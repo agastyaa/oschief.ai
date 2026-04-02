@@ -63,9 +63,7 @@ export function CommitmentsWidget() {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display text-base tracking-tight text-foreground flex items-center gap-2">
-          <span>My open to-dos</span>
-        </h2>
+        <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">My open to-dos</span>
         <button
           onClick={() => navigate("/commitments")}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -75,7 +73,7 @@ export function CommitmentsWidget() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+      <div className="rounded-[10px] border border-border bg-card overflow-hidden" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
         {commitments.map((c, i) => {
           const isOverdue = c.due_date && (() => {
             try {
@@ -96,7 +94,7 @@ export function CommitmentsWidget() {
                 onClick={() => handleToggle(c.id)}
                 className={cn(
                   "mt-0.5 flex-shrink-0 transition-colors",
-                  isOverdue ? "text-red-500" : "text-muted-foreground/50 hover:text-accent"
+                  isOverdue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/50 hover:text-accent"
                 )}
                 title="Mark as done"
               >
@@ -112,7 +110,7 @@ export function CommitmentsWidget() {
                   {c.due_date && (
                     <span className={cn(
                       "text-[10px] flex items-center gap-1",
-                      isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
+                      isOverdue ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
                     )}>
                       <Clock className="h-2.5 w-2.5" />
                       {isOverdue ? "Overdue" : c.due_date}

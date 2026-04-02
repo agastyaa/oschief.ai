@@ -700,7 +700,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
           <h3 className="text-[14px] font-semibold text-foreground mb-1">Attachments</h3>
           <div className="flex flex-wrap gap-2">
             {attachments.map((att, i) => (
-              <div key={i} className="relative group/thumb rounded-lg border border-border overflow-hidden bg-muted/30">
+              <div key={i} className="relative group/thumb rounded-[10px] border border-border overflow-hidden bg-muted/30">
                 <a
                   href={att.url}
                   target="_blank"

@@ -69,7 +69,7 @@ export function TeamsConnectDialog({ open, onClose, onConnected }: TeamsConnectD
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             {/* Teams icon */}

@@ -238,7 +238,7 @@ export default function AskSyag() {
                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </button>
                   {dropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 rounded-xl border border-border/70 bg-popover shadow-lg py-1 z-50 min-w-[220px] ring-1 ring-black/[0.04] dark:ring-white/[0.08]">
+                    <div className="absolute top-full left-0 mt-1.5 rounded-[10px] border border-border/70 bg-popover shadow-lg py-1 z-50 min-w-[220px] ring-1 ring-black/[0.04] dark:ring-white/[0.08]">
                       <button
                         onClick={() => { setUseTranscripts(false); setDropdownOpen(false); }}
                         className={cn(
@@ -308,7 +308,7 @@ export default function AskSyag() {
                   {msg.role === "user" ? (
                     <>
                       {msg.context && (
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-muted/25 px-3 py-2 text-sm shadow-sm">
+                        <div className="inline-flex items-center gap-2 rounded-[10px] border border-border/60 bg-muted/25 px-3 py-2 text-sm shadow-sm">
                           <FileText className="h-4 w-4 text-accent/80" />
                           <div>
                             <span className="font-medium text-foreground">{msg.context.label}</span>

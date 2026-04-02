@@ -151,7 +151,7 @@ export default function DecisionsPage() {
           </p>
 
           {creating && (
-            <div className="rounded-lg border border-primary/30 bg-card p-4 mb-4 space-y-3">
+            <div className="rounded-[10px] border border-primary/30 bg-card p-4 mb-4 space-y-3">
               <input
                 value={newText}
                 onChange={e => setNewText(e.target.value)}
@@ -239,12 +239,12 @@ export default function DecisionsPage() {
           {/* Timeline */}
           {loading ? (
             <div className="text-center py-16 text-muted-foreground">
-              <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <Gavel className="h-10 w-10 mx-auto mb-3 opacity-30 animate-pulse" />
               <p className="text-sm">Loading decisions...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <Gavel className="h-8 w-8 mx-auto mb-3 opacity-40" />
+              <Gavel className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No decisions recorded yet.</p>
               <p className="text-xs mt-1">Decisions are extracted automatically from your meeting summaries.</p>
             </div>
@@ -255,7 +255,7 @@ export default function DecisionsPage() {
                   <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-2">
                     {formatMonth(month)}
                   </div>
-                  <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                  <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                     {items.map(d => (
                       <div key={d.id} className="group px-4 py-3 space-y-1 relative">
                         <div className="flex items-center gap-2">
@@ -284,14 +284,14 @@ export default function DecisionsPage() {
                             <div
                               className="text-sm flex-1 cursor-pointer hover:text-primary/80 transition-colors"
                               onClick={() => { setEditingTextId(d.id); setEditText(d.text) }}
-                              title="Click to edit"
+                              title="Click to edit" aria-label="Edit"
                             >{d.text}</div>
                           )}
                           <select
                             value={d.status || 'MADE'}
                             onChange={(e) => { e.stopPropagation(); handleStatusChange(d.id, e.target.value) }}
                             className={cn(
-                              "text-[11px] rounded-full px-2 py-0.5 border-0 cursor-pointer shrink-0 focus:outline-none focus:ring-1 focus:ring-primary/30",
+                              "text-[11px] rounded-full px-2 py-0.5 border-0 cursor-pointer shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/40",
                               statusStyles[d.status || 'MADE']
                             )}
                           >
@@ -306,7 +306,7 @@ export default function DecisionsPage() {
                               api?.memory?.decisions?.getAll?.().then(setDecisions)
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-opacity shrink-0"
-                            title="Delete"
+                            title="Delete" aria-label="Delete"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>

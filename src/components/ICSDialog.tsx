@@ -103,7 +103,7 @@ export function ICSDialog({ open, onOpenChange, provider, onSuccess }: ICSDialog
             <>
               <div
                 onClick={() => fileRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 cursor-pointer hover:border-accent/40 hover:bg-secondary/50 transition-colors"
+                className="flex flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed border-border py-8 cursor-pointer hover:border-accent/40 hover:bg-secondary/50 transition-colors"
               >
                 <Upload className="h-6 w-6 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Click to select an .ics file</p>

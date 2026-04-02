@@ -89,7 +89,7 @@ export default function AllNotes() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <Search className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+              <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No notes match "{search}"</p>
             </div>
           ) : (
@@ -97,7 +97,7 @@ export default function AllNotes() {
               {grouped.map(([date, items]) => (
                 <div key={date}>
                   <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-1.5">{date}</div>
-                  <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                  <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                     {items.map((n) => (
                       <div key={n.id} className="group flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors">
                         <button

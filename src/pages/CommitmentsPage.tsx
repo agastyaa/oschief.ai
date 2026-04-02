@@ -31,7 +31,7 @@ type FilterStatus = "all" | "open" | "completed" | "overdue" | "my" | "upcoming"
 const STATUS_CONFIG = {
   open: { label: "Open", icon: Circle, color: "text-blue-500", bg: "bg-blue-500/10" },
   completed: { label: "Done", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  overdue: { label: "Overdue", icon: AlertTriangle, color: "text-red-500", bg: "bg-red-500/10" },
+  overdue: { label: "Overdue", icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
   cancelled: { label: "Cancelled", icon: XCircle, color: "text-muted-foreground", bg: "bg-muted/50" },
 }
 
@@ -215,7 +215,7 @@ const CommitmentsPage = () => {
             </div>
 
             {/* Add to-do */}
-            <div className="mb-5 rounded-lg border border-border bg-card/40 p-3">
+            <div className="mb-5 rounded-[10px] border border-border bg-card/40 p-3">
               <p className="text-xs text-muted-foreground mb-2">Add a personal to-do</p>
               <div className="flex items-center gap-2">
                 <input
@@ -365,7 +365,7 @@ const CommitmentsPage = () => {
                                     c.status === "completed" && "line-through opacity-60"
                                   )}
                                   onClick={() => startEditing(c)}
-                                  title="Click to edit"
+                                  title="Click to edit" aria-label="Edit"
                                 >
                                   {c.text}
                                 </p>
@@ -391,7 +391,7 @@ const CommitmentsPage = () => {
                                       api?.memory?.commitments?.update(c.id, { assigneeId: selected?.id ?? null })
                                         .then(() => { loadCommitments(); setEditingAssigneeId(null) })
                                     }}
-                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                   >
                                     <option value="">No assignee</option>
                                     {people.map(p => (
@@ -438,14 +438,14 @@ const CommitmentsPage = () => {
                                       if (e.key === "Escape") setEditingDueDateId(null)
                                       if (e.key === "Enter") (e.target as HTMLInputElement).blur()
                                     }}
-                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                   />
                                 ) : c.due_date ? (
                                   <button
                                     onClick={() => setEditingDueDateId(c.id)}
                                     className={cn(
                                       "text-[11px] flex items-center gap-1 hover:opacity-70 transition-opacity",
-                                      isOverdue ? "text-red-500" : "text-muted-foreground"
+                                      isOverdue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
                                     )}
                                     title="Click to change due date"
                                   >
@@ -476,7 +476,7 @@ const CommitmentsPage = () => {
                                       api?.memory?.commitments?.update(c.id, { projectId: e.target.value || null })
                                         .then(() => { loadCommitments(); setEditingProjectId(null) })
                                     }}
-                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                   >
                                     <option value="">No project</option>
                                     {projects.map(p => (
@@ -508,7 +508,7 @@ const CommitmentsPage = () => {
                               )}
                               <button
                                 onClick={() => handleDelete(c.id)}
-                                title="Delete"
+                                title="Delete" aria-label="Delete"
                                 className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />

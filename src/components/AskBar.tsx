@@ -479,7 +479,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
               {!hideTranscriptToggle && (
                 <button
                   onClick={onToggleTranscript}
-                  className="flex items-center justify-center rounded-xl border border-border/60 backdrop-blur-md bg-card/80 shadow-sm w-9 h-9 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center justify-center rounded-[10px] border border-border/60 backdrop-blur-md bg-card/80 shadow-sm w-9 h-9 text-muted-foreground hover:text-foreground transition-colors"
                   title={transcriptVisible ? "Hide transcript" : "Show transcript"}
                 >
                   {transcriptVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -489,7 +489,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
               <button
                 onClick={recordingState === "recording" ? onPauseRecording : onResumeRecording}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-xl border backdrop-blur-md shadow-sm px-3 py-2 transition-colors",
+                  "flex items-center gap-1.5 rounded-[10px] border backdrop-blur-md shadow-sm px-3 py-2 transition-colors",
                   recordingState === "recording"
                     ? "border-border/60 bg-card/80 text-muted-foreground hover:text-foreground animate-recording-ring"
                     : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/20"
@@ -527,7 +527,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
           <div
             onClick={handleBarClick}
             className={cn(
-              "flex flex-1 items-center gap-2 rounded-xl border backdrop-blur-md px-3 py-2 cursor-text relative min-w-[140px]",
+              "flex flex-1 items-center gap-2 rounded-[10px] border backdrop-blur-md px-3 py-2 cursor-text relative min-w-[140px]",
               askSyagInputShell,
               isLoading && "border-accent/45 ring-2 ring-accent/20",
               !isLoading && "hover:border-border"
@@ -542,7 +542,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                 aria-hidden
               />
               <div
-                className="absolute bottom-full left-0 right-0 mb-2 z-[1000] max-h-[min(380px,50vh)] flex flex-col rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.1] overflow-hidden animate-fade-in"
+                className="absolute bottom-full left-0 right-0 mb-2 z-[1000] max-h-[min(380px,50vh)] flex flex-col rounded-[10px] border border-border bg-card shadow-2xl ring-1 ring-black/[0.08] dark:ring-white/[0.1] overflow-hidden animate-fade-in"
                 role="listbox"
                 aria-label="Quick prompts"
               >

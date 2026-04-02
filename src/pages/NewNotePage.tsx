@@ -1147,7 +1147,7 @@ export default function NewNotePage() {
       )}
 
       {showFolderPicker && (
-        <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1 w-52 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
           <div className="px-3 py-2 border-b border-border">
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
           </div>
@@ -1236,7 +1236,7 @@ export default function NewNotePage() {
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
               {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-44 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
                   <button
                     onClick={handleDeleteNote}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
@@ -1252,7 +1252,7 @@ export default function NewNotePage() {
 
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
         {captureError && (
-          <div className="mx-4 mt-2 flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
             <p className="flex-1 min-w-0">{captureError}</p>
             <button
               type="button"
@@ -1340,7 +1340,7 @@ export default function NewNotePage() {
                           <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
                         </button>
                         {showTemplateMenu && (
-                          <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                          <div className="absolute left-0 top-full mt-1 w-52 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
                             {MEETING_TEMPLATES.map((t) => (
                               <button
                                 key={t.id}
@@ -1449,7 +1449,7 @@ export default function NewNotePage() {
                         }
                       }}
                       disabled={isSummarizing}
-                      className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-card backdrop-blur-md shadow-sm px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 rounded-[10px] border border-border/60 bg-card backdrop-blur-md shadow-sm px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSummarizing ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1549,7 +1549,7 @@ export default function NewNotePage() {
               </div>
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3">
+                  <div className="rounded-[10px] border border-amber-500/40 bg-amber-500/10 px-3 py-3">
                     <p className="text-[13px] font-medium text-amber-800 dark:text-amber-200">
                       No transcript captured yet ({Math.floor(elapsedSeconds / 60)} min)
                     </p>
@@ -1627,7 +1627,7 @@ export default function NewNotePage() {
                             <button
                               onClick={() => removeTranscriptLinesAt(group.indices)}
                               className="rounded p-1 text-muted-foreground hover:text-destructive"
-                              title="Delete"
+                              title="Delete" aria-label="Delete"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -1638,7 +1638,7 @@ export default function NewNotePage() {
                   });
                 })()}
                 {!transcriptSearch && recordingState === "recording" && usingRealAudio && !selectedSTTModel && (
-                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 mb-2">
+                  <div className="rounded-[10px] border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 mb-2">
                     <p className="text-[11px] text-blue-600 dark:text-blue-400 leading-relaxed">
                       <Mic className="h-3 w-3 inline mr-1 -mt-0.5" />
                       {usingWebSpeech

@@ -31,7 +31,7 @@ function eventRowClass(evt: CalendarEvent, variant: CalendarAgendaListVariant) {
     return "w-full text-left py-1.5 hover:bg-secondary/50 rounded-md transition-colors group px-1";
   }
   return cn(
-    "w-full text-left rounded-lg border hover:border-accent/40 hover:shadow-sm transition-all group p-3",
+    "w-full text-left rounded-[10px] border hover:border-accent/40 hover:shadow-sm transition-all group p-3",
     evt.source === "local" || evt.isAllDay
       ? "border-dashed bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,hsl(var(--border)/0.35)_6px,hsl(var(--border)/0.35)_7px)] bg-card"
       : "border-border bg-card"

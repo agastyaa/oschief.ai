@@ -42,7 +42,7 @@ export function SetupProgressCard({ phase, message, percent }: SetupProgressCard
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-5 transition-shadow"
+      className="rounded-[10px] border border-border bg-card p-5 transition-shadow"
       style={{ boxShadow: "var(--card-shadow)" }}
     >
       <div className="flex items-center gap-2 mb-4">

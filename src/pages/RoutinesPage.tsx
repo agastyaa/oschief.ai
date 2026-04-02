@@ -159,7 +159,7 @@ export default function RoutinesPage() {
 
           {/* Create form */}
           {creating && (
-            <div className="rounded-lg border border-border bg-card p-4 mb-4 space-y-3">
+            <div className="rounded-[10px] border border-border bg-card p-4 mb-4 space-y-3">
               <input
                 autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 placeholder="Routine name..." className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -189,7 +189,7 @@ export default function RoutinesPage() {
           {/* Routines list */}
           {routines.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Zap className="h-8 w-8 mx-auto mb-3 opacity-40" />
+              <Zap className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No routines yet.</p>
               <p className="text-xs mt-1">OSChief can brief you every morning, recap your week, and nudge you about overdue commitments.</p>
               <button onClick={() => setCreating(true)} className="mt-4 text-xs font-medium text-primary hover:underline">Create your first routine</button>
@@ -197,7 +197,7 @@ export default function RoutinesPage() {
           ) : (
             <div className="space-y-3">
               {routines.map(r => (
-                <div key={r.id} className="rounded-lg border border-border bg-card overflow-hidden">
+                <div key={r.id} className="rounded-[10px] border border-border bg-card overflow-hidden">
                   {/* Routine header */}
                   <div className="flex items-center gap-3 px-4 py-3">
                     <button onClick={() => toggleExpand(r.id)} className="p-0.5 text-muted-foreground">

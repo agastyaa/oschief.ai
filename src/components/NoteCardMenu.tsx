@@ -56,7 +56,7 @@ export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onM
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-48 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
           {!showFolders ? (
             renaming ? (
               <div className="px-3 py-2">
