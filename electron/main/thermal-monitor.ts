@@ -25,9 +25,8 @@ const HOT_THRESHOLD = 75   // Aggressive throttling
 const COOL_THRESHOLD = 55  // Return to nominal
 
 // If we can't read temp, use duration-based heuristic
-// Conservative: most meetings are 30-60min, don't throttle too early
-const WARM_AFTER_MINUTES = 30
-const HOT_AFTER_MINUTES = 60
+const WARM_AFTER_MINUTES = 10
+const HOT_AFTER_MINUTES = 25
 
 /**
  * Try to read CPU die temperature via macOS thermal sensors.

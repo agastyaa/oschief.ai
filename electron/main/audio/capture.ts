@@ -456,13 +456,13 @@ async function processBufferedAudio(): Promise<void> {
     if (audioBuffers[channel].reduce((sum, c) => sum + c.length, 0) < MIN_SAMPLES_PER_CHANNEL) continue
 
     // Yield to event loop between channels so UI stays responsive during STT.
-    // Keep delays minimal — long pauses make the "Them" channel look broken.
+    // When thermal state is elevated, add a cooldown pause to let CPU cool down.
     if (channel === 1) {
       const thermal = getThermalState()
       if (thermal === 'hot') {
-        await new Promise(r => setTimeout(r, 200)) // Brief yield when hot
+        await new Promise(r => setTimeout(r, 3000)) // 3s cooldown when hot
       } else if (thermal === 'warm') {
-        await new Promise(r => setTimeout(r, 50))  // Tiny yield when warm
+        await new Promise(r => setTimeout(r, 1000)) // 1s cooldown when warm
       } else {
         await new Promise(r => setImmediate(r))
       }
