@@ -4,6 +4,16 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.10] — 2026-04-02
+
+### Added
+- **Lenny's Podcast coaching KB** — 303 episode transcripts (10,354 passages) indexed in a local SQLite FTS5 database. Coaching insights are now grounded in real quotes from Shreyas Doshi, Annie Duke, April Dunford, Marty Cagan, Teresa Torres, Claire Hughes Johnson, and 297 other practitioners. Zero runtime cost — searched at coaching time and injected into the LLM prompt.
+
+### Fixed
+- **Transcript panel resize handle** — drag handle was scrolling away with content; now stays fixed at the left edge. Also widened from 4px to 6px for easier grabbing.
+
+---
+
 ## [2.1.9] — 2026-04-02
 
 ### Added
