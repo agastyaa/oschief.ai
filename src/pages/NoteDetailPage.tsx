@@ -627,12 +627,13 @@ export default function NoteDetailPage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (
-            <div className="relative flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] animate-slide-in-right" style={{ width: transcriptWidth }}>
-              {/* Resize drag handle */}
+            <div className="relative flex-shrink-0 border-l border-border bg-card/50 rounded-tl-[10px] animate-slide-in-right overflow-hidden" style={{ width: transcriptWidth }}>
+              {/* Resize drag handle — absolute on the outer non-scrolling container so it stays fixed */}
               <div
-                className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
                 onMouseDown={startTranscriptResize}
               />
+              <div className="overflow-y-auto h-full">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Transcript</span>
@@ -731,6 +732,7 @@ export default function NoteDetailPage() {
                   <p className="text-[11px] text-muted-foreground text-center py-4">No results found</p>
                 )}
               </div>
+              </div>{/* end overflow-y-auto scroll wrapper */}
             </div>
           )}
         </div>
