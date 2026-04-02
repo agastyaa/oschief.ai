@@ -133,7 +133,7 @@ const Index = () => {
   // Professional Memory stats
   useEffect(() => {
     if (!api?.memory?.stats) return;
-    api.memory.stats().then(setMemoryStats).catch(() => {});
+    api.memory.stats().then(setMemoryStats).catch((err) => console.error('memory:stats failed:', err));
   }, [api, notes.length]);
 
   // Nudge action handlers
