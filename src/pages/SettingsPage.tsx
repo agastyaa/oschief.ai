@@ -104,9 +104,9 @@ function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: (
   );
 }
 
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+function SettingRow({ label, description, children, disabled }: { label: string; description?: string; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
+    <div className={cn("flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4", disabled && "opacity-40 cursor-not-allowed pointer-events-none")}>
       <div className="min-w-0">
         <span className="text-[13px] text-foreground">{label}</span>
         {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
@@ -1290,7 +1290,6 @@ function AccountSection() {
   );
 }
 
-
 import { BUILTIN_TEMPLATES } from "@/data/templates";
 
 function TemplatesSection() {
@@ -1651,6 +1650,19 @@ export default function SettingsPage() {
   const selectedAILabel = selectedAIModel ? (aiOptions.find((o) => o.value === selectedAIModel)?.label ?? selectedAIModel) : "";
   const selectedSTTLabel = selectedSTTModel ? (sttOptions.find((o) => o.value === selectedSTTModel)?.label ?? selectedSTTModel) : "";
 
+  // Default meeting template (persisted to DB)
+  const [defaultTemplate, setDefaultTemplate] = useState("general");
+  const [settingsCustomTemplates, setSettingsCustomTemplates] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    if (!api) return;
+    api.db.settings.get('default-template').then((val: string | null) => {
+      if (val) setDefaultTemplate(val);
+    }).catch(console.error);
+    api.db.settings.get('custom-templates').then((val: string | null) => {
+      if (val) try { setSettingsCustomTemplates(JSON.parse(val)); } catch {}
+    }).catch(console.error);
+  }, []);
+
   // Custom vocabulary (persisted to DB)
   const [customTerms, setCustomTerms] = useState("");
   const customTermsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1806,6 +1818,28 @@ export default function SettingsPage() {
                       rows={4}
                       className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
                     />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-medium text-foreground mb-2 block">Default meeting template</label>
+                    <p className="text-[11px] text-muted-foreground mb-2">Choose which template to use by default when starting a new meeting note.</p>
+                    <select
+                      value={defaultTemplate}
+                      onChange={(e) => {
+                        setDefaultTemplate(e.target.value);
+                        api?.db?.settings?.set('default-template', e.target.value).catch(console.error);
+                      }}
+                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                    >
+                      {BUILTIN_TEMPLATES.map((t) => (
+                        <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                      ))}
+                      {settingsCustomTemplates.length > 0 && (
+                        <option disabled>── Custom ──</option>
+                      )}
+                      {settingsCustomTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               )}

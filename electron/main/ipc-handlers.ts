@@ -1871,4 +1871,50 @@ export function registerIPCHandlers(): void {
     const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
     autoUpdater?.quitAndInstall(false, true)
   })
+
+  // --- Aggregate Stats (for Professional Memory home) ---
+  ipcMain.handle('memory:stats', async () => {
+    try {
+      const { getDb } = await import('./storage/database')
+      const db = getDb()
+      const count = (sql: string) => (db.prepare(sql).get() as any)?.c ?? 0
+
+      const totalNotes = count('SELECT COUNT(*) as c FROM notes')
+      const totalPeople = count('SELECT COUNT(*) as c FROM people')
+      const totalProjects = count("SELECT COUNT(*) as c FROM projects WHERE status != 'archived'")
+      const totalDecisions = count('SELECT COUNT(*) as c FROM decisions')
+      const totalCommitments = count('SELECT COUNT(*) as c FROM commitments')
+      const openCommitments = count("SELECT COUNT(*) as c FROM commitments WHERE status = 'open'")
+      const overdueCommitments = count("SELECT COUNT(*) as c FROM commitments WHERE status = 'open' AND due_date < date('now')")
+      const activeProjects = count("SELECT COUNT(*) as c FROM projects WHERE status = 'active'")
+      // All notes are meeting recordings in OSChief — "meetings" and "notes" are synonymous
+      const meetingsThisWeek = count("SELECT COUNT(*) as c FROM notes WHERE created_at >= date('now', '-7 days')")
+      const decisionsThisMonth = count("SELECT COUNT(*) as c FROM decisions WHERE created_at >= date('now', 'start of month')")
+      const firstNote = db.prepare('SELECT MIN(created_at) as d FROM notes').get() as any
+      const firstNoteDate = firstNote?.d || null
+
+      const topPeople = db.prepare(`
+        SELECT p.id, p.name, COUNT(np.note_id) as meetingCount
+        FROM people p
+        JOIN note_people np ON np.person_id = p.id
+        GROUP BY p.id
+        ORDER BY meetingCount DESC
+        LIMIT 3
+      `).all() as any[]
+
+      return {
+        totalNotes, totalPeople, totalProjects, totalDecisions, totalCommitments,
+        openCommitments, overdueCommitments, activeProjects, meetingsThisWeek,
+        decisionsThisMonth, firstNoteDate, topPeople,
+      }
+    } catch (err) {
+      console.error('[memory:stats]', err)
+      return {
+        totalNotes: 0, totalPeople: 0, totalProjects: 0, totalDecisions: 0, totalCommitments: 0,
+        openCommitments: 0, overdueCommitments: 0, activeProjects: 0, meetingsThisWeek: 0,
+        decisionsThisMonth: 0, firstNoteDate: null, topPeople: [],
+      }
+    }
+  })
+
 }

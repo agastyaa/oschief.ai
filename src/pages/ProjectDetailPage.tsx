@@ -367,7 +367,11 @@ export default function ProjectDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm">{d.text}</div>
                         {d.context && <div className="text-xs text-muted-foreground mt-0.5">{d.context}</div>}
-                        {d.note_title && <div className="text-[11px] text-muted-foreground mt-0.5">From: {d.note_title}</div>}
+                        {d.note_title && d.note_id ? (
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/note/${d.note_id}`) }} className="text-[10px] text-primary underline cursor-pointer hover:text-primary/80 mt-0.5">From: {d.note_title}</button>
+                        ) : d.note_title ? (
+                          <div className="text-[11px] text-muted-foreground mt-0.5">From: {d.note_title}</div>
+                        ) : null}
                       </div>
                       <button onClick={async () => {
                         if (!confirm("Delete this decision?")) return
@@ -394,6 +398,9 @@ export default function ProjectDetailPage() {
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {c.owner === "you" ? "You" : c.assignee_name || c.owner}
                           {c.due_date && <span className={cn("ml-2", c.status === "open" && new Date(c.due_date) < new Date() ? "text-amber-600 dark:text-amber-400 font-medium" : "")}>Due {c.due_date}</span>}
+                          {c.note_id && (
+                            <button onClick={(e) => { e.stopPropagation(); navigate(`/note/${c.note_id}`) }} className="ml-2 text-[10px] text-primary underline cursor-pointer hover:text-primary/80">Source note</button>
+                          )}
                         </div>
                       </div>
                       <button onClick={async () => {
