@@ -398,6 +398,13 @@ type ElectronAPI = {
     bulkCreate: (configJson: string, issues: any[]) => Promise<{ results: any[] }>
     getIssue: (configJson: string, issueKey: string) => Promise<any>
   }
+  asana?: {
+    testToken: (token: string) => Promise<{ ok: boolean; name?: string; email?: string; error?: string }>
+    getWorkspaces: (token: string) => Promise<{ gid: string; name: string }[]>
+    getProjects: (token: string, workspaceGid: string) => Promise<{ gid: string; name: string }[]>
+    createTask: (token: string, taskData: any) => Promise<{ ok: boolean; task?: { gid: string; permalink_url: string }; error?: string }>
+    getTask: (token: string, taskGid: string) => Promise<any>
+  }
 }
 
 declare global {

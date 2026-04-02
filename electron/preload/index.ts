@@ -625,6 +625,18 @@ const electronAPI = {
     getIssue: (configJson: string, issueKey: string) =>
       ipcRenderer.invoke('jira:get-issue', configJson, issueKey) as Promise<any>,
   },
+  asana: {
+    testToken: (token: string) =>
+      ipcRenderer.invoke('asana:test-token', token) as Promise<{ ok: boolean; name?: string; email?: string; error?: string }>,
+    getWorkspaces: (token: string) =>
+      ipcRenderer.invoke('asana:get-workspaces', token) as Promise<{ gid: string; name: string }[]>,
+    getProjects: (token: string, workspaceGid: string) =>
+      ipcRenderer.invoke('asana:get-projects', token, workspaceGid) as Promise<{ gid: string; name: string }[]>,
+    createTask: (token: string, taskData: any) =>
+      ipcRenderer.invoke('asana:create-task', token, taskData) as Promise<{ ok: boolean; task?: { gid: string; permalink_url: string }; error?: string }>,
+    getTask: (token: string, taskGid: string) =>
+      ipcRenderer.invoke('asana:get-task', token, taskGid) as Promise<any>,
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
