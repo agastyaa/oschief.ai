@@ -625,7 +625,7 @@ export default function NoteDetailPage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (
-            <div className="w-[27rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl animate-slide-in-right">
+            <div className="w-[22rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] animate-slide-in-right">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Transcript</span>

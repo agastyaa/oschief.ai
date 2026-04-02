@@ -89,6 +89,7 @@ const Index = () => {
   const now = new Date();
   const upcomingEventsList = displayEvents
     .filter((e) => isAfter(new Date(e.end), now))
+    .filter((e) => e.title && !['busy', 'free', '(no title)'].includes(e.title.trim().toLowerCase()))
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);
   const activeFolderId = searchParams.get("folder");
@@ -494,7 +495,7 @@ const Index = () => {
             {/* ── Command Center v2 (hidden in All Notes view) ── */}
             {!viewAll && (<>
             {/* ── Next Meeting + Prep ── */}
-            <div className="mb-4">
+            <div className="mb-3">
               <PrepCard
                 event={nextEventForPrep}
                 lastMeetingNotes={prepBrief?.previousMeetings?.[0]?.meetings?.[0] ? {
@@ -519,8 +520,8 @@ const Index = () => {
 
             {/* ── Schedule (skip first event to avoid duplication with Prep Card) ── */}
             {icsSource && upcomingEventsList.length > 1 && (
-              <div className="mb-4">
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+              <div className="mb-3">
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
@@ -544,8 +545,8 @@ const Index = () => {
 
             {/* ── Needs Attention (risk commitments + stale decisions) ── */}
             {(atRisk.length > 0 || staleDecisions.length > 0) && (
-              <div className="mb-4">
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
+              <div className="mb-3">
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                       <AlertCircle className="h-3.5 w-3.5" style={{ color: 'hsl(25 65% 45%)' }} />
@@ -643,9 +644,9 @@ const Index = () => {
 
             {/* ── Top People ── */}
             {!viewAll && memoryStats && memoryStats.topPeople.length > 0 && (
-              <div className="mb-4">
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-3">
+              <div className="mb-3">
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
@@ -671,9 +672,9 @@ const Index = () => {
             )}
 
             {/* ── Daily Brief ── */}
-            <div className="mb-4">
+            <div className="mb-3">
               {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
@@ -681,7 +682,7 @@ const Index = () => {
                   <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
                 </div>
               ) : (todayEvents.length > 0 || atRisk.length > 0 || staleDecisions.length > 0) ? (
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
@@ -700,15 +701,17 @@ const Index = () => {
                   <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
                 </div>
               ) : (
-                <div className="rounded-[10px] border border-border bg-card p-5" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
                   </div>
                   <p className="text-[12px] text-muted-foreground">
-                    {notes.length} meeting{notes.length !== 1 ? 's' : ''} on record
-                    {openCommitments.length > 0 && ` · ${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`}
-                    {' — '}brief runs automatically each morning using your configured AI model.
+                    {[
+                      `${notes.length} meeting${notes.length !== 1 ? 's' : ''} on record`,
+                      openCommitments.length > 0 && `${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`,
+                      memoryStats && memoryStats.activeProjects > 0 && `${memoryStats.activeProjects} active project${memoryStats.activeProjects !== 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ')}
                   </p>
                 </div>
               )}
@@ -716,8 +719,8 @@ const Index = () => {
 
             {/* ── Projects (compact) ── */}
             {activeProjects.length > 0 && (
-              <div className="mb-4">
-                <button onClick={() => navigate("/projects")} className="w-full rounded-[10px] border border-border bg-card p-5 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--green, 142 50% 45%))' }}>
+              <div className="mb-3">
+                <button onClick={() => navigate("/projects")} className="w-full rounded-[10px] border border-border bg-card p-4 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--green, 142 50% 45%))' }}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                       <FolderKanban className="h-3.5 w-3.5" />
