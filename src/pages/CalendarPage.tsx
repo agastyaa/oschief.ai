@@ -282,7 +282,7 @@ export default function CalendarPage() {
         <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
           {!showMainCalendar ? (
             <div className="mb-6 rounded-[10px] border border-border bg-card p-6 text-center space-y-4">
-              <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-1" />
+              <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-1" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar yet</h2>
               <p className="text-[13px] text-muted-foreground">
                 Import an .ics feed or add an OSChief-only schedule block

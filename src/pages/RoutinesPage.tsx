@@ -189,7 +189,7 @@ export default function RoutinesPage() {
           {/* Routines list */}
           {routines.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Zap className="h-8 w-8 mx-auto mb-3 opacity-40" />
+              <Zap className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No routines yet.</p>
               <p className="text-xs mt-1">OSChief can brief you every morning, recap your week, and nudge you about overdue commitments.</p>
               <button onClick={() => setCreating(true)} className="mt-4 text-xs font-medium text-primary hover:underline">Create your first routine</button>

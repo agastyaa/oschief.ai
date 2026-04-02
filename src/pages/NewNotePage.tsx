@@ -1627,7 +1627,7 @@ export default function NewNotePage() {
                             <button
                               onClick={() => removeTranscriptLinesAt(group.indices)}
                               className="rounded p-1 text-muted-foreground hover:text-destructive"
-                              title="Delete"
+                              title="Delete" aria-label="Delete"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>

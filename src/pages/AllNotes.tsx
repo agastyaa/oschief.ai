@@ -89,7 +89,7 @@ export default function AllNotes() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <Search className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+              <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No notes match "{search}"</p>
             </div>
           ) : (

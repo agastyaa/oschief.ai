@@ -142,7 +142,7 @@ export default function ProjectDetailPage() {
                   navigate("/projects")
                 }}
                 className="p-1.5 rounded hover:bg-secondary text-muted-foreground"
-                title="Archive project"
+                title="Archive project" aria-label="Archive project"
               >
                 <Archive className="h-4 w-4" />
               </button>
@@ -155,7 +155,7 @@ export default function ProjectDetailPage() {
                 navigate("/projects")
               }}
               className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-              title="Delete project"
+              title="Delete project" aria-label="Delete project"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -351,7 +351,7 @@ export default function ProjectDetailPage() {
                         e.stopPropagation()
                         if (!confirm(`Unlink "${meeting.title || 'this meeting'}"?`)) return
                         try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Unlink">
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Unlink" aria-label="Unlink">
                         <Unlink className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -376,7 +376,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async () => {
                         if (!confirm("Delete this decision?")) return
                         try { await api?.memory?.decisions?.delete(d.id); refreshTimeline(); toast.success("Deleted") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete">
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -406,7 +406,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async () => {
                         if (!confirm("Delete?")) return
                         try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Deleted") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete">
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -416,7 +416,7 @@ export default function ProjectDetailPage() {
 
               {!timeline?.meetings.length && !timeline?.decisions.length && !timeline?.commitments.length && (
                 <div className="text-center py-16 text-muted-foreground">
-                  <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40" />
+                  <FolderKanban className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No meetings linked yet.</p>
                   <p className="text-xs mt-1">Record a meeting to start populating this project.</p>
                 </div>

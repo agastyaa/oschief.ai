@@ -94,7 +94,7 @@ export function CommitmentsWidget() {
                 onClick={() => handleToggle(c.id)}
                 className={cn(
                   "mt-0.5 flex-shrink-0 transition-colors",
-                  isOverdue ? "text-red-500" : "text-muted-foreground/50 hover:text-accent"
+                  isOverdue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/50 hover:text-accent"
                 )}
                 title="Mark as done"
               >
@@ -110,7 +110,7 @@ export function CommitmentsWidget() {
                   {c.due_date && (
                     <span className={cn(
                       "text-[10px] flex items-center gap-1",
-                      isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
+                      isOverdue ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
                     )}>
                       <Clock className="h-2.5 w-2.5" />
                       {isOverdue ? "Overdue" : c.due_date}

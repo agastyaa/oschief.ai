@@ -210,12 +210,12 @@ export default function ProjectsPage() {
           {/* Project list */}
           {loading ? (
             <div className="text-center py-12 text-muted-foreground">
-              <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40 animate-pulse" />
+              <FolderKanban className="h-10 w-10 mx-auto mb-3 opacity-30 animate-pulse" />
               <p className="text-sm">Loading projects...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <FolderKanban className="h-8 w-8 mx-auto mb-3 opacity-40" />
+              <FolderKanban className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">
                 {tab === "suggested" ? "No suggested projects — they'll appear as you record meetings" :
                  tab === "archived" ? "No archived projects" :
@@ -323,7 +323,7 @@ export default function ProjectsPage() {
                       <button
                         onClick={() => { if (confirm(`Delete "${project.name}"? This cannot be undone.`)) handleDelete(project.id) }}
                         className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-                        title="Delete"
+                        title="Delete" aria-label="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -333,7 +333,7 @@ export default function ProjectsPage() {
                     <button
                       onClick={e => { e.stopPropagation(); if (confirm(`Delete "${project.name}"?`)) handleDelete(project.id) }}
                       className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-                      title="Delete"
+                      title="Delete" aria-label="Delete"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

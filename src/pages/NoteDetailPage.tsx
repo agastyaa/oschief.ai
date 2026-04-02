@@ -259,7 +259,7 @@ export default function NoteDetailPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <FileText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+          <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-[13px] text-muted-foreground mb-3">Note not found</p>
           <button onClick={() => navigate("/")} className="text-xs text-accent hover:underline">
             Back to home
@@ -889,7 +889,7 @@ function CoachingView({
   if (!metrics) {
     return (
       <div className="text-center py-12">
-        <BarChart3 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+        <BarChart3 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">No transcript data available for coaching analysis.</p>
         <p className="text-xs text-muted-foreground/60 mt-1">Record a meeting to get role-aware meeting coaching.</p>
       </div>

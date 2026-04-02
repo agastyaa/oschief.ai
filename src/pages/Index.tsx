@@ -333,7 +333,7 @@ const Index = () => {
         )}
         <main className={cn("flex flex-1 flex-col min-w-0 relative items-center justify-center", !sidebarOpen && isElectron && "pl-20")}>
           <div className="text-center">
-            <FolderOpen className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
+            <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
             <p className="text-sm text-muted-foreground">Loading folder...</p>
           </div>
         </main>
@@ -592,7 +592,7 @@ const Index = () => {
                             <button
                               onClick={() => handleMarkDone(c.id)}
                               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
-                              title="Mark done"
+                              title="Mark done" aria-label="Mark done"
                             >
                               <Check className="h-3 w-3" />
                               <span className="hidden sm:inline">Done</span>
@@ -600,7 +600,7 @@ const Index = () => {
                             <button
                               onClick={() => handleSnooze(c.id)}
                               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-primary hover:bg-secondary/60 transition-colors"
-                              title="Snooze 24h"
+                              title="Snooze 24h" aria-label="Snooze"
                             >
                               <Pause className="h-3 w-3" />
                               <span className="hidden sm:inline">Snooze</span>
@@ -696,7 +696,7 @@ const Index = () => {
                 </div>
               ) : notes.length === 0 ? (
                 <div className="rounded-[10px] border border-dashed border-border bg-card/30 p-6 text-center">
-                  <Briefcase className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <Briefcase className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
                 </div>
               ) : (
