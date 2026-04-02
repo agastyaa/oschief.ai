@@ -23,7 +23,7 @@ import {
 import { downloadModel, cancelDownload, deleteModel, listDownloadedModels } from './models/manager'
 import type { LocalSetupResult } from './models/stt-engine'
 import { netFetch } from './cloud/net-request'
-import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk } from './audio/capture'
+import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk, setMicOnlyMode } from './audio/capture'
 import { summarize, summarizeAndExtract, isOllama8BPlus } from './models/llm-engine'
 import { chat, getOptionalProviders, invalidateKeychainCache } from './cloud/router'
 import { checkAppleFoundationAvailable } from './cloud/apple-llm'
@@ -361,6 +361,7 @@ export function registerIPCHandlers(): void {
     )
   })
   ipcMain.handle('recording:stop', async () => { updateTrayRecordingState(false); return stopRecording() })
+  ipcMain.handle('recording:set-mic-only-mode', (_e, micOnly: boolean) => { setMicOnlyMode(micOnly); return true })
   ipcMain.handle('recording:pause', () => { pauseRecording(); updateTrayRecordingState(false); return true })
   ipcMain.handle('recording:resume', (_e, options?: { sttModel?: string }) => { resumeRecording(options); updateTrayRecordingState(true); return true })
   ipcMain.handle('recording:audio-chunk', async (_e, pcmData: any, channel?: number) => {
@@ -1108,28 +1109,6 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('jira:get-issue', async (_e, configJson: string, issueKey: string) => {
     const { getJiraIssue } = await import('./integrations/jira-api')
     return getJiraIssue(JSON.parse(configJson), issueKey)
-  })
-
-  // --- Asana ---
-  ipcMain.handle('asana:test-token', async (_e, token: string) => {
-    const { testAsanaConnection } = await import('./integrations/asana-api')
-    return testAsanaConnection(token)
-  })
-  ipcMain.handle('asana:get-workspaces', async (_e, token: string) => {
-    const { getAsanaWorkspaces } = await import('./integrations/asana-api')
-    return getAsanaWorkspaces(token)
-  })
-  ipcMain.handle('asana:get-projects', async (_e, token: string, workspaceGid: string) => {
-    const { getAsanaProjects } = await import('./integrations/asana-api')
-    return getAsanaProjects(token, workspaceGid)
-  })
-  ipcMain.handle('asana:create-task', async (_e, token: string, taskData: any) => {
-    const { createAsanaTask } = await import('./integrations/asana-api')
-    return createAsanaTask(token, taskData)
-  })
-  ipcMain.handle('asana:get-task', async (_e, token: string, taskGid: string) => {
-    const { getAsanaTask } = await import('./integrations/asana-api')
-    return getAsanaTask(token, taskGid)
   })
 
   // --- Memory (People, Commitments, Topics) ---

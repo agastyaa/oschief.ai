@@ -11,6 +11,7 @@ import { runVAD, ensureVADModel } from './vad'
 import { getSetting } from '../storage/database'
 import { notifyRecordingStateChanged } from '../power-manager'
 import { getThermalState } from '../thermal-monitor'
+import { StreamingDiarizer } from './streaming-diarizer'
 
 export type TranscriptCallback = (chunk: { speaker: string; time: string; text: string; words?: { word: string; start: number; end: number }[] }) => void
 export type CorrectionCallback = (chunk: { speaker: string; time: string; text: string; originalText: string }) => void
@@ -20,6 +21,16 @@ let isRecording = false
 
 export function getIsRecording(): boolean {
   return isRecording
+}
+
+export function setMicOnlyMode(micOnly: boolean): void {
+  micOnlyMode = micOnly
+  if (micOnlyDiarizationEnabled && micOnly && !streamingDiarizer) {
+    streamingDiarizer = new StreamingDiarizer()
+    streamingDiarizer.ensureModel().catch(err =>
+      console.warn('[capture] Diarization model pre-load failed:', err.message)
+    )
+  }
 }
 let isPaused = false
 let transcriptCallback: TranscriptCallback | null = null
@@ -76,6 +87,10 @@ const MAX_LOCAL_ERRORS_BEFORE_BACKOFF_MLX = 4  // MLX first run can timeout whil
 const LOCAL_ERROR_BACKOFF_MS = 30000  // 30s cooldown
 let localSTTBackoffUntil = 0
 let autoRepairInProgress = false
+/** Mic-only speaker diarization: enabled via Settings toggle + renderer signals no system audio. */
+let micOnlyDiarizationEnabled = false
+let micOnlyMode = false
+let streamingDiarizer: StreamingDiarizer | null = null
 /** Sliding window of recently corrected segments for LLM context continuity. */
 const recentCorrectedSegments: string[] = []
 const MAX_RECENT_CONTEXT = 3
@@ -229,6 +244,7 @@ export async function startRecording(
   correctionCallback = onCorrectedTranscript || null
   statusCallback = onStatus || null
   llmPostProcessEnabled = getSetting('llm-post-process-transcript') === 'true'
+  micOnlyDiarizationEnabled = getSetting('use-diarization') === 'true'
   correctionQueue.length = 0
   isCorrecting = false
   recentCorrectedSegments.length = 0
@@ -340,6 +356,9 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
     await drainCorrectionQueue()
   }
 
+  streamingDiarizer?.reset()
+  streamingDiarizer = null
+  micOnlyMode = false
   transcriptCallback = null
   correctionCallback = null
   statusCallback = null
@@ -492,7 +511,7 @@ async function processBufferedAudio(): Promise<void> {
 
     const elapsedSec = Math.floor(activeRecordingElapsedMs() / 1000)
     const chunkStartSec = Math.max(0, elapsedSec - Math.floor(totalLength / SAMPLE_RATE))
-    const speaker = SPEAKER_BY_CHANNEL[channel]
+    let speaker: string = SPEAKER_BY_CHANNEL[channel]
       if (!currentSTTModel) {
         if (!hasLoggedNoSTTModelThisSession) {
           hasLoggedNoSTTModelThisSession = true
@@ -623,6 +642,16 @@ async function processBufferedAudio(): Promise<void> {
       if (resumeStrictPassCountdown[chIdxForEnergy] > 0) {
         resumeStrictPassCountdown[chIdxForEnergy]--
         if (channel === 0) logMicCaptureDebug('resume_strict_pass_used', { remaining: resumeStrictPassCountdown[0] })
+      }
+
+      // Mic-only diarization: identify speaker from embeddings before STT
+      if (channel === 0 && micOnlyDiarizationEnabled && micOnlyMode && streamingDiarizer?.isReady()) {
+        try {
+          const identified = await streamingDiarizer.identifySpeaker(speechAudio, SAMPLE_RATE)
+          if (identified) speaker = identified
+        } catch (err: any) {
+          console.warn('[capture] Diarization failed, using "You":', err?.message || err)
+        }
       }
 
       const wavBuffer = pcmToWav(speechAudio, SAMPLE_RATE)

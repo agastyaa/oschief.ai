@@ -107,6 +107,7 @@ const electronAPI = {
     stop: () => ipcRenderer.invoke('recording:stop'),
     pause: () => ipcRenderer.invoke('recording:pause'),
     resume: (options?: { sttModel?: string }) => ipcRenderer.invoke('recording:resume', options),
+    setMicOnlyMode: (micOnly: boolean) => ipcRenderer.invoke('recording:set-mic-only-mode', micOnly),
     sendAudioChunk: (pcmData: Float32Array, channel?: number) =>
       ipcRenderer.invoke('recording:audio-chunk', pcmData, channel ?? 0),
     onTranscriptChunk: (callback: (chunk: TranscriptChunk) => void) => {
@@ -624,18 +625,6 @@ const electronAPI = {
       ipcRenderer.invoke('jira:bulk-create', configJson, issues) as Promise<{ results: any[] }>,
     getIssue: (configJson: string, issueKey: string) =>
       ipcRenderer.invoke('jira:get-issue', configJson, issueKey) as Promise<any>,
-  },
-  asana: {
-    testToken: (token: string) =>
-      ipcRenderer.invoke('asana:test-token', token) as Promise<{ ok: boolean; name?: string; email?: string; error?: string }>,
-    getWorkspaces: (token: string) =>
-      ipcRenderer.invoke('asana:get-workspaces', token) as Promise<{ gid: string; name: string }[]>,
-    getProjects: (token: string, workspaceGid: string) =>
-      ipcRenderer.invoke('asana:get-projects', token, workspaceGid) as Promise<{ gid: string; name: string }[]>,
-    createTask: (token: string, taskData: any) =>
-      ipcRenderer.invoke('asana:create-task', token, taskData) as Promise<{ ok: boolean; task?: { gid: string; permalink_url: string }; error?: string }>,
-    getTask: (token: string, taskGid: string) =>
-      ipcRenderer.invoke('asana:get-task', token, taskGid) as Promise<any>,
   },
 }
 

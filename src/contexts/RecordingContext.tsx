@@ -484,6 +484,9 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       await acquireMediaAndWorklet(preferredDeviceId);
 
+      // Signal mic-only mode to backend for speaker diarization
+      api.recording.setMicOnlyMode(!systemStreamRef.current);
+
       // When no STT model is configured, use Web Speech API as zero-config fallback
       if (!sttModel) {
         startSpeechRecognition();
@@ -526,6 +529,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     } catch {}
     try {
       await acquireMediaAndWorklet(preferredDeviceId);
+      api.recording.setMicOnlyMode(!systemStreamRef.current);
       await api.recording.resume({ sttModel: sttModel ?? undefined });
       setActiveSession(prev => {
         if (!prev) {
