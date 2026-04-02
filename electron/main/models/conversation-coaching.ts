@@ -6,6 +6,7 @@
 import { routeLLM } from '../cloud/router'
 import { getRoleKB, ROLES } from './coaching-kb'
 import { searchKB, getChunkCount } from '../knowledge-base/kb-store'
+import { searchTranscriptKB } from './transcript-kb'
 import { resolveSelectedAIModel } from './model-resolver'
 
 export type TranscriptLineInput = { speaker: string; time: string; text: string }
@@ -61,6 +62,8 @@ const KB_MEETING_MAX = 2200
 const KB_METRICS_FOCUS_MAX = 900
 const USER_KB_MAX_CHARS = 3000
 const USER_KB_TOP_K = 5
+const PODCAST_KB_MAX_CHARS = 2500
+const PODCAST_KB_TOP_K = 5
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s
@@ -83,6 +86,25 @@ function fetchUserKBContext(transcript: TranscriptLineInput[], roleLabel: string
       const chunk = `[${r.chunk.file_name}] ${r.chunk.content}\n`
       if (out.length + chunk.length > USER_KB_MAX_CHARS) break
       out += chunk
+    }
+    return out.trim()
+  } catch {
+    return ''
+  }
+}
+
+function fetchPodcastKBContext(transcript: TranscriptLineInput[], roleLabel: string): string {
+  try {
+    const query = buildKBQuery(transcript, roleLabel)
+    const results = searchTranscriptKB(query, PODCAST_KB_TOP_K)
+    if (results.length === 0) return ''
+    let out = ''
+    for (const r of results) {
+      const attribution = `**${r.guest}** (${r.episodeTitle}):`
+      const snippet = r.text.slice(0, 500).trim()
+      const block = `${attribution}\n${snippet}\n\n`
+      if (out.length + block.length > PODCAST_KB_MAX_CHARS) break
+      out += block
     }
     return out.trim()
   } catch {
@@ -185,8 +207,13 @@ export async function analyzeConversationQuality(input: {
     ? `\nReference material from your knowledge base (use these best practices to ground your coaching):\n${userKBContext}\n`
     : ''
 
+  const podcastKBContext = fetchPodcastKBContext(input.transcript, roleLabel)
+  const podcastKBSection = podcastKBContext
+    ? `\nInsights from expert practitioners (Lenny's Podcast — use to ground coaching in real frameworks):\n${podcastKBContext}\n`
+    : ''
+
   const userMessage = `${kbBlock}
-${userKBSection}
+${userKBSection}${podcastKBSection}
 Deterministic heuristics (trust these as facts; incorporate into habitTags and narrative when relevant):
 ${heuristicsStr}
 
