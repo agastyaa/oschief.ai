@@ -454,6 +454,11 @@ const electronAPI = {
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
     storeEntities: (data: { noteId: string; entities: any; calendarAttendees?: any[]; calendarTitle?: string }) =>
       ipcRenderer.invoke('memory:store-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
+    stats: () => ipcRenderer.invoke('memory:stats') as Promise<{
+      totalNotes: number; totalPeople: number; totalProjects: number; totalDecisions: number; totalCommitments: number;
+      openCommitments: number; overdueCommitments: number; activeProjects: number; meetingsThisWeek: number;
+      decisionsThisMonth: number; firstNoteDate: string | null; topPeople: { id: string; name: string; meetingCount: number }[];
+    }>,
   },
 
   intelligence: {

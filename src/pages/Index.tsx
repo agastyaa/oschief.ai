@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
 import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { isElectron, getElectronAPI, type MemoryStats } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
 import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -21,6 +21,8 @@ import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
+import { MemoryBanner } from "@/components/MemoryBanner";
+import { StatsRow } from "@/components/StatsRow";
 
 function accentFromId(id: string): string {
   let h = 0;
@@ -107,6 +109,9 @@ const Index = () => {
   const [latestBriefRun, setLatestBriefRun] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'amber' | 'error' } | null>(null);
 
+  // Professional Memory stats
+  const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
+
   useEffect(() => {
     if (viewAll) setRecentMeetingsExpanded(true);
   }, [viewAll]);
@@ -123,6 +128,12 @@ const Index = () => {
     api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
     api.intelligence.getStaleDecisions().then(setStaleDecisions).catch(() => {});
     api.intelligence.getLatestBriefRun().then(setLatestBriefRun).catch(() => {});
+  }, [api, notes.length]);
+
+  // Professional Memory stats
+  useEffect(() => {
+    if (!api?.memory?.stats) return;
+    api.memory.stats().then(setMemoryStats).catch(() => {});
   }, [api, notes.length]);
 
   // Nudge action handlers
@@ -459,6 +470,27 @@ const Index = () => {
               )}
             </div>
 
+            {/* ── Professional Memory ── */}
+            {!viewAll && memoryStats && (
+              <>
+                <MemoryBanner
+                  totalNotes={memoryStats.totalNotes}
+                  totalPeople={memoryStats.totalPeople}
+                  totalProjects={memoryStats.totalProjects}
+                  totalDecisions={memoryStats.totalDecisions}
+                  totalCommitments={memoryStats.totalCommitments}
+                  firstNoteDate={memoryStats.firstNoteDate}
+                />
+                <StatsRow
+                  openCommitments={memoryStats.openCommitments}
+                  overdueCommitments={memoryStats.overdueCommitments}
+                  activeProjects={memoryStats.activeProjects}
+                  meetingsThisWeek={memoryStats.meetingsThisWeek}
+                  decisionsThisMonth={memoryStats.decisionsThisMonth}
+                />
+              </>
+            )}
+
             {/* ── Command Center v2 (hidden in All Notes view) ── */}
             {!viewAll && (<>
             {/* ── Next Meeting + Prep ── */}
@@ -546,6 +578,14 @@ const Index = () => {
                                   {c.risk_level === 'RED' ? 'Overdue' : `Due ${c.due_date}`}
                                 </span>
                               )}
+                              {c.note_id && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/note/${c.note_id}`); }}
+                                  className="text-[10px] text-primary underline cursor-pointer hover:text-primary/80"
+                                >
+                                  Source note
+                                </button>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -578,17 +618,52 @@ const Index = () => {
                       </div>
                     ))}
                     {staleDecisions.map((d: any) => (
-                      <button
+                      <div
                         key={d.id}
+                        className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-secondary/50 transition-colors cursor-pointer"
                         onClick={() => navigate(`/decisions`)}
-                        className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-left hover:bg-secondary/50 transition-colors"
                       >
                         <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-[13px] text-foreground/90 truncate">{d.text}</span>
+                        <span className="text-[13px] text-foreground/90 truncate flex-1">{d.text}</span>
                         <span className="text-[11px] text-muted-foreground shrink-0">unchanged 14+ days</span>
-                      </button>
+                        {d.note_id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/note/${d.note_id}`); }}
+                            className="text-[10px] text-primary underline cursor-pointer hover:text-primary/80 shrink-0"
+                          >
+                            Source
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Top People ── */}
+            {!viewAll && memoryStats && memoryStats.topPeople.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {memoryStats.topPeople.map((person) => (
+                    <button
+                      key={person.id}
+                      onClick={() => navigate('/people')}
+                      className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div
+                        className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white"
+                        style={{ backgroundColor: accentFromId(person.id) }}
+                      >
+                        {person.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-[12px] font-medium text-foreground">{person.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{person.meetingCount}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

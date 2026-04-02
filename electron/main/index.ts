@@ -65,6 +65,7 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error('Failed to initialize database:', err)
   }
+
   ensureModelsDir()
   // Clean up stale temp files from previous sessions (orphaned WAV chunks)
   import('./models/stt-engine').then(({ cleanStaleTempFiles }) => cleanStaleTempFiles()).catch(() => {})

@@ -31,6 +31,12 @@ export type LocalSetupResult = {
   hint?: string
 }
 
+export type MemoryStats = {
+  totalNotes: number; totalPeople: number; totalProjects: number; totalDecisions: number; totalCommitments: number;
+  openCommitments: number; overdueCommitments: number; activeProjects: number; meetingsThisWeek: number;
+  decisionsThisMonth: number; firstNoteDate: string | null; topPeople: { id: string; name: string; meetingCount: number }[];
+}
+
 type ElectronAPI = {
   db: {
     notes: {
@@ -308,6 +314,7 @@ type ElectronAPI = {
       getUnassigned: () => Promise<any[]>
     }
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) => Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>
+    stats: () => Promise<MemoryStats>
   }
   sync?: {
     getStatus: () => Promise<{

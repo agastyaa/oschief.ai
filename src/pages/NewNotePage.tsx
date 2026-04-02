@@ -177,7 +177,8 @@ export default function NewNotePage() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [transcriptSearchOpen, setTranscriptSearchOpen] = useState(false);
-  const [meetingTemplate, setMeetingTemplate] = useState("general");
+  const templateFromUrl = searchParams.get("template");
+  const [meetingTemplate, setMeetingTemplate] = useState(templateFromUrl || "general");
   const meetingTemplateRef = useRef(meetingTemplate);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -365,6 +366,12 @@ export default function NewNotePage() {
         try { setCustomTemplates(JSON.parse(val)); } catch {}
       }
     });
+    // Load default template from settings if not specified via URL
+    if (!templateFromUrl) {
+      api.db.settings.get('default-template').then((val: string | null) => {
+        if (val) { setMeetingTemplate(val); meetingTemplateRef.current = val; }
+      }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

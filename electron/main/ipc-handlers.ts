@@ -1871,4 +1871,40 @@ export function registerIPCHandlers(): void {
     const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
     autoUpdater?.quitAndInstall(false, true)
   })
+
+  // --- Aggregate Stats (for Professional Memory home) ---
+  ipcMain.handle('memory:stats', async () => {
+    const { getDb } = await import('./storage/database')
+    const db = getDb()
+    const row = (col: string) => (db.prepare(col).get() as any)
+
+    const totalNotes = row('SELECT COUNT(*) as c FROM notes').c
+    const totalPeople = row('SELECT COUNT(*) as c FROM people').c
+    const totalProjects = row("SELECT COUNT(*) as c FROM projects WHERE status != 'archived'").c
+    const totalDecisions = row('SELECT COUNT(*) as c FROM decisions').c
+    const totalCommitments = row('SELECT COUNT(*) as c FROM commitments').c
+    const openCommitments = row("SELECT COUNT(*) as c FROM commitments WHERE status = 'open'").c
+    const overdueCommitments = row("SELECT COUNT(*) as c FROM commitments WHERE status = 'open' AND due_date < date('now')").c
+    const activeProjects = row("SELECT COUNT(*) as c FROM projects WHERE status = 'active'").c
+    const meetingsThisWeek = row("SELECT COUNT(*) as c FROM notes WHERE created_at >= date('now', '-7 days')").c
+    const decisionsThisMonth = row("SELECT COUNT(*) as c FROM decisions WHERE created_at >= date('now', 'start of month')").c
+    const firstNote = db.prepare('SELECT MIN(created_at) as d FROM notes').get() as any
+    const firstNoteDate = firstNote?.d || null
+
+    const topPeople = db.prepare(`
+      SELECT p.id, p.name, COUNT(np.note_id) as meetingCount
+      FROM people p
+      JOIN note_people np ON np.person_id = p.id
+      GROUP BY p.id
+      ORDER BY meetingCount DESC
+      LIMIT 3
+    `).all() as any[]
+
+    return {
+      totalNotes, totalPeople, totalProjects, totalDecisions, totalCommitments,
+      openCommitments, overdueCommitments, activeProjects, meetingsThisWeek,
+      decisionsThisMonth, firstNoteDate, topPeople,
+    }
+  })
+
 }
