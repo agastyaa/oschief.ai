@@ -464,7 +464,7 @@ export function parseEnhancedNotes(markdown: string): ParsedNotes {
     }
 
     // Section headers (backward compat for old format)
-    if (/^\*\*Action Items\*\*/i.test(trimmed)) {
+    if (/^\*?\*?Action Items?\*?\*?/i.test(trimmed) || /^#+\s*Action Items?/i.test(trimmed) || /^\*?\*?Next Steps?\*?\*?/i.test(trimmed)) {
       flushTopic()
       currentSection = 'actions'
       currentTopic = null
@@ -580,10 +580,16 @@ export function parseEnhancedNotes(markdown: string): ParsedNotes {
 
 function parseActionItem(line: string): ParsedActionItem | null {
   const patterns: Array<{ re: RegExp; hasAssignee: boolean }> = [
+    // → **Name** to task (by date)
     { re: /→\s*\*\*(?<assignee>[^*]+)\*\*\s*(?:to\s+)?(?<text>.+?)(?:\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: true },
+    // **Name**: task — by date
     { re: /\*\*(?<assignee>[^*]+)\*\*[:\s]+(?<text>.+?)(?:\s*—\s*by\s+(?<due>.+))?\s*$/i, hasAssignee: true },
+    // - [ ] task (by date) — checkbox format some LLMs use
+    { re: /^[-→•]\s*\[[ x]\]\s*(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
     // Plain action without assignee: "→ task" or "- task" or "- task (by date)"
     { re: /^[-→•]\s+(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
+    // Numbered: "1. task" or "1) task"
+    { re: /^\d+[.)]\s+(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
   ]
 
   for (const { re, hasAssignee } of patterns) {
