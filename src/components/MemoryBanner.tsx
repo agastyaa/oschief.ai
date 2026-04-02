@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 interface MemoryBannerProps {
   totalNotes: number;
@@ -25,7 +25,7 @@ export function MemoryBanner({
   let sinceLabel = "";
   if (firstNoteDate) {
     try {
-      const d = new Date(firstNoteDate);
+      const d = parseISO(firstNoteDate);
       if (!isNaN(d.getTime())) sinceLabel = `Since ${format(d, "MMM yyyy")}`;
     } catch {}
   }

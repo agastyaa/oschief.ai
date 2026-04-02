@@ -1652,10 +1652,14 @@ export default function SettingsPage() {
 
   // Default meeting template (persisted to DB)
   const [defaultTemplate, setDefaultTemplate] = useState("general");
+  const [settingsCustomTemplates, setSettingsCustomTemplates] = useState<Array<{ id: string; name: string }>>([]);
   useEffect(() => {
     if (!api) return;
     api.db.settings.get('default-template').then((val: string | null) => {
       if (val) setDefaultTemplate(val);
+    }).catch(console.error);
+    api.db.settings.get('custom-templates').then((val: string | null) => {
+      if (val) try { setSettingsCustomTemplates(JSON.parse(val)); } catch {}
     }).catch(console.error);
   }, []);
 
@@ -1828,6 +1832,12 @@ export default function SettingsPage() {
                     >
                       {BUILTIN_TEMPLATES.map((t) => (
                         <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                      ))}
+                      {settingsCustomTemplates.length > 0 && (
+                        <option disabled>── Custom ──</option>
+                      )}
+                      {settingsCustomTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
                       ))}
                     </select>
                   </div>

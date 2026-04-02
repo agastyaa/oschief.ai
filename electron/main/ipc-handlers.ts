@@ -1887,6 +1887,7 @@ export function registerIPCHandlers(): void {
       const openCommitments = count("SELECT COUNT(*) as c FROM commitments WHERE status = 'open'")
       const overdueCommitments = count("SELECT COUNT(*) as c FROM commitments WHERE status = 'open' AND due_date < date('now')")
       const activeProjects = count("SELECT COUNT(*) as c FROM projects WHERE status = 'active'")
+      // All notes are meeting recordings in OSChief — "meetings" and "notes" are synonymous
       const meetingsThisWeek = count("SELECT COUNT(*) as c FROM notes WHERE created_at >= date('now', '-7 days')")
       const decisionsThisMonth = count("SELECT COUNT(*) as c FROM decisions WHERE created_at >= date('now', 'start of month')")
       const firstNote = db.prepare('SELECT MIN(created_at) as d FROM notes').get() as any
