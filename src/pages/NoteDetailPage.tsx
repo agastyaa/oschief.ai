@@ -18,6 +18,7 @@ import { loadAccountFromStorage } from "@/lib/account-context";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
 import { noteToMarkdown } from "@/lib/export-markdown";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { CoachingCard } from "@/components/CoachingCard";
 import { computeCoachingMetrics } from "@/lib/coaching-analytics";
 import { computeConversationHeuristics, findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";
@@ -42,6 +43,7 @@ export default function NoteDetailPage() {
   const { sidebarOpen } = useSidebarVisibility();
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes" | "coaching">("ai-notes");
   const [transcriptVisible, setTranscriptVisible] = useState(false);
+  const { width: transcriptWidth, startResize: startTranscriptResize } = useResizablePanel({ storageKey: "syag_transcript_width" });
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [recordingState, setRecordingState] = useState<"recording" | "paused" | "stopped">("stopped");
   const [elapsed, setElapsed] = useState(0);
@@ -272,7 +274,7 @@ export default function NoteDetailPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen ? (
-        <div className="w-48 flex-shrink-0 overflow-hidden">
+        <div className="flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       ) : (
@@ -625,7 +627,12 @@ export default function NoteDetailPage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (
-            <div className="w-[22rem] flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] animate-slide-in-right">
+            <div className="relative flex-shrink-0 border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] animate-slide-in-right" style={{ width: transcriptWidth }}>
+              {/* Resize drag handle */}
+              <div
+                className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                onMouseDown={startTranscriptResize}
+              />
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Transcript</span>
