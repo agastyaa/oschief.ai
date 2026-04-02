@@ -28,6 +28,7 @@ import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
 import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppVisibility } from "@/hooks/useAppVisibility";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATE_IDS } from "@/data/templates";
 import { loadAccountFromStorage } from "@/lib/account-context";
@@ -162,6 +163,7 @@ export default function NewNotePage() {
     return "recording";
   });
   const [transcriptVisible, setTranscriptVisible] = useState(isElectron);
+  const { width: transcriptWidth, startResize: startTranscriptResize } = useResizablePanel({ storageKey: "syag_transcript_width" });
   const [personalNotes, setPersonalNotes] = useState("");
   const [visibleLines, setVisibleLines] = useState(2);
   const [title, setTitle] = useState(() => eventState?.eventTitle || "");
@@ -1196,7 +1198,7 @@ export default function NewNotePage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen ? (
-        <div className="w-48 flex-shrink-0 overflow-hidden">
+        <div className="flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       ) : (
@@ -1466,7 +1468,12 @@ export default function NewNotePage() {
 
           {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-full lg:w-[32rem] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-2xl rounded-tr-2xl max-h-[45vh] lg:max-h-none animate-slide-in-right">
+            <div className="w-full lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] max-h-[45vh] lg:max-h-none animate-slide-in-right relative" style={{ width: transcriptWidth }}>
+              {/* Resize drag handle */}
+              <div
+                className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors hidden lg:block"
+                onMouseDown={startTranscriptResize}
+              />
               <div className="px-3 py-2 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">

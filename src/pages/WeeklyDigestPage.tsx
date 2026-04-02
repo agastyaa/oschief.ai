@@ -63,7 +63,7 @@ export default function WeeklyDigestPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen ? (
-        <div className="w-48 flex-shrink-0 overflow-hidden"><Sidebar /></div>
+        <div className="flex-shrink-0 overflow-hidden"><Sidebar /></div>
       ) : (
         <SidebarCollapseRail><SidebarCollapseButton /></SidebarCollapseRail>
       )}

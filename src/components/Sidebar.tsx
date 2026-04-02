@@ -173,8 +173,15 @@ export function Sidebar() {
     }
   };
 
+  const { sidebarWidth, startResize } = useSidebarVisibility();
+
   return (
-    <aside className="flex h-screen w-48 flex-shrink-0 flex-col bg-sidebar">
+    <aside className="relative flex h-screen flex-shrink-0 flex-col bg-sidebar" style={{ width: sidebarWidth }}>
+      {/* Resize drag handle */}
+      <div
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
+        onMouseDown={startResize}
+      />
       {/* Drag region for window movement (Electron hiddenInset titlebar) */}
       {isElectron && (
         <div

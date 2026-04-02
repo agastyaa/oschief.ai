@@ -41,7 +41,7 @@ export function StatsRow({
   decisionsThisMonth,
 }: StatsRowProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
       <StatCard
         icon={<CheckSquare className="h-3.5 w-3.5" />}
         label="Open"

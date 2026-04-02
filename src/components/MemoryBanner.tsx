@@ -32,7 +32,7 @@ export function MemoryBanner({
 
   return (
     <div
-      className="rounded-[10px] border border-border bg-card p-5 mb-4"
+      className="rounded-[10px] border border-border bg-card p-5 mb-3"
       style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}
       role="region"
       aria-label="Professional memory summary"
