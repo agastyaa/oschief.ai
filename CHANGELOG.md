@@ -4,6 +4,24 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.6] — 2026-04-01
+
+### Added
+- **Professional Memory home** — MemoryBanner shows accumulated meeting count, people, projects, decisions, and commitments with "All on your device" privacy reinforcement. Hidden for new users (< 5 notes).
+- **Stats Row** — four operational cards on home: open commitments (overdue in amber), active projects, meetings this week, decisions this month.
+- **Top contacts** — top 3 people by meeting frequency displayed as avatar chips on the home page.
+- **Provenance links** — "Source note" links on at-risk commitments, stale decisions, and project detail pages trace every item back to its originating meeting.
+- **Default meeting template** — new dropdown in Settings > Meeting to choose which template is used by default when starting a note. Templates also selectable via URL parameter (`/new-note?template=brainstorm`).
+- **Aggregate stats IPC** — `memory:stats` handler returns all counts in a single call for the Professional Memory home.
+- **Shared `MemoryStats` type** — DRY type definition in `electron-api.ts` used across preload, renderer, and home page.
+
+### Changed
+- **Disabled toggle visibility** — `SettingRow` component accepts `disabled` prop, applying `opacity-40 cursor-not-allowed pointer-events-none` for clearer visual state.
+- **MemoryBanner design** — subtle card with primary left accent (not dark navy) so PrepCard remains the dominant actionable element.
+- **StatsRow overdue color** — overdue commitment count uses amber token per DESIGN.md instead of muted gray.
+
+---
+
 ## [2.0.6] — 2026-03-27
 
 ### Fixed
