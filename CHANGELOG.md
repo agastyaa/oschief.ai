@@ -4,6 +4,16 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.8] — 2026-04-02
+
+### Added
+- **Resizable sidebar** — drag the right edge to resize between 160-280px. Width persists across sessions via localStorage.
+- **Resizable transcript panel** — drag the left edge on NoteDetailPage and NewNotePage to resize between 240-480px. Width persists.
+- **Asana integration** — connect with Personal Access Token in Settings > Connections. Create tasks from commitments with project picker, due dates, and meeting context notes.
+- **`useResizablePanel` hook** — reusable drag-to-resize hook with min/max constraints and localStorage persistence.
+
+---
+
 ## [2.1.7] — 2026-04-01
 
 ### Changed
