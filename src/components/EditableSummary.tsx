@@ -13,6 +13,7 @@ import {
 } from "@/lib/export-markdown";
 import { JiraCreateTicketDialog } from "@/components/JiraCreateTicketDialog";
 import { JiraStatusBadge } from "@/components/JiraStatusBadge";
+import { AsanaCreateTaskDialog } from "@/components/AsanaCreateTaskDialog";
 
 /** Small copy-to-clipboard button that appears on hover with check feedback */
 function CopyButton({ getText }: { getText: () => string }) {
@@ -102,6 +103,8 @@ interface ActionItem {
   done: boolean;
   jiraIssueKey?: string;
   jiraIssueUrl?: string;
+  asanaTaskGid?: string;
+  asanaTaskUrl?: string;
 }
 
 interface KeyQuote {
@@ -136,6 +139,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localSummary, setLocalSummary] = useState<SummaryData>(summary);
   const [jiraDialogItem, setJiraDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
+  const [asanaDialogItem, setAsanaDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
   useEffect(() => {
     setLocalSummary(summary);
   }, [summary]);
@@ -497,7 +501,8 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                   <th className="w-7 p-1.5">#</th>
                   <th className="p-1.5 min-w-0">Task</th>
                   <th className="w-28 p-1.5">Assignee</th>
-                  <th className="w-8 p-1.5" aria-label="Jira link" />
+                  <th className="w-24 p-1.5">Due</th>
+                  <th className="w-16 p-1.5" aria-label="Integrations" />
                 </tr>
               </thead>
               <tbody>
@@ -551,9 +556,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                             {capitalizeFirst(stripBoldMarkdown(item.text))}
                           </span>
                         )}
-                        {dueStr && (
-                          <span className="block text-[12px] text-muted-foreground mt-0.5">by {dueStr}</span>
-                        )}
+                        {/* Due date shown in its own column */}
                       </td>
                       <td className="p-1.5 align-top text-[12px] text-muted-foreground whitespace-nowrap">
                         {editingField === `action-assignee-${i}` ? (
@@ -628,22 +631,32 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                           </span>
                         )}
                       </td>
+                      <td className="p-1.5 align-top text-[12px] text-muted-foreground whitespace-nowrap">
+                        {dueStr || <span className="text-muted-foreground/30">—</span>}
+                      </td>
                       <td className="p-1.5 align-top">
-                        {item.jiraIssueKey && item.jiraIssueUrl ? (
-                          <JiraStatusBadge issueKey={item.jiraIssueKey} issueUrl={item.jiraIssueUrl} />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setJiraDialogItem({ index: rawIndex, item })}
-                            className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                            title="Create Jira ticket"
-                            aria-label="Create Jira ticket"
-                          >
-                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                              <path d="M11.53 2L3 10.53V14.47L11.53 22L14.47 22L22 14.47V10.53L11.53 2Z" />
-                            </svg>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-0.5">
+                          {item.asanaTaskGid && item.asanaTaskUrl ? (
+                            <a href={item.asanaTaskUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[10px] text-pink-600 hover:text-pink-700" title="Open in Asana">
+                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="2.5"/><circle cx="6" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/></svg>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          ) : item.jiraIssueKey && item.jiraIssueUrl ? (
+                            <JiraStatusBadge issueKey={item.jiraIssueKey} issueUrl={item.jiraIssueUrl} />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setAsanaDialogItem({ index: rawIndex, item })}
+                              className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-950/30"
+                              title="Create Asana task"
+                              aria-label="Create Asana task"
+                            >
+                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                <circle cx="12" cy="7.5" r="2.5"/><circle cx="6" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -680,6 +693,34 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
               : { ...localSummary, nextSteps: items };
             commit(updated);
             setJiraDialogItem(null);
+          }}
+        />
+      )}
+
+      {/* Asana Create Task Dialog */}
+      {asanaDialogItem && (
+        <AsanaCreateTaskDialog
+          open
+          onClose={() => setAsanaDialogItem(null)}
+          actionItemText={asanaDialogItem.item.text}
+          assignee={asanaDialogItem.item.assignee}
+          dueDate={asanaDialogItem.item.dueDate}
+          meetingTitle={meetingTitle}
+          meetingDate={meetingDate}
+          onCreated={(taskGid, taskUrl) => {
+            const items = [...(localSummary.actionItems || localSummary.nextSteps || [])] as ActionItem[];
+            if (items[asanaDialogItem.index]) {
+              items[asanaDialogItem.index] = {
+                ...items[asanaDialogItem.index],
+                asanaTaskGid: taskGid,
+                asanaTaskUrl: taskUrl,
+              };
+            }
+            const updated = localSummary.actionItems
+              ? { ...localSummary, actionItems: items }
+              : { ...localSummary, nextSteps: items };
+            commit(updated);
+            setAsanaDialogItem(null);
           }}
         />
       )}
