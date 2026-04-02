@@ -134,7 +134,7 @@ export default function MeetingSeriesPage() {
                 const isExpanded = expandedKey === s.key
                 const details = seriesDetails[s.key]
                 return (
-                <div key={s.key} className="rounded-lg border border-border bg-card overflow-hidden">
+                <div key={s.key} className="rounded-[10px] border border-border bg-card overflow-hidden">
                   <div
                     className="p-4 hover:bg-secondary/30 cursor-pointer transition-colors"
                     onClick={() => {

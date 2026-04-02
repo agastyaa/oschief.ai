@@ -212,7 +212,7 @@ export default function WeeklyDigestPage() {
                 {/* Meetings List */}
                 {data.meetings.length > 0 && (
                   <DigestSection title="Meetings" icon={<BarChart3 className="h-3 w-3" />}>
-                    <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
+                    <div className="rounded-[10px] border border-border bg-card overflow-hidden divide-y divide-border">
                       {data.meetings.slice(0, 10).map((m) => (
                         <button
                           key={m.id}
@@ -257,7 +257,7 @@ function StatCard({
   subtitleColor?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-[10px] border border-border bg-card p-3">
       <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
         {icon}
         <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>

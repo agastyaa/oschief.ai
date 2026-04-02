@@ -281,7 +281,7 @@ export default function CalendarPage() {
         </div>
         <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
           {!showMainCalendar ? (
-            <div className="mb-6 rounded-xl border border-border bg-card p-6 text-center space-y-4">
+            <div className="mb-6 rounded-[10px] border border-border bg-card p-6 text-center space-y-4">
               <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-1" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar yet</h2>
               <p className="text-[13px] text-muted-foreground">
@@ -309,7 +309,7 @@ export default function CalendarPage() {
           ) : (
             <>
               {hasSyncedSource ? (
-                <div className="mb-6 flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-6 flex flex-col gap-2 rounded-[10px] border border-border bg-card/50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-xs text-muted-foreground min-w-0">
                     <span className="font-medium text-foreground/90">{calendarSources.length}</span> connected
                     {icsSource ? (
@@ -341,7 +341,7 @@ export default function CalendarPage() {
                   </div>
                 </div>
               ) : (
-                <div className="mb-6 rounded-lg border border-dashed border-border bg-card/30 px-4 py-2.5 text-xs text-muted-foreground">
+                <div className="mb-6 rounded-[10px] border border-dashed border-border bg-card/30 px-4 py-2.5 text-xs text-muted-foreground">
                   OSChief-only blocks — not synced to Google or Outlook. Connect a calendar in Settings to import
                   meetings.
                 </div>
@@ -377,7 +377,7 @@ export default function CalendarPage() {
                       Block
                     </button>
                   )}
-                  <div className="flex rounded-lg border border-border p-0.5">
+                  <div className="flex rounded-[10px] border border-border p-0.5">
                     <button
                       onClick={() => setView("grid")}
                       className={cn(

@@ -229,7 +229,7 @@ function SyncSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Enable toggle */}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+      <div className="flex items-center justify-between rounded-[10px] border border-border bg-card p-4">
         <div>
           <p className="text-sm font-medium text-foreground">Enable iCloud Sync</p>
           <p className={cn("text-xs mt-0.5", stateColor)}>
@@ -256,7 +256,7 @@ function SyncSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       {/* Status details (only when enabled) */}
       {status?.enabled && (
         <>
-          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Devices synced</span>
               <span className="text-xs font-mono text-foreground">{status.deviceCount}</span>
@@ -281,7 +281,7 @@ function SyncSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           <button
             onClick={handleForceSync}
             disabled={loading}
-            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted/50 transition-colors"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Sync now
@@ -361,7 +361,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Enable toggle */}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+      <div className="flex items-center justify-between rounded-[10px] border border-border bg-card p-4">
         <div>
           <p className="text-sm font-medium text-foreground">Enable Agent API</p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -392,7 +392,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       {enabled && (
         <>
           {/* Token */}
-          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Bearer Token</h3>
               <div className="flex items-center gap-1">
@@ -413,7 +413,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           </div>
 
           {/* Socket path */}
-          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="rounded-[10px] border border-border bg-card p-4 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Socket Path</h3>
               <button onClick={copySocketPath} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors" title="Copy path">
@@ -426,7 +426,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           </div>
 
           {/* Usage example */}
-          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="rounded-[10px] border border-border bg-card p-4 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quick Start</h3>
               <button onClick={copyCurlExample} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors" title="Copy curl command">
@@ -478,7 +478,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       <SectionHeader title="Privacy & Data" description="Control what OSChief stores and sends. Your data never leaves your Mac unless you explicitly enable cloud features." />
 
       {/* Air-Gapped Mode */}
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-[10px] border border-border bg-card p-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium flex items-center gap-2">
@@ -511,7 +511,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Cloud AI Privacy */}
-      <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+      <div className="rounded-[10px] border border-border bg-card p-4 space-y-4">
         <div className="text-sm font-medium">Cloud AI Prompts</div>
         <div className="text-xs text-muted-foreground mb-3">
           When using cloud models (OpenAI, Anthropic, etc.), OSChief sends your transcript to generate summaries. These settings control what personal data is included.
@@ -551,7 +551,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Data Retention */}
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
         <div className="text-sm font-medium">Data Retention</div>
         <div className="text-xs text-muted-foreground">How long OSChief keeps meeting history. Older data is deleted automatically.</div>
         <select
@@ -567,7 +567,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Forget a Person */}
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
         <div className="text-sm font-medium">Forget a Person</div>
         <div className="text-xs text-muted-foreground">
           Completely remove someone from OSChief's memory — deletes their profile, meeting links, commitments, decisions, and vault file. Does not affect your calendar or email.
@@ -584,7 +584,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       </div>
 
       {/* Data Location */}
-      <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+      <div className="rounded-[10px] border border-border bg-card p-4 space-y-2">
         <div className="text-sm font-medium">Where Your Data Lives</div>
         <div className="text-xs text-muted-foreground space-y-1">
           <p>All data is stored locally on your Mac:</p>
@@ -629,7 +629,7 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
     <div className="space-y-5">
       <SectionHeader title="Obsidian Vault" description="Connect your Obsidian vault to export meeting notes with rich metadata, people links, and project connections" />
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">Vault Location</div>
@@ -725,7 +725,7 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
     <div className="space-y-5">
       <SectionHeader title="Knowledge Base" description="Point OSChief at a folder of notes — it will search them during live meetings and suggest relevant talking points" />
       <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -1238,7 +1238,7 @@ function AccountSection() {
           </button>
 
           {roleDropdownOpen && (
-            <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1 max-h-64 overflow-y-auto">
+            <div className="absolute left-0 top-full mt-1 w-full rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden py-1 max-h-64 overflow-y-auto">
               {ROLE_OPTIONS.map((role) => (
                 <button
                   key={role.id}
@@ -2452,7 +2452,7 @@ export default function SettingsPage() {
                     <Toggle enabled={toggles.meetingDetectionRequireMic} onToggle={() => toggle("meetingDetectionRequireMic")} />
                   </SettingRow>
                   {isElectron && (
-                    <div className="rounded-lg border border-border bg-card/40 p-4 space-y-3">
+                    <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
                       <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
                       <p className="text-[11px] text-muted-foreground -mt-1">
                         macOS menu bar icon: show a compact agenda popover instead of only focusing the app when you click the icon (when not recording).
@@ -2632,7 +2632,7 @@ export default function SettingsPage() {
                   <SectionHeader title="About OSChief" description="Your private, on-device meeting companion" />
 
                   {/* Version + Update */}
-                  <div className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
+                  <div className="rounded-[10px] border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
@@ -3143,7 +3143,7 @@ function GoogleCalendarIntegrationRow() {
       {/* Google OAuth setup dialog */}
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-foreground">Connect Google Calendar</h2>
               <button onClick={() => setShowSetup(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">
@@ -3298,7 +3298,7 @@ function MicrosoftCalendarIntegrationRow() {
 
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-foreground">Connect Microsoft Outlook</h2>
               <button onClick={() => setShowSetup(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">

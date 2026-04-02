@@ -137,7 +137,7 @@ function RelationshipDropdown({ value, onSave }: { value: string; onSave: (v: st
         </div>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-card shadow-lg py-1">
+        <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-[10px] border border-border bg-card shadow-lg py-1">
           {RELATIONSHIP_OPTIONS.map((opt) => (
             <button
               key={opt}
@@ -170,7 +170,7 @@ function RelationshipDropdown({ value, onSave }: { value: string; onSave: (v: st
 function DeleteConfirmation({ person, onConfirm, onCancel }: { person: Person; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-xl border border-border bg-card p-6 shadow-xl max-w-sm w-full mx-4">
+      <div className="rounded-[10px] border border-border bg-card p-6 shadow-xl max-w-sm w-full mx-4">
         <h3 className="text-sm font-semibold text-foreground mb-2">Delete {person.name}?</h3>
         <p className="text-xs text-muted-foreground mb-4">
           This will unlink them from all meetings. This action cannot be undone.
@@ -208,7 +208,7 @@ function MergePicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-xl border border-border bg-card p-5 shadow-xl max-w-sm w-full mx-4">
+      <div className="rounded-[10px] border border-border bg-card p-5 shadow-xl max-w-sm w-full mx-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-foreground">Merge into {currentPerson.name}</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -394,7 +394,7 @@ const PeoplePage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search people by name, email, or company..."
-                className="w-full rounded-lg border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-[10px] border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
             </div>
 
@@ -468,7 +468,7 @@ const PeoplePage = () => {
 
                 {/* Person detail panel */}
                 {selectedPerson && (
-                  <div className="w-1/2 rounded-lg border border-border bg-card p-5 sticky top-4 self-start">
+                  <div className="w-1/2 rounded-[10px] border border-border bg-card p-5 sticky top-4 self-start">
                     {/* Header with actions */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-start gap-3 flex-1 min-w-0">

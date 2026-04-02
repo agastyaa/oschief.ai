@@ -277,7 +277,7 @@ export default function ProjectDetailPage() {
             />
           )}
           {addingActionItem && (
-            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+            <div className="rounded-[10px] border border-primary/30 bg-card p-3 mb-4 space-y-2">
               <input value={actionItemText} onChange={e => setActionItemText(e.target.value)}
                 placeholder="What needs to be done?" autoFocus
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -306,7 +306,7 @@ export default function ProjectDetailPage() {
             </div>
           )}
           {addingDecision && (
-            <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+            <div className="rounded-[10px] border border-primary/30 bg-card p-3 mb-4 space-y-2">
               <input value={decisionText} onChange={e => setDecisionText(e.target.value)}
                 placeholder="What was decided?" autoFocus
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -459,7 +459,7 @@ function InlinePicker({ search, onSearchChange, placeholder, items, renderItem, 
   onSelect: (item: any) => void; onCancel: () => void
 }) {
   return (
-    <div className="rounded-lg border border-primary/30 bg-card p-3 mb-4 space-y-2">
+    <div className="rounded-[10px] border border-primary/30 bg-card p-3 mb-4 space-y-2">
       <input value={search} onChange={e => onSearchChange(e.target.value)} placeholder={placeholder} autoFocus
         className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20" />
       <div className="max-h-48 overflow-y-auto space-y-1">
@@ -486,7 +486,7 @@ function CollapsibleSection({ title, count, defaultExpanded = true, children }: 
         </span>
       </button>
       {expanded && (
-        <div className="rounded-lg border border-border bg-card divide-y divide-border">
+        <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
           {children}
         </div>
       )}

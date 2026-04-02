@@ -45,7 +45,7 @@ export function CommitmentsDueCard({ commitments }: CommitmentsDueCardProps) {
   // Success state: all commitments exist but none are urgent
   if (urgent.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-[10px] border border-border bg-card p-4">
         <div className="flex items-center gap-2 text-sm">
           <CheckCircle2 className="h-4 w-4 text-green-500" />
           <span className="font-medium text-foreground">All caught up</span>
@@ -59,7 +59,7 @@ export function CommitmentsDueCard({ commitments }: CommitmentsDueCardProps) {
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 card-lift"
+      className="rounded-[10px] border border-border bg-card p-4 card-lift"
       style={{ boxShadow: "var(--card-shadow)" }}
     >
       <div className="flex items-center justify-between mb-3">

@@ -248,7 +248,7 @@ export default function ProjectsPage() {
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="rounded-[10px] border border-border bg-card overflow-hidden">
               {filtered.map((project, i) => (
                 <div key={project.id}>
                 <div
@@ -375,7 +375,7 @@ export default function ProjectsPage() {
 
           {/* Merge picker */}
           {mergingId && (
-            <div className="mt-4 rounded-lg border border-primary/30 bg-card p-3 space-y-2">
+            <div className="mt-4 rounded-[10px] border border-primary/30 bg-card p-3 space-y-2">
               <p className="text-xs text-foreground font-medium">
                 Merge "{projects.find(p => p.id === mergingId)?.name}" into:
               </p>
@@ -412,7 +412,7 @@ export default function ProjectsPage() {
               <p className="text-xs text-muted-foreground mb-3">
                 Decisions not linked to any project.
               </p>
-              <div className="rounded-lg border border-border bg-card divide-y divide-border">
+              <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                 {unassignedDecisions.map((d: any) => (
                   <div key={d.id} className="flex items-center gap-2 px-4 py-2.5">
                     <span className="text-sm flex-1 truncate">{d.text}</span>

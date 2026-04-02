@@ -215,7 +215,7 @@ const CommitmentsPage = () => {
             </div>
 
             {/* Add to-do */}
-            <div className="mb-5 rounded-lg border border-border bg-card/40 p-3">
+            <div className="mb-5 rounded-[10px] border border-border bg-card/40 p-3">
               <p className="text-xs text-muted-foreground mb-2">Add a personal to-do</p>
               <div className="flex items-center gap-2">
                 <input

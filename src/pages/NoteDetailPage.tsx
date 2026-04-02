@@ -504,7 +504,7 @@ export default function NoteDetailPage() {
                           <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showTemplateMenu && "rotate-180")} />
                         </button>
                         {showTemplateMenu && (
-                          <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
+                          <div className="absolute left-0 top-full mt-1 w-52 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden py-1">
                             {BUILTIN_TEMPLATES.map((t) => (
                               <button
                                 key={t.id}
@@ -899,16 +899,16 @@ function CoachingView({
   return (
     <div className="space-y-4">
       {!accountRoleId && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+        <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
           Choose your <span className="font-medium text-foreground">role</span> in Settings to unlock transcript-grounded coaching and role frameworks.
         </div>
       )}
 
       {/* Transcript-grounded meeting coaching (primary) */}
       {(conv || conversationLoading) && (
-        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+        <div className="rounded-[10px] border border-primary/25 bg-primary/5 p-5 space-y-3">
           <div>
-            <h4 className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-[11px] font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
               <MessageSquare className="h-3 w-3" />
               Meeting effectiveness
             </h4>
@@ -924,7 +924,7 @@ function CoachingView({
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Pattern</p>
                 <p className="text-[15px] font-semibold text-foreground leading-snug">{conv.headline}</p>
               </div>
-              <div className="rounded-lg border border-border/60 bg-card/80 p-3">
+              <div className="rounded-[10px] border border-border/60 bg-card/80 p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">What we noticed</p>
                 <p className="text-[13px] text-foreground leading-relaxed">{conv.narrative}</p>
               </div>
@@ -1007,7 +1007,7 @@ function CoachingView({
 
       {/* Heuristic coaching — shown prominently when LLM analysis hasn't run or failed */}
       {heuristics && !conv && (
-        <div className="rounded-xl border border-border bg-card px-4 py-3.5 space-y-3">
+        <div className="rounded-[10px] border border-border bg-card px-4 py-3.5 space-y-3">
           <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
           <div className="space-y-2">
             {heuristics.questionRatioYou < 0.15 && (
@@ -1054,7 +1054,7 @@ function CoachingView({
       )}
 
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 rounded-[10px] border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
           <p className="text-[11px] text-foreground">
             Connect an AI model in <button onClick={() => navigate('/settings?section=ai-models')} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
           </p>
@@ -1104,8 +1104,8 @@ function CoachingView({
 
       {/* Metrics-only coaching — fallback when transcript analysis isn't available or failed */}
       {(roleInsights.length > 0 || insightsLoading) && !conv && !conversationLoading && (
-        <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-2">
-          <h4 className="text-xs font-medium text-accent uppercase tracking-wider flex items-center gap-1.5">
+        <div className="rounded-[10px] border border-accent/30 bg-accent/5 p-5 space-y-2">
+          <h4 className="text-[11px] font-medium text-accent uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="h-3 w-3" /> Delivery &amp; pace (metrics)
           </h4>
           <p className="text-[10px] text-muted-foreground">
@@ -1127,13 +1127,13 @@ function CoachingView({
       )}
 
       {/* Speaking Metrics (collapsible — secondary to qualitative coaching above) */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-[10px] border border-border bg-card">
         <button
           type="button"
           onClick={() => setMetricsExpanded(!metricsExpanded)}
           className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors rounded-xl"
         >
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Mic className="h-3 w-3" />
             Speaking Metrics
           </h4>
@@ -1165,8 +1165,8 @@ function CommunicationMixBar({ metrics }: { metrics: import("@/lib/coaching-anal
   const silencePct = 100 - youPct - othersPct;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Communication Mix</h4>
+    <div className="rounded-[10px] border border-border bg-card p-4">
+      <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Communication Mix</h4>
       <div className="flex rounded-full overflow-hidden h-4">
         {youPct > 0 && (
           <div

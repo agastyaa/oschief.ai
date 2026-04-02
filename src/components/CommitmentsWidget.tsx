@@ -63,9 +63,7 @@ export function CommitmentsWidget() {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display text-base tracking-tight text-foreground flex items-center gap-2">
-          <span>My open to-dos</span>
-        </h2>
+        <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">My open to-dos</span>
         <button
           onClick={() => navigate("/commitments")}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -75,7 +73,7 @@ export function CommitmentsWidget() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+      <div className="rounded-[10px] border border-border bg-card overflow-hidden" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
         {commitments.map((c, i) => {
           const isOverdue = c.due_date && (() => {
             try {

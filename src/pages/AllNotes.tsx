@@ -97,7 +97,7 @@ export default function AllNotes() {
               {grouped.map(([date, items]) => (
                 <div key={date}>
                   <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-1.5">{date}</div>
-                  <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                  <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                     {items.map((n) => (
                       <div key={n.id} className="group flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors">
                         <button

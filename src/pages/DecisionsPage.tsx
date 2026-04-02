@@ -151,7 +151,7 @@ export default function DecisionsPage() {
           </p>
 
           {creating && (
-            <div className="rounded-lg border border-primary/30 bg-card p-4 mb-4 space-y-3">
+            <div className="rounded-[10px] border border-primary/30 bg-card p-4 mb-4 space-y-3">
               <input
                 value={newText}
                 onChange={e => setNewText(e.target.value)}
@@ -255,7 +255,7 @@ export default function DecisionsPage() {
                   <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground mb-2">
                     {formatMonth(month)}
                   </div>
-                  <div className="rounded-lg border border-border bg-card divide-y divide-border">
+                  <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                     {items.map(d => (
                       <div key={d.id} className="group px-4 py-3 space-y-1 relative">
                         <div className="flex items-center gap-2">

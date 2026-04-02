@@ -159,7 +159,7 @@ export default function RoutinesPage() {
 
           {/* Create form */}
           {creating && (
-            <div className="rounded-lg border border-border bg-card p-4 mb-4 space-y-3">
+            <div className="rounded-[10px] border border-border bg-card p-4 mb-4 space-y-3">
               <input
                 autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 placeholder="Routine name..." className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -197,7 +197,7 @@ export default function RoutinesPage() {
           ) : (
             <div className="space-y-3">
               {routines.map(r => (
-                <div key={r.id} className="rounded-lg border border-border bg-card overflow-hidden">
+                <div key={r.id} className="rounded-[10px] border border-border bg-card overflow-hidden">
                   {/* Routine header */}
                   <div className="flex items-center gap-3 px-4 py-3">
                     <button onClick={() => toggleExpand(r.id)} className="p-0.5 text-muted-foreground">

@@ -134,7 +134,7 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
                   className="h-6 w-32 rounded-full border border-border bg-background px-2.5 text-[11px] text-foreground outline-none focus:ring-1 focus:ring-ring"
                 />
                 {peopleSuggestions.length > 0 && (
-                  <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden py-0.5">
+                  <div className="absolute left-0 top-full mt-1 w-48 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden py-0.5">
                     {peopleSuggestions.map((s) => (
                       <button
                         key={s.id}
