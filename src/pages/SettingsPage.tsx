@@ -23,7 +23,6 @@ import { ACCOUNT_LS_KEY } from "@/lib/account-context";
 import { dispatchPreferencesUpdated } from "@/lib/preferences-events";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { JiraConnectDialog, type JiraConfig } from "@/components/JiraConnectDialog";
-import { AsanaConnectDialog } from "@/components/AsanaConnectDialog";
 import { SlackConnectDialog, type SlackConfig } from "@/components/SlackConnectDialog";
 import { TeamsConnectDialog, type TeamsConfig } from "@/components/TeamsConnectDialog";
 import {
@@ -1728,7 +1727,7 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
+        <div className="w-48 flex-shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}
@@ -2411,8 +2410,8 @@ export default function SettingsPage() {
                     </SettingRow>
                     {/* "Reduce noise before transcription" removed — not wired to backend.
                         VAD energy thresholds in capture.ts handle this automatically. */}
-                    <SettingRow label="Speaker diarization (mic only)" description="Will label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings.">
-                      <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full font-medium">Coming soon</span>
+                    <SettingRow label="Speaker diarization (mic only)" description="Label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings when no system audio is available.">
+                      <Toggle enabled={toggles.useDiarization} onToggle={() => toggle("useDiarization")} />
                     </SettingRow>
                   </div>
                   <div>
@@ -2596,7 +2595,6 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <AppleCalendarIntegrationRow />
                     <JiraIntegrationRow />
-                    <AsanaIntegrationRow />
                     <GoogleCalendarIntegrationRow />
                     <MicrosoftCalendarIntegrationRow />
                     <SlackIntegrationRow />
@@ -2818,84 +2816,6 @@ function JiraIntegrationRow() {
           setDisplayName(config.displayName || config.email || "Connected");
           setShowDialog(false);
           toast.success("Jira connected successfully");
-        }}
-      />
-    </>
-  );
-}
-
-// ── Asana Integration Row ────────────────────────────────────────────────
-
-function AsanaIntegrationRow() {
-  const api = getElectronAPI();
-  const [connected, setConnected] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [showDialog, setShowDialog] = useState(false);
-
-  useEffect(() => {
-    api?.keychain?.get("asana-config").then((raw) => {
-      if (raw) {
-        try {
-          const config = JSON.parse(raw);
-          setConnected(true);
-          setDisplayName(config.name || config.email || config.workspaceName || "Connected");
-        } catch {}
-      }
-    });
-  }, [api]);
-
-  const handleDisconnect = async () => {
-    await api?.keychain?.delete("asana-config");
-    setConnected(false);
-    setDisplayName("");
-    toast.success("Asana disconnected");
-  };
-
-  return (
-    <>
-      <div className="flex items-center justify-between rounded-md border border-border bg-card p-3">
-        <div className="flex items-center gap-2.5">
-          <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="7.5" r="3" fill="#F06A6A" />
-            <circle cx="6" cy="16.5" r="3" fill="#F06A6A" />
-            <circle cx="18" cy="16.5" r="3" fill="#F06A6A" />
-          </svg>
-          <div>
-            <span className="text-[13px] font-medium text-foreground">Asana</span>
-            <p className="text-[11px] text-muted-foreground">
-              {connected ? `Connected as ${displayName}` : "Create tasks from action items"}
-            </p>
-          </div>
-        </div>
-        {connected ? (
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-              <Check className="h-3 w-3" /> Connected
-            </span>
-            <button
-              onClick={handleDisconnect}
-              className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
-            >
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowDialog(true)}
-            className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            Connect
-          </button>
-        )}
-      </div>
-      <AsanaConnectDialog
-        open={showDialog}
-        onClose={() => setShowDialog(false)}
-        onConnected={(config) => {
-          setConnected(true);
-          setDisplayName(config.name || config.email || config.workspaceName || "Connected");
-          setShowDialog(false);
-          toast.success("Asana connected successfully");
         }}
       />
     </>
