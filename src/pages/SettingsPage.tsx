@@ -1822,7 +1822,7 @@ export default function SettingsPage() {
                       value={defaultTemplate}
                       onChange={(e) => {
                         setDefaultTemplate(e.target.value);
-                        api?.db?.settings?.set('default-template', e.target.value);
+                        api?.db?.settings?.set('default-template', e.target.value).catch(console.error);
                       }}
                       className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                     >

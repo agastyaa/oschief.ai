@@ -658,7 +658,7 @@ const Index = () => {
                         className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white"
                         style={{ backgroundColor: accentFromId(person.id) }}
                       >
-                        {person.name.charAt(0).toUpperCase()}
+                        {(person.name || '?').charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[12px] font-medium text-foreground">{person.name}</span>
                       <span className="text-[10px] text-muted-foreground">{person.meetingCount}</span>

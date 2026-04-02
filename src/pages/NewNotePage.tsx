@@ -178,7 +178,8 @@ export default function NewNotePage() {
   const [transcriptSearch, setTranscriptSearch] = useState("");
   const [transcriptSearchOpen, setTranscriptSearchOpen] = useState(false);
   const templateFromUrl = searchParams.get("template");
-  const [meetingTemplate, setMeetingTemplate] = useState(templateFromUrl || "general");
+  const validatedTemplate = templateFromUrl && BUILTIN_TEMPLATE_IDS.has(templateFromUrl) ? templateFromUrl : null;
+  const [meetingTemplate, setMeetingTemplate] = useState(validatedTemplate || "general");
   const meetingTemplateRef = useRef(meetingTemplate);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -367,7 +368,7 @@ export default function NewNotePage() {
       }
     });
     // Load default template from settings if not specified via URL
-    if (!templateFromUrl) {
+    if (!validatedTemplate) {
       api.db.settings.get('default-template').then((val: string | null) => {
         if (val) { setMeetingTemplate(val); meetingTemplateRef.current = val; }
       }).catch(() => {});
