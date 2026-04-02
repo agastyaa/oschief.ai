@@ -4,6 +4,18 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.9] — 2026-04-02
+
+### Added
+- **Mic-only speaker diarization** — when no system audio is available, uses on-device ECAPA-TDNN speaker embeddings to identify and label different speakers as "Speaker 1", "Speaker 2", etc. Incremental centroid matching with cosine similarity for real-time identification. Toggle in Settings > Recording.
+- **All Notes page overhaul** — folder tab bar with inline creation, filter chips (Summarized, Has Actions), rich note cards with left accent borders, duration/action-item/folder metadata pills, human-readable date headers (TODAY, YESTERDAY, WED APR 1), collapsible date groups, sort options (newest, oldest, longest).
+- **Action items table** — Due Date column, Asana integration for creating tasks from action items, robust parser for extracting action items from summaries.
+
+### Fixed
+- **Me vs Them speaker labeling** — thermal throttling was stalling channel 1 (system audio) processing with 1–3s delays after 10+ minutes, causing all speech to be labeled as "Me". Reduced cooldown delays and raised thermal thresholds.
+
+---
+
 ## [2.1.8] — 2026-04-02
 
 ### Added
