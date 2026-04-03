@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.11] — 2026-04-03
+
+### Changed
+- **Diarization upgraded to pyannote segmentation + ECAPA-TDNN** — two-stage pipeline replaces naive centroid-only approach. pyannote/segmentation-3.0 (6MB ONNX) detects speaker boundaries at ~13ms resolution with overlap handling, then ECAPA-TDNN identifies speakers across chunks. Both models auto-download on first use (~22MB total).
+
+---
+
 ## [2.1.10] — 2026-04-02
 
 ### Added
