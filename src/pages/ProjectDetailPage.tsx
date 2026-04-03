@@ -350,8 +350,8 @@ export default function ProjectDetailPage() {
                       <button onClick={async (e) => {
                         e.stopPropagation()
                         if (!confirm(`Unlink "${meeting.title || 'this meeting'}"?`)) return
-                        try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Unlink" aria-label="Unlink">
+                        try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Failed to unlink meeting") }
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Unlink from project" aria-label="Unlink from project">
                         <Unlink className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -361,22 +361,22 @@ export default function ProjectDetailPage() {
 
               {timeline?.decisions.length ? (
                 <CollapsibleSection title="DECISIONS" count={timeline.decisions.length} defaultExpanded={(timeline.decisions.length) <= 5}>
-                  {timeline.decisions.map(d => (
-                    <div key={d.id} className="group flex items-start gap-2 px-3 py-2">
+                  {timeline.decisions.map(decision => (
+                    <div key={decision.id} className="group flex items-start gap-2 px-3 py-2">
                       <Gavel className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm">{d.text}</div>
-                        {d.context && <div className="text-xs text-muted-foreground mt-0.5">{d.context}</div>}
-                        {d.note_title && d.note_id ? (
-                          <button onClick={(e) => { e.stopPropagation(); navigate(`/note/${d.note_id}`) }} className="text-[10px] text-primary underline cursor-pointer hover:text-primary/80 mt-0.5">From: {d.note_title}</button>
-                        ) : d.note_title ? (
-                          <div className="text-[11px] text-muted-foreground mt-0.5">From: {d.note_title}</div>
+                        <div className="text-sm">{decision.text}</div>
+                        {decision.context && <div className="text-xs text-muted-foreground mt-0.5">{decision.context}</div>}
+                        {decision.note_title && decision.note_id ? (
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/note/${decision.note_id}`) }} className="text-[10px] text-primary underline cursor-pointer hover:text-primary/80 mt-0.5">From: {decision.note_title}</button>
+                        ) : decision.note_title ? (
+                          <div className="text-[11px] text-muted-foreground mt-0.5">From: {decision.note_title}</div>
                         ) : null}
                       </div>
                       <button onClick={async () => {
                         if (!confirm("Delete this decision?")) return
-                        try { await api?.memory?.decisions?.delete(d.id); refreshTimeline(); toast.success("Deleted") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete" aria-label="Delete">
+                        try { await api?.memory?.decisions?.delete(decision.id); refreshTimeline(); toast.success("Decision deleted") } catch { toast.error("Failed to delete decision") }
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -405,8 +405,8 @@ export default function ProjectDetailPage() {
                       </div>
                       <button onClick={async () => {
                         if (!confirm("Delete?")) return
-                        try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Deleted") } catch { toast.error("Failed") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="Delete" aria-label="Delete">
+                        try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Action item deleted") } catch { toast.error("Failed to delete action item") }
+                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
