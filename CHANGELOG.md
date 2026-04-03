@@ -4,6 +4,26 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.1.12] — 2026-04-03
+
+### Added
+- **Gmail as first-class data source** — local mail thread cache (`mail_threads` table), background sync every 30 minutes, person-to-email matching via `mail_thread_people` junction. Email threads surface in People detail, Weekly Summary, and routine assemblers.
+- **Weekly Summary forward-looking mode** — "This Week" tab shows upcoming calendar events and commitments due this week alongside last week's recap. AI-generated narrative summary. Mode auto-selects: retrospective on Mondays, current Tue–Sun.
+- **Routines: next run time** — each routine card shows when it will fire next ("in 4 hours", "tomorrow at 8:30 AM").
+- **Routines: full scheduling UI** — day-of-week picker for weekly, day-of-month for monthly, minute selector (0/15/30/45), weekdays-only toggle, delivery type selector.
+- **Generic routine catch-up** — missed weekly/daily routines fire on app launch within a grace window (not just morning brief and end-of-day).
+- **Sleep/wake resilience** — `powerMonitor.on('resume')` reschedules all routines after system sleep.
+
+### Fixed
+- **End-of-day routine data assembly** — was falling through to generic `assembleCustom()` (14-day data). Now has proper `assembleEndOfDay()` with today's meetings, commitments, decisions, coaching highlights, and tomorrow preview.
+- **ProjectDetailPage** — added delete buttons for decisions and action items, always-visible unlink button, and error handling toasts (fixes 6 pre-existing test failures).
+- **Weekly digest date boundaries** — switched from rolling 7-day window to proper Monday-based weeks (Mon–Sun).
+
+### Changed
+- **Weekly Digest → Weekly Summary** — renamed and redesigned with collapsible sections, compact stats bar, mail activity section, and mode toggle.
+
+---
+
 ## [2.1.11] — 2026-04-03
 
 ### Changed
