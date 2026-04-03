@@ -644,10 +644,10 @@ async function processBufferedAudio(): Promise<void> {
         if (channel === 0) logMicCaptureDebug('resume_strict_pass_used', { remaining: resumeStrictPassCountdown[0] })
       }
 
-      // Mic-only diarization: identify speaker from embeddings before STT
+      // Mic-only diarization: run pyannote segmentation on full audio (needs contiguous signal, not VAD-extracted)
       if (channel === 0 && micOnlyDiarizationEnabled && micOnlyMode && streamingDiarizer?.isReady()) {
         try {
-          const identified = await streamingDiarizer.identifySpeaker(speechAudio, SAMPLE_RATE)
+          const identified = await streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
           if (identified) speaker = identified
         } catch (err: any) {
           console.warn('[capture] Diarization failed, using "You":', err?.message || err)

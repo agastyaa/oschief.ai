@@ -16,6 +16,10 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     url: 'https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb/resolve/main/embedding_model.onnx',
     filename: 'ecapa_tdnn.onnx',
   },
+  'pyannote-segmentation': {
+    url: 'https://huggingface.co/onnx-community/pyannote-segmentation-3.0/resolve/main/onnx/model.onnx',
+    filename: 'pyannote_segmentation_3.onnx',
+  },
   'llama-3.2-3b': {
     url: 'https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf',
     filename: 'llama-3.2-3b-instruct-q4_k_m.gguf',
