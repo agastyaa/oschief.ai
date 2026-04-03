@@ -1442,7 +1442,22 @@ export default function SettingsPage() {
     ollamaStatus,
     refreshOllama,
     pullOllamaModel,
+    openRouterModels,
+    refreshOpenRouterModels,
+    customProviders,
+    addCustomProvider,
+    updateCustomProvider,
+    removeCustomProvider,
   } = modelSettings;
+  const [showCustomProviderModal, setShowCustomProviderModal] = useState(false);
+  const [editingCustomProvider, setEditingCustomProvider] = useState<string | null>(null);
+  const [cpName, setCpName] = useState("");
+  const [cpBaseURL, setCpBaseURL] = useState("");
+  const [cpApiKey, setCpApiKey] = useState("");
+  const [cpModels, setCpModels] = useState("");
+  const [cpIcon, setCpIcon] = useState("🔌");
+  const [cpTesting, setCpTesting] = useState(false);
+  const [cpFetching, setCpFetching] = useState(false);
   const [active, setActive] = useState("account");
   const [aiModelsTab, setAiModelsTab] = useState<AiModelsSubTab>("models");
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -2657,10 +2672,12 @@ export default function SettingsPage() {
                               </span>
                             )}
                             {updateResult === "error" && (
-                              <div className="text-right max-w-[240px]">
+                              <div className="text-right max-w-[280px]">
                                 <span className="text-[11px] text-destructive block">Update check failed</span>
                                 <span className="text-[10px] text-muted-foreground block mt-0.5">
-                                  Could not reach GitHub. Try again later.
+                                  {updateErrorDetail?.includes('401') || updateErrorDetail?.includes('403')
+                                    ? 'GitHub token missing or expired. Add export GH_TOKEN=ghp_... to your ~/.zshrc'
+                                    : updateErrorDetail || 'Could not reach GitHub. Try again later.'}
                                 </span>
                               </div>
                             )}

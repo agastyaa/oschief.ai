@@ -25,7 +25,12 @@ import type { LocalSetupResult } from './models/stt-engine'
 import { netFetch } from './cloud/net-request'
 import { startRecording, stopRecording, pauseRecording, resumeRecording, processAudioChunk, setMicOnlyMode } from './audio/capture'
 import { summarize, summarizeAndExtract, isOllama8BPlus } from './models/llm-engine'
-import { chat, getOptionalProviders, invalidateKeychainCache } from './cloud/router'
+import {
+  chat, getOptionalProviders, invalidateKeychainCache,
+  getCustomProviderConfigs, addCustomProviderConfig, updateCustomProviderConfig, removeCustomProviderConfig,
+} from './cloud/router'
+import { fetchOpenRouterModels, invalidateOpenRouterModelCache, loadCachedOpenRouterModels } from './cloud/openrouter'
+import { testCustomProvider, fetchCustomProviderModels } from './cloud/custom-provider'
 import { checkAppleFoundationAvailable } from './cloud/apple-llm'
 import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
@@ -584,6 +589,50 @@ export function registerIPCHandlers(): void {
 
   // --- Optional providers (enabled via userData/optional-providers/; not in repo) ---
   ipcMain.handle('app:get-optional-providers', () => getOptionalProviders())
+
+  // --- OpenRouter ---
+  ipcMain.handle('openrouter:list-models', async () => {
+    try {
+      const chain = loadKeychain()
+      const apiKey = chain['openrouter']
+      if (!apiKey) return loadCachedOpenRouterModels()
+      return await fetchOpenRouterModels(apiKey)
+    } catch {
+      return loadCachedOpenRouterModels()
+    }
+  })
+  ipcMain.handle('openrouter:refresh-models', async () => {
+    try {
+      const chain = loadKeychain()
+      const apiKey = chain['openrouter']
+      if (!apiKey) return []
+      invalidateOpenRouterModelCache()
+      return await fetchOpenRouterModels(apiKey)
+    } catch {
+      return []
+    }
+  })
+
+  // --- Custom Providers (UI-created) ---
+  ipcMain.handle('custom-provider:list', () => getCustomProviderConfigs())
+  ipcMain.handle('custom-provider:add', (_e, config: any) => {
+    addCustomProviderConfig(config)
+    return true
+  })
+  ipcMain.handle('custom-provider:update', (_e, config: any) => {
+    updateCustomProviderConfig(config)
+    return true
+  })
+  ipcMain.handle('custom-provider:remove', (_e, id: string) => {
+    removeCustomProviderConfig(id)
+    return true
+  })
+  ipcMain.handle('custom-provider:test', async (_e, apiKey: string, baseURL: string, model?: string) => {
+    return testCustomProvider(apiKey, baseURL, model)
+  })
+  ipcMain.handle('custom-provider:fetch-models', async (_e, apiKey: string, baseURL: string) => {
+    return fetchCustomProviderModels(apiKey, baseURL)
+  })
 
   // --- Calendar / URL Fetch ---
   ipcMain.handle('fetch:url', async (_e, url: string) => {
@@ -1850,6 +1899,25 @@ export function registerIPCHandlers(): void {
       const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
       if (!autoUpdater?.checkForUpdates) {
         return { ok: false as const, error: 'Auto-updater not available in this build' }
+      }
+      // Ensure GH_TOKEN is set for private repo access (same logic as auto-updater.ts)
+      if (!autoUpdater.requestHeaders?.Authorization) {
+        const { readFileSync } = require('fs')
+        const { join } = require('path')
+        const { homedir } = require('os')
+        const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || (() => {
+          for (const f of ['.zshrc', '.zprofile', '.bashrc', '.bash_profile']) {
+            try {
+              const content = readFileSync(join(homedir(), f), 'utf-8')
+              const m = content.match(/export\s+(?:GH_TOKEN|GITHUB_TOKEN)\s*=\s*["']?([^\s"'#]+)["']?/)
+              if (m?.[1]) return m[1]
+            } catch {}
+          }
+          return null
+        })()
+        if (ghToken) {
+          autoUpdater.requestHeaders = { ...autoUpdater.requestHeaders, Authorization: `token ${ghToken}` }
+        }
       }
       const result = await autoUpdater.checkForUpdates()
       const info = result?.updateInfo
