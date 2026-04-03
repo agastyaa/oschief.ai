@@ -98,14 +98,50 @@ app.whenReady().then(async () => {
   }).catch(() => {})
 
   // Schedule routines (daily brief, weekly recap, etc.) + catch-up missed briefs
-  import('./routines/routines-engine').then(({ scheduleAllRoutines, catchUpMorningBrief, catchUpEndOfDay }) => {
+  import('./routines/routines-engine').then(({ scheduleAllRoutines, rescheduleAllRoutines, catchUpMorningBrief, catchUpEndOfDay, catchUpMissedRoutines }) => {
     scheduleAllRoutines()
     // Fire catch-up after a short delay to let DB settle
     setTimeout(() => {
       catchUpMorningBrief().catch(() => {})
       catchUpEndOfDay().catch(() => {})
+      catchUpMissedRoutines().catch(() => {})
     }, 3000)
     console.log('[routines] Scheduled all enabled routines on app start')
+
+    // Reschedule all routines after wake from sleep (timers drift during sleep)
+    import('electron').then(({ powerMonitor }) => {
+      powerMonitor.on('resume', () => {
+        console.log('[routines] System resumed from sleep — rescheduling all routines')
+        rescheduleAllRoutines()
+        // Also catch up any missed routines
+        setTimeout(() => {
+          catchUpMorningBrief().catch(() => {})
+          catchUpEndOfDay().catch(() => {})
+          catchUpMissedRoutines().catch(() => {})
+        }, 2000)
+      })
+    })
+  }).catch(() => {})
+
+  // Data cleanup — prune stale rows daily to keep DB small
+  import('./storage/data-cleanup').then(({ runDataCleanup }) => {
+    registerTask('data-cleanup', 24 * 60 * 60 * 1000, runDataCleanup, { pauseWhenHidden: true, runImmediately: true })
+    console.log('[data-cleanup] Registered (daily)')
+  }).catch(() => {})
+
+  // Background Gmail sync — sync every 30 minutes if Google is connected
+  import('./integrations/mail-store').then(({ syncGmailThreads }) => {
+    const token = getSetting('google-access-token')
+    if (token) {
+      // Initial sync after a short delay
+      setTimeout(() => syncGmailThreads().catch(() => {}), 5000)
+    }
+    // Register with central scheduler for periodic sync
+    registerTask('mail-sync', 30 * 60 * 1000, () => {
+      const t = getSetting('google-access-token')
+      if (t) syncGmailThreads().catch(() => {})
+    }, { pauseWhenHidden: true, runImmediately: false })
+    console.log('[mail-sync] Background Gmail sync registered (30min interval)')
   }).catch(() => {})
 
   // Zero-config auto-setup: download best STT + LLM models on first launch

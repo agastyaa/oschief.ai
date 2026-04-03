@@ -1537,6 +1537,36 @@ export function registerIPCHandlers(): void {
     return getRoutineRuns(routineId, limit ?? 20)
   })
 
+  // --- Mail ---
+  ipcMain.handle('mail:sync-now', async () => {
+    try {
+      const { syncGmailThreads } = await import('./integrations/mail-store')
+      return await syncGmailThreads()
+    } catch (err: any) {
+      return { ok: false, synced: 0, error: err.message }
+    }
+  })
+  ipcMain.handle('mail:get-threads-for-person', async (_e, personId: string, limit?: number) => {
+    const { getMailThreadsForPerson } = await import('./integrations/mail-store')
+    return getMailThreadsForPerson(personId, limit ?? 5)
+  })
+  ipcMain.handle('mail:get-recent', async (_e, daysPast?: number) => {
+    const { getRecentMailThreads } = await import('./integrations/mail-store')
+    return getRecentMailThreads(daysPast ?? 7)
+  })
+  ipcMain.handle('mail:get-stats', async (_e, since: string) => {
+    const { getMailStats } = await import('./integrations/mail-store')
+    return getMailStats(since)
+  })
+
+  // --- Routines: Next Run ---
+  ipcMain.handle('routines:next-run', async (_e, id: string) => {
+    const { getRoutine, getNextRunTime } = await import('./routines/routines-engine')
+    const routine = getRoutine(id)
+    if (!routine || !routine.enabled) return null
+    return getNextRunTime(routine)
+  })
+
   // --- Context Assembly (Command Center) ---
   ipcMain.handle('context:assemble', async (_e, data: { attendeeNames: string[]; attendeeEmails: string[]; eventTitle?: string }) => {
     try {
@@ -1717,29 +1747,58 @@ export function registerIPCHandlers(): void {
   })
 
   // --- Weekly Digest ---
-  ipcMain.handle('digest:get-weekly', async () => {
+  ipcMain.handle('digest:get-weekly', async (_e, opts?: { mode?: 'current' | 'retrospective' }) => {
     const db = (await import('./storage/database')).getDb()
+    const { getSetting } = await import('./storage/database')
     const now = new Date()
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const sevenAgo = new Date(now.getTime() - 7 * 86400000)
-    const sevenDaysAgo = `${sevenAgo.getFullYear()}-${String(sevenAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenAgo.getDate()).padStart(2, '0')}`
 
-    // Meetings this week
+    // Week boundary calculation (Monday-based)
+    const dayOfWeek = now.getDay() // 0=Sun, 1=Mon, ...
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+
+    // This week: Mon → Sun
+    const thisWeekStart = new Date(now)
+    thisWeekStart.setDate(now.getDate() - diffToMonday)
+    thisWeekStart.setHours(0, 0, 0, 0)
+    const thisWeekEnd = new Date(thisWeekStart)
+    thisWeekEnd.setDate(thisWeekStart.getDate() + 6)
+    thisWeekEnd.setHours(23, 59, 59, 999)
+
+    // Last week: previous Mon → Sun
+    const lastWeekStart = new Date(thisWeekStart)
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7)
+    const lastWeekEnd = new Date(thisWeekStart)
+    lastWeekEnd.setDate(thisWeekStart.getDate() - 1)
+    lastWeekEnd.setHours(23, 59, 59, 999)
+
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const today = fmt(now)
+
+    // Default mode: retrospective on Monday, current otherwise
+    const mode = opts?.mode || (dayOfWeek === 1 ? 'retrospective' : 'current')
+
+    // For retrospective: use last week. For current: use last week for recap.
+    const retroFrom = fmt(lastWeekStart)
+    const retroTo = fmt(lastWeekEnd)
+    // For current week's forward-looking data
+    const currentFrom = fmt(thisWeekStart)
+    const currentTo = fmt(thisWeekEnd)
+
+    // ── Retrospective data (always included — "What happened last week") ──
+
     const meetings = db.prepare(`
       SELECT n.id, n.title, n.date, n.time, n.duration, n.coaching_metrics
-      FROM notes n WHERE n.date >= ? ORDER BY n.date DESC
-    `).all(sevenDaysAgo) as any[]
+      FROM notes n WHERE n.date >= ? AND n.date <= ? ORDER BY n.date DESC
+    `).all(retroFrom, retroTo) as any[]
 
-    // Decisions
     const decisions = db.prepare(`
       SELECT d.id, d.text, d.context, d.date, n.title as noteTitle, n.id as noteId
       FROM decisions d LEFT JOIN notes n ON n.id = d.note_id
-      WHERE d.created_at >= ? ORDER BY d.created_at DESC
-    `).all(sevenDaysAgo) as any[]
+      WHERE d.created_at >= ? AND d.created_at <= ? ORDER BY d.created_at DESC
+    `).all(retroFrom, retroTo + 'T23:59:59') as any[]
 
-    // Commitments
-    const commitmentsCreated = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE created_at >= ?`).get(sevenDaysAgo) as any
-    const commitmentsCompleted = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'completed' AND completed_at >= ?`).get(sevenDaysAgo) as any
+    const commitmentsCreated = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE created_at >= ? AND created_at <= ?`).get(retroFrom, retroTo + 'T23:59:59') as any
+    const commitmentsCompleted = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'completed' AND completed_at >= ? AND completed_at <= ?`).get(retroFrom, retroTo + 'T23:59:59') as any
     const commitmentsOverdue = db.prepare(`SELECT COUNT(*) as cnt FROM commitments WHERE status = 'open' AND due_date < ?`).get(today) as any
     const overdueItems = db.prepare(`
       SELECT c.text, c.owner, c.due_date, p.name as assigneeName
@@ -1747,24 +1806,21 @@ export function registerIPCHandlers(): void {
       WHERE c.status = 'open' AND c.due_date < ? ORDER BY c.due_date ASC LIMIT 5
     `).all(today) as any[]
 
-    // People met
     const people = db.prepare(`
       SELECT p.id, p.name, p.company, p.role, COUNT(np.note_id) as meetingCount
       FROM people p JOIN note_people np ON np.person_id = p.id
       JOIN notes n ON n.id = np.note_id
-      WHERE n.date >= ?
+      WHERE n.date >= ? AND n.date <= ?
       GROUP BY p.id ORDER BY meetingCount DESC LIMIT 10
-    `).all(sevenDaysAgo) as any[]
+    `).all(retroFrom, retroTo) as any[]
 
-    // Active projects with this week's activity
     const projects = db.prepare(`
       SELECT p.id, p.name, p.status,
-        (SELECT COUNT(*) FROM note_projects np2 JOIN notes n2 ON n2.id = np2.note_id WHERE np2.project_id = p.id AND n2.date >= ?) as weekMeetings
+        (SELECT COUNT(*) FROM note_projects np2 JOIN notes n2 ON n2.id = np2.note_id WHERE np2.project_id = p.id AND n2.date >= ? AND n2.date <= ?) as weekMeetings
       FROM projects p WHERE p.status = 'active'
-    `).all(sevenDaysAgo) as any[]
+    `).all(retroFrom, retroTo) as any[]
     const activeProjects = projects.filter((p: any) => p.weekMeetings > 0)
 
-    // Coaching trend
     const coachingScores = meetings
       .filter((m: any) => {
         try { return m.coaching_metrics && JSON.parse(m.coaching_metrics)?.overallScore > 0 } catch { return false }
@@ -1774,11 +1830,106 @@ export function registerIPCHandlers(): void {
         return { date: m.date, score: cm.overallScore, headline: cm.conversationInsights?.headline || null }
       })
 
-    // Total meeting duration
     const totalDurationMin = meetings.reduce((sum: number, m: any) => sum + (m.duration || 0), 0)
 
+    // ── Mail activity (from local cache) ──
+    let mailActivity: { threadCount: number; topCorrespondents: { name: string; threadCount: number }[] } | null = null
+    try {
+      const { getMailStats } = await import('./integrations/mail-store')
+      mailActivity = getMailStats(retroFrom)
+    } catch { /* mail tables may not exist yet */ }
+
+    // ── Forward-looking data (only in 'current' mode) ──
+    let upcoming: { meetings: any[]; commitmentsDue: any[] } | null = null
+    if (mode === 'current') {
+      // Upcoming commitments due this week
+      const commitmentsDue = db.prepare(`
+        SELECT c.text, c.owner, c.due_date, p.name as assigneeName
+        FROM commitments c LEFT JOIN people p ON p.id = c.assignee_id
+        WHERE c.status = 'open' AND c.due_date >= ? AND c.due_date <= ?
+        ORDER BY c.due_date ASC
+      `).all(today, currentTo) as any[]
+
+      // Upcoming meetings from calendar
+      let upcomingMeetings: any[] = []
+      try {
+        const calendarProvider = getSetting('calendar-provider')
+        const googleToken = getSetting('google-access-token')
+
+        if (calendarProvider === 'apple' || (!calendarProvider && !googleToken)) {
+          const { fetchAppleCalendarEvents } = await import('./integrations/apple-calendar')
+          const result = await fetchAppleCalendarEvents({ daysPast: 0, daysAhead: 7 })
+          if (result.ok) {
+            upcomingMeetings = result.events.map((e: any) => ({
+              title: e.title,
+              date: e.startDate?.split('T')[0] || '',
+              time: e.startDate?.split('T')[1]?.slice(0, 5) || '',
+              attendees: e.attendees || [],
+            }))
+          }
+        } else if (googleToken) {
+          const { fetchGoogleCalendarEvents } = await import('./integrations/google-calendar')
+          const result = await fetchGoogleCalendarEvents(googleToken, 'primary', { daysPast: 0, daysAhead: 7 })
+          if (result.ok) {
+            upcomingMeetings = result.events.map((e: any) => ({
+              title: e.summary || e.title || 'Untitled',
+              date: (e.start?.dateTime || e.start?.date || '').split('T')[0],
+              time: (e.start?.dateTime || '').split('T')[1]?.slice(0, 5) || '',
+              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || ''),
+            }))
+          }
+        }
+      } catch (err) {
+        console.error('[digest] Failed to fetch upcoming calendar events:', err)
+      }
+
+      upcoming = { meetings: upcomingMeetings, commitmentsDue }
+    }
+
+    // ── AI narrative summary (concise executive brief) ──
+    let narrative: string | null = null
+    try {
+      const { routeLLM } = await import('./cloud/router')
+      const { resolveSelectedAIModel } = await import('./models/model-resolver')
+      const model = resolveSelectedAIModel() || 'openai:gpt-4o-mini'
+
+      const dataPoints: string[] = []
+      dataPoints.push(`Week: ${retroFrom} to ${retroTo}`)
+      dataPoints.push(`Meetings: ${meetings.length} (${totalDurationMin} min total)`)
+      dataPoints.push(`Decisions: ${decisions.length}${decisions.length > 0 ? ' — ' + decisions.slice(0, 3).map((d: any) => d.text.slice(0, 60)).join('; ') : ''}`)
+      dataPoints.push(`Commitments: ${commitmentsCreated?.cnt || 0} created, ${commitmentsCompleted?.cnt || 0} completed, ${commitmentsOverdue?.cnt || 0} overdue`)
+      if (overdueItems.length > 0) dataPoints.push(`Overdue: ${overdueItems.map((c: any) => `${c.assigneeName || c.owner}: ${c.text.slice(0, 40)}`).join('; ')}`)
+      if (people.length > 0) dataPoints.push(`Key people: ${people.slice(0, 5).map((p: any) => p.name).join(', ')}`)
+      if (activeProjects.length > 0) dataPoints.push(`Active projects: ${activeProjects.map((p: any) => p.name).join(', ')}`)
+      if (mailActivity?.threadCount) dataPoints.push(`Email: ${mailActivity.threadCount} threads`)
+
+      if (mode === 'current' && upcoming) {
+        if (upcoming.meetings.length > 0) dataPoints.push(`Upcoming this week: ${upcoming.meetings.length} meetings`)
+        if (upcoming.commitmentsDue.length > 0) dataPoints.push(`Due this week: ${upcoming.commitmentsDue.length} commitments`)
+      }
+
+      if (meetings.length > 0 || decisions.length > 0 || (commitmentsCreated?.cnt || 0) > 0) {
+        const prompt = mode === 'current'
+          ? 'Write a 3-4 sentence executive brief. First summarize last week (what happened, key decisions, any overdue items needing attention). Then preview this week (upcoming meetings, deadlines). Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+          : 'Write a 3-4 sentence executive summary of this week. Highlight the most important decisions, any overdue items needing attention, and who the user spent the most time with. Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+
+        narrative = await routeLLM(
+          [
+            { role: 'system', content: 'You are OSChief, a concise executive assistant. Write brief, specific summaries. No fluff, no filler.' },
+            { role: 'user', content: `${prompt}\n\nData:\n${dataPoints.join('\n')}` },
+          ],
+          model
+        )
+      }
+    } catch (err) {
+      console.error('[digest] AI summary failed:', err)
+    }
+
     return {
-      weekRange: { from: sevenDaysAgo, to: today },
+      mode,
+      weekRange: { from: retroFrom, to: retroTo },
+      currentWeekRange: mode === 'current' ? { from: currentFrom, to: currentTo } : undefined,
+      narrative,
       meetings: meetings.map((m: any) => ({ id: m.id, title: m.title, date: m.date, time: m.time, duration: m.duration })),
       meetingCount: meetings.length,
       totalDurationMin,
@@ -1792,6 +1943,8 @@ export function registerIPCHandlers(): void {
       people,
       projects: activeProjects,
       coachingScores,
+      mailActivity,
+      upcoming,
     }
   })
 
