@@ -11,6 +11,7 @@ import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
 import { setupPowerMonitor } from './power-manager'
 import { startApiServer, stopApiServer, getApiToken } from './api/server'
 import { loadOptionalProviders } from './cloud/optional-providers-loader'
+import { loadCustomProviders } from './cloud/router'
 import { setupAutoUpdater } from './auto-updater'
 import { registerTask, stopScheduler } from './scheduler'
 
@@ -73,6 +74,7 @@ app.whenReady().then(async () => {
   import('./audio/vad').then(({ ensureVADModel }) => ensureVADModel()).catch(() => {})
   registerIPCHandlers()
   loadOptionalProviders()
+  loadCustomProviders()
 
   // Start iCloud sync if enabled
   if (getSetting('icloud-sync-enabled') === 'true') {

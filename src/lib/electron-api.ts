@@ -137,6 +137,14 @@ type ElectronAPI = {
     /** Main process `process.arch` (e.g. arm64, x64). */
     getArch?: () => Promise<string>
     getOptionalProviders?: () => Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>
+    listOpenRouterModels?: () => Promise<{ id: string; name: string; pricing?: { prompt: string; completion: string }; context_length?: number }[]>
+    refreshOpenRouterModels?: () => Promise<{ id: string; name: string; pricing?: { prompt: string; completion: string }; context_length?: number }[]>
+    listCustomProviders?: () => Promise<{ id: string; name: string; icon: string; baseURL: string; models: string[] }[]>
+    addCustomProvider?: (config: { id: string; name: string; icon: string; baseURL: string; models: string[] }) => Promise<boolean>
+    updateCustomProvider?: (config: { id: string; name: string; icon: string; baseURL: string; models: string[] }) => Promise<boolean>
+    removeCustomProvider?: (id: string) => Promise<boolean>
+    testCustomProvider?: (apiKey: string, baseURL: string, model?: string) => Promise<{ ok: boolean; error?: string }>
+    fetchCustomProviderModels?: (apiKey: string, baseURL: string) => Promise<string[]>
     getPlatform: () => string
     /** Fetch URL from main process (bypasses CORS for calendar ICS). */
     fetchUrl?: (url: string) => Promise<{ ok: boolean; status: number; body: string }>

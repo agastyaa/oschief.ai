@@ -221,6 +221,16 @@ const electronAPI = {
     writeClipboard: (text: string) => ipcRenderer.invoke('app:write-clipboard', text),
     getArch: () => ipcRenderer.invoke('app:get-arch') as Promise<string>,
     getOptionalProviders: () => ipcRenderer.invoke('app:get-optional-providers') as Promise<{ id: string; name: string; icon: string; supportsStt?: boolean; models?: string[]; sttModels?: string[] }[]>,
+    // OpenRouter
+    listOpenRouterModels: () => ipcRenderer.invoke('openrouter:list-models') as Promise<any[]>,
+    refreshOpenRouterModels: () => ipcRenderer.invoke('openrouter:refresh-models') as Promise<any[]>,
+    // Custom providers (UI-created)
+    listCustomProviders: () => ipcRenderer.invoke('custom-provider:list') as Promise<any[]>,
+    addCustomProvider: (config: any) => ipcRenderer.invoke('custom-provider:add', config) as Promise<boolean>,
+    updateCustomProvider: (config: any) => ipcRenderer.invoke('custom-provider:update', config) as Promise<boolean>,
+    removeCustomProvider: (id: string) => ipcRenderer.invoke('custom-provider:remove', id) as Promise<boolean>,
+    testCustomProvider: (apiKey: string, baseURL: string, model?: string) => ipcRenderer.invoke('custom-provider:test', apiKey, baseURL, model) as Promise<{ ok: boolean; error?: string }>,
+    fetchCustomProviderModels: (apiKey: string, baseURL: string) => ipcRenderer.invoke('custom-provider:fetch-models', apiKey, baseURL) as Promise<string[]>,
     /** Fetch URL from main process (bypasses CORS for calendar ICS, e.g. Outlook). Returns { ok, status, body }. */
     fetchUrl: (url: string) =>
       ipcRenderer.invoke('fetch:url', url) as Promise<{ ok: boolean; status: number; body: string }>,

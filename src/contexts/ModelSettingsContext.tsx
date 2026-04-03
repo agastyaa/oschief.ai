@@ -20,13 +20,29 @@ export type ModelProvider = {
 };
 
 export const enterpriseProviders: ModelProvider[] = [
-  { id: "openai", name: "OpenAI", models: ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1-preview"], icon: "🟢" },
-  { id: "anthropic", name: "Anthropic (Claude)", models: ["Claude 4 Sonnet", "Claude 4 Opus", "Claude 3.5 Haiku"], icon: "🟤" },
-  { id: "google", name: "Google (Gemini)", models: ["Gemini 2.5 Pro", "Gemini 2.5 Flash", "Gemini 2.0 Flash"], icon: "🔵" },
+  { id: "openrouter", name: "OpenRouter", models: [], icon: "🌐" },
   { id: "deepgram", name: "Deepgram", models: ["Nova-2", "Nova-2 Medical", "Nova-2 Meeting"], icon: "🟣", sttOnly: true },
+  { id: "microsoft", name: "Microsoft (MAI-Transcribe-1)", models: ["MAI-Transcribe-1"], icon: "🔷", sttOnly: true, supportsStt: true },
   { id: "assemblyai", name: "AssemblyAI", models: ["Universal-2", "Nano"], icon: "🔴", sttOnly: true },
-  { id: "groq", name: "Groq", models: ["Llama 3.3 70B", "Mixtral 8x7B", "Whisper Large V3"], icon: "🟠" },
+  { id: "groq", name: "Groq", models: ["Whisper Large V3"], icon: "🟠", sttOnly: true, supportsStt: true },
+  // For STT, users can also use OpenAI Whisper via openai key in keychain (legacy support for existing STT configs)
+  { id: "openai", name: "OpenAI (STT)", models: ["Whisper"], icon: "🟢", sttOnly: true, supportsStt: true },
 ];
+
+export type OpenRouterModel = {
+  id: string;
+  name: string;
+  pricing?: { prompt: string; completion: string };
+  context_length?: number;
+};
+
+export type CustomProviderConfig = {
+  id: string;
+  name: string;
+  icon: string;
+  baseURL: string;
+  models: string[];
+};
 
 export type LocalModel = {
   id: string;
@@ -102,6 +118,12 @@ interface ModelSettingsContextType {
   ollamaStatus: OllamaStatus;
   refreshOllama: () => Promise<void>;
   pullOllamaModel: (modelTag: string) => Promise<void>;
+  openRouterModels: OpenRouterModel[];
+  refreshOpenRouterModels: () => Promise<void>;
+  customProviders: CustomProviderConfig[];
+  addCustomProvider: (config: CustomProviderConfig, apiKey: string) => Promise<void>;
+  updateCustomProvider: (config: CustomProviderConfig) => Promise<void>;
+  removeCustomProvider: (id: string) => Promise<void>;
 }
 
 const ModelSettingsContext = createContext<ModelSettingsContextType | null>(null);
@@ -136,6 +158,8 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
   const [dbSettingsLoaded, setDbSettingsLoaded] = useState(false);
   const lastInvalidAiPrefixToastRef = useRef<string | null>(null);
   const [optionalProviders, setOptionalProviders] = useState<ModelProvider[]>([]);
+  const [openRouterModels, setOpenRouterModels] = useState<OpenRouterModel[]>([]);
+  const [customProviders, setCustomProviders] = useState<CustomProviderConfig[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>({
     available: false,
     models: [],
@@ -303,7 +327,41 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       }
     };
     loadKeychain(enterpriseProviders);
+
+    // Load custom providers from main process
+    if (api.app.listCustomProviders) {
+      api.app.listCustomProviders().then((configs) => {
+        if (configs?.length) setCustomProviders(configs);
+      }).catch(() => {});
+    }
   }, []);
+
+  // Load OpenRouter models when connected
+  useEffect(() => {
+    if (!api?.app?.listOpenRouterModels) return;
+    if (!connectedProviders['openrouter']?.connected) {
+      setOpenRouterModels([]);
+      return;
+    }
+    api.app.listOpenRouterModels().then((models) => {
+      if (models?.length) setOpenRouterModels(models);
+    }).catch(() => {});
+  }, [api, connectedProviders['openrouter']?.connected]);
+
+  // Load keychain for custom providers
+  useEffect(() => {
+    if (!api || customProviders.length === 0) return;
+    for (const cp of customProviders) {
+      api.keychain.get(cp.id).then((key) => {
+        if (key) {
+          setConnectedProviders((prev) => ({
+            ...prev,
+            [cp.id]: { connected: true, apiKey: key },
+          }));
+        }
+      });
+    }
+  }, [api, customProviders]);
 
   // Load keychain for optional providers once they're discovered
   useEffect(() => {
@@ -715,6 +773,37 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     });
   }, [api]);
 
+  const refreshOpenRouterModels = useCallback(async () => {
+    if (!api?.app?.refreshOpenRouterModels) return;
+    try {
+      const models = await api.app.refreshOpenRouterModels();
+      if (models?.length) setOpenRouterModels(models);
+    } catch {}
+  }, [api]);
+
+  const addCustomProviderFn = useCallback(async (config: CustomProviderConfig, apiKey: string) => {
+    if (api?.app?.addCustomProvider) {
+      await api.app.addCustomProvider(config);
+    }
+    await connectProvider(config.id, apiKey);
+    setCustomProviders((prev) => [...prev.filter((p) => p.id !== config.id), config]);
+  }, [api, connectProvider]);
+
+  const updateCustomProviderFn = useCallback(async (config: CustomProviderConfig) => {
+    if (api?.app?.updateCustomProvider) {
+      await api.app.updateCustomProvider(config);
+    }
+    setCustomProviders((prev) => prev.map((p) => p.id === config.id ? config : p));
+  }, [api]);
+
+  const removeCustomProviderFn = useCallback(async (id: string) => {
+    if (api?.app?.removeCustomProvider) {
+      await api.app.removeCustomProvider(id);
+    }
+    await disconnectProvider(id);
+    setCustomProviders((prev) => prev.filter((p) => p.id !== id));
+  }, [api, disconnectProvider]);
+
   const getActiveAIModelLabel = (): string => {
     if (selectedAIModel.startsWith("apple:")) return "Apple (on-device)";
     if (selectedAIModel.startsWith("ollama:")) {
@@ -725,6 +814,11 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       const id = selectedAIModel.replace("local:", "");
       const m = localModels.find((lm) => lm.id === id);
       return m ? m.name : "Local";
+    }
+    if (selectedAIModel.startsWith("openrouter:")) {
+      const modelId = selectedAIModel.replace("openrouter:", "");
+      const orModel = openRouterModels.find((m) => m.id === modelId);
+      return orModel ? orModel.name : modelId;
     }
     const [providerId, ...rest] = selectedAIModel.split(":");
     const modelName = rest.join(":");
@@ -753,11 +847,53 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     localModels
       .filter((m) => m.type === "llm" && downloadStates[m.id] === "downloaded" && m.id !== "mlx-qwen3-4b")
       .forEach((m) => models.push({ value: `local:${m.id}`, label: `${m.name} (Local)`, group: "Local" }));
+    // OpenRouter models grouped by sub-provider
+    if (connectedProviders['openrouter']?.connected && openRouterModels.length > 0) {
+      const grouped = new Map<string, OpenRouterModel[]>();
+      for (const m of openRouterModels) {
+        const slashIdx = m.id.indexOf('/');
+        const subProvider = slashIdx > 0 ? m.id.slice(0, slashIdx) : 'other';
+        if (!grouped.has(subProvider)) grouped.set(subProvider, []);
+        grouped.get(subProvider)!.push(m);
+      }
+      // Sort sub-providers alphabetically, show top ones first
+      const sorted = Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b));
+      for (const [subProvider, subModels] of sorted) {
+        const groupName = `OpenRouter / ${subProvider}`;
+        for (const m of subModels) {
+          let label = m.name || m.id;
+          if (m.pricing) {
+            const promptCost = parseFloat(m.pricing.prompt) * 1_000_000;
+            if (promptCost === 0) {
+              label += ' (free)';
+            } else if (promptCost < 1) {
+              label += ` ($${(promptCost).toFixed(2)}/M in)`;
+            } else {
+              label += ` ($${promptCost.toFixed(0)}/M in)`;
+            }
+          }
+          models.push({ value: `openrouter:${m.id}`, label, group: groupName });
+        }
+      }
+    }
+
+    // Custom providers (UI-created)
+    for (const cp of customProviders) {
+      if (!connectedProviders[cp.id]?.connected) continue;
+      for (const m of cp.models) {
+        models.push({ value: `${cp.id}:${m}`, label: m, group: `${cp.icon} ${cp.name}` });
+      }
+    }
+
+    // File-based optional providers (legacy)
     Object.entries(connectedProviders)
       .filter(([_, v]) => v.connected)
       .forEach(([pid]) => {
         const provider = effectiveProviders.find((p) => p.id === pid);
         if (!provider || provider.sttOnly) return;
+        // Skip openrouter (handled above) and custom providers (handled above)
+        if (pid === 'openrouter') return;
+        if (customProviders.some((cp) => cp.id === pid)) return;
         const aiModels = provider.supportsStt
           ? provider.models.filter((m) => !m.toLowerCase().includes("whisper"))
           : provider.models;
@@ -782,6 +918,11 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         appleFoundationAvailable,
         effectiveProviders,
         ollamaStatus, refreshOllama, pullOllamaModel,
+        openRouterModels, refreshOpenRouterModels,
+        customProviders,
+        addCustomProvider: addCustomProviderFn,
+        updateCustomProvider: updateCustomProviderFn,
+        removeCustomProvider: removeCustomProviderFn,
       }}
     >
       {children}

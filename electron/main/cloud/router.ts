@@ -1,11 +1,12 @@
-import { getSetting } from '../storage/database'
-import { chatOpenAI, sttOpenAI } from './openai'
-import { chatAnthropic } from './anthropic'
-import { chatGoogle } from './google'
+import { getSetting, setSetting } from '../storage/database'
+import { sttOpenAI } from './openai'
 import { sttDeepgram } from './deepgram'
 import { chatOllama } from './ollama'
 import { sttAssemblyAI } from './assemblyai'
-import { chatGroq, sttGroq } from './groq'
+import { sttGroq } from './groq'
+import { sttMicrosoft } from './microsoft-stt'
+import { chatOpenRouter } from './openrouter'
+import { chatCustomProvider, type CustomProviderConfig } from './custom-provider'
 
 export type OptionalProviderMeta = {
   name: string
@@ -38,6 +39,10 @@ export function invalidateKeychainCache(): void {
 
 export function registerOptionalProvider(providerId: string, handlers: OptionalProviderHandlers): void {
   optionalProviders.set(providerId, handlers)
+}
+
+export function unregisterOptionalProvider(providerId: string): void {
+  optionalProviders.delete(providerId)
 }
 
 export function getOptionalProviderIds(): string[] {
@@ -102,9 +107,71 @@ export function getApiKey(providerId: string): string {
   }
 }
 
+// ─── Custom provider registry (UI-created, persisted in DB) ─────────────────
+const customProviderConfigs = new Map<string, CustomProviderConfig>()
+
 /**
- * Route an LLM chat/completion request to the appropriate cloud provider.
- * model format: "providerId:modelName" (e.g., "openai:GPT-4o")
+ * Load UI-created custom providers from DB and register them as optional providers.
+ * Called at app startup.
+ */
+export function loadCustomProviders(): void {
+  try {
+    const raw = getSetting('custom-providers')
+    if (!raw) return
+    const configs: CustomProviderConfig[] = JSON.parse(raw)
+    for (const config of configs) {
+      customProviderConfigs.set(config.id, config)
+      registerOptionalProvider(config.id, {
+        chat: (messages, modelName, apiKey, onChunk) =>
+          chatCustomProvider(messages, modelName, apiKey, config.baseURL, onChunk),
+        meta: {
+          name: config.name,
+          icon: config.icon,
+          models: config.models,
+        },
+      })
+    }
+  } catch (err) {
+    console.warn('[custom-providers] Failed to load:', err)
+  }
+}
+
+export function getCustomProviderConfigs(): CustomProviderConfig[] {
+  return Array.from(customProviderConfigs.values())
+}
+
+export function addCustomProviderConfig(config: CustomProviderConfig): void {
+  customProviderConfigs.set(config.id, config)
+  registerOptionalProvider(config.id, {
+    chat: (messages, modelName, apiKey, onChunk) =>
+      chatCustomProvider(messages, modelName, apiKey, config.baseURL, onChunk),
+    meta: {
+      name: config.name,
+      icon: config.icon,
+      models: config.models,
+    },
+  })
+  _saveCustomProviders()
+}
+
+export function updateCustomProviderConfig(config: CustomProviderConfig): void {
+  addCustomProviderConfig(config) // same logic: upsert
+}
+
+export function removeCustomProviderConfig(id: string): void {
+  customProviderConfigs.delete(id)
+  unregisterOptionalProvider(id)
+  _saveCustomProviders()
+}
+
+function _saveCustomProviders(): void {
+  const configs = Array.from(customProviderConfigs.values())
+  setSetting('custom-providers', JSON.stringify(configs))
+}
+
+/**
+ * Route an LLM chat/completion request to the appropriate provider.
+ * model format: "providerId:modelName" (e.g., "openrouter:anthropic/claude-sonnet-4")
  */
 export async function routeLLM(
   messages: { role: string; content: string }[],
@@ -133,7 +200,6 @@ export async function routeLLM(
     return chatOllama(messages, modelName, onChunk)
   }
   if (providerId === 'local') {
-    // node-llama-cpp local model — import lazily to avoid circular deps
     const llmEngine = await import('../models/llm-engine')
     return (llmEngine as any).chatWithLocal(messages, modelName, onChunk)
   }
@@ -146,26 +212,20 @@ export async function routeLLM(
     return chatApple(messages, model, onChunk)
   }
 
+  // OpenRouter — first-class built-in
+  if (providerId === 'openrouter') {
+    const apiKey = getApiKey('openrouter')
+    return chatOpenRouter(messages, modelName, apiKey, onChunk)
+  }
+
+  // Optional providers (file-based plugins + UI-created custom providers)
   const optional = optionalProviders.get(providerId)
   if (optional?.chat) {
     const apiKey = getApiKey(providerId)
     return optional.chat(messages, modelName, apiKey, onChunk)
   }
 
-  const apiKey = getApiKey(providerId)
-
-  switch (providerId) {
-    case 'openai':
-      return chatOpenAI(messages, modelName, apiKey, onChunk)
-    case 'anthropic':
-      return chatAnthropic(messages, modelName, apiKey, onChunk)
-    case 'google':
-      return chatGoogle(messages, modelName, apiKey, onChunk)
-    case 'groq':
-      return chatGroq(messages, modelName, apiKey, onChunk)
-    default:
-      throw new Error(`Unknown LLM provider: ${providerId}. If this is an optional provider, install its files in Application Support > OSChief > optional-providers and restart. Or pick OpenAI, Anthropic, Google, Groq, or a local model in Settings.`)
-  }
+  throw new Error(`Unknown LLM provider: "${providerId}". Connect OpenRouter for cloud models, add a custom provider, or use a local model in Settings > AI Models.`)
 }
 
 /**
@@ -201,8 +261,10 @@ export async function routeSTT(wavBuffer: Buffer, model: string, vocabulary?: st
       return sttAssemblyAI(wavBuffer, apiKey)
     case 'groq':
       return sttGroq(wavBuffer, apiKey, prompt)
+    case 'microsoft':
+      return sttMicrosoft(wavBuffer, modelName, apiKey, prompt)
     default:
-      throw new Error(`Unknown STT provider: ${providerId}. If this is an optional provider, install its files in Application Support > OSChief > optional-providers and restart. Or pick Deepgram, AssemblyAI, Groq, or a local model in Settings.`)
+      throw new Error(`Unknown STT provider: "${providerId}". Use Deepgram, AssemblyAI, Groq, Microsoft, or a local model for transcription.`)
   }
 }
 

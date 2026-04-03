@@ -514,7 +514,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
       <div className="rounded-[10px] border border-border bg-card p-4 space-y-4">
         <div className="text-sm font-medium">Cloud AI Prompts</div>
         <div className="text-xs text-muted-foreground mb-3">
-          When using cloud models (OpenAI, Anthropic, etc.), OSChief sends your transcript to generate summaries. These settings control what personal data is included.
+          When using cloud models (via OpenRouter or custom providers), OSChief sends your transcript to generate summaries. These settings control what personal data is included.
         </div>
 
         <div className="flex items-center justify-between">
@@ -1861,7 +1861,7 @@ export default function SettingsPage() {
 
               {active === "ai-models" && (
                 <div className="space-y-6">
-                  <SectionHeader title="AI Models" description="Choose which AI models power your notes and transcription. Use local models for privacy or connect to enterprise providers for maximum quality." />
+                  <SectionHeader title="AI Models" description="Choose which AI models power your notes and transcription. Connect OpenRouter for 300+ cloud models, add custom providers, or use local models for privacy." />
 
                   {!isElectron && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3">
@@ -2224,22 +2224,340 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Enterprise / Cloud Providers */}
+                  {/* OpenRouter */}
                   <div className="space-y-3 pt-2">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
                       <Cloud className="h-3.5 w-3.5" />
-                      Enterprise & Cloud Providers
+                      OpenRouter
                     </h3>
                     <p className="text-[11px] text-muted-foreground -mt-2">
-                      Connect your own API keys to use cloud models.
-                      {isElectron ? " Your keys are stored securely in the system keychain." : " Your keys are stored locally in your browser."}
+                      One API key for 300+ models from all major providers.
+                      {isElectron ? " Your key is stored securely in the system keychain." : ""}
+                    </p>
+
+                    <div className="rounded-md border border-border bg-card overflow-hidden">
+                      <div className="flex items-center justify-between p-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">🌐</span>
+                            <span className="text-[13px] font-medium text-foreground">OpenRouter</span>
+                            {connectedProviders['openrouter']?.connected && openRouterModels.length > 0 && (
+                              <span className="rounded px-1.5 py-0.5 text-[9px] font-medium bg-accent/10 text-accent">
+                                {openRouterModels.length} models
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
+                            {connectedProviders['openrouter']?.connected
+                              ? `Connected — ${openRouterModels.length} models available`
+                              : "Access Claude, GPT, Gemini, Llama, and hundreds more"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {connectedProviders['openrouter']?.connected && editingApiKey !== 'openrouter' ? (
+                            <>
+                              <button
+                                onClick={() => refreshOpenRouterModels()}
+                                className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Refresh models"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                              </button>
+                              <span className="flex items-center gap-1 text-[11px] text-accent font-medium">
+                                <Check className="h-3 w-3" />
+                                Connected
+                              </span>
+                              <button
+                                onClick={() => handleDisconnectProvider('openrouter')}
+                                className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Disconnect"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : editingApiKey !== 'openrouter' ? (
+                            <button
+                              onClick={() => handleConnectProvider('openrouter')}
+                              className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Connect
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {editingApiKey === 'openrouter' && (
+                        <div className="px-3 pb-3 pt-0 border-t border-border mt-0">
+                          <div className="pt-3 space-y-2">
+                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">API Key</label>
+                            <div className="flex gap-1.5">
+                              <input
+                                type="password"
+                                value={tempApiKey}
+                                onChange={(e) => setTempApiKey(e.target.value)}
+                                placeholder="Enter your OpenRouter API key..."
+                                className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleConnectProvider('openrouter')}
+                                disabled={!tempApiKey.trim()}
+                                className="rounded-md bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => { setEditingApiKey(null); setTempApiKey(""); }}
+                                className="rounded-md border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            <a
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); api?.app?.openExternal?.('https://openrouter.ai/keys'); }}
+                              className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline"
+                            >
+                              Get an API key at openrouter.ai <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Custom Providers */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                        <Globe className="h-3.5 w-3.5" />
+                        Custom Providers
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setShowCustomProviderModal(true);
+                          setEditingCustomProvider(null);
+                          setCpName(""); setCpBaseURL(""); setCpApiKey(""); setCpModels(""); setCpIcon("🔌");
+                        }}
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground -mt-2">
+                      Connect any OpenAI-compatible endpoint (corporate AI gateways, vLLM, LiteLLM, etc.)
+                    </p>
+
+                    {customProviders.length === 0 && !showCustomProviderModal && (
+                      <div className="rounded-md border border-dashed border-border p-4 text-center">
+                        <p className="text-[11px] text-muted-foreground">No custom providers added yet.</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      {customProviders.map((cp) => {
+                        const isConnected = connectedProviders[cp.id]?.connected;
+                        return (
+                          <div key={cp.id} className="rounded-md border border-border bg-card overflow-hidden">
+                            <div className="flex items-center justify-between p-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{cp.icon}</span>
+                                  <span className="text-[13px] font-medium text-foreground">{cp.name}</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-0.5 pl-7 truncate">
+                                  {cp.baseURL}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
+                                  Models: {cp.models.join(", ")}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {isConnected && (
+                                  <span className="flex items-center gap-1 text-[11px] text-accent font-medium">
+                                    <Check className="h-3 w-3" />
+                                    Connected
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setEditingCustomProvider(cp.id);
+                                    setShowCustomProviderModal(true);
+                                    setCpName(cp.name);
+                                    setCpBaseURL(cp.baseURL);
+                                    setCpIcon(cp.icon);
+                                    setCpModels(cp.models.join(", "));
+                                    setCpApiKey(connectedProviders[cp.id]?.apiKey || "");
+                                  }}
+                                  className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Edit"
+                                >
+                                  <Sliders className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => removeCustomProvider(cp.id)}
+                                  className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
+                                  title="Remove"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom Provider Modal */}
+                    {showCustomProviderModal && (
+                      <div className="rounded-md border border-accent/30 bg-card p-4 space-y-3">
+                        <h4 className="text-[13px] font-medium text-foreground">
+                          {editingCustomProvider ? "Edit Provider" : "Add Custom Provider"}
+                        </h4>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Name</label>
+                            <input
+                              type="text"
+                              value={cpName}
+                              onChange={(e) => setCpName(e.target.value)}
+                              placeholder="Code Genie"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Base URL</label>
+                            <input
+                              type="text"
+                              value={cpBaseURL}
+                              onChange={(e) => setCpBaseURL(e.target.value)}
+                              placeholder="https://api.example.com/v1"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">API Key</label>
+                            <input
+                              type="password"
+                              value={cpApiKey}
+                              onChange={(e) => setCpApiKey(e.target.value)}
+                              placeholder="Enter API key..."
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Models</label>
+                              <button
+                                onClick={async () => {
+                                  if (!api?.app?.fetchCustomProviderModels || !cpBaseURL.trim() || !cpApiKey.trim()) return;
+                                  setCpFetching(true);
+                                  try {
+                                    const models = await api.app.fetchCustomProviderModels(cpApiKey.trim(), cpBaseURL.trim());
+                                    if (models.length) {
+                                      setCpModels(models.join(", "));
+                                      toast.success(`Found ${models.length} models`);
+                                    } else {
+                                      toast.info("No models found via auto-discovery");
+                                    }
+                                  } catch {
+                                    toast.error("Failed to fetch models");
+                                  } finally {
+                                    setCpFetching(false);
+                                  }
+                                }}
+                                disabled={!cpBaseURL.trim() || !cpApiKey.trim() || cpFetching}
+                                className="flex items-center gap-1 text-[10px] text-accent hover:underline disabled:opacity-50"
+                              >
+                                {cpFetching ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Download className="h-2.5 w-2.5" />}
+                                Fetch Models
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={cpModels}
+                              onChange={(e) => setCpModels(e.target.value)}
+                              placeholder="GPT-4o, Claude Sonnet 4, llama-3.3-70b"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">Comma-separated model names, or use Fetch Models to auto-discover.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={async () => {
+                              if (!cpName.trim() || !cpBaseURL.trim() || !cpApiKey.trim()) {
+                                toast.error("Name, Base URL, and API Key are required");
+                                return;
+                              }
+                              const id = editingCustomProvider || cpName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                              const models = cpModels.split(',').map(s => s.trim()).filter(Boolean);
+                              const config = { id, name: cpName.trim(), icon: cpIcon, baseURL: cpBaseURL.trim(), models };
+                              if (editingCustomProvider) {
+                                await updateCustomProvider(config);
+                                await connectProvider(id, cpApiKey.trim());
+                              } else {
+                                await addCustomProvider(config, cpApiKey.trim());
+                              }
+                              setShowCustomProviderModal(false);
+                              setCpName(""); setCpBaseURL(""); setCpApiKey(""); setCpModels(""); setCpIcon("🔌");
+                              setEditingCustomProvider(null);
+                              toast.success(editingCustomProvider ? "Provider updated" : "Provider added");
+                            }}
+                            disabled={!cpName.trim() || !cpBaseURL.trim() || !cpApiKey.trim()}
+                            className="rounded-md bg-accent px-3 py-1.5 text-[11px] font-medium text-accent-foreground hover:opacity-90 disabled:opacity-50"
+                          >
+                            {editingCustomProvider ? "Update" : "Add Provider"}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!api?.app?.testCustomProvider || !cpBaseURL.trim() || !cpApiKey.trim()) return;
+                              setCpTesting(true);
+                              const firstModel = cpModels.split(',')[0]?.trim();
+                              const result = await api.app.testCustomProvider(cpApiKey.trim(), cpBaseURL.trim(), firstModel || undefined);
+                              setCpTesting(false);
+                              if (result.ok) {
+                                toast.success("Connection successful");
+                              } else {
+                                toast.error(`Connection failed: ${result.error || 'Unknown error'}`);
+                              }
+                            }}
+                            disabled={!cpBaseURL.trim() || !cpApiKey.trim() || cpTesting}
+                            className="rounded-md border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          >
+                            {cpTesting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test Connection"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowCustomProviderModal(false);
+                              setEditingCustomProvider(null);
+                              setCpName(""); setCpBaseURL(""); setCpApiKey(""); setCpModels(""); setCpIcon("🔌");
+                            }}
+                            className="rounded-md border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* STT Providers */}
+                  <div className="space-y-3 pt-2">
+                    <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                      <Mic className="h-3.5 w-3.5" />
+                      Transcription Providers
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground -mt-2">
+                      Cloud speech-to-text services for transcription.
                     </p>
 
                     <div className="space-y-1.5">
-                      {effectiveProviders.map((provider) => {
+                      {effectiveProviders.filter(p => p.sttOnly).map((provider) => {
                         const isConnected = connectedProviders[provider.id]?.connected;
                         const isEditing = editingApiKey === provider.id;
-                        const displayModels = provider.models;
 
                         return (
                           <div key={provider.id} className="rounded-md border border-border bg-card overflow-hidden">
@@ -2248,12 +2566,10 @@ export default function SettingsPage() {
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">{provider.icon}</span>
                                   <span className="text-[13px] font-medium text-foreground">{provider.name}</span>
-                                  {provider.sttOnly && (
-                                    <span className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase bg-accent/10 text-accent">STT Only</span>
-                                  )}
+                                  <span className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase bg-accent/10 text-accent">STT</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
-                                  {displayModels.join(", ")}
+                                  {provider.models.join(", ")}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5">
@@ -2292,7 +2608,7 @@ export default function SettingsPage() {
                                       type="password"
                                       value={tempApiKey}
                                       onChange={(e) => setTempApiKey(e.target.value)}
-                                      placeholder={`Enter your ${provider.name} API key...`}
+                                      placeholder={provider.id === 'microsoft' ? 'region:apikey (e.g. eastus:abc123...)' : `Enter your ${provider.name} API key...`}
                                       className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                                       autoFocus
                                     />
@@ -2310,9 +2626,6 @@ export default function SettingsPage() {
                                       Cancel
                                     </button>
                                   </div>
-                                  <a href="#" className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline">
-                                    Get an API key <ExternalLink className="h-2.5 w-2.5" />
-                                  </a>
                                 </div>
                               </div>
                             )}
