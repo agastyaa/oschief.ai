@@ -4,6 +4,7 @@ publish:
   provider: github
   owner: agastyaa
   repo: oschief.ai
+  private: true
   releaseType: release
 directories:
   buildResources: electron/resources
