@@ -32,19 +32,23 @@ Audio is processed locally. Transcripts and notes are written to disk. Cloud mod
 
 Capture mic + system audio with live, speaker‑labeled transcription ("You" vs "Others"). Works with Zoom, Meet, Teams, or any app that makes sound. Transcription runs fully on‑device.
 
+**Speaker diarization (mic only)**
+
+When only the microphone is available, OSChief identifies individual speakers using a two‑stage on‑device pipeline: pyannote/segmentation‑3.0 detects speaker boundaries at ~13ms resolution, then ECAPA‑TDNN embeddings identify who's who across the conversation. Labels appear as "Speaker 1", "Speaker 2", etc.
+
 **Structured AI summaries**
 
 After each meeting, OSChief produces a structured summary: overview, key points, decisions, action items (with owners and due dates), and open questions. You control the format via prompt templates so outputs match your workflow, not the other way around.
 
 **Work Coach**
 
-Post‑meeting coaching tuned to your role (PM, engineer, sales, founder, designer, etc.). Work Coach looks at how you run meetings and gives qualitative feedback based on real frameworks instead of vanity talk‑time stats.
+Post‑meeting coaching tuned to your role (PM, engineer, sales, founder, designer, etc.). Work Coach looks at how you run meetings and gives qualitative feedback grounded in real frameworks from 303 Lenny's Podcast episodes — searchable locally via FTS5.
 
 **Meeting‑safe UI**
 
 OSChief can be hidden from screen share with a single toggle. When minimized, a floating pill stays always‑on‑top with title + elapsed time; click to jump back.
 
-### 2. Proactive intelligence 
+### 2. Proactive intelligence
 
 **Morning Brief**
 
@@ -73,9 +77,9 @@ Automated daily routines (weekdays only) fire on a schedule, catch up on launch 
 
 ### 3. Personal OS layer
 
-**Command Center**
+**All Notes**
 
-A homepage for your workday: upcoming meetings, recent notes, open commitments, and at-risk items in one place.
+Search, filter, and organize every meeting note. Folder tabs, filter chips (Summarized, Has Actions), rich cards with metadata pills (duration, action items, folder), collapsible date groups, and sort options.
 
 **People & relationships**
 
@@ -87,7 +91,7 @@ Group meetings, commitments, and decisions under projects. Filter your commitmen
 
 **Commitments**
 
-Every action item extracted from your meetings lands here with owner, assignee, and due date. Add personal to-dos manually. Set deadlines inline. Mark done with one click.
+Every action item extracted from your meetings lands here with owner, assignee, and due date. Asana integration for creating tasks directly. Add personal to-dos manually. Set deadlines inline. Mark done with one click.
 
 **Decisions**
 
@@ -101,7 +105,29 @@ Connect Google Calendar or Microsoft 365. OSChief pulls upcoming meetings, auto�
 
 Point OSChief at a folder of notes or reference docs. During a call, it live‑searches and surfaces relevant context.
 
-### 4. For agents & automations
+### 4. AI Models — Bring Your Own
+
+**Local models (fully offline)**
+- MLX Whisper — Apple Silicon‑optimized STT
+- Parakeet CoreML — fastest on Mac (110x real‑time)
+- whisper.cpp (Large V3 Turbo)
+- macOS native Speech Recognition
+- Ollama (Llama, Phi, Gemma, Qwen, etc.)
+- Apple Foundation Models (on‑device)
+
+**Cloud models (opt‑in, text‑only)**
+- OpenAI (GPT‑4o, Whisper)
+- Anthropic (Claude)
+- Google (Gemini)
+- Deepgram (Nova‑2, Nova‑2 Meeting)
+- Groq (Whisper Large V3)
+- AssemblyAI
+- OpenRouter (access 100+ models)
+
+**Custom providers**
+Register your own STT/LLM providers via the optional‑providers system.
+
+### 5. For agents & automations
 
 **Local Agent API**
 
@@ -114,9 +140,10 @@ OSChief exposes a read‑only local API that surfaces meetings, notes, decisions
 - All data stored locally under `~/Library/Application Support/OSChief/`
 - API keys encrypted via macOS Keychain
 - No telemetry, no analytics, no background sync
-- Fully local transcription via MLX Whisper / whisper.cpp
-- Local LLM support via Ollama (Llama, Phi, Gemma, etc.)
-- Cloud providers (OpenAI, Anthropic, Groq, Deepgram) are opt‑in and text‑only — audio never leaves your Mac
+- Fully local transcription via MLX Whisper / whisper.cpp / Parakeet CoreML
+- Local LLM support via Ollama + Apple Foundation Models
+- Cloud providers are opt‑in and text‑only — audio never leaves your Mac
+- Air‑gapped mode: block all cloud calls with one toggle
 
 You own your data. OSChief's job is to make it usable.
 
@@ -124,7 +151,7 @@ You own your data. OSChief's job is to make it usable.
 
 ## Install
 
-1. Download the latest `.dmg` from the [Releases page](https://github.com/iamsagar125/oschief.ai/releases).
+1. Download the latest `.dmg` from the [Releases page](https://github.com/agastyaa/oschief.ai/releases).
 2. Open the DMG and drag **OSChief** to **Applications**.
 3. Launch OSChief from Applications.
 
@@ -140,15 +167,15 @@ Or: right‑click OSChief in Applications → **Open** → confirm.
 
 ---
 
+## Roadmap
 
-
-## Roadmap / status
-
-OSChief 2.0 focuses on:
+OSChief 2.x focuses on:
 
 - The three primitives: **meetings**, **decisions**, **commitments**
 - Proactive intelligence: morning brief, risk scoring, loop-closing nudges
 - Full on-device operation — no cloud required for core features
+- Speaker diarization with on-device pyannote + ECAPA‑TDNN
+- Coaching grounded in real practitioner frameworks (Lenny's Podcast KB)
 
 Breaking changes and detailed release notes are tracked in `CHANGELOG.md`.
 
