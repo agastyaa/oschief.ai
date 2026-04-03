@@ -176,6 +176,12 @@ export function rescheduleAllRoutines(): void {
   }
 }
 
+/** Returns the ISO timestamp of when a routine will next fire. */
+export function getNextRunTime(routine: RoutineConfig): string {
+  const ms = msUntilNextScheduled(routine)
+  return new Date(Date.now() + ms).toISOString()
+}
+
 export function stopAllRoutines(): void {
   for (const timer of activeTimers.values()) {
     clearTimeout(timer)
@@ -370,4 +376,58 @@ export async function catchUpEndOfDay(): Promise<void> {
 
   console.log('[routines] End-of-day catch-up: firing now')
   await executeRoutine(routine)
+}
+
+/**
+ * Generic catch-up: for each enabled routine, check if a run was missed
+ * within a grace window. Covers weekly recap and overdue commitments
+ * (morning brief and end-of-day have their own catch-up above).
+ */
+export async function catchUpMissedRoutines(): Promise<void> {
+  const db = getDb()
+  const routines = getAllRoutines().filter(r => r.enabled)
+
+  for (const r of routines) {
+    // Morning brief and end-of-day have dedicated catch-up
+    if (r.builtin_type === 'morning_briefing' || r.builtin_type === 'end_of_day') continue
+
+    // For daily routines: check if there was a successful run today
+    if (r.schedule_type === 'daily') {
+      const todayRun = db.prepare(`
+        SELECT COUNT(*) as cnt FROM routine_runs
+        WHERE routine_id = ? AND status = 'success' AND started_at >= date('now')
+      `).get(r.id) as any
+      if (todayRun?.cnt > 0) continue
+
+      // Only catch up if the scheduled time has passed (within 2-hour grace)
+      const now = new Date()
+      const scheduledToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), r.schedule_hour, r.schedule_minute)
+      const graceEnd = new Date(scheduledToday.getTime() + 2 * 60 * 60 * 1000)
+      if (now >= scheduledToday && now <= graceEnd) {
+        console.log(`[routines] Catch-up: firing "${r.name}" (daily, missed today)`)
+        await executeRoutine(r)
+      }
+    }
+
+    // For weekly routines: check if there was a run this week
+    if (r.schedule_type === 'weekly') {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+      const weekRun = db.prepare(`
+        SELECT COUNT(*) as cnt FROM routine_runs
+        WHERE routine_id = ? AND status = 'success' AND started_at >= ?
+      `).get(r.id, sevenDaysAgo) as any
+      if (weekRun?.cnt > 0) continue
+
+      // If today is the scheduled day and the time has passed (within 4-hour grace)
+      const now = new Date()
+      if (now.getDay() === r.schedule_day) {
+        const scheduledToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), r.schedule_hour, r.schedule_minute)
+        const graceEnd = new Date(scheduledToday.getTime() + 4 * 60 * 60 * 1000)
+        if (now >= scheduledToday && now <= graceEnd) {
+          console.log(`[routines] Catch-up: firing "${r.name}" (weekly, missed this week)`)
+          await executeRoutine(r)
+        }
+      }
+    }
+  }
 }
