@@ -24,6 +24,7 @@ import { dispatchPreferencesUpdated } from "@/lib/preferences-events";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { JiraConnectDialog, type JiraConfig } from "@/components/JiraConnectDialog";
 import { SlackConnectDialog, type SlackConfig } from "@/components/SlackConnectDialog";
+import { AsanaConnectDialog, type AsanaConfig } from "@/components/AsanaConnectDialog";
 import { TeamsConnectDialog, type TeamsConfig } from "@/components/TeamsConnectDialog";
 import {
   Command,
@@ -2925,6 +2926,7 @@ export default function SettingsPage() {
                     <JiraIntegrationRow />
                     <GoogleCalendarIntegrationRow />
                     <MicrosoftCalendarIntegrationRow />
+                    <AsanaIntegrationRow />
                     <SlackIntegrationRow />
                     <TeamsIntegrationRow />
                   </div>
@@ -3361,6 +3363,84 @@ function TeamsIntegrationRow() {
           setChannelName(channel || "Webhook");
           setShowDialog(false);
           toast.success("Teams connected successfully");
+        }}
+      />
+    </>
+  );
+}
+
+// ── Asana Integration Row ─────────────────────────────────────────────────
+
+function AsanaIntegrationRow() {
+  const api = getElectronAPI();
+  const [connected, setConnected] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [showDialog, setShowDialog] = useState(false);
+
+  useEffect(() => {
+    api?.keychain?.get("asana-config").then((raw) => {
+      if (raw) {
+        try {
+          const config = JSON.parse(raw) as AsanaConfig;
+          setConnected(true);
+          setDisplayName(config.workspaceName || config.name || "Connected");
+        } catch { /* ignore */ }
+      }
+    });
+  }, [api]);
+
+  const handleDisconnect = async () => {
+    await api?.keychain?.delete("asana-config");
+    setConnected(false);
+    setDisplayName("");
+    toast.success("Asana disconnected");
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between rounded-md border border-border bg-card p-3">
+        <div className="flex items-center gap-2.5">
+          <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="9" r="4" fill="#F06A6A"/>
+            <circle cx="5" cy="17" r="3.5" fill="#F06A6A"/>
+            <circle cx="19" cy="17" r="3.5" fill="#F06A6A"/>
+          </svg>
+          <div>
+            <span className="text-[13px] font-medium text-foreground">Asana</span>
+            <p className="text-[11px] text-muted-foreground">
+              {connected ? `Connected — ${displayName}` : "Create tasks from action items"}
+            </p>
+          </div>
+        </div>
+        {connected ? (
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+              <Check className="h-3 w-3" /> Connected
+            </span>
+            <button
+              onClick={handleDisconnect}
+              className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowDialog(true)}
+            className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            Connect
+          </button>
+        )}
+      </div>
+      <AsanaConnectDialog
+        open={showDialog}
+        onClose={() => setShowDialog(false)}
+        onConnected={(config) => {
+          setConnected(true);
+          setDisplayName(config.workspaceName || config.name || "Connected");
+          setShowDialog(false);
+          toast.success("Asana connected successfully");
         }}
       />
     </>
