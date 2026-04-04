@@ -283,6 +283,34 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_project_people_person ON project_people(person_id)`,
     ]
   },
+  {
+    version: 15,
+    up: [
+      // Mail threads cache — stores Gmail thread metadata locally
+      `CREATE TABLE IF NOT EXISTS mail_threads (
+        id TEXT PRIMARY KEY,
+        source TEXT NOT NULL DEFAULT 'gmail',
+        subject TEXT NOT NULL DEFAULT '',
+        snippet TEXT,
+        from_address TEXT,
+        from_name TEXT,
+        to_addresses TEXT,
+        date TEXT NOT NULL,
+        message_count INTEGER DEFAULT 1,
+        raw_metadata TEXT,
+        fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_mail_threads_date ON mail_threads(date DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_mail_threads_source ON mail_threads(source)`,
+      // Mail-to-person junction — auto-matched by email address
+      `CREATE TABLE IF NOT EXISTS mail_thread_people (
+        thread_id TEXT NOT NULL REFERENCES mail_threads(id) ON DELETE CASCADE,
+        person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+        PRIMARY KEY (thread_id, person_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_mail_thread_people_person ON mail_thread_people(person_id)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

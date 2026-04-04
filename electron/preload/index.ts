@@ -524,6 +524,7 @@ const electronAPI = {
     toggle: (id: string, enabled: boolean) => ipcRenderer.invoke('routines:toggle', id, enabled) as Promise<boolean>,
     runNow: (id: string) => ipcRenderer.invoke('routines:run-now', id) as Promise<any>,
     getRuns: (routineId: string, limit?: number) => ipcRenderer.invoke('routines:get-runs', routineId, limit) as Promise<any[]>,
+    nextRun: (id: string) => ipcRenderer.invoke('routines:next-run', id) as Promise<string | null>,
     onResult: (callback: (result: any) => void) => {
       const handler = (_event: any, result: any) => callback(result)
       ipcRenderer.on('routines:result', handler)
@@ -589,8 +590,19 @@ const electronAPI = {
     },
   },
 
+  mail: {
+    syncNow: () => ipcRenderer.invoke('mail:sync-now') as Promise<{ ok: boolean; synced: number; error?: string }>,
+    getThreadsForPerson: (personId: string, limit?: number) =>
+      ipcRenderer.invoke('mail:get-threads-for-person', personId, limit) as Promise<any[]>,
+    getRecent: (daysPast?: number) =>
+      ipcRenderer.invoke('mail:get-recent', daysPast) as Promise<any[]>,
+    getStats: (since: string) =>
+      ipcRenderer.invoke('mail:get-stats', since) as Promise<{ threadCount: number; topCorrespondents: { name: string; threadCount: number }[] }>,
+  },
+
   digest: {
-    getWeekly: () => ipcRenderer.invoke('digest:get-weekly') as Promise<any>,
+    getWeekly: (opts?: { mode?: 'current' | 'retrospective' }) =>
+      ipcRenderer.invoke('digest:get-weekly', opts) as Promise<any>,
   },
 
   kb: {

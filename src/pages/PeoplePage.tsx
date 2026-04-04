@@ -263,6 +263,7 @@ const PeoplePage = () => {
   const [search, setSearch] = useState("")
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [personMeetings, setPersonMeetings] = useState<any[]>([])
+  const [personEmails, setPersonEmails] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null)
   const [mergeOpen, setMergeOpen] = useState(false)
@@ -292,10 +293,20 @@ const PeoplePage = () => {
     }
   }, [api])
 
+  const loadPersonEmails = useCallback(async (personId: string) => {
+    try {
+      const threads = await api?.mail?.getThreadsForPerson?.(personId, 5)
+      setPersonEmails(threads || [])
+    } catch {
+      setPersonEmails([])
+    }
+  }, [api])
+
   const handleSelectPerson = useCallback((person: Person) => {
     setSelectedPerson(person)
     loadPersonMeetings(person.id)
-  }, [loadPersonMeetings])
+    loadPersonEmails(person.id)
+  }, [loadPersonMeetings, loadPersonEmails])
 
   const handleUpdateField = useCallback(async (field: string, value: string) => {
     if (!selectedPerson || !api?.memory) return
@@ -534,6 +545,30 @@ const PeoplePage = () => {
                         multiline
                       />
                     </div>
+
+                    {/* Recent Emails */}
+                    {personEmails.length > 0 && (
+                      <div className="border-t border-border pt-4">
+                        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                          Recent Emails ({personEmails.length})
+                        </h3>
+                        <div className="space-y-1">
+                          {personEmails.map((thread: any) => (
+                            <div
+                              key={thread.id}
+                              className="flex items-start gap-2 rounded-md px-2 py-2"
+                            >
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{thread.subject || '(no subject)'}</p>
+                                <p className="text-[10px] text-muted-foreground line-clamp-1">{thread.snippet}</p>
+                                <p className="text-[10px] text-muted-foreground/70">{thread.date?.split('T')[0]}{thread.message_count > 1 ? ` · ${thread.message_count} messages` : ''}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Meeting history */}
                     <div className="border-t border-border pt-4">

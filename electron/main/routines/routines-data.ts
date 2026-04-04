@@ -19,6 +19,7 @@ function localDate(offset = 0): string {
 export async function assembleRoutineData(routine: RoutineConfig): Promise<string> {
   switch (routine.builtin_type) {
     case 'morning_briefing': return assembleMorningBriefing()
+    case 'end_of_day': return assembleEndOfDay()
     case 'weekly_recap': return assembleWeeklyRecap()
     case 'overdue_commitments': return assembleOverdueCommitments()
     default: return assembleCustom(routine.data_query)
@@ -102,7 +103,127 @@ async function assembleMorningBriefing(): Promise<string> {
     }
   }
 
+  // Recent emails (last 2 days, from local cache)
+  try {
+    const twoDaysAgo = localDate(-2)
+    const recentMail = db.prepare(`
+      SELECT mt.subject, mt.from_name, mt.date FROM mail_threads mt
+      WHERE mt.date >= ? ORDER BY mt.date DESC LIMIT 5
+    `).all(twoDaysAgo) as any[]
+    if (recentMail.length > 0) {
+      parts.push('Recent emails:')
+      for (const m of recentMail) {
+        parts.push(`  - ${m.from_name || 'Unknown'}: "${m.subject || '(no subject)'}"`)
+      }
+    }
+  } catch { /* mail_threads table may not exist yet */ }
+
   return parts.length > 0 ? parts.join('\n') : 'No meetings, commitments, or projects found yet. The user is just getting started with OSChief.'
+}
+
+// ── End of Day ─────────────────────────────────────────────────────
+
+async function assembleEndOfDay(): Promise<string> {
+  const db = getDb()
+  const parts: string[] = []
+  const today = localDate()
+  const tomorrow = localDate(1)
+
+  // Today's meetings with attendees
+  const todayNotes = db.prepare(`
+    SELECT n.title, n.date, n.time, n.duration,
+      GROUP_CONCAT(p.name, ', ') as attendees
+    FROM notes n
+    LEFT JOIN note_people np ON np.note_id = n.id
+    LEFT JOIN people p ON p.id = np.person_id
+    WHERE n.date = ?
+    GROUP BY n.id ORDER BY n.time ASC
+  `).all(today) as any[]
+  if (todayNotes.length > 0) {
+    parts.push(`Today's meetings (${todayNotes.length}):`)
+    for (const n of todayNotes) {
+      const dur = n.duration ? ` (${n.duration}min)` : ''
+      parts.push(`  - ${n.time || ''} ${n.title || 'Untitled'}${dur}${n.attendees ? ` with ${n.attendees}` : ''}`)
+    }
+  } else {
+    parts.push('No meetings recorded today.')
+  }
+
+  // Commitments created today
+  const newCommitments = db.prepare(`
+    SELECT c.text, c.owner, c.due_date, p.name as assignee_name
+    FROM commitments c
+    LEFT JOIN people p ON p.id = c.assignee_id
+    WHERE date(c.created_at) = ?
+    ORDER BY c.created_at ASC
+  `).all(today) as any[]
+  if (newCommitments.length > 0) {
+    parts.push(`Commitments made today (${newCommitments.length}):`)
+    for (const c of newCommitments) {
+      const owner = c.owner === 'you' ? 'You' : (c.assignee_name || c.owner)
+      parts.push(`  - ${owner}: ${c.text}${c.due_date ? ` (due ${c.due_date})` : ''}`)
+    }
+  }
+
+  // Decisions made today
+  const todayDecisions = db.prepare(`
+    SELECT d.text, n.title as note_title
+    FROM decisions d
+    LEFT JOIN notes n ON n.id = d.note_id
+    WHERE d.date = ?
+    ORDER BY d.created_at ASC
+  `).all(today) as any[]
+  if (todayDecisions.length > 0) {
+    parts.push(`Decisions made today (${todayDecisions.length}):`)
+    for (const d of todayDecisions) {
+      parts.push(`  - ${d.text}${d.note_title ? ` (from: ${d.note_title})` : ''}`)
+    }
+  }
+
+  // Coaching highlights from today
+  const todayCoaching = db.prepare(`
+    SELECT n.title, n.coaching_metrics FROM notes n
+    WHERE n.date = ? AND n.coaching_metrics IS NOT NULL
+  `).all(today) as any[]
+  const coachingHighlights: string[] = []
+  for (const n of todayCoaching) {
+    try {
+      const cm = JSON.parse(n.coaching_metrics)
+      if (cm?.conversationInsights?.headline) {
+        coachingHighlights.push(`  - ${n.title}: ${cm.conversationInsights.headline}`)
+      }
+    } catch { /* skip */ }
+  }
+  if (coachingHighlights.length > 0) {
+    parts.push('Coaching highlights:')
+    parts.push(...coachingHighlights)
+  }
+
+  // Tomorrow's meetings preview (from notes already scheduled, or calendar)
+  const tomorrowNotes = db.prepare(`
+    SELECT n.title, n.time, GROUP_CONCAT(p.name, ', ') as attendees
+    FROM notes n
+    LEFT JOIN note_people np ON np.note_id = n.id
+    LEFT JOIN people p ON p.id = np.person_id
+    WHERE n.date = ?
+    GROUP BY n.id ORDER BY n.time ASC
+  `).all(tomorrow) as any[]
+  if (tomorrowNotes.length > 0) {
+    parts.push(`Tomorrow's meetings (${tomorrowNotes.length}):`)
+    for (const n of tomorrowNotes) {
+      parts.push(`  - ${n.time || ''} ${n.title || 'Untitled'}${n.attendees ? ` with ${n.attendees}` : ''}`)
+    }
+  }
+
+  // Today's mail activity (from local cache, if available)
+  try {
+    const mailCount = db.prepare(`SELECT COUNT(*) as cnt FROM mail_threads WHERE date >= ?`).get(today) as any
+    if (mailCount?.cnt > 0) {
+      parts.push(`Email activity today: ${mailCount.cnt} thread${mailCount.cnt > 1 ? 's' : ''}`)
+    }
+  } catch { /* mail_threads table may not exist yet */ }
+
+  return parts.length > 0 ? parts.join('\n') : 'Quiet day — no meetings, commitments, or decisions recorded.'
 }
 
 // ── Weekly Recap ────────────────────────────────────────────────────
@@ -167,6 +288,22 @@ async function assembleWeeklyRecap(): Promise<string> {
   if (activeProjects.length > 0) {
     parts.push('Active projects: ' + activeProjects.map((p: any) => `${p.name} (${p.weekMeetings} meetings)`).join(', '))
   }
+
+  // Email activity this week (from local cache)
+  try {
+    const mailCount = db.prepare(`SELECT COUNT(*) as cnt FROM mail_threads WHERE date >= ?`).get(sevenDaysAgo) as any
+    if (mailCount?.cnt > 0) {
+      parts.push(`Email threads this week: ${mailCount.cnt}`)
+      const topSenders = db.prepare(`
+        SELECT from_name, COUNT(*) as cnt FROM mail_threads
+        WHERE date >= ? AND from_name IS NOT NULL AND from_name != ''
+        GROUP BY from_name ORDER BY cnt DESC LIMIT 3
+      `).all(sevenDaysAgo) as any[]
+      if (topSenders.length > 0) {
+        parts.push('Top correspondents: ' + topSenders.map((s: any) => `${s.from_name} (${s.cnt})`).join(', '))
+      }
+    }
+  } catch { /* mail_threads table may not exist yet */ }
 
   return parts.join('\n')
 }

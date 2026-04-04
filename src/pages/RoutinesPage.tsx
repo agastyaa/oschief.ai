@@ -3,7 +3,7 @@ import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
 import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
-import { Zap, Play, Plus, Clock, Check, X, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { Zap, Play, Plus, Clock, ChevronDown, ChevronRight, Loader2, Bell, Monitor, BellRing } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -18,10 +18,12 @@ interface Routine {
   delivery: string
   enabled: number
   builtin_type: string | null
+  weekdays_only: number
 }
 
 const ROUTINE_DESCRIPTIONS: Record<string, string> = {
   'morning-briefing': "Your day at a glance: today's meetings with prep notes, overdue commitments, and who you're meeting for the first time.",
+  'end-of-day': "End-of-day recap: meetings attended, commitments made, decisions reached, and a preview of tomorrow.",
   'weekly-recap': "What happened this week: meetings attended, decisions made, commitments kept vs. broken, and people you met.",
   'overdue-commitments': "Things you promised but haven't delivered. Grouped by person so you can batch your follow-ups.",
 }
@@ -35,22 +37,48 @@ interface RoutineRun {
   duration_ms: number
 }
 
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DELIVERY_OPTIONS = [
+  { value: 'both', label: 'Notification + In-app', icon: BellRing },
+  { value: 'notification', label: 'Notification only', icon: Bell },
+  { value: 'in_app', label: 'In-app only', icon: Monitor },
+]
+
 function scheduleLabel(r: Routine): string {
-  const time = `${r.schedule_hour}:${String(r.schedule_minute).padStart(2, '0')} ${r.schedule_hour >= 12 ? 'PM' : 'AM'}`
   const h12 = r.schedule_hour > 12 ? r.schedule_hour - 12 : r.schedule_hour || 12
   const timeStr = `${h12}:${String(r.schedule_minute).padStart(2, '0')} ${r.schedule_hour >= 12 ? 'PM' : 'AM'}`
-  if (r.schedule_type === 'daily') return `Daily at ${timeStr}`
+  if (r.schedule_type === 'daily') {
+    const suffix = r.weekdays_only ? ' (weekdays)' : ''
+    return `Daily at ${timeStr}${suffix}`
+  }
   if (r.schedule_type === 'weekly') {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    return `${days[r.schedule_day ?? 0]}s at ${timeStr}`
+    return `${DAYS_OF_WEEK[r.schedule_day ?? 0]}s at ${timeStr}`
   }
   if (r.schedule_type === 'monthly') return `Monthly on the ${r.schedule_day ?? 1}${ordinal(r.schedule_day ?? 1)} at ${timeStr}`
   return r.schedule_type
 }
 
 function ordinal(n: number): string {
-  if (n > 3 && n < 21) return 'th'
+  const r = n % 100
+  if (r >= 11 && r <= 13) return 'th'
   switch (n % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th' }
+}
+
+function relativeTime(isoStr: string): string {
+  const ms = new Date(isoStr).getTime() - Date.now()
+  if (ms < 0) return 'now'
+  const min = Math.floor(ms / 60000)
+  if (min < 1) return 'now'
+  if (min < 60) return `in ${min}m`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `in ${hr}h ${min % 60}m`
+  const days = Math.floor(hr / 24)
+  if (days === 1) {
+    const d = new Date(isoStr)
+    const h12 = d.getHours() > 12 ? d.getHours() - 12 : d.getHours() || 12
+    return `tomorrow at ${h12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() >= 12 ? 'PM' : 'AM'}`
+  }
+  return `in ${days} days`
 }
 
 export default function RoutinesPage() {
@@ -60,16 +88,37 @@ export default function RoutinesPage() {
   const [routines, setRoutines] = useState<Routine[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [runs, setRuns] = useState<Record<string, RoutineRun[]>>({})
+  const [nextRuns, setNextRuns] = useState<Record<string, string>>({})
   const [running, setRunning] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+
+  // Create form state
   const [newName, setNewName] = useState("")
   const [newPrompt, setNewPrompt] = useState("")
   const [newSchedule, setNewSchedule] = useState<"daily" | "weekly" | "monthly">("daily")
   const [newHour, setNewHour] = useState(9)
+  const [newMinute, setNewMinute] = useState(0)
+  const [newDay, setNewDay] = useState<number>(1) // Monday for weekly, 1 for monthly
+  const [newWeekdaysOnly, setNewWeekdaysOnly] = useState(false)
+  const [newDelivery, setNewDelivery] = useState<string>("both")
 
   const loadRoutines = async () => {
     const all = await api?.routines?.getAll?.()
-    if (all) setRoutines(all)
+    if (all) {
+      setRoutines(all)
+      // Load next run times for all enabled routines (parallel)
+      const enabled = all.filter((r: Routine) => r.enabled)
+      const results = await Promise.allSettled(
+        enabled.map((r: Routine) => api?.routines?.nextRun?.(r.id).then((next: string | null) => ({ id: r.id, next })))
+      )
+      const nextRunMap: Record<string, string> = {}
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value?.next) {
+          nextRunMap[result.value.id] = result.value.next
+        }
+      }
+      setNextRuns(nextRunMap)
+    }
   }
 
   useEffect(() => { loadRoutines() }, [api])
@@ -100,10 +149,14 @@ export default function RoutinesPage() {
       prompt: newPrompt.trim(),
       schedule_type: newSchedule,
       schedule_hour: newHour,
-      schedule_minute: 0,
+      schedule_minute: newMinute,
+      schedule_day: newSchedule === 'daily' ? null : newDay,
+      weekdays_only: newWeekdaysOnly ? 1 : 0,
+      delivery: newDelivery,
     })
     toast.success(`Routine "${newName}" created`)
     setNewName(""); setNewPrompt(""); setCreating(false)
+    setNewMinute(0); setNewDay(1); setNewWeekdaysOnly(false); setNewDelivery("both")
     loadRoutines()
   }
 
@@ -169,15 +222,46 @@ export default function RoutinesPage() {
                 placeholder="What should OSChief tell you? e.g. 'Summarize all decisions about ACME this month'"
                 rows={3} className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
               />
-              <div className="flex items-center gap-3">
-                <select value={newSchedule} onChange={e => setNewSchedule(e.target.value as any)} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
+              <div className="flex items-center gap-3 flex-wrap">
+                <select value={newSchedule} onChange={e => { setNewSchedule(e.target.value as any); if (e.target.value === 'weekly') setNewDay(1); if (e.target.value === 'monthly') setNewDay(1) }} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                 </select>
+
+                {newSchedule === 'weekly' && (
+                  <select value={newDay} onChange={e => setNewDay(Number(e.target.value))} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
+                    {DAYS_OF_WEEK.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                  </select>
+                )}
+
+                {newSchedule === 'monthly' && (
+                  <select value={newDay} onChange={e => setNewDay(Number(e.target.value))} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
+                    {Array.from({ length: 28 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}{ordinal(i + 1)}</option>)}
+                  </select>
+                )}
+
                 <span className="text-xs text-muted-foreground">at</span>
                 <select value={newHour} onChange={e => setNewHour(Number(e.target.value))} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
-                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i > 12 ? i - 12 : i || 12}:00 {i >= 12 ? 'PM' : 'AM'}</option>)}
+                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i > 12 ? i - 12 : i || 12}:{String(newMinute).padStart(2, '0')} {i >= 12 ? 'PM' : 'AM'}</option>)}
+                </select>
+                <select value={newMinute} onChange={e => setNewMinute(Number(e.target.value))} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
+                  <option value={0}>:00</option>
+                  <option value={15}>:15</option>
+                  <option value={30}>:30</option>
+                  <option value={45}>:45</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-4 flex-wrap">
+                {newSchedule === 'daily' && (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" checked={newWeekdaysOnly} onChange={e => setNewWeekdaysOnly(e.target.checked)} className="rounded border-border" />
+                    Weekdays only
+                  </label>
+                )}
+                <select value={newDelivery} onChange={e => setNewDelivery(e.target.value)} className="px-2 py-1.5 text-xs border border-border rounded-md bg-background">
+                  {DELIVERY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <div className="flex-1" />
                 <button onClick={handleCreate} className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90">Create</button>
@@ -205,13 +289,16 @@ export default function RoutinesPage() {
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium">{r.name}</div>
-                      {r.builtin_type && ROUTINE_DESCRIPTIONS[r.builtin_type] && (
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{ROUTINE_DESCRIPTIONS[r.builtin_type]}</p>
+                      {r.builtin_type && ROUTINE_DESCRIPTIONS[r.builtin_type.replace(/_/g, '-')] && (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{ROUTINE_DESCRIPTIONS[r.builtin_type.replace(/_/g, '-')]}</p>
                       )}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <Clock className="h-3 w-3" />
                         {scheduleLabel(r)}
                         {r.builtin_type && <span className="px-2 py-0.5 rounded-full bg-secondary text-[11px] font-medium">built-in</span>}
+                        {r.enabled && nextRuns[r.id] && (
+                          <span className="text-[11px] opacity-70">Next: {relativeTime(nextRuns[r.id])}</span>
+                        )}
                       </div>
                     </div>
                     <button

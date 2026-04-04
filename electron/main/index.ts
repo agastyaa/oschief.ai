@@ -98,15 +98,48 @@ app.whenReady().then(async () => {
   }).catch(() => {})
 
   // Schedule routines (daily brief, weekly recap, etc.) + catch-up missed briefs
-  import('./routines/routines-engine').then(({ scheduleAllRoutines, catchUpMorningBrief, catchUpEndOfDay }) => {
+  import('./routines/routines-engine').then(({ scheduleAllRoutines, rescheduleAllRoutines, catchUpMorningBrief, catchUpEndOfDay, catchUpMissedRoutines }) => {
     scheduleAllRoutines()
     // Fire catch-up after a short delay to let DB settle
     setTimeout(() => {
-      catchUpMorningBrief().catch(() => {})
-      catchUpEndOfDay().catch(() => {})
+      catchUpMorningBrief().catch(e => console.error('[routines] Morning brief catch-up failed:', e))
+      catchUpEndOfDay().catch(e => console.error('[routines] End-of-day catch-up failed:', e))
+      catchUpMissedRoutines().catch(e => console.error('[routines] Missed routines catch-up failed:', e))
     }, 3000)
     console.log('[routines] Scheduled all enabled routines on app start')
-  }).catch(() => {})
+
+    // Reschedule all routines after wake from sleep (timers drift during sleep)
+    import('electron').then(({ powerMonitor }) => {
+      powerMonitor.on('resume', () => {
+        console.log('[routines] System resumed from sleep — rescheduling all routines')
+        rescheduleAllRoutines()
+        // Catch up missed routines after a longer delay to avoid double-fire
+        // (give rescheduled timers time to settle before checking for misses)
+        setTimeout(() => {
+          catchUpMorningBrief().catch(e => console.error('[routines] Morning brief catch-up failed:', e))
+          catchUpEndOfDay().catch(e => console.error('[routines] End-of-day catch-up failed:', e))
+          catchUpMissedRoutines().catch(e => console.error('[routines] Missed routines catch-up failed:', e))
+        }, 10000) // 10s delay (was 2s) — lets scheduled timers fire first to avoid double execution
+      })
+    })
+  }).catch(e => console.error('[routines] Failed to initialize routines engine:', e))
+
+  // Data cleanup — prune stale rows daily to keep DB small
+  import('./storage/data-cleanup').then(({ runDataCleanup }) => {
+    registerTask('data-cleanup', 24 * 60 * 60 * 1000, runDataCleanup, { pauseWhenHidden: true, runImmediately: true })
+    console.log('[data-cleanup] Registered (daily)')
+  }).catch(e => console.error('[data-cleanup] Failed to initialize:', e))
+
+  // Background Gmail sync — sync every 30 minutes (token resolved from keychain inside syncGmailThreads)
+  import('./integrations/mail-store').then(({ syncGmailThreads }) => {
+    // Initial sync after a short delay
+    setTimeout(() => syncGmailThreads().catch(e => console.error('[mail-sync] Initial sync failed:', e)), 5000)
+    // Register with central scheduler for periodic sync
+    registerTask('mail-sync', 30 * 60 * 1000, () => {
+      syncGmailThreads().catch(e => console.error('[mail-sync] Periodic sync failed:', e))
+    }, { pauseWhenHidden: true, runImmediately: false })
+    console.log('[mail-sync] Background Gmail sync registered (30min interval)')
+  }).catch(e => console.error('[mail-sync] Failed to initialize mail store:', e))
 
   // Zero-config auto-setup: download best STT + LLM models on first launch
   import('./models/auto-setup').then(({ runAutoSetup, isSetupComplete }) => {
