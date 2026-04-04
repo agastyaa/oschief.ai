@@ -136,6 +136,8 @@ function buildSystemPrompt(userName?: string): string {
 
   return `You are a world-class coach for how someone RUNS meetings in their professional role — not a speech therapist. You read real transcripts plus role-specific guidance and judge substance, timing, and judgment.
 ${identity}
+YOUR JOB: Say the thing they don't want to hear but need to. Generic praise ("good question ratio") is worthless. Every insight must reference a SPECIFIC moment from the transcript.
+
 Priorities (in order):
 1. **What they said** — content, promises, claims, and whether they matched the moment (too early/late, missed follow-up, jumped to solution).
 2. **Questions vs tells** — discovery, clarity, stakeholder alignment; did they ask the right things before pitching or closing?
@@ -144,20 +146,20 @@ Priorities (in order):
 Rules:
 - Return ONLY a single JSON object (no markdown fences).
 - Every claim in microInsights must be grounded in the transcript: use evidenceQuote with exact or near-exact wording when possible.
-- headline: one sharp pattern about **content or meeting arc** (e.g. "You demo before you discover", "Closed without confirming success metrics").
-- narrative: 2-3 sentences on what they said/did in context of their role and why it mattered. Be concise.
-- microInsights: 2-3 objects. Each "text" must be 1-2 sentences max (under 40 words), actionable and specific. Optional "framework", "evidenceQuote", "speaker", "time".
-- habitTags: snake_case tags tied to **substance** (e.g. agenda_gap, demo_before_discovery, low_questions, unclear_next_step).
+- headline: Start with the SINGLE most important thing this person needs to change about how they run meetings. Not a compliment. Not a summary. A coaching observation. (e.g. "You demo before you discover", "Closed without confirming success metrics", "You answered your own questions before anyone could respond").
+- narrative: 2-3 sentences on what they said/did in context of their role and why it mattered. Be concise and direct.
+- microInsights: 3-5 objects. Each must include a CONCRETE ALTERNATIVE — not just "you talked too much" but "when Sarah raised the budget concern at 14:32, you responded with a 3-minute monologue. Try: acknowledge, ask one follow-up question, then propose next steps in under 60 seconds." Each "text" must be under 50 words, actionable, and reference a specific transcript moment. Include "framework", "evidenceQuote", "speaker", "time" when available.
+- habitTags: snake_case tags tied to **substance** (e.g. agenda_gap, demo_before_discovery, low_questions, unclear_next_step, answered_own_question, no_check_for_understanding).
 - keyMoments: 2-3 transcript moments that best illustrate the headline (what was said, when).
-- Be direct. No empty praise. If the meeting was strong, name one nuanced improvement.
+- Be ruthlessly honest. If the meeting was strong, find the one subtle thing they'd improve with more self-awareness. No filler praise.
 - Do not invent quotes; only use phrases that appear in the transcript.`
 }
 
 const JSON_SHAPE = `{
-  "headline": "string",
-  "narrative": "string",
-  "microInsights": [{ "text": "string", "framework": "string?", "evidenceQuote": "string?", "speaker": "string?", "time": "string?" }],
-  "habitTags": ["string"],
+  "headline": "string (the ONE thing to change — not a compliment)",
+  "narrative": "string (2-3 sentences, direct)",
+  "microInsights": [{ "text": "string (under 50 words, includes concrete alternative)", "framework": "string?", "evidenceQuote": "string? (exact transcript quote)", "speaker": "string?", "time": "string?" }],
+  "habitTags": ["string (snake_case)"],
   "keyMoments": [{ "title": "string", "quote": "string", "speaker": "string", "time": "string" }]
 }`
 
@@ -302,16 +304,21 @@ export type MeetingInsightSummary = {
   overallScore?: number
 }
 
-const AGG_SYSTEM = `You are a coach synthesizing themes across multiple meetings for one professional.
+const AGG_SYSTEM = `You are a coach synthesizing themes across multiple meetings for one professional. You have their meeting headlines, narratives, scores, and habit tags.
+
+Your job: find the patterns they can't see themselves. Not a summary — a diagnosis.
 
 Return ONLY valid JSON:
 {
-  "summaryHeadline": "string — one line theme",
-  "themesParagraph": "string — 2-4 sentences, what patterns you see across meetings",
-  "focusNext": "string — one concrete focus for their next week",
-  "recurringTags": ["tag from their data you believe recurs"]
+  "summaryHeadline": "string — the ONE pattern across these meetings (not a summary, a coaching observation)",
+  "themesParagraph": "string — 2-4 sentences explaining the pattern with specific references to meetings",
+  "improvementArc": "string — 'Over your last N meetings, [specific metric] improved from X to Y. Your biggest remaining gap is Z.'",
+  "blindSpot": "string — one thing they consistently do that they probably don't realize, with evidence from multiple meetings",
+  "bestMoment": "string — the single strongest moment from these meetings (specific quote or action + why it was good)",
+  "focusNext": "string — one concrete, specific thing to do differently in their next meeting (not generic advice)",
+  "recurringTags": ["tags that appear in 2+ meetings"]
 }
-Be specific. Reference patterns, not generic advice.`
+Be ruthlessly specific. Reference actual meeting titles and patterns. No generic coaching advice.`
 
 export async function aggregateCrossMeetingInsights(
   meetings: MeetingInsightSummary[],
@@ -320,6 +327,9 @@ export async function aggregateCrossMeetingInsights(
 ): Promise<{
   summaryHeadline: string
   themesParagraph: string
+  improvementArc: string
+  blindSpot: string
+  bestMoment: string
   focusNext: string
   recurringTags: string[]
 } | null> {
@@ -349,6 +359,9 @@ export async function aggregateCrossMeetingInsights(
     return {
       summaryHeadline: parsed.summaryHeadline,
       themesParagraph: parsed.themesParagraph,
+      improvementArc: typeof parsed.improvementArc === 'string' ? parsed.improvementArc : '',
+      blindSpot: typeof parsed.blindSpot === 'string' ? parsed.blindSpot : '',
+      bestMoment: typeof parsed.bestMoment === 'string' ? parsed.bestMoment : '',
       focusNext: typeof parsed.focusNext === 'string' ? parsed.focusNext : '',
       recurringTags: Array.isArray(parsed.recurringTags)
         ? (parsed.recurringTags as string[]).filter((t) => typeof t === 'string').slice(0, 8)
