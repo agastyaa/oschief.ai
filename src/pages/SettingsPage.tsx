@@ -2925,6 +2925,7 @@ export default function SettingsPage() {
                     <AppleCalendarIntegrationRow />
                     <JiraIntegrationRow />
                     <GoogleCalendarIntegrationRow />
+                    <GmailIntegrationRow />
                     <MicrosoftCalendarIntegrationRow />
                     <AsanaIntegrationRow />
                     <SlackIntegrationRow />
@@ -3366,6 +3367,82 @@ function TeamsIntegrationRow() {
         }}
       />
     </>
+  );
+}
+
+// ── Gmail Integration Row ──────────────────────────────────────────────────
+
+function GmailIntegrationRow() {
+  const api = getElectronAPI();
+  const [connected, setConnected] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [threadCount, setThreadCount] = useState(0);
+
+  useEffect(() => {
+    // Gmail uses the Google Calendar OAuth token
+    api?.keychain?.get("google-calendar-config").then((raw) => {
+      if (raw) {
+        try {
+          const config = JSON.parse(raw);
+          setConnected(!!config.accessToken);
+        } catch { /* ignore */ }
+      }
+    });
+    // Get cached thread count
+    api?.mail?.getStats?.().then((stats: any) => {
+      if (stats?.threadCount) setThreadCount(stats.threadCount);
+    }).catch(() => {});
+  }, [api]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await api?.mail?.syncNow?.();
+      const stats = await api?.mail?.getStats?.();
+      if (stats?.threadCount) setThreadCount(stats.threadCount);
+      toast.success("Gmail synced");
+    } catch {
+      toast.error("Gmail sync failed");
+    }
+    setSyncing(false);
+  };
+
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border bg-card p-3">
+      <div className="flex items-center gap-2.5">
+        <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+          <path d="M2 6l10 7 10-7v12H2V6z" fill="#EA4335" opacity="0.2"/>
+          <path d="M22 6l-10 7L2 6" stroke="#EA4335" strokeWidth="2" strokeLinejoin="round"/>
+          <rect x="2" y="6" width="20" height="12" rx="1" stroke="#EA4335" strokeWidth="1.5" fill="none"/>
+        </svg>
+        <div>
+          <span className="text-[13px] font-medium text-foreground">Gmail</span>
+          <p className="text-[11px] text-muted-foreground">
+            {connected
+              ? threadCount > 0
+                ? `${threadCount} threads cached · syncs every 30 min`
+                : "Connected — syncs every 30 min"
+              : "Connect Google Calendar first to enable email context"}
+          </p>
+        </div>
+      </div>
+      {connected ? (
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3 w-3" /> Active
+          </span>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+          >
+            {syncing ? "Syncing..." : "Sync now"}
+          </button>
+        </div>
+      ) : (
+        <span className="text-[10px] text-muted-foreground">Requires Google Calendar</span>
+      )}
+    </div>
   );
 }
 
