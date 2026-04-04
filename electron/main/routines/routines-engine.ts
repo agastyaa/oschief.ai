@@ -192,6 +192,17 @@ export function stopAllRoutines(): void {
 // ── Execution ───────────────────────────────────────────────────────
 
 export async function executeRoutine(routine: RoutineConfig): Promise<any> {
+  // Dedup guard: skip if this routine ran successfully in the last 60 seconds
+  // Prevents double-fire from schedule timer + catch-up racing on wake
+  const recentRun = getDb().prepare(`
+    SELECT COUNT(*) as cnt FROM routine_runs
+    WHERE routine_id = ? AND status = 'success' AND started_at >= datetime('now', '-60 seconds')
+  `).get(routine.id) as any
+  if (recentRun?.cnt > 0) {
+    console.log(`[routines] "${routine.name}" skipped (ran within last 60s — dedup)`)
+    return { ok: true, skipped: true, reason: 'dedup' }
+  }
+
   // Weekday guard: skip execution on Saturday (6) and Sunday (0)
   if (routine.weekdays_only) {
     const day = new Date().getDay()

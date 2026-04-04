@@ -6,8 +6,85 @@
  * without live API calls.
  */
 
-import { getDb, getSetting } from '../storage/database'
+import { getDb } from '../storage/database'
 import { fetchAllRecentGmailThreads, type GmailThread } from './google-gmail'
+import { refreshGoogleToken } from './google-auth'
+import { app } from 'electron'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
+
+// ── Keychain access (main-process side) ────────────────────────────
+
+function keychainPath(): string {
+  return join(app.getPath('userData'), 'secure', 'keychain.enc')
+}
+
+function readKeychainEntry(key: string): string | null {
+  const path = keychainPath()
+  if (!existsSync(path)) return null
+  try {
+    const { safeStorage } = require('electron')
+    const encrypted = readFileSync(path)
+    const decrypted = safeStorage.decryptString(encrypted)
+    const chain = JSON.parse(decrypted)
+    return chain[key] ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeKeychainEntry(key: string, value: string): void {
+  const path = keychainPath()
+  try {
+    const { safeStorage } = require('electron')
+    let chain: Record<string, string> = {}
+    if (existsSync(path)) {
+      const encrypted = readFileSync(path)
+      chain = JSON.parse(safeStorage.decryptString(encrypted))
+    }
+    chain[key] = value
+    writeFileSync(path, safeStorage.encryptString(JSON.stringify(chain)))
+  } catch (err) {
+    console.error('[mail-store] Failed to write keychain:', err)
+  }
+}
+
+/**
+ * Resolve a valid Google access token from the keychain.
+ * Auto-refreshes if expired. Returns null if not configured.
+ */
+async function resolveGoogleAccessToken(): Promise<string | null> {
+  const raw = readKeychainEntry('google-calendar-config')
+  if (!raw) return null
+
+  try {
+    const config = JSON.parse(raw)
+    if (!config.accessToken) return null
+
+    // Check if token is expired (with 60s buffer)
+    if (config.expiresAt && Date.now() > config.expiresAt - 60_000) {
+      if (!config.clientId || !config.refreshToken) {
+        console.warn('[mail-store] Google token expired but no refresh credentials available')
+        return null
+      }
+      const refreshResult = await refreshGoogleToken(config.clientId, config.refreshToken)
+      if (refreshResult.ok && refreshResult.accessToken) {
+        config.accessToken = refreshResult.accessToken
+        config.expiresAt = Date.now() + (refreshResult.expiresIn || 3600) * 1000
+        writeKeychainEntry('google-calendar-config', JSON.stringify(config))
+        console.log('[mail-store] Google token refreshed successfully')
+        return config.accessToken
+      } else {
+        console.error('[mail-store] Google token refresh failed:', refreshResult.error)
+        return null
+      }
+    }
+
+    return config.accessToken
+  } catch {
+    return null
+  }
+}
 
 // ── Sync ───────────────────────────────────────────────────────────
 
@@ -29,8 +106,8 @@ export async function syncGmailThreads(accessToken?: string): Promise<{ ok: bool
 }
 
 async function _syncGmailThreadsInner(accessToken?: string): Promise<{ ok: boolean; synced: number; error?: string }> {
-  const token = accessToken || getSetting('google-access-token')
-  if (!token) return { ok: false, synced: 0, error: 'No Google access token' }
+  const token = accessToken || await resolveGoogleAccessToken()
+  if (!token) return { ok: false, synced: 0, error: 'No Google access token — connect Google in Settings' }
 
   const result = await fetchAllRecentGmailThreads(token, 14, 50)
   if (!result.ok) return { ok: false, synced: 0, error: result.error }

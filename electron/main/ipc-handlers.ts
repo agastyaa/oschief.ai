@@ -1854,7 +1854,31 @@ export function registerIPCHandlers(): void {
       let upcomingMeetings: any[] = []
       try {
         const calendarProvider = getSetting('calendar-provider')
-        const googleToken = getSetting('google-access-token')
+        // Read Google token from keychain (not settings — tokens live in keychain)
+        let googleToken: string | null = null
+        try {
+          const raw = loadKeychain()['google-calendar-config']
+          if (raw) {
+            const config = JSON.parse(raw)
+            googleToken = config.accessToken || null
+            // Auto-refresh if expired
+            if (config.expiresAt && Date.now() > config.expiresAt - 60_000 && config.clientId && config.refreshToken) {
+              const { refreshGoogleToken } = await import('./integrations/google-auth')
+              const refreshResult = await refreshGoogleToken(config.clientId, config.refreshToken)
+              if (refreshResult.ok && refreshResult.accessToken) {
+                googleToken = refreshResult.accessToken
+                config.accessToken = googleToken
+                config.expiresAt = Date.now() + (refreshResult.expiresIn || 3600) * 1000
+                withKeychainLock(() => {
+                  const chain = loadKeychain()
+                  chain['google-calendar-config'] = JSON.stringify(config)
+                  saveKeychain(chain)
+                  invalidateKeychainCache()
+                })
+              }
+            }
+          }
+        } catch { /* no Google config */ }
 
         if (calendarProvider === 'apple' || (!calendarProvider && !googleToken)) {
           const { fetchAppleCalendarEvents } = await import('./integrations/apple-calendar')
