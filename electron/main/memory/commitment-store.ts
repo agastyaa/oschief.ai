@@ -59,12 +59,13 @@ export function addCommitment(data: {
   projectId?: string
   jiraIssueKey?: string
   jiraIssueUrl?: string
+  confidence?: 'high' | 'medium' | 'low'
 }): any {
   const id = randomUUID()
   const now = new Date().toISOString()
   getDb().prepare(`
-    INSERT INTO commitments (id, note_id, text, owner, assignee_id, due_date, project_id, jira_issue_key, jira_issue_url, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+    INSERT INTO commitments (id, note_id, text, owner, assignee_id, due_date, project_id, jira_issue_key, jira_issue_url, confidence, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
   `).run(
     id,
     data.noteId ?? null,
@@ -75,6 +76,7 @@ export function addCommitment(data: {
     data.projectId ?? null,
     data.jiraIssueKey ?? null,
     data.jiraIssueUrl ?? null,
+    data.confidence ?? 'medium',
     now,
     now
   )

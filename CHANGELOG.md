@@ -4,6 +4,23 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.2.0] — 2026-04-04
+
+### Added
+- **"Before You Go In" prep brief notifications** — 10 minutes before each calendar meeting, a macOS notification fires with LLM-generated contextual brief: last meeting with attendees, open commitments, stale decisions, email threads. Falls back to data-only context if LLM times out (15s). The viral artifact — when shared, people ask "what tool made this?"
+- **Calendar import onboarding** — on first calendar connection, auto-scans 30 days of events and batch-populates the people graph from attendee lists. Uses in-memory fuzzy matching (Levenshtein ≤ 3) for deduplication. "Found 47 people from your calendar" — useful app in 60 seconds, before first recording.
+- **LLM-powered follow-up drafts** — upgraded from string template to contextual LLM drafts via `routeLLM()`. References the specific meeting, commitment text, and person. Falls back to template on timeout (10s), refusal, or error. One-click copy to clipboard.
+- **Commitment confidence scoring** — entity extractor now returns confidence level (high/medium/low) per commitment. UI shows green dot (high), no indicator (medium), amber dot + "Review?" (low). Low-confidence commitments get inline confirm/dismiss buttons. DB migration v16 adds `confidence` column.
+- **Copy prep brief as text** — new copy button on PrepCard formats the meeting brief as clean markdown (title, attendees, open items, last discussion) and writes to clipboard. "Copied!" feedback with green checkmark. The sharing mechanism for viral growth.
+- **OSChiefIcon component** — new React SVG icon with 5 variants (default cardinal dots, connected, orbital, pulse, minimal). Reusable across the app.
+
+### Changed
+- **New app icon** — cardinal dots icon (central circle + 4 radiating dots) replaces previous icon. Dark background with subtle ambient glow. Generated as full .icns with all macOS sizes (16–1024px).
+- **New tray icon** — matching cardinal dots pattern as 44x44 black template for macOS menu bar.
+- **Today page simplified** — removed MemoryBanner (total notes count) and StatsRow (vanity metrics). Removed Top Contacts section. Page now focuses on what matters: PrepCard → Schedule → Needs Attention → Daily Brief → Projects → Recent Meetings.
+
+---
+
 ## [2.1.12] — 2026-04-03
 
 ### Added

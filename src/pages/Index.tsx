@@ -21,8 +21,8 @@ import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
-import { MemoryBanner } from "@/components/MemoryBanner";
-import { StatsRow } from "@/components/StatsRow";
+// MemoryBanner and StatsRow removed — vanity metrics that cluttered the Today page.
+// Professional memory stats are still fetched for other uses (top contacts, etc.)
 
 function accentFromId(id: string): string {
   let h = 0;
@@ -471,27 +471,6 @@ const Index = () => {
               )}
             </div>
 
-            {/* ── Professional Memory ── */}
-            {!viewAll && memoryStats && (
-              <>
-                <MemoryBanner
-                  totalNotes={memoryStats.totalNotes}
-                  totalPeople={memoryStats.totalPeople}
-                  totalProjects={memoryStats.totalProjects}
-                  totalDecisions={memoryStats.totalDecisions}
-                  totalCommitments={memoryStats.totalCommitments}
-                  firstNoteDate={memoryStats.firstNoteDate}
-                />
-                <StatsRow
-                  openCommitments={memoryStats.openCommitments}
-                  overdueCommitments={memoryStats.overdueCommitments}
-                  activeProjects={memoryStats.activeProjects}
-                  meetingsThisWeek={memoryStats.meetingsThisWeek}
-                  decisionsThisMonth={memoryStats.decisionsThisMonth}
-                />
-              </>
-            )}
-
             {/* ── Command Center v2 (hidden in All Notes view) ── */}
             {!viewAll && (<>
             {/* ── Next Meeting + Prep ── */}
@@ -637,35 +616,6 @@ const Index = () => {
                         )}
                       </div>
                     ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Top People ── */}
-            {!viewAll && memoryStats && memoryStats.topPeople.length > 0 && (
-              <div className="mb-3">
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                  {memoryStats.topPeople.map((person) => (
-                    <button
-                      key={person.id}
-                      onClick={() => navigate('/people')}
-                      className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 hover:bg-secondary/50 transition-colors"
-                    >
-                      <div
-                        className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white"
-                        style={{ backgroundColor: accentFromId(person.id) }}
-                      >
-                        {(person.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-[12px] font-medium text-foreground">{person.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{person.meetingCount}</span>
-                    </button>
-                  ))}
                   </div>
                 </div>
               </div>

@@ -1289,7 +1289,7 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('intelligence:follow-up-draft', async (_e, commitmentId: string) => {
     try {
       const { generateFollowUpDraft } = await import('./memory/daily-brief-assembler')
-      const draft = generateFollowUpDraft(commitmentId)
+      const draft = await generateFollowUpDraft(commitmentId)
       if (draft) {
         const { clipboard } = await import('electron')
         clipboard.writeText(draft)
@@ -1365,6 +1365,32 @@ export function registerIPCHandlers(): void {
     linkPersonToNote(noteId, personId, role)
     return true
   })
+  // ── Calendar Import: batch-populate people graph from calendar events ──
+  ipcMain.handle('memory:people-import-from-calendar', async (_e, events: Array<{ attendees?: Array<{ name?: string; email?: string }> }>) => {
+    try {
+      const { batchImportFromCalendar } = await import('./memory/people-store')
+
+      // Flatten all attendees from all events into a single list
+      const allAttendees: Array<{ name: string; email?: string }> = []
+      for (const event of events) {
+        if (!event.attendees) continue
+        for (const a of event.attendees) {
+          if (a.name) allAttendees.push({ name: a.name, email: a.email })
+        }
+      }
+
+      if (allAttendees.length === 0) {
+        return { ok: true, created: 0, updated: 0, total: 0 }
+      }
+
+      const result = batchImportFromCalendar(allAttendees)
+      return { ok: true, ...result }
+    } catch (err: any) {
+      console.error('[calendar-import] Failed:', err)
+      return { ok: false, error: err.message, created: 0, updated: 0, total: 0 }
+    }
+  })
+
   ipcMain.handle('memory:topics-get-all', async () => {
     const { getAllTopics } = await import('./memory/topic-store')
     return getAllTopics()

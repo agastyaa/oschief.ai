@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react"
 import { getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, ArrowRight } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, ArrowRight, X, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isPast, parseISO, isValid, formatDistanceToNow } from "date-fns"
 
@@ -20,6 +20,7 @@ interface Commitment {
   due_date?: string
   status: string
   note_title?: string
+  confidence?: 'high' | 'medium' | 'low'
 }
 
 export function CommitmentsWidget() {
@@ -54,6 +55,14 @@ export function CommitmentsWidget() {
     if (!api?.memory) return
     try {
       await api.memory.commitments.updateStatus(id, "completed")
+      loadCommitments()
+    } catch {}
+  }, [api, loadCommitments])
+
+  const handleDismiss = useCallback(async (id: string) => {
+    if (!api?.memory) return
+    try {
+      await api.memory.commitments.updateStatus(id, "cancelled")
       loadCommitments()
     } catch {}
   }, [api, loadCommitments])
@@ -116,6 +125,17 @@ export function CommitmentsWidget() {
                       {isOverdue ? "Overdue" : c.due_date}
                     </span>
                   )}
+                  {c.confidence === 'high' && (
+                    <span className="flex items-center gap-0.5" title="High confidence" aria-label="High confidence extraction">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'hsl(var(--green, 142 50% 45%))' }} />
+                    </span>
+                  )}
+                  {c.confidence === 'low' && (
+                    <span className="flex items-center gap-0.5 text-[10px]" style={{ color: 'hsl(var(--amber, 30 55% 64%))' }} title="Low confidence — tap to review" aria-label="Low confidence extraction — tap to review">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>Review?</span>
+                    </span>
+                  )}
                   {c.note_title && (
                     <button
                       onClick={() => navigate(`/note/${c.note_id}`)}
@@ -126,6 +146,27 @@ export function CommitmentsWidget() {
                   )}
                 </div>
               </div>
+              {/* Inline confirm/dismiss for low-confidence commitments */}
+              {c.confidence === 'low' && (
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button
+                    onClick={() => handleToggle(c.id)}
+                    className="p-1 rounded hover:bg-green-500/10 transition-colors"
+                    title="Confirm this commitment"
+                    aria-label="Confirm commitment"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-green-600" />
+                  </button>
+                  <button
+                    onClick={() => handleDismiss(c.id)}
+                    className="p-1 rounded hover:bg-destructive/10 transition-colors"
+                    title="Dismiss — not a real commitment"
+                    aria-label="Dismiss commitment"
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-destructive" />
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
