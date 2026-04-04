@@ -59,7 +59,8 @@ function scheduleLabel(r: Routine): string {
 }
 
 function ordinal(n: number): string {
-  if (n > 3 && n < 21) return 'th'
+  const r = n % 100
+  if (r >= 11 && r <= 13) return 'th'
   switch (n % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th' }
 }
 
@@ -67,6 +68,7 @@ function relativeTime(isoStr: string): string {
   const ms = new Date(isoStr).getTime() - Date.now()
   if (ms < 0) return 'now'
   const min = Math.floor(ms / 60000)
+  if (min < 1) return 'now'
   if (min < 60) return `in ${min}m`
   const hr = Math.floor(min / 60)
   if (hr < 24) return `in ${hr}h ${min % 60}m`
@@ -104,14 +106,15 @@ export default function RoutinesPage() {
     const all = await api?.routines?.getAll?.()
     if (all) {
       setRoutines(all)
-      // Load next run times for all enabled routines
+      // Load next run times for all enabled routines (parallel)
+      const enabled = all.filter((r: Routine) => r.enabled)
+      const results = await Promise.allSettled(
+        enabled.map((r: Routine) => api?.routines?.nextRun?.(r.id).then((next: string | null) => ({ id: r.id, next })))
+      )
       const nextRunMap: Record<string, string> = {}
-      for (const r of all) {
-        if (r.enabled) {
-          try {
-            const next = await api?.routines?.nextRun?.(r.id)
-            if (next) nextRunMap[r.id] = next
-          } catch { /* skip */ }
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value?.next) {
+          nextRunMap[result.value.id] = result.value.next
         }
       }
       setNextRuns(nextRunMap)

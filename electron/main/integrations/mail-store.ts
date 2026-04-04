@@ -11,11 +11,24 @@ import { fetchAllRecentGmailThreads, type GmailThread } from './google-gmail'
 
 // ── Sync ───────────────────────────────────────────────────────────
 
+let syncing = false
+
 /**
  * Bulk-fetch recent Gmail threads and upsert into local cache.
  * Matches thread participants against the people table by email.
+ * Guarded by a mutex to prevent concurrent syncs from corrupting data.
  */
 export async function syncGmailThreads(accessToken?: string): Promise<{ ok: boolean; synced: number; error?: string }> {
+  if (syncing) return { ok: true, synced: 0, error: 'Sync already in progress' }
+  syncing = true
+  try {
+    return await _syncGmailThreadsInner(accessToken)
+  } finally {
+    syncing = false
+  }
+}
+
+async function _syncGmailThreadsInner(accessToken?: string): Promise<{ ok: boolean; synced: number; error?: string }> {
   const token = accessToken || getSetting('google-access-token')
   if (!token) return { ok: false, synced: 0, error: 'No Google access token' }
 

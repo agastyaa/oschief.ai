@@ -190,12 +190,21 @@ async function fetchThreadDetailFull(accessToken: string, threadId: string): Pro
     return match ? match[1].trim() : a.trim()
   }).filter(Boolean)
 
+  // Normalize RFC 2822 date to YYYY-MM-DD for consistent SQL queries
+  let normalizedDate = date
+  try {
+    const parsed = new Date(date)
+    if (!isNaN(parsed.getTime())) {
+      normalizedDate = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
+    }
+  } catch { /* keep raw date as fallback */ }
+
   return {
     id: threadId,
     subject,
     snippet: thread.messages[thread.messages.length - 1]?.snippet || firstMessage.snippet || '',
     from,
-    date,
+    date: normalizedDate,
     messageCount: thread.messages?.length || 1,
     toAddresses,
   }
