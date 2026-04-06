@@ -84,7 +84,7 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   meetingDetectionRequireMic: false,
   audioNoiseSuppression: true,
   audioDenoiseBeforeStt: false,
-  useDiarization: false,
+  useDiarization: true,
 };
 
 function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
