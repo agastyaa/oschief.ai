@@ -25,11 +25,13 @@ export function getIsRecording(): boolean {
 
 export function setMicOnlyMode(micOnly: boolean): void {
   micOnlyMode = micOnly
+  console.log(`[capture] setMicOnlyMode(${micOnly}) — diarizationEnabled=${micOnlyDiarizationEnabled}, diarizer=${streamingDiarizer ? 'exists' : 'null'}`)
   if (micOnlyDiarizationEnabled && micOnly && !streamingDiarizer) {
+    console.log('[capture] Creating StreamingDiarizer and pre-loading models...')
     streamingDiarizer = new StreamingDiarizer()
-    streamingDiarizer.ensureModel().catch(err =>
-      console.warn('[capture] Diarization model pre-load failed:', err.message)
-    )
+    streamingDiarizer.ensureModel()
+      .then(() => console.log('[capture] Diarization models ready'))
+      .catch(err => console.warn('[capture] Diarization model pre-load failed:', err.message))
   }
 }
 let isPaused = false
@@ -244,7 +246,9 @@ export async function startRecording(
   correctionCallback = onCorrectedTranscript || null
   statusCallback = onStatus || null
   llmPostProcessEnabled = getSetting('llm-post-process-transcript') === 'true'
-  micOnlyDiarizationEnabled = getSetting('use-diarization') === 'true'
+  const diarizationSetting = getSetting('use-diarization')
+  micOnlyDiarizationEnabled = diarizationSetting === 'true'
+  console.log(`[capture] Diarization setting: "${diarizationSetting}" → enabled=${micOnlyDiarizationEnabled}`)
   correctionQueue.length = 0
   isCorrecting = false
   recentCorrectedSegments.length = 0
@@ -313,7 +317,24 @@ export async function startRecording(
     }, 2000)
   }
 
-  // Silence-based auto-pause disabled — user triggers pause manually and uses "Generate summary" button
+  // Silence watchdog: auto-pause after 45s of no detected speech.
+  // Prevents recordings from running forever when the meeting ends.
+  // The renderer shows a "Recording paused — no speech detected" indicator.
+  // User can resume if the meeting continues.
+  const SILENCE_AUTO_PAUSE_MS = 45_000
+  if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
+  silenceTimer = setInterval(() => {
+    if (!isRecording || isPaused || autoPaused) return
+    const silenceDuration = Date.now() - lastSpeechTime
+    if (silenceDuration >= SILENCE_AUTO_PAUSE_MS) {
+      console.log(`[capture] Auto-pausing: ${Math.round(silenceDuration / 1000)}s of silence`)
+      autoPaused = true
+      isPaused = true
+      pauseStartedAt = Date.now()
+      notifyRecordingStateChanged()
+      statusCallback?.({ state: 'auto-paused' })
+    }
+  }, 5000) // Check every 5s
 
   return true
 }
