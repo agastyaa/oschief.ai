@@ -413,6 +413,19 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   // Clear any existing timers to prevent accumulation across pause/resume cycles
   if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null }
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
+  // Restart silence watchdog for this resume session
+  const SILENCE_AUTO_PAUSE_MS = 45_000
+  silenceTimer = setInterval(() => {
+    if (!isRecording || isPaused || autoPaused) return
+    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_PAUSE_MS) {
+      console.log(`[capture] Auto-pausing after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
+      autoPaused = true
+      isPaused = true
+      pauseStartedAt = Date.now()
+      notifyRecordingStateChanged()
+      statusCallback?.({ state: 'auto-paused' })
+    }
+  }, 5000)
   // Restart chunk timer with active interval
   currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
   restartChunkTimer()
@@ -444,16 +457,10 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
   if (!isRecording) return false
 
   const ch = channel === 1 ? 1 : 0
+  // When auto-paused for silence, stay paused — user must manually resume.
+  // No auto-resume: prevents runaway recordings that restart on ambient noise.
   if (autoPaused) {
-    const energy = pcmData.reduce((sum, v) => sum + v * v, 0) / pcmData.length
-    if (energy > 0.001) {
-      autoPaused = false
-      isPaused = false
-      lastSpeechTime = Date.now()
-      statusCallback?.({ state: 'auto-resumed' })
-    } else {
-      return false
-    }
+    return false
   }
 
   if (isPaused) return false
