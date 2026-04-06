@@ -645,9 +645,12 @@ async function processBufferedAudio(): Promise<void> {
       }
 
       // Mic-only diarization: run pyannote segmentation on full audio (needs contiguous signal, not VAD-extracted)
+      // Timeout prevents diarization from blocking the transcription pipeline (model download, ONNX failure, etc.)
       if (channel === 0 && micOnlyDiarizationEnabled && micOnlyMode && streamingDiarizer?.isReady()) {
         try {
-          const identified = await streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
+          const diarizePromise = streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+          const identified = await Promise.race([diarizePromise, timeoutPromise])
           if (identified) speaker = identified
         } catch (err: any) {
           console.warn('[capture] Diarization failed, using "You":', err?.message || err)
