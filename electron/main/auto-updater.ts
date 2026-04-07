@@ -1,6 +1,6 @@
 import pkg from 'electron-updater'
 const { autoUpdater } = pkg
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, dialog } from 'electron'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
@@ -11,7 +11,6 @@ function readTokenFromShellProfile(): string | null {
   for (const p of profiles) {
     try {
       const content = readFileSync(p, 'utf-8')
-      // Match: export GH_TOKEN=xxx or export GITHUB_TOKEN=xxx (with or without quotes)
       const match = content.match(/export\s+(?:GH_TOKEN|GITHUB_TOKEN)\s*=\s*["']?([^\s"'#]+)["']?/)
       if (match?.[1]) return match[1]
     } catch { /* file not found — try next */ }
@@ -20,21 +19,16 @@ function readTokenFromShellProfile(): string | null {
 }
 
 export function setupAutoUpdater(mainWindow: BrowserWindow) {
-  // Silent updates — no blocking dialogs
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
-  // Private repo: resolve GH token automatically — env var, shell profile, or DB setting
+  // Auth header for private repos (public repos don't need this)
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || readTokenFromShellProfile()
   if (ghToken) {
     autoUpdater.requestHeaders = { Authorization: `token ${ghToken}` }
-  } else {
-    // No token — skip auto-update silently for private repos
-    console.log('[auto-updater] No GH_TOKEN found — skipping update check for private repo')
-    return
   }
 
-  // Check for updates on launch (silent — errors are swallowed)
+  // Check for updates on launch
   autoUpdater.checkForUpdatesAndNotify().catch(() => {})
 
   // Re-check every 4 hours
@@ -42,17 +36,31 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {})
   }, 4 * 60 * 60 * 1000)
 
-  // Notify renderer about update status
   autoUpdater.on('update-available', (info) => {
+    console.log(`[auto-updater] Update available: v${info.version}`)
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-available', info.version)
     }
   })
 
   autoUpdater.on('update-downloaded', (info) => {
+    console.log(`[auto-updater] Update downloaded: v${info.version} — prompting restart`)
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-downloaded', info.version)
     }
+    // Prompt user to restart and install
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `OSChief v${info.version} has been downloaded.`,
+      detail: 'Restart now to install the update.',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall(false, true)
+      }
+    })
   })
 
   autoUpdater.on('update-not-available', () => {
@@ -62,8 +70,9 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
   })
 
   autoUpdater.on('error', (err) => {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[auto-updater] Error:', message)
     if (!mainWindow.isDestroyed()) {
-      const message = err instanceof Error ? err.message : String(err)
       mainWindow.webContents.send('update-error', message)
     }
   })
