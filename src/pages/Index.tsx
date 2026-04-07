@@ -621,9 +621,9 @@ const Index = () => {
               </div>
             )}
 
-            {/* ── Daily Brief ── */}
-            <div className="mb-3">
-              {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
+            {/* ── Daily Brief (only show when AI-generated content exists) ── */}
+            {latestBriefRun?.status === 'success' && latestBriefRun?.output && (
+              <div className="mb-3">
                 <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
@@ -631,61 +631,6 @@ const Index = () => {
                   </div>
                   <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
                 </div>
-              ) : (todayEvents.length > 0 || atRisk.length > 0 || staleDecisions.length > 0) ? (
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    {[
-                      todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''}`,
-                      atRisk.length > 0 && `${atRisk.length} at-risk`,
-                      staleDecisions.length > 0 && `${staleDecisions.length} stale decision${staleDecisions.length !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              ) : notes.length === 0 ? (
-                <div className="rounded-[10px] border border-dashed border-border bg-card/30 p-6 text-center">
-                  <Briefcase className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
-                </div>
-              ) : (
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    {[
-                      `${notes.length} meeting${notes.length !== 1 ? 's' : ''} on record`,
-                      openCommitments.length > 0 && `${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`,
-                      memoryStats && memoryStats.activeProjects > 0 && `${memoryStats.activeProjects} active project${memoryStats.activeProjects !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Projects (compact) ── */}
-            {activeProjects.length > 0 && (
-              <div className="mb-3">
-                <button onClick={() => navigate("/projects")} className="w-full rounded-[10px] border border-border bg-card p-4 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--green, 142 50% 45%))' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
-                      <FolderKanban className="h-3.5 w-3.5" />
-                      Active Projects
-                    </span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {activeProjects.map((p: any) => (
-                      <span key={p.id} className="text-[13px] text-foreground font-medium">
-                        {p.name} <span className="text-[11px] text-muted-foreground font-normal">({p.meetingCount || 0})</span>
-                      </span>
-                    ))}
-                  </div>
-                </button>
               </div>
             )}
             </>)}
