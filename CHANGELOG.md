@@ -4,6 +4,27 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.2.1] — 2026-04-07
+
+### Added
+- **Asana integration in Settings** — connect/disconnect Asana PAT from the Integrations list, matching Jira/Slack/Teams pattern.
+- **Gmail integration in Settings** — shows connection status (uses Google Calendar OAuth), cached thread count, and manual "Sync now" button.
+
+### Changed
+- **Coaching page redesigned** — hero coach message in a card with inline score badge, "Focus next" and "Blind spot" callouts, micro-insights as individual cards with evidence blockquotes, collapsible score trend and meeting list. Empty state uses Instrument Serif heading.
+- **Coaching prompt sharpened** — demands specific transcript references, concrete alternatives, and ruthlessly honest feedback. Increased micro-insights from 2-3 to 3-5 per meeting. Cross-meeting aggregation now returns improvementArc, blindSpot, and bestMoment.
+- **Today page further simplified** — removed Daily Brief stat dump fallback ("53 meetings on record...") and Active Projects card. Daily Brief only shows when AI-generated content exists.
+- **Models directory renamed** — `~/.syag/models/` → `~/.oschief/models/` to match rebrand. Existing models auto-migrate on first launch.
+
+### Fixed
+- **Tray icon transparent background** — was rendering with white square; now black on transparent as macOS template requires.
+- **Auto-updater 404** — silently skips update check when no GH_TOKEN is set (private repo).
+- **Speaker diarization default** — now enabled by default for mic-only recording (was off, causing all speakers labeled "Me").
+- **Diarization 3s timeout** — prevents diarization from blocking the transcription pipeline if model is loading or ONNX stalls.
+- **Auto-pause after 45s silence** — recording auto-pauses when no speech is detected for 45 seconds. Prevents recordings from running forever. Stays paused until user manually resumes (no auto-resume on ambient noise).
+
+---
+
 ## [2.2.0] — 2026-04-04
 
 ### Added
