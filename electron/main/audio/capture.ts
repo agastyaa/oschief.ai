@@ -25,11 +25,13 @@ export function getIsRecording(): boolean {
 
 export function setMicOnlyMode(micOnly: boolean): void {
   micOnlyMode = micOnly
+  console.log(`[capture] setMicOnlyMode(${micOnly}) — diarizationEnabled=${micOnlyDiarizationEnabled}, diarizer=${streamingDiarizer ? 'exists' : 'null'}`)
   if (micOnlyDiarizationEnabled && micOnly && !streamingDiarizer) {
+    console.log('[capture] Creating StreamingDiarizer and pre-loading models...')
     streamingDiarizer = new StreamingDiarizer()
-    streamingDiarizer.ensureModel().catch(err =>
-      console.warn('[capture] Diarization model pre-load failed:', err.message)
-    )
+    streamingDiarizer.ensureModel()
+      .then(() => console.log('[capture] Diarization models ready'))
+      .catch(err => console.warn('[capture] Diarization model pre-load failed:', err.message))
   }
 }
 let isPaused = false
@@ -244,7 +246,9 @@ export async function startRecording(
   correctionCallback = onCorrectedTranscript || null
   statusCallback = onStatus || null
   llmPostProcessEnabled = getSetting('llm-post-process-transcript') === 'true'
-  micOnlyDiarizationEnabled = getSetting('use-diarization') === 'true'
+  const diarizationSetting = getSetting('use-diarization')
+  micOnlyDiarizationEnabled = diarizationSetting === 'true'
+  console.log(`[capture] Diarization setting: "${diarizationSetting}" → enabled=${micOnlyDiarizationEnabled}`)
   correctionQueue.length = 0
   isCorrecting = false
   recentCorrectedSegments.length = 0
@@ -313,7 +317,24 @@ export async function startRecording(
     }, 2000)
   }
 
-  // Silence-based auto-pause disabled — user triggers pause manually and uses "Generate summary" button
+  // Silence watchdog: auto-pause after 45s of no detected speech.
+  // Prevents recordings from running forever when the meeting ends.
+  // The renderer shows a "Recording paused — no speech detected" indicator.
+  // User can resume if the meeting continues.
+  const SILENCE_AUTO_PAUSE_MS = 45_000
+  if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
+  silenceTimer = setInterval(() => {
+    if (!isRecording || isPaused || autoPaused) return
+    const silenceDuration = Date.now() - lastSpeechTime
+    if (silenceDuration >= SILENCE_AUTO_PAUSE_MS) {
+      console.log(`[capture] Auto-pausing: ${Math.round(silenceDuration / 1000)}s of silence`)
+      autoPaused = true
+      isPaused = true
+      pauseStartedAt = Date.now()
+      notifyRecordingStateChanged()
+      statusCallback?.({ state: 'auto-paused' })
+    }
+  }, 5000) // Check every 5s
 
   return true
 }
@@ -392,6 +413,19 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   // Clear any existing timers to prevent accumulation across pause/resume cycles
   if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null }
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
+  // Restart silence watchdog for this resume session
+  const SILENCE_AUTO_PAUSE_MS = 45_000
+  silenceTimer = setInterval(() => {
+    if (!isRecording || isPaused || autoPaused) return
+    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_PAUSE_MS) {
+      console.log(`[capture] Auto-pausing after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
+      autoPaused = true
+      isPaused = true
+      pauseStartedAt = Date.now()
+      notifyRecordingStateChanged()
+      statusCallback?.({ state: 'auto-paused' })
+    }
+  }, 5000)
   // Restart chunk timer with active interval
   currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
   restartChunkTimer()
@@ -423,16 +457,10 @@ export function processAudioChunk(pcmData: Float32Array, channel: number): boole
   if (!isRecording) return false
 
   const ch = channel === 1 ? 1 : 0
+  // When auto-paused for silence, stay paused — user must manually resume.
+  // No auto-resume: prevents runaway recordings that restart on ambient noise.
   if (autoPaused) {
-    const energy = pcmData.reduce((sum, v) => sum + v * v, 0) / pcmData.length
-    if (energy > 0.001) {
-      autoPaused = false
-      isPaused = false
-      lastSpeechTime = Date.now()
-      statusCallback?.({ state: 'auto-resumed' })
-    } else {
-      return false
-    }
+    return false
   }
 
   if (isPaused) return false
@@ -645,9 +673,12 @@ async function processBufferedAudio(): Promise<void> {
       }
 
       // Mic-only diarization: run pyannote segmentation on full audio (needs contiguous signal, not VAD-extracted)
+      // Timeout prevents diarization from blocking the transcription pipeline (model download, ONNX failure, etc.)
       if (channel === 0 && micOnlyDiarizationEnabled && micOnlyMode && streamingDiarizer?.isReady()) {
         try {
-          const identified = await streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
+          const diarizePromise = streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+          const identified = await Promise.race([diarizePromise, timeoutPromise])
           if (identified) speaker = identified
         } catch (err: any) {
           console.warn('[capture] Diarization failed, using "You":', err?.message || err)

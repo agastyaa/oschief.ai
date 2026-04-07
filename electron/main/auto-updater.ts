@@ -28,6 +28,10 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || readTokenFromShellProfile()
   if (ghToken) {
     autoUpdater.requestHeaders = { Authorization: `token ${ghToken}` }
+  } else {
+    // No token — skip auto-update silently for private repos
+    console.log('[auto-updater] No GH_TOKEN found — skipping update check for private repo')
+    return
   }
 
   // Check for updates on launch (silent — errors are swallowed)

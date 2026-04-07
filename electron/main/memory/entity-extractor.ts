@@ -27,6 +27,7 @@ export interface ExtractedEntities {
     owner: string  // 'you' or person name
     assignee?: string  // person name
     dueDate?: string  // ISO date or natural language
+    confidence?: 'high' | 'medium' | 'low'  // extraction confidence
   }>
   topics: string[]  // topic labels
   project?: string  // primary project discussed
@@ -44,7 +45,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
     {"name": "Full Name", "email": "email@example.com", "company": "Company", "role": "Job Title", "relationship": "colleague|client|vendor|manager|report|skip-level|external"}
   ],
   "commitments": [
-    {"text": "What was promised", "owner": "you|Person Name", "assignee": "Person Name or null", "dueDate": "2024-03-20 or by Friday or null"}
+    {"text": "What was promised", "owner": "you|Person Name", "assignee": "Person Name or null", "dueDate": "2024-03-20 or by Friday or null", "confidence": "high|medium|low"}
   ],
   "topics": ["Topic 1", "Topic 2"],
   "project": "Project Name or null",
@@ -55,7 +56,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 
 Rules:
 - For people: extract everyone mentioned by name. If email is available from context, include it. Infer company/role from context when clear.
-- For commitments: extract any promise, action item, follow-up, or deliverable. "I'll send the report" = owner: "you". "Sarah will prepare the deck" = owner: "Sarah", assignee: "Sarah".
+- For commitments: extract any promise, action item, follow-up, or deliverable. "I'll send the report" = owner: "you". "Sarah will prepare the deck" = owner: "Sarah", assignee: "Sarah". Rate confidence: "high" = explicit promise with clear owner, "medium" = likely action item but implicit, "low" = might be an action item but ambiguous.
 - For topics: extract 2-5 high-level themes (e.g., "Q3 Budget", "Hiring Pipeline", "Product Roadmap"). Be specific, not generic.
 - For project: identify the primary project or work stream discussed. Use the most specific name (e.g., "ACME Enterprise Tier" not "project"). If no clear project, set to null.
 - For decisions: extract any agreed-upon decision, resolution, or conclusion. Include brief context if available. If none, return empty array.
@@ -251,6 +252,11 @@ export async function storeExtractedEntities(
         const rawDueDate = c.dueDate || undefined
         const normalizedDueDate = rawDueDate ? (normalizeDueDate(rawDueDate) ?? rawDueDate) : undefined
 
+        // Validate confidence value — default to 'medium' if missing or invalid
+        const validConfidence = ['high', 'medium', 'low'].includes(c.confidence || '')
+          ? c.confidence!
+          : 'medium'
+
         addCommitment({
           noteId,
           text: c.text,
@@ -258,6 +264,7 @@ export async function storeExtractedEntities(
           assigneeId,
           dueDate: normalizedDueDate,
           projectId,
+          confidence: validConfidence,
         })
         commitmentCount++
       } catch (err) {

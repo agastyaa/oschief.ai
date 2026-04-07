@@ -4,6 +4,44 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.2.1] — 2026-04-07
+
+### Added
+- **Asana integration in Settings** — connect/disconnect Asana PAT from the Integrations list, matching Jira/Slack/Teams pattern.
+- **Gmail integration in Settings** — shows connection status (uses Google Calendar OAuth), cached thread count, and manual "Sync now" button.
+
+### Changed
+- **Coaching page redesigned** — hero coach message in a card with inline score badge, "Focus next" and "Blind spot" callouts, micro-insights as individual cards with evidence blockquotes, collapsible score trend and meeting list. Empty state uses Instrument Serif heading.
+- **Coaching prompt sharpened** — demands specific transcript references, concrete alternatives, and ruthlessly honest feedback. Increased micro-insights from 2-3 to 3-5 per meeting. Cross-meeting aggregation now returns improvementArc, blindSpot, and bestMoment.
+- **Today page further simplified** — removed Daily Brief stat dump fallback ("53 meetings on record...") and Active Projects card. Daily Brief only shows when AI-generated content exists.
+- **Models directory renamed** — `~/.syag/models/` → `~/.oschief/models/` to match rebrand. Existing models auto-migrate on first launch.
+
+### Fixed
+- **Tray icon transparent background** — was rendering with white square; now black on transparent as macOS template requires.
+- **Auto-updater 404** — silently skips update check when no GH_TOKEN is set (private repo).
+- **Speaker diarization default** — now enabled by default for mic-only recording (was off, causing all speakers labeled "Me").
+- **Diarization 3s timeout** — prevents diarization from blocking the transcription pipeline if model is loading or ONNX stalls.
+- **Auto-pause after 45s silence** — recording auto-pauses when no speech is detected for 45 seconds. Prevents recordings from running forever. Stays paused until user manually resumes (no auto-resume on ambient noise).
+
+---
+
+## [2.2.0] — 2026-04-04
+
+### Added
+- **"Before You Go In" prep brief notifications** — 10 minutes before each calendar meeting, a macOS notification fires with LLM-generated contextual brief: last meeting with attendees, open commitments, stale decisions, email threads. Falls back to data-only context if LLM times out (15s). The viral artifact — when shared, people ask "what tool made this?"
+- **Calendar import onboarding** — on first calendar connection, auto-scans 30 days of events and batch-populates the people graph from attendee lists. Uses in-memory fuzzy matching (Levenshtein ≤ 3) for deduplication. "Found 47 people from your calendar" — useful app in 60 seconds, before first recording.
+- **LLM-powered follow-up drafts** — upgraded from string template to contextual LLM drafts via `routeLLM()`. References the specific meeting, commitment text, and person. Falls back to template on timeout (10s), refusal, or error. One-click copy to clipboard.
+- **Commitment confidence scoring** — entity extractor now returns confidence level (high/medium/low) per commitment. UI shows green dot (high), no indicator (medium), amber dot + "Review?" (low). Low-confidence commitments get inline confirm/dismiss buttons. DB migration v16 adds `confidence` column.
+- **Copy prep brief as text** — new copy button on PrepCard formats the meeting brief as clean markdown (title, attendees, open items, last discussion) and writes to clipboard. "Copied!" feedback with green checkmark. The sharing mechanism for viral growth.
+- **OSChiefIcon component** — new React SVG icon with 5 variants (default cardinal dots, connected, orbital, pulse, minimal). Reusable across the app.
+
+### Changed
+- **New app icon** — cardinal dots icon (central circle + 4 radiating dots) replaces previous icon. Dark background with subtle ambient glow. Generated as full .icns with all macOS sizes (16–1024px).
+- **New tray icon** — matching cardinal dots pattern as 44x44 black template for macOS menu bar.
+- **Today page simplified** — removed MemoryBanner (total notes count) and StatsRow (vanity metrics). Removed Top Contacts section. Page now focuses on what matters: PrepCard → Schedule → Needs Attention → Daily Brief → Projects → Recent Meetings.
+
+---
+
 ## [2.1.12] — 2026-04-03
 
 ### Added

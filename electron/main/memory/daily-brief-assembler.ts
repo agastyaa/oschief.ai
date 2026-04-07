@@ -177,13 +177,20 @@ export function assembleDailyBrief(): DailyBriefData {
 // ── Follow-up Draft Generation ─────────────────────────────────────
 
 /**
- * Generate a template follow-up message for a commitment.
- * Returns plain text for clipboard — no LLM call.
+ * Generate a follow-up message for a commitment.
+ *
+ * FLOW:
+ *   1. Query commitment + context from DB
+ *   2. Try LLM-powered draft (warm, contextual, references the meeting)
+ *   3. Fall back to template on LLM timeout, refusal, or error
+ *
+ * Returns plain text for clipboard.
  */
-export function generateFollowUpDraft(commitmentId: string): string | null {
+export async function generateFollowUpDraft(commitmentId: string): Promise<string | null> {
   const db = getDb()
   const row = db.prepare(`
-    SELECT c.text, c.owner, p.name as assignee_name, n.title as note_title, n.date as note_date
+    SELECT c.text, c.owner, p.name as assignee_name, p.email as assignee_email,
+           n.title as note_title, n.date as note_date
     FROM commitments c
     LEFT JOIN people p ON p.id = c.assignee_id
     LEFT JOIN notes n ON n.id = c.note_id
@@ -194,10 +201,52 @@ export function generateFollowUpDraft(commitmentId: string): string | null {
 
   const name = row.assignee_name || row.owner || 'there'
   const meetingRef = row.note_title && row.note_date
-    ? ` (from our ${row.note_title} on ${row.note_date})`
+    ? `from our "${row.note_title}" on ${row.note_date}`
     : ''
 
-  return `Hi ${name}, following up on: ${row.text}${meetingRef}. Let me know if you need anything.`
+  // Template fallback (used if LLM fails or is unavailable)
+  const templateDraft = `Hi ${name}, following up on: ${row.text}${meetingRef ? ` (${meetingRef})` : ''}. Let me know if you need anything.`
+
+  // Try LLM-powered draft
+  try {
+    const { routeLLM } = await import('../cloud/router')
+    const { resolveSelectedAIModel } = await import('../models/model-resolver')
+    const model = resolveSelectedAIModel()
+
+    if (!model) return templateDraft
+
+    const prompt = `Write a brief, warm follow-up message for a work commitment. Keep it natural — 2-3 sentences, professional but not stiff. Reference the specific commitment and meeting context.
+
+Commitment: "${row.text}"
+Person: ${name}
+${meetingRef ? `Context: ${meetingRef}` : ''}
+${row.assignee_email ? `Their email: ${row.assignee_email}` : ''}
+
+Write ONLY the message body (no subject line, no "Hi [name]," — the user will add their own greeting). Start with the follow-up directly.`
+
+    // Race against 10s timeout
+    const llmPromise = routeLLM(
+      [
+        { role: 'system', content: 'You write concise, warm professional follow-up messages. No fluff, no corporate speak. Sound like a real person.' },
+        { role: 'user', content: prompt },
+      ],
+      model
+    )
+    const timeoutPromise = new Promise<string>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 10_000)
+    )
+
+    const response = await Promise.race([llmPromise, timeoutPromise])
+    const draft = (response as string).trim()
+
+    // Sanity check: if LLM returned something too short or too long, fall back
+    if (draft.length < 10 || draft.length > 500) return templateDraft
+
+    return `Hi ${name}, ${draft}`
+  } catch (err) {
+    console.warn('[follow-up-draft] LLM failed, using template:', err)
+    return templateDraft
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────

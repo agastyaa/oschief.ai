@@ -418,6 +418,8 @@ const electronAPI = {
       update: (id: string, data: any) => ipcRenderer.invoke('memory:people-update', id, data),
       unlinkFromNote: (noteId: string, personId: string) => ipcRenderer.invoke('memory:people-unlink-from-note', noteId, personId),
       linkToNote: (noteId: string, personId: string, role?: string) => ipcRenderer.invoke('memory:people-link-to-note', noteId, personId, role),
+      importFromCalendar: (events: Array<{ attendees?: Array<{ name?: string; email?: string }> }>) =>
+        ipcRenderer.invoke('memory:people-import-from-calendar', events) as Promise<{ ok: boolean; created: number; updated: number; total: number; error?: string }>,
     },
     commitments: {
       getAll: (filters?: any) => ipcRenderer.invoke('memory:commitments-get-all', filters),

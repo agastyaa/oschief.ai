@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { mkdirSync, existsSync, unlinkSync, readdirSync, statSync, renameSync } from 'fs'
+import { mkdirSync, existsSync, unlinkSync, readdirSync, statSync, renameSync, copyFileSync } from 'fs'
 import { netFetchStream } from '../cloud/net-request'
 
 const MODEL_URLS: Record<string, { url: string; filename: string }> = {
@@ -32,12 +32,32 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
 const activeDownloads = new Map<string, { abort: () => void; controller: AbortController }>()
 
 export function getModelsDir(): string {
-  const dir = join(app.getPath('home'), '.syag', 'models')
+  const dir = join(app.getPath('home'), '.oschief', 'models')
   return dir
 }
 
 export function ensureModelsDir(): void {
   mkdirSync(getModelsDir(), { recursive: true })
+  // Migrate models from legacy ~/.syag/models/ if they exist
+  const legacyDir = join(app.getPath('home'), '.syag', 'models')
+  try {
+    if (existsSync(legacyDir) && readdirSync(legacyDir).length > 0) {
+      const files = readdirSync(legacyDir)
+      for (const file of files) {
+        const src = join(legacyDir, file)
+        const dest = join(getModelsDir(), file)
+        if (!existsSync(dest)) {
+          const stat = statSync(src)
+          if (stat.isFile()) {
+            copyFileSync(src, dest)
+            console.log(`[models] Migrated ${file} from ~/.syag/models/ to ~/.oschief/models/`)
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[models] Legacy migration skipped:', err)
+  }
 }
 
 export function getModelPath(modelId: string): string | null {

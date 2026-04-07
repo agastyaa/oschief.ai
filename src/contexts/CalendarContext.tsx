@@ -272,6 +272,39 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [calendarViewId, calendarSources, setCalendarViewId]);
 
+  // ── One-shot calendar import: populate people graph from calendar attendees ──
+  // Fires once when events first load after a calendar is connected.
+  // Checks localStorage to avoid re-importing on every app launch.
+  const calendarImportDone = useRef(false)
+  useEffect(() => {
+    if (calendarImportDone.current) return
+    if (events.length === 0) return
+    if (!isElectron) return
+
+    const IMPORT_KEY = 'oschief_calendar_people_imported'
+    if (localStorage.getItem(IMPORT_KEY)) return
+
+    calendarImportDone.current = true
+    const api = getElectronAPI()
+    if (!api?.memory?.people?.importFromCalendar) return
+
+    // Extract events with attendees for import
+    const eventsWithAttendees = events
+      .filter(e => e.attendees && e.attendees.length > 0)
+      .map(e => ({ attendees: e.attendees }))
+
+    if (eventsWithAttendees.length === 0) return
+
+    api.memory.people.importFromCalendar(eventsWithAttendees)
+      .then((result) => {
+        if (result.ok) {
+          localStorage.setItem(IMPORT_KEY, new Date().toISOString())
+          console.log(`[calendar-import] Populated people graph: ${result.created} new, ${result.updated} updated, ${result.total} total`)
+        }
+      })
+      .catch((err) => console.warn('[calendar-import] Failed:', err))
+  }, [events])
+
   // Send calendar events to main process for event-driven meeting reminders
   useEffect(() => {
     const serialized = events.map(e => ({

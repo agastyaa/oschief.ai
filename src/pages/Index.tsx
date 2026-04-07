@@ -21,8 +21,8 @@ import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
 import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
-import { MemoryBanner } from "@/components/MemoryBanner";
-import { StatsRow } from "@/components/StatsRow";
+// MemoryBanner and StatsRow removed — vanity metrics that cluttered the Today page.
+// Professional memory stats are still fetched for other uses (top contacts, etc.)
 
 function accentFromId(id: string): string {
   let h = 0;
@@ -471,27 +471,6 @@ const Index = () => {
               )}
             </div>
 
-            {/* ── Professional Memory ── */}
-            {!viewAll && memoryStats && (
-              <>
-                <MemoryBanner
-                  totalNotes={memoryStats.totalNotes}
-                  totalPeople={memoryStats.totalPeople}
-                  totalProjects={memoryStats.totalProjects}
-                  totalDecisions={memoryStats.totalDecisions}
-                  totalCommitments={memoryStats.totalCommitments}
-                  firstNoteDate={memoryStats.firstNoteDate}
-                />
-                <StatsRow
-                  openCommitments={memoryStats.openCommitments}
-                  overdueCommitments={memoryStats.overdueCommitments}
-                  activeProjects={memoryStats.activeProjects}
-                  meetingsThisWeek={memoryStats.meetingsThisWeek}
-                  decisionsThisMonth={memoryStats.decisionsThisMonth}
-                />
-              </>
-            )}
-
             {/* ── Command Center v2 (hidden in All Notes view) ── */}
             {!viewAll && (<>
             {/* ── Next Meeting + Prep ── */}
@@ -642,38 +621,9 @@ const Index = () => {
               </div>
             )}
 
-            {/* ── Top People ── */}
-            {!viewAll && memoryStats && memoryStats.topPeople.length > 0 && (
+            {/* ── Daily Brief (only show when AI-generated content exists) ── */}
+            {latestBriefRun?.status === 'success' && latestBriefRun?.output && (
               <div className="mb-3">
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Top contacts</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                  {memoryStats.topPeople.map((person) => (
-                    <button
-                      key={person.id}
-                      onClick={() => navigate('/people')}
-                      className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 hover:bg-secondary/50 transition-colors"
-                    >
-                      <div
-                        className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white"
-                        style={{ backgroundColor: accentFromId(person.id) }}
-                      >
-                        {(person.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-[12px] font-medium text-foreground">{person.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{person.meetingCount}</span>
-                    </button>
-                  ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Daily Brief ── */}
-            <div className="mb-3">
-              {latestBriefRun?.status === 'success' && latestBriefRun?.output ? (
                 <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
@@ -681,61 +631,6 @@ const Index = () => {
                   </div>
                   <p className="text-[13.5px] text-foreground leading-relaxed">{latestBriefRun.output}</p>
                 </div>
-              ) : (todayEvents.length > 0 || atRisk.length > 0 || staleDecisions.length > 0) ? (
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    {[
-                      todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''}`,
-                      atRisk.length > 0 && `${atRisk.length} at-risk`,
-                      staleDecisions.length > 0 && `${staleDecisions.length} stale decision${staleDecisions.length !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              ) : notes.length === 0 ? (
-                <div className="rounded-[10px] border border-dashed border-border bg-card/30 p-6 text-center">
-                  <Briefcase className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-[12px] text-muted-foreground">Record your first meeting to start building your daily brief.</p>
-                </div>
-              ) : (
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    {[
-                      `${notes.length} meeting${notes.length !== 1 ? 's' : ''} on record`,
-                      openCommitments.length > 0 && `${openCommitments.length} open commitment${openCommitments.length !== 1 ? 's' : ''}`,
-                      memoryStats && memoryStats.activeProjects > 0 && `${memoryStats.activeProjects} active project${memoryStats.activeProjects !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Projects (compact) ── */}
-            {activeProjects.length > 0 && (
-              <div className="mb-3">
-                <button onClick={() => navigate("/projects")} className="w-full rounded-[10px] border border-border bg-card p-4 text-left hover:bg-secondary/30 transition-colors" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--green, 142 50% 45%))' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
-                      <FolderKanban className="h-3.5 w-3.5" />
-                      Active Projects
-                    </span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {activeProjects.map((p: any) => (
-                      <span key={p.id} className="text-[13px] text-foreground font-medium">
-                        {p.name} <span className="text-[11px] text-muted-foreground font-normal">({p.meetingCount || 0})</span>
-                      </span>
-                    ))}
-                  </div>
-                </button>
               </div>
             )}
             </>)}

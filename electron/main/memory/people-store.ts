@@ -162,6 +162,103 @@ export function updatePerson(id: string, data: { name?: string; email?: string; 
   return true
 }
 
+/**
+ * Batch import people from calendar events.
+ *
+ * Loads the entire people table into memory ONCE, then fuzzy-matches each
+ * attendee against the in-memory index. Much faster than calling upsertPerson()
+ * in a loop (which does a full table scan per call).
+ *
+ * FLOW:
+ *   Load people into memory → for each attendee:
+ *     1. Email match? → update last_seen
+ *     2. Fuzzy name match (Levenshtein ≤ 3)? → update last_seen
+ *     3. No match → insert new person
+ *   All wrapped in a single transaction for atomicity.
+ *
+ * Returns: { created: number, updated: number, total: number }
+ */
+export function batchImportFromCalendar(
+  attendees: Array<{ name: string; email?: string }>
+): { created: number; updated: number; total: number } {
+  const db = getDb()
+  const now = new Date().toISOString()
+
+  // Deduplicate input attendees by email (prefer first occurrence)
+  const seen = new Set<string>()
+  const unique: Array<{ name: string; email?: string }> = []
+  for (const a of attendees) {
+    if (!a.name || a.name.trim().length < 2) continue
+    const key = a.email?.toLowerCase() || a.name.toLowerCase().trim()
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push({ name: a.name.trim(), email: a.email?.trim() || undefined })
+  }
+
+  // Load existing people into memory for fast matching
+  const existing = db.prepare('SELECT id, name, email FROM people').all() as Array<{ id: string; name: string; email: string | null }>
+  const emailIndex = new Map<string, string>() // email → id
+  const nameIndex: Array<{ id: string; nameLower: string }> = []
+  for (const p of existing) {
+    if (p.email) emailIndex.set(p.email.toLowerCase(), p.id)
+    if (p.name) nameIndex.push({ id: p.id, nameLower: p.name.toLowerCase() })
+  }
+
+  let created = 0
+  let updated = 0
+
+  const importAll = db.transaction(() => {
+    for (const attendee of unique) {
+      // 1. Email match
+      if (attendee.email) {
+        const matchId = emailIndex.get(attendee.email.toLowerCase())
+        if (matchId) {
+          db.prepare('UPDATE people SET last_seen = ? WHERE id = ?').run(now, matchId)
+          updated++
+          continue
+        }
+      }
+
+      // 2. Fuzzy name match
+      const nameLower = attendee.name.toLowerCase()
+      let fuzzyMatch = false
+      if (nameLower.length > 3) {
+        for (const entry of nameIndex) {
+          if (levenshteinDistance(nameLower, entry.nameLower) <= 3) {
+            db.prepare('UPDATE people SET last_seen = ? WHERE id = ?').run(now, entry.id)
+            // If attendee has email and existing person doesn't, add it
+            if (attendee.email) {
+              db.prepare('UPDATE people SET email = ? WHERE id = ? AND (email IS NULL OR email = "")').run(attendee.email, entry.id)
+            }
+            updated++
+            fuzzyMatch = true
+            break
+          }
+        }
+      }
+      if (fuzzyMatch) continue
+
+      // 3. Create new person
+      const id = randomUUID()
+      db.prepare(`
+        INSERT INTO people (id, name, email, company, role, relationship, notes, first_seen, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, attendee.name, attendee.email ?? null, null, null, null, null, now, now)
+      logPeopleSync('INSERT', id, { id, name: attendee.name, email: attendee.email ?? null })
+
+      // Add to in-memory index for subsequent matches within this batch
+      if (attendee.email) emailIndex.set(attendee.email.toLowerCase(), id)
+      nameIndex.push({ id, nameLower: nameLower })
+      created++
+    }
+  })
+
+  importAll()
+
+  console.log(`[people-store] Calendar import: ${created} created, ${updated} updated, ${unique.length} total attendees`)
+  return { created, updated, total: unique.length }
+}
+
 export function unlinkPersonFromNote(noteId: string, personId: string): boolean {
   const result = getDb().prepare('DELETE FROM note_people WHERE note_id = ? AND person_id = ?').run(noteId, personId)
   if ((result as any).changes > 0) logNotePeopleSync('DELETE', noteId, personId, null)

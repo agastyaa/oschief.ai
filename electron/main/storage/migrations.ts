@@ -311,6 +311,13 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_mail_thread_people_person ON mail_thread_people(person_id)`,
     ]
   },
+  {
+    version: 16,
+    up: [
+      // Commitment confidence scoring — AI extraction confidence level
+      `ALTER TABLE commitments ADD COLUMN confidence TEXT DEFAULT 'medium'`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

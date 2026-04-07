@@ -1,11 +1,19 @@
 /**
- * Smart Meeting Reminder — Event-Driven (no polling)
+ * Smart Meeting Reminder — "Before You Go In" Prep Brief Notifications
  *
- * Instead of polling every 60s, this schedules exact timers:
- * when calendar events are updated, it calculates the precise moment
- * each notification should fire (event start - 5 min) and sets a
- * setTimeout for that moment. When the calendar changes, it cancels
- * stale timers and reschedules.
+ * Event-driven (no polling). Schedules exact timers for each calendar event:
+ * fires 10 minutes before meeting start to allow time for LLM prep brief
+ * generation, then shows macOS notification with contextual brief.
+ *
+ * FLOW:
+ *   Calendar events updated → scheduleReminders()
+ *     → setTimeout(startTime - 10min)
+ *       → fireReminder()
+ *         ├── generatePrepBrief() via LLM (15s timeout)
+ *         │   → Rich notification: "You last met Sarah on Mar 15.
+ *         │     You owe her the revised forecast. ACME launch decision is stale."
+ *         └── [timeout/error] → assembleContext() data-only fallback
+ *             → "Last met Sarah on Mar 15 · 2 overdue commitments · Project: ACME"
  *
  * Runs in the main process. Receives events via IPC from CalendarContext.
  */
@@ -14,7 +22,7 @@ import { Notification, BrowserWindow, ipcMain } from 'electron'
 
 // ── State ───────────────────────────────────────────────────────────
 
-const REMIND_BEFORE_MS = 5 * 60 * 1000 // 5 minutes before start
+const REMIND_BEFORE_MS = 10 * 60 * 1000 // 10 minutes before start (buffer for LLM prep brief generation)
 const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const notifiedEventIds = new Set<string>()
 
@@ -106,36 +114,66 @@ async function fireReminder(event: any, eventKey: string): Promise<void> {
   notifiedEventIds.add(eventKey)
 
   const attendees = event.attendees || []
+  const names = attendees.map((a: any) => a.name).filter(Boolean)
+  const emails = attendees.map((a: any) => a.email).filter(Boolean)
 
-  // Assemble context for a richer notification (no LLM — instant)
+  // ── Try LLM-powered prep brief (15s timeout) ────────────────────
+  //
+  //  generatePrepBrief() → routeLLM() → 3-5 line contextual brief
+  //  Falls back to data-only context if LLM times out or fails.
+  //
   let briefText = ''
+  let prepBriefResult: any = null
   try {
-    const { assembleContext } = await import('../memory/context-assembler')
-    const names = attendees.map((a: any) => a.name).filter(Boolean)
-    const emails = attendees.map((a: any) => a.email).filter(Boolean)
-    const ctx = await assembleContext(names, emails, event.title)
+    const { generatePrepBrief } = await import('../memory/prep-brief')
+    const { resolveSelectedAIModel } = await import('../models/model-resolver')
+    const model = resolveSelectedAIModel()
 
-    const parts: string[] = []
-    if (ctx.previousMeetings.length > 0) {
-      const first = ctx.previousMeetings[0]
-      if (first.meetings.length > 0) {
-        parts.push(`Last met ${first.personName} on ${first.meetings[0].date}`)
+    if (model && (names.length > 0 || emails.length > 0)) {
+      // Race the LLM call against a 15s timeout
+      const briefPromise = generatePrepBrief(names, emails, event.title, model)
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000))
+      prepBriefResult = await Promise.race([briefPromise, timeoutPromise])
+
+      if (prepBriefResult?.summary) {
+        // Truncate to ~4 lines for macOS notification body
+        const lines = prepBriefResult.summary.split(/[.!?]\s+/).filter(Boolean)
+        briefText = lines.slice(0, 3).join('. ') + '.'
+        console.log('[meeting-reminder] Prep brief generated via LLM')
       }
     }
-    if (ctx.openCommitments.length > 0) {
-      const overdue = ctx.openCommitments.filter(c => c.isOverdue)
-      if (overdue.length > 0) {
-        parts.push(`${overdue.length} overdue commitment${overdue.length > 1 ? 's' : ''}`)
-      } else {
-        parts.push(`${ctx.openCommitments.length} open commitment${ctx.openCommitments.length > 1 ? 's' : ''}`)
+  } catch (err) {
+    console.warn('[meeting-reminder] Prep brief LLM failed, falling back to context:', err)
+  }
+
+  // ── Fallback: data-only context (no LLM) ────────────────────────
+  if (!briefText) {
+    try {
+      const { assembleContext } = await import('../memory/context-assembler')
+      const ctx = await assembleContext(names, emails, event.title)
+
+      const parts: string[] = []
+      if (ctx.previousMeetings.length > 0) {
+        const first = ctx.previousMeetings[0]
+        if (first.meetings.length > 0) {
+          parts.push(`Last met ${first.personName} on ${first.meetings[0].date}`)
+        }
       }
+      if (ctx.openCommitments.length > 0) {
+        const overdue = ctx.openCommitments.filter((c: any) => c.isOverdue)
+        if (overdue.length > 0) {
+          parts.push(`${overdue.length} overdue commitment${overdue.length > 1 ? 's' : ''}`)
+        } else {
+          parts.push(`${ctx.openCommitments.length} open commitment${ctx.openCommitments.length > 1 ? 's' : ''}`)
+        }
+      }
+      if (ctx.projects.length > 0) {
+        parts.push(`Project: ${ctx.projects[0].name}`)
+      }
+      briefText = parts.join(' · ')
+    } catch {
+      // No context — still show the notification
     }
-    if (ctx.projects.length > 0) {
-      parts.push(`Project: ${ctx.projects[0].name}`)
-    }
-    briefText = parts.join(' · ')
-  } catch {
-    // No context — still show the notification
   }
 
   const attendeeNames = attendees.map((a: any) => a.name || a.email).filter(Boolean)
@@ -158,12 +196,16 @@ async function fireReminder(event: any, eventKey: string): Promise<void> {
     if (win) {
       win.show()
       win.focus()
+      // Navigate to the prep brief view if we have a brief, otherwise start a new note
+      const hash = prepBriefResult
+        ? `#/?prepEvent=${encodeURIComponent(event.title || '')}`
+        : '#/new-note?startFresh=1'
       win.webContents.executeJavaScript(
-        `window.location.hash = '#/new-note?startFresh=1'; void 0`
+        `window.location.hash = '${hash}'; void 0`
       ).catch(() => {})
     }
   })
 
   notification.show()
-  console.log(`[meeting-reminder] Notified: "${event.title}" in 5 min (scheduled, not polled)`)
+  console.log(`[meeting-reminder] Notified: "${event.title}" — ${prepBriefResult ? 'LLM brief' : 'context-only'} (10-min lead)`)
 }
