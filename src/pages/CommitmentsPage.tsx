@@ -45,6 +45,7 @@ const CommitmentsPage = () => {
   const [addingTodo, setAddingTodo] = useState(false)
   const [projects, setProjects] = useState<any[]>([])
   const [newTodoProjectId, setNewTodoProjectId] = useState<string | null>(null)
+  const [newTodoAssignee, setNewTodoAssignee] = useState("")
   const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
   const [editingAssigneeId, setEditingAssigneeId] = useState<string | null>(null)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
@@ -158,15 +159,19 @@ const CommitmentsPage = () => {
     if (!text || !api?.memory?.commitments?.add || addingTodo) return
     setAddingTodo(true)
     try {
+      const assigneeName = newTodoAssignee.trim()
+      const matchedPerson = assigneeName ? people.find((p: any) => p.name.toLowerCase() === assigneeName.toLowerCase()) : null
       await api.memory.commitments.add({
         text,
-        owner: "you",
+        owner: assigneeName || "you",
+        assigneeId: matchedPerson?.id || undefined,
         projectId: newTodoProjectId || undefined,
         dueDate: newTodoDueDate || undefined,
       })
       setNewTodoText("")
       setNewTodoDueDate("")
       setNewTodoProjectId(null)
+      setNewTodoAssignee("")
       await loadCommitments()
     } catch (err) {
       console.error("Failed to add to-do:", err)
@@ -226,6 +231,18 @@ const CommitmentsPage = () => {
                   placeholder="Write a to-do..."
                   className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-[13.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <input
+                  value={newTodoAssignee}
+                  onChange={(e) => setNewTodoAssignee(e.target.value)}
+                  list="new-todo-assignee-list"
+                  placeholder="Assign to..."
+                  className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring w-32"
+                />
+                <datalist id="new-todo-assignee-list">
+                  {people.map((p: any) => (
+                    <option key={p.id} value={p.name} />
+                  ))}
+                </datalist>
                 <input
                   type="date"
                   value={newTodoDueDate}
@@ -340,7 +357,7 @@ const CommitmentsPage = () => {
                               <StatusIcon className="h-4 w-4" />
                             </button>
 
-                            {/* Content */}
+                            {/* Content — left side */}
                             <div className="flex-1 min-w-0">
                               {editingId === c.id ? (
                                 <input
@@ -367,59 +384,6 @@ const CommitmentsPage = () => {
                                 </p>
                               )}
                               <div className="flex items-center gap-3 mt-1">
-                                {editingAssigneeId === c.id ? (
-                                  <select
-                                    autoFocus
-                                    value={c.owner === 'you' ? '__me__' : (c.assignee_name || c.owner || '')}
-                                    onChange={(e) => {
-                                      const val = e.target.value
-                                      if (val === '__me__') {
-                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
-                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
-                                      } else if (val === '__none__') {
-                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
-                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
-                                      } else {
-                                        const selected = people.find((p: any) => p.name === val)
-                                        api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
-                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
-                                      }
-                                    }}
-                                    onBlur={() => setEditingAssigneeId(null)}
-                                    className="text-[11px] rounded border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                  >
-                                    <option value="__me__">Me</option>
-                                    <option value="__none__">Unassigned</option>
-                                    {people.map((p: any) => (
-                                      <option key={p.id} value={p.name}>{p.name}</option>
-                                    ))}
-                                  </select>
-                                ) : c.assignee_name ? (
-                                  <button
-                                    onClick={() => setEditingAssigneeId(c.id)}
-                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                                    title="Click to change assignee"
-                                  >
-                                    → {c.assignee_name}
-                                  </button>
-                                ) : c.owner && c.owner !== 'you' ? (
-                                  <button
-                                    onClick={() => setEditingAssigneeId(c.id)}
-                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                                    title="Click to change assignee"
-                                  >
-                                    → {c.owner}
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => setEditingAssigneeId(c.id)}
-                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                                    title="Assign to someone"
-                                  >
-                                    <UserPlus className="h-2.5 w-2.5" />
-                                    Assign
-                                  </button>
-                                )}
                                 {editingDueDateId === c.id ? (
                                   <input
                                     type="date"
@@ -504,23 +468,75 @@ const CommitmentsPage = () => {
                               </div>
                             </div>
 
-                            {/* Actions: source meeting + delete */}
-                            <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {c.note_id && (
+                            {/* Right side: assignee + actions */}
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
+                              {/* Assignee badge */}
+                              {editingAssigneeId === c.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    defaultValue={c.owner === 'you' ? '' : (c.assignee_name || c.owner || '')}
+                                    list={`assignee-list-${c.id}`}
+                                    placeholder="Type a name..."
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim()
+                                      setEditingAssigneeId(null)
+                                      if (!val) return
+                                      const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
+                                      api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
+                                        .then(() => loadCommitments())
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                      if (e.key === 'Escape') setEditingAssigneeId(null)
+                                    }}
+                                    className="text-[12px] rounded border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-32"
+                                  />
+                                  <datalist id={`assignee-list-${c.id}`}>
+                                    {people.map((p: any) => (
+                                      <option key={p.id} value={p.name} />
+                                    ))}
+                                  </datalist>
+                                </div>
+                              ) : (
                                 <button
-                                  onClick={() => navigate(`/note/${c.note_id}`)}
-                                  title={c.note_title || "View meeting"}
+                                  onClick={() => setEditingAssigneeId(c.id)}
+                                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Click to change assignee"
                                 >
-                                  <FileText className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                  {c.owner === 'you' ? 'Me' : (c.assignee_name || c.owner || 'Me')}
                                 </button>
                               )}
-                              <button
-                                onClick={() => handleDelete(c.id)}
-                                title="Delete" aria-label="Delete"
-                                className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {/* Assign to me — only when assigned to someone else */}
+                              {c.owner !== 'you' && editingAssigneeId !== c.id && (
+                                <button
+                                  onClick={() => {
+                                    api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                      .then(() => loadCommitments())
+                                  }}
+                                  className="text-[10px] text-primary hover:underline"
+                                >
+                                  Assign to me
+                                </button>
+                              )}
+                              {/* Actions: source meeting + delete */}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {c.note_id && (
+                                  <button
+                                    onClick={() => navigate(`/note/${c.note_id}`)}
+                                    title={c.note_title || "View meeting"}
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDelete(c.id)}
+                                  title="Delete" aria-label="Delete"
+                                  className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )
