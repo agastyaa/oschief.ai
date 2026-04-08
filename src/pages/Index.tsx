@@ -457,12 +457,11 @@ const Index = () => {
                   </h1>
                   {(todayEvents.length > 0 || openCommitments.length > 0 || atRisk.length > 0) && (
                     <p className="text-[13px] text-muted-foreground mt-1">
-                      {[
-                        todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`,
-                        atRisk.length > 0 && `${atRisk.length} at risk`,
-                        staleDecisions.length > 0 && `${staleDecisions.length} stale`,
-                        openCommitments.length > 0 && !atRisk.length && `${openCommitments.length} open commitments`,
-                      ].filter(Boolean).join(' · ')}
+                      Your CoS prepared {[
+                        todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''}`,
+                        atRisk.length > 0 && `${atRisk.length} item${atRisk.length !== 1 ? 's' : ''} at risk`,
+                        thisWeekCommitments.length > 0 && `${thisWeekCommitments.length} commitment${thisWeekCommitments.length !== 1 ? 's' : ''} this week`,
+                      ].filter(Boolean).join(', ')} for your attention.
                     </p>
                   )}
                 </>
@@ -587,7 +586,7 @@ const Index = () => {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                       <AlertCircle className="h-3.5 w-3.5" style={{ color: 'hsl(25 65% 45%)' }} />
-                      Needs Attention
+                      Your CoS flagged these
                       <span className="text-[11px] font-normal">{atRisk.length + staleDecisions.length}</span>
                     </span>
                     <button onClick={() => navigate('/commitments')} className="text-[11px] text-primary hover:underline">

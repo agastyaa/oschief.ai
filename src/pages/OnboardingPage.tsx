@@ -17,27 +17,28 @@ export function completeOnboarding() {
 const featureSteps = [
   {
     icon: Mic,
-    title: "Your on-device chief of staff",
-    description: "OSChief sits beside your calls, captures everything, and builds a living memory of your work — all on your Mac.",
+    title: "Meet your Chief of Staff",
+    description: "Your CoS joins every call, captures what matters, and builds a living memory of your work — all running on your Mac.",
   },
   {
     icon: Sparkles,
-    title: "Meetings become structured memory",
-    description: "Every meeting produces summaries, decisions, action items, and project connections — automatically linked to people and work streams.",
+    title: "Every meeting becomes intelligence",
+    description: "Summaries, decisions, action items, and commitments — automatically linked to the people and projects in your world.",
   },
   {
     icon: FileText,
-    title: "Your data stays under your control",
-    description: "Everything lives on your machine. Cloud AI is opt-in, bring-your-own-keys, and you can anonymize names before sending.",
+    title: "Your data never leaves your machine",
+    description: "Everything lives on disk. Cloud AI is opt-in, bring-your-own-keys. Your CoS works for you, not a server.",
   },
 ];
 
-const TOTAL_DOTS = isElectron ? 8 : 7;
+const TOTAL_DOTS = isElectron ? 9 : 8;
 const MIC_STEP = 3;
 const SCREEN_STEP = isElectron ? 4 : -1;
 const NAME_STEP = isElectron ? 5 : 4;
 const ROLE_STEP = isElectron ? 6 : 5;
-const CALENDAR_STEP = isElectron ? 7 : 6;
+const AI_MODEL_STEP = isElectron ? 7 : 6;
+const CALENDAR_STEP = isElectron ? 8 : 7;
 
 const ROLES = [
   { id: "product-manager", label: "Product Manager" },
@@ -60,6 +61,9 @@ export default function OnboardingPage() {
   const [micStatus, setMicStatus] = useState<"idle" | "granted" | "denied">("idle");
   const [screenStatus, setScreenStatus] = useState<"idle" | "granted" | "denied">("idle");
   const [selectedRole, setSelectedRole] = useState("");
+  const [aiMode, setAiMode] = useState<"local" | "cloud" | "">("");
+  const [cloudProvider, setCloudProvider] = useState<"anthropic" | "openai" | "google">("anthropic");
+  const [apiKey, setApiKey] = useState("");
   const [calendarConnected, setCalendarConnected] = useState(false);
 
   const handleNext = () => {
@@ -113,11 +117,28 @@ export default function OnboardingPage() {
         account.name = name.trim();
         if (selectedRole) account.role = selectedRole;
         localStorage.setItem("syag-account", JSON.stringify(account));
-        // Also save role to settings DB
         if (selectedRole && api?.db?.settings?.set) {
           api.db.settings.set("user-role", selectedRole);
         }
       } catch {}
+    }
+    // Save AI model selection
+    if (aiMode && api?.db?.settings?.set) {
+      if (aiMode === 'local') {
+        try {
+          const modelSettings = JSON.parse(localStorage.getItem("syag-model-settings") || "{}");
+          modelSettings.selectedAIModel = "ollama:llama3.2:latest";
+          localStorage.setItem("syag-model-settings", JSON.stringify(modelSettings));
+        } catch {}
+      } else if (aiMode === 'cloud' && apiKey.trim()) {
+        const providerMap = { anthropic: "anthropic:claude-sonnet-4-20250514", openai: "openai:gpt-4o", google: "google:gemini-2.0-flash" };
+        try {
+          api.keychain?.set(`${cloudProvider}-api-key`, apiKey.trim());
+          const modelSettings = JSON.parse(localStorage.getItem("syag-model-settings") || "{}");
+          modelSettings.selectedAIModel = providerMap[cloudProvider];
+          localStorage.setItem("syag-model-settings", JSON.stringify(modelSettings));
+        } catch {}
+      }
     }
     completeOnboarding();
     navigate("/");
@@ -141,6 +162,7 @@ export default function OnboardingPage() {
   const isScreenStep = currentStep === SCREEN_STEP;
   const isNameStep = currentStep === NAME_STEP;
   const isRoleStep = currentStep === ROLE_STEP;
+  const isAIModelStep = currentStep === AI_MODEL_STEP;
   const isCalendarStep = currentStep === CALENDAR_STEP;
   const isLastFeatureStep = currentStep === featureSteps.length - 1;
 
@@ -342,7 +364,7 @@ export default function OnboardingPage() {
               What&apos;s your role?
             </h1>
             <p className="text-[15px] text-muted-foreground mb-6">
-              OSChief tailors coaching and insights to how you work.
+              Your CoS tailors coaching and insights to how you work.
             </p>
             <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-6">
               {ROLES.map(r => (
@@ -370,6 +392,91 @@ export default function OnboardingPage() {
               <button
                 onClick={handleNext}
                 className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isAIModelStep && (
+          <div className="text-center animate-fade-in" key="ai-model">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto mb-6">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <h1 className="font-display text-2xl text-foreground mb-2">
+              How should your Chief of Staff think?
+            </h1>
+            <p className="text-[15px] text-muted-foreground mb-6">
+              Choose local for privacy, or cloud for power. You can change this anytime in Settings.
+            </p>
+            <div className="flex gap-3 max-w-md mx-auto mb-4">
+              <button
+                onClick={() => setAiMode("local")}
+                className={cn(
+                  "flex-1 rounded-lg border p-4 text-left transition-all",
+                  aiMode === "local"
+                    ? "border-accent bg-accent/10"
+                    : "border-border bg-card hover:border-accent/40"
+                )}
+              >
+                <ShieldCheck className="h-5 w-5 text-emerald-500 mb-2" />
+                <p className="text-sm font-medium text-foreground">Local (private)</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Runs on your Mac via Ollama. Nothing leaves your device.</p>
+              </button>
+              <button
+                onClick={() => setAiMode("cloud")}
+                className={cn(
+                  "flex-1 rounded-lg border p-4 text-left transition-all",
+                  aiMode === "cloud"
+                    ? "border-accent bg-accent/10"
+                    : "border-border bg-card hover:border-accent/40"
+                )}
+              >
+                <Sparkles className="h-5 w-5 text-primary mb-2" />
+                <p className="text-sm font-medium text-foreground">Cloud (powerful)</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Claude, GPT, or Gemini via your API key. Audio stays local.</p>
+              </button>
+            </div>
+            {aiMode === "cloud" && (
+              <div className="max-w-sm mx-auto space-y-3 mb-4">
+                <div className="flex gap-2">
+                  {(["anthropic", "openai", "google"] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setCloudProvider(p)}
+                      className={cn(
+                        "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-all",
+                        cloudProvider === p
+                          ? "border-accent bg-accent/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-accent/40"
+                      )}
+                    >
+                      {p === "anthropic" ? "Claude" : p === "openai" ? "GPT" : "Gemini"}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={`Paste your ${cloudProvider === "anthropic" ? "Anthropic" : cloudProvider === "openai" ? "OpenAI" : "Google"} API key...`}
+                  type="password"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={handleNext}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Skip — configure later
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={aiMode === "cloud" && !apiKey.trim()}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
               >
                 Next
                 <ArrowRight className="h-4 w-4" />

@@ -195,7 +195,7 @@ export default function CoachingPage() {
             {/* ── Header ── */}
             <div className="mb-8">
               <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">Work Coach</h1>
-              <p className="text-[13px] text-muted-foreground mt-1">How you run meetings — substance, timing, and judgment</p>
+              <p className="text-[13px] text-muted-foreground mt-1">Your CoS reviews how you run meetings — what you missed, what to change</p>
             </div>
 
             {/* ── Empty state: no meetings ── */}

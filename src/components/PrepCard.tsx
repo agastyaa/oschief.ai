@@ -110,7 +110,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", isHappening ? "text-amber-700 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20" : "text-primary bg-primary/10")}>
-              {isHappening ? "HAPPENING NOW" : "NEXT UP"}
+              {isHappening ? "HAPPENING NOW" : "YOUR COS PREPARED"}
             </span>
             {timeStr && <span className="text-[12px] text-muted-foreground">{timeStr}</span>}
           </div>

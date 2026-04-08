@@ -85,6 +85,26 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ---
 
+## How OSChief compares
+
+| | OSChief | Granola | Otter.ai | Fellow | Notion AI |
+|---|---|---|---|---|---|
+| On-device transcription | ✅ MLX Whisper, Parakeet | ✅ | ✗ Cloud only | ✗ Cloud only | ✗ |
+| Fully offline mode | ✅ | ✗ | ✗ | ✗ | ✗ |
+| Speaker diarization | ✅ | ✅ | ✅ | ✅ | ✗ |
+| Role-based coaching | ✅ KB-grounded | ✗ | ✗ | ✗ | ✗ |
+| Commitment tracking | ✅ 1:1 action item sync | ✗ | ✗ | Basic | ✗ |
+| Decision tracking | ✅ Full lifecycle | ✗ | ✗ | ✗ | ✗ |
+| People graph | ✅ | ✗ | ✗ | ✗ | ✗ |
+| BYOK (bring your own keys) | ✅ | ✗ | ✗ | ✗ | ✗ |
+| No telemetry | ✅ Zero | Unclear | ✗ | ✗ | ✗ |
+| Open source | ✅ MIT | ✗ | ✗ | ✗ | ✗ |
+| Rich text notes | ✅ Tiptap | ✅ | Basic | ✅ | ✅ |
+| Scheduled routines | ✅ | ✗ | ✗ | ✗ | ✗ |
+| macOS native | ✅ | ✅ | Web | Web | Web |
+
+---
+
 ## Privacy
 
 - All data under `~/Library/Application Support/OSChief/`

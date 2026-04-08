@@ -4,6 +4,23 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.4.0] — 2026-04-08
+
+### Added
+- **Chief of Staff voice** — every AI surface now speaks as "your Chief of Staff": Today page greeting, Needs Attention, coaching, routines, summaries, Ask bar. Consistent, opinionated, direct — like a senior colleague who's been paying attention.
+- **AI model selection in onboarding** — new step after role selection: choose Local (Ollama, fully private) or Cloud (Claude/GPT/Gemini with API key). No more digging through Settings on first launch.
+- **Comparison table in README** — OSChief vs Granola vs Otter.ai vs Fellow vs Notion AI across 13 dimensions.
+
+### Changed
+- **Onboarding flow** — 9 steps (was 8). Feature pitch slides rewritten with CoS framing. Role step says "Your CoS tailors coaching..." not "OSChief tailors..."
+- **Summary preamble** — "You are the user's Chief of Staff" replaces "You are OSChief AI, a meeting notes assistant"
+- **Coaching identity** — system prompt now identifies as "the user's Chief of Staff reviewing their meeting performance"
+- **Prep card** — "YOUR COS PREPARED" replaces "NEXT UP"
+- **Routine descriptions** — all 4 rewritten in CoS voice
+- **Ask bar** — "Ask your Chief of Staff" replaces "Ask OSChief"
+
+---
+
 ## [2.3.2] — 2026-04-07
 
 ### Fixed

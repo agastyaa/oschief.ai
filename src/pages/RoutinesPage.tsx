@@ -22,10 +22,10 @@ interface Routine {
 }
 
 const ROUTINE_DESCRIPTIONS: Record<string, string> = {
-  'morning-briefing': "Your day at a glance: today's meetings with prep notes, overdue commitments, and who you're meeting for the first time.",
-  'end-of-day': "End-of-day recap: meetings attended, commitments made, decisions reached, and a preview of tomorrow.",
-  'weekly-recap': "What happened this week: meetings attended, decisions made, commitments kept vs. broken, and people you met.",
-  'overdue-commitments': "Things you promised but haven't delivered. Grouped by person so you can batch your follow-ups.",
+  'morning-briefing': "Here's what your CoS needs you to know before your first call today.",
+  'end-of-day': "Your CoS reviewed today — what moved, what you committed to, and what's coming tomorrow.",
+  'weekly-recap': "Your week in review. What moved, what stalled, and what needs a push.",
+  'overdue-commitments': "These promises are past due. Your CoS grouped them by person so you can batch follow-ups.",
 }
 
 interface RoutineRun {
