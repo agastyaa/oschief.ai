@@ -4,7 +4,7 @@ import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
 import { toast } from "sonner"
@@ -367,11 +367,6 @@ const CommitmentsPage = () => {
                                 </p>
                               )}
                               <div className="flex items-center gap-3 mt-1">
-                                {c.owner && c.owner !== "you" && (
-                                  <span className="text-[11px] text-muted-foreground">
-                                    Owner: {c.owner}
-                                  </span>
-                                )}
                                 {editingAssigneeId === c.id ? (
                                   <div className="flex items-center gap-1.5">
                                     <button
