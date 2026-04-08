@@ -194,6 +194,17 @@ function rebuildMenu(): void {
       mainWindow?.focus()
     }
   })
+  template.push({
+    label: 'Check for Updates',
+    click: async () => {
+      try {
+        const pkg = await import('electron-updater')
+        await pkg.autoUpdater.checkForUpdatesAndNotify()
+      } catch (err) {
+        console.error('[tray] Update check failed:', err)
+      }
+    }
+  })
   template.push({ type: 'separator' })
   template.push({
     label: 'Quit app',
