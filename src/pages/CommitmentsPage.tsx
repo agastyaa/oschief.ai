@@ -413,7 +413,7 @@ const CommitmentsPage = () => {
                                 ) : (
                                   <button
                                     onClick={() => setEditingAssigneeId(c.id)}
-                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                                     title="Assign to someone"
                                   >
                                     <UserPlus className="h-2.5 w-2.5" />
