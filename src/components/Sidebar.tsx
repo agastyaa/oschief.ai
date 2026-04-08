@@ -239,7 +239,7 @@ export function Sidebar() {
       </div>
 
       {/* Today */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-1">
+      <nav className="flex flex-col gap-0.5 px-3 mt-4">
         <NavItem icon={Home} label="Today" to="/" active={
           isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder") && !location.search.includes("view=all")
         } />

@@ -173,7 +173,7 @@ const CommitmentsPage = () => {
     } finally {
       setAddingTodo(false)
     }
-  }, [newTodoText, api, addingTodo, loadCommitments])
+  }, [newTodoText, newTodoDueDate, newTodoProjectId, api, addingTodo, loadCommitments])
 
   // Group by date for better display
   const grouped = filteredCommitments.reduce<Record<string, Commitment[]>>((acc, c) => {
@@ -373,25 +373,30 @@ const CommitmentsPage = () => {
                                   </span>
                                 )}
                                 {editingAssigneeId === c.id ? (
-                                  <>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
+                                      }}
+                                      className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground hover:opacity-90 transition-colors"
+                                    >
+                                      Assign to me
+                                    </button>
                                     <input
                                       autoFocus
-                                      defaultValue={c.assignee_name || (c.owner === 'you' ? 'Me' : c.owner || "")}
+                                      defaultValue={c.assignee_name && c.owner !== 'you' ? c.assignee_name : ""}
                                       list={`assignee-list-${c.id}`}
-                                      placeholder="Type a name..."
+                                      placeholder="Or type a name..."
                                       onBlur={(e) => {
                                         const val = e.target.value.trim()
                                         setEditingAssigneeId(null)
-                                        if (!val || val.toLowerCase() === 'me') {
-                                          api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
-                                            .then(() => loadCommitments())
-                                        } else {
-                                          const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
-                                          api?.memory?.commitments?.update(c.id, {
-                                            owner: val,
-                                            assigneeId: selected?.id ?? null,
-                                          }).then(() => loadCommitments())
-                                        }
+                                        if (!val) return // no change if empty (user might have clicked "Assign to me")
+                                        const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
+                                        api?.memory?.commitments?.update(c.id, {
+                                          owner: val,
+                                          assigneeId: selected?.id ?? null,
+                                        }).then(() => loadCommitments())
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
@@ -400,12 +405,14 @@ const CommitmentsPage = () => {
                                       className="text-[11px] rounded border border-border bg-background px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-28"
                                     />
                                     <datalist id={`assignee-list-${c.id}`}>
-                                      <option value="Me" />
                                       {people.map((p: any) => (
                                         <option key={p.id} value={p.name} />
                                       ))}
                                     </datalist>
-                                  </>
+                                    <button onClick={() => setEditingAssigneeId(null)} className="text-muted-foreground hover:text-foreground">
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
                                 ) : c.assignee_name ? (
                                   <button
                                     onClick={() => setEditingAssigneeId(c.id)}
@@ -413,6 +420,14 @@ const CommitmentsPage = () => {
                                     title="Click to change assignee"
                                   >
                                     → {c.assignee_name}
+                                  </button>
+                                ) : c.owner && c.owner !== 'you' ? (
+                                  <button
+                                    onClick={() => setEditingAssigneeId(c.id)}
+                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Click to change assignee"
+                                  >
+                                    → {c.owner}
                                   </button>
                                 ) : (
                                   <button

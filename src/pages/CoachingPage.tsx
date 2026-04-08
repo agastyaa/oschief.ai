@@ -224,23 +224,21 @@ export default function CoachingPage() {
 
             {/* ── Coach Message (hero) ── */}
             {coachMsg.type !== "empty" && (
-              <div className="rounded-[10px] border border-border bg-card p-5 mb-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                <p className="text-[15px] font-semibold text-foreground leading-snug mb-2">{coachMsg.headline}</p>
-                <p className="text-[13.5px] text-foreground/80 leading-relaxed">{coachMsg.body}</p>
+              <div className="mb-6">
+                <p className="text-[16px] font-semibold text-foreground leading-snug mb-2">{coachMsg.headline}</p>
+                <p className="text-[13.5px] text-foreground/70 leading-relaxed">{coachMsg.body}</p>
 
-                {/* Focus next callout */}
                 {crossMeeting?.focusNext && (
-                  <div className="mt-4 rounded-md bg-primary/5 border-l-3 border-primary/40 pl-4 pr-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">FOCUS NEXT</p>
-                    <p className="text-[13px] text-foreground leading-relaxed">{crossMeeting.focusNext}</p>
+                  <div className="mt-4">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Focus next</p>
+                    <p className="text-[13.5px] text-foreground leading-relaxed">{crossMeeting.focusNext}</p>
                   </div>
                 )}
 
-                {/* Blind spot (new from aggregation) */}
                 {crossMeeting?.blindSpot && (
-                  <div className="mt-3 rounded-md bg-amber-50/50 dark:bg-amber-900/10 border-l-3 border-amber-400/40 pl-4 pr-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">BLIND SPOT</p>
-                    <p className="text-[13px] text-foreground leading-relaxed">{crossMeeting.blindSpot}</p>
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Blind spot</p>
+                    <p className="text-[13.5px] text-foreground leading-relaxed">{crossMeeting.blindSpot}</p>
                   </div>
                 )}
 
@@ -277,26 +275,26 @@ export default function CoachingPage() {
               </div>
             )}
 
-            {/* ── What I Noticed (micro-insights with evidence) ── */}
+            {/* ── What I Noticed (micro-insights — clean text, no cards) ── */}
             {topMicroInsights.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">WHAT I NOTICED</p>
-                <div className="space-y-3">
+              <div className="mb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">What I noticed</p>
+                <div className="space-y-4">
                   {topMicroInsights.map((mi, i) => (
-                    <div key={i} className="rounded-[10px] border border-border bg-card p-4" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                      <p className="text-[13px] text-foreground leading-relaxed">{mi.text}</p>
+                    <div key={i}>
+                      <p className="text-[13.5px] text-foreground leading-relaxed">{mi.text}</p>
                       {mi.evidenceQuote && (
-                        <blockquote className="mt-2 text-[12px] text-muted-foreground italic pl-3 border-l-2 border-border leading-relaxed">
-                          "{mi.evidenceQuote}"
-                        </blockquote>
+                        <p className="mt-1 text-[12px] text-muted-foreground italic leading-relaxed">
+                          — "{mi.evidenceQuote}"
+                        </p>
                       )}
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-2 mt-1">
                         {mi.framework && (
-                          <span className="text-[10px] font-medium text-primary/70 bg-primary/5 px-2 py-0.5 rounded-full">{mi.framework}</span>
+                          <span className="text-[10px] text-muted-foreground/70">{mi.framework}</span>
                         )}
                         <button
                           onClick={() => navigate(`/note/${mi.meetingId}`)}
-                          className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                          className="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors"
                         >
                           {mi.meetingTitle} →
                         </button>

@@ -4,6 +4,17 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.3.1] — 2026-04-07
+
+### Fixed
+- **Commitment deadline bug** — due date now saves correctly when adding a to-do (missing dependency in useCallback).
+- **Assignee UX** — "Assign to me" button + searchable text input with autocomplete. Shows owner name when assigned.
+- **Coaching UI simplified** — removed heavy bordered cards. Headline, insights, and evidence quotes are now clean text. Feels like a coach's notes, not a dashboard.
+- **Today page** — removed duplicate date headers. Meetings flow directly under the greeting.
+- **Sidebar spacing** — added gap between logo and nav items.
+
+---
+
 ## [2.3.0] — 2026-04-07
 
 ### Added

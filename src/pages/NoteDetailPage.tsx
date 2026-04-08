@@ -890,64 +890,42 @@ function CoachingView({
         </button>
       )}
 
-      {/* Transcript-grounded meeting coaching (primary) */}
+      {/* Transcript-grounded meeting coaching */}
       {(conv || conversationLoading) && (
-        <div className="rounded-[10px] border border-primary/25 bg-primary/5 p-5 space-y-3">
-          <div>
-            <h4 className="text-[11px] font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <MessageSquare className="h-3 w-3" />
-              Meeting effectiveness
-            </h4>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              What you said, when, and how it lines up with your role — not just speaking pace.
-            </p>
-          </div>
+        <div className="space-y-4">
           {conversationLoading && !conv ? (
-            <CoachLoadingLine message="Analyzing transcript against your role and knowledge base…" />
+            <CoachLoadingLine message="Analyzing transcript..." />
           ) : conv ? (
             <>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Pattern</p>
-                <p className="text-[15px] font-semibold text-foreground leading-snug">{conv.headline}</p>
+                <p className="text-[16px] font-semibold text-foreground leading-snug">{conv.headline}</p>
+                <p className="text-[13.5px] text-foreground/70 leading-relaxed mt-2">{conv.narrative}</p>
               </div>
-              <div className="rounded-[10px] border border-border/60 bg-card/80 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">What we noticed</p>
-                <p className="text-[13px] text-foreground leading-relaxed">{conv.narrative}</p>
-              </div>
+
               {conv.habitTags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {conv.habitTags.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-secondary-foreground"
-                    >
+                    <span key={t} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                       {t.replace(/_/g, " ")}
                     </span>
                   ))}
                 </div>
               )}
-              <div className="space-y-2">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Micro-insights</p>
-                <ul className="space-y-2">
-                  {conv.microInsights.map((m, i) => (
-                    <li key={i} className="text-[12px] text-foreground leading-relaxed border-l-2 border-primary/30 pl-3">
-                      <span>{m.text}</span>
-                      {m.framework && (
-                        <span className="block text-[10px] text-muted-foreground mt-0.5">Framework: {m.framework}</span>
-                      )}
-                      {m.evidenceQuote && (
-                        <blockquote className="mt-1 text-[11px] text-muted-foreground italic border-l border-border pl-2">
-                          "{m.evidenceQuote}"
-                          {(m.speaker || m.time) && (
-                            <span className="not-italic text-[10px] block mt-0.5">
-                              {[m.speaker, m.time].filter(Boolean).join(" · ")}
-                            </span>
-                          )}
-                        </blockquote>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+
+              <div className="space-y-3">
+                {conv.microInsights.map((m, i) => (
+                  <div key={i}>
+                    <p className="text-[13px] text-foreground leading-relaxed">{m.text}</p>
+                    {m.evidenceQuote && (
+                      <p className="mt-1 text-[12px] text-muted-foreground italic">
+                        — "{m.evidenceQuote}"{m.time ? ` [${m.time}]` : ''}
+                      </p>
+                    )}
+                    {m.framework && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{m.framework}</p>
+                    )}
+                  </div>
+                ))}
               </div>
               {conv.keyMoments.length > 0 && onJumpToTranscriptLine && (
                 <div className="space-y-2 pt-1">

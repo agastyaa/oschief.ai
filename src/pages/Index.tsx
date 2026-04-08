@@ -745,11 +745,6 @@ const Index = () => {
               </div>
             ) : (
               <div>
-                {!viewAll && (
-                  <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">
-                    Today's meetings <span className="font-normal normal-case tracking-normal ml-1">{format(now, "EEE, MMM d")}</span>
-                  </h2>
-                )}
                 <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
                     {Object.entries(viewAll ? grouped : Object.fromEntries(
                       Object.entries(grouped).filter(([date]) => {
@@ -760,16 +755,18 @@ const Index = () => {
                       })
                     )).map(([date, items]) => (
                       <div key={date}>
-                        <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5 px-1">
-                          {(() => {
-                            try {
-                              const parsed = parse(date, "MMM d, yyyy", new Date());
-                              return isValid(parsed) ? format(parsed, "EEE, MMM d") : date;
-                            } catch {
-                              return date;
-                            }
-                          })()}
-                        </h3>
+                        {viewAll && (
+                          <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5 px-1">
+                            {(() => {
+                              try {
+                                const parsed = parse(date, "MMM d, yyyy", new Date());
+                                return isValid(parsed) ? format(parsed, "EEE, MMM d") : date;
+                              } catch {
+                                return date;
+                              }
+                            })()}
+                          </h3>
+                        )}
                         <div className="divide-y divide-border/50">
                           {items.map((n) => <NoteRow key={n.id} n={n} />)}
                         </div>
