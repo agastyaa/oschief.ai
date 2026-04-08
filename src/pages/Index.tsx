@@ -13,13 +13,10 @@ import { useRecording } from "@/contexts/RecordingContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { ICSDialog } from "@/components/ICSDialog";
 import { EventDetailSheet } from "@/components/EventDetailSheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CalendarEvent } from "@/lib/ics-parser";
 import { format, parse, isToday as isTodayFn, isAfter, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
-import { CommitmentsWidget } from "@/components/CommitmentsWidget";
 import { PrepCard } from "@/components/PrepCard";
-import { IntelligenceFeed } from "@/components/IntelligenceFeed";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 // MemoryBanner and StatsRow removed — vanity metrics that cluttered the Today page.
 // Professional memory stats are still fetched for other uses (top contacts, etc.)
@@ -136,7 +133,7 @@ const Index = () => {
 
   // Nudge action handlers
   const handleMarkDone = useCallback(async (id: string) => {
-    await api?.memory?.commitments?.updateStatus(id, 'done');
+    await api?.memory?.commitments?.updateStatus(id, 'completed');
     api?.intelligence?.getRiskLevels().then(setRiskLevels).catch(() => {});
     api?.memory?.commitments?.getOpen().then(setOpenCommitments).catch(() => {});
   }, [api]);

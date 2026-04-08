@@ -122,6 +122,7 @@ export function updateCommitment(id: string, data: any): boolean {
   if (data.jiraIssueKey !== undefined) { fields.push('jira_issue_key = ?'); values.push(data.jiraIssueKey) }
   if (data.jiraIssueUrl !== undefined) { fields.push('jira_issue_url = ?'); values.push(data.jiraIssueUrl) }
   if (data.noteId !== undefined) { fields.push('note_id = ?'); values.push(data.noteId) }
+  if (data.projectId !== undefined) { fields.push('project_id = ?'); values.push(data.projectId) }
 
   if (fields.length === 0) return false
 

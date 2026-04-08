@@ -2,11 +2,11 @@ import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { useNotes, type SavedNote } from "@/contexts/NotesContext";
+import { useNotes } from "@/contexts/NotesContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
-  Brain, RefreshCw, ChevronDown, Check,
+  Brain, ArrowRight, RefreshCw, ChevronDown, Check,
 } from "lucide-react";
 import type { CoachingMetrics, ConversationInsights } from "@/lib/coaching-analytics";
 

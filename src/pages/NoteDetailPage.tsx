@@ -19,7 +19,6 @@ import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
 import { noteToMarkdown } from "@/lib/export-markdown";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
-import { CoachingCard } from "@/components/CoachingCard";
 import { computeCoachingMetrics } from "@/lib/coaching-analytics";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { computeConversationHeuristics, findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";

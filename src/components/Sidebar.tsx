@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat, Calendar } from "lucide-react";
+import { useEffect } from "react";
+import { FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
 import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useFolders } from "@/contexts/FolderContext";
-import { useSearchCommand } from "@/components/SearchCommand";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 
 const iconMap = {
@@ -143,10 +141,7 @@ function SubNavItem({ icon: Icon, label, to, active, navigate }: { icon?: any; l
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { folders, createFolder, deleteFolder } = useFolders();
   const { open: openSearch } = useSearchCommand();
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
 
   // Projects for sidebar nav (replaces folders)
   const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
@@ -187,13 +182,6 @@ export function Sidebar() {
     );
   };
 
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      createFolder(newFolderName.trim());
-      setNewFolderName("");
-      setCreatingFolder(false);
-    }
-  };
 
   const { sidebarWidth, startResize } = useSidebarVisibility();
 

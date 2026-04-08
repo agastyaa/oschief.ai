@@ -4,6 +4,23 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.3.2] — 2026-04-07
+
+### Fixed
+- **White screen on commitment assignee click** — missing `X` icon import in CommitmentsPage.
+- **Commitment "Done" creates zombie state** — "Needs Attention" section was passing `'done'` instead of `'completed'` to updateStatus. Commitments disappeared but weren't marked complete.
+- **Project assignment silently broken** — `updateCommitment` was missing `projectId` field handler. Project changes from the dropdown were never saved.
+- **Missing `ArrowRight` import** — CoachingPage crash when "No insights yet" section rendered.
+- **Duplicate owner display** — removed "Owner: Name" line when assignee already shows the same name.
+
+### Removed (dead code cleanup)
+- 9 unused component files: SectionTabs, CommitmentsDueCard, SetupProgressCard, OllamaUpgradeCard, OSChiefIcon, MemoryBanner, StatsRow, CommandCenterPanel, memory-banner test.
+- Unused imports across 6 page files (CoachingCard, CommitmentsWidget, IntelligenceFeed, Tooltip, unused lucide icons).
+- Dead folder creation state/functions from Sidebar (replaced by projects).
+- Dead entity-extractor commitment import.
+
+---
+
 ## [2.3.1] — 2026-04-07
 
 ### Fixed
