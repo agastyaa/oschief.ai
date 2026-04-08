@@ -368,46 +368,32 @@ const CommitmentsPage = () => {
                               )}
                               <div className="flex items-center gap-3 mt-1">
                                 {editingAssigneeId === c.id ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      onClick={() => {
+                                  <select
+                                    autoFocus
+                                    value={c.owner === 'you' ? '__me__' : (c.assignee_name || c.owner || '')}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                      if (val === '__me__') {
                                         api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
                                           .then(() => { loadCommitments(); setEditingAssigneeId(null) })
-                                      }}
-                                      className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground hover:opacity-90 transition-colors"
-                                    >
-                                      Assign to me
-                                    </button>
-                                    <input
-                                      autoFocus
-                                      defaultValue={c.assignee_name && c.owner !== 'you' ? c.assignee_name : ""}
-                                      list={`assignee-list-${c.id}`}
-                                      placeholder="Or type a name..."
-                                      onBlur={(e) => {
-                                        const val = e.target.value.trim()
-                                        setEditingAssigneeId(null)
-                                        if (!val) return // no change if empty (user might have clicked "Assign to me")
-                                        const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
-                                        api?.memory?.commitments?.update(c.id, {
-                                          owner: val,
-                                          assigneeId: selected?.id ?? null,
-                                        }).then(() => loadCommitments())
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                                        if (e.key === 'Escape') setEditingAssigneeId(null)
-                                      }}
-                                      className="text-[11px] rounded border border-border bg-background px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-28"
-                                    />
-                                    <datalist id={`assignee-list-${c.id}`}>
-                                      {people.map((p: any) => (
-                                        <option key={p.id} value={p.name} />
-                                      ))}
-                                    </datalist>
-                                    <button onClick={() => setEditingAssigneeId(null)} className="text-muted-foreground hover:text-foreground">
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </div>
+                                      } else if (val === '__none__') {
+                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
+                                      } else {
+                                        const selected = people.find((p: any) => p.name === val)
+                                        api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
+                                          .then(() => { loadCommitments(); setEditingAssigneeId(null) })
+                                      }
+                                    }}
+                                    onBlur={() => setEditingAssigneeId(null)}
+                                    className="text-[11px] rounded border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                  >
+                                    <option value="__me__">Me</option>
+                                    <option value="__none__">Unassigned</option>
+                                    {people.map((p: any) => (
+                                      <option key={p.id} value={p.name}>{p.name}</option>
+                                    ))}
+                                  </select>
                                 ) : c.assignee_name ? (
                                   <button
                                     onClick={() => setEditingAssigneeId(c.id)}
