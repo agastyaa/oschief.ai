@@ -1,6 +1,41 @@
 import type { SavedNote } from '@/contexts/NotesContext'
 import type { SummaryData } from '@/components/EditableSummary'
 
+/** Convert simple HTML (from Tiptap) to markdown. Handles common block/inline elements. */
+function htmlToMarkdown(html: string): string {
+  if (!html || !html.includes('<')) return html // plain text passthrough
+  let md = html
+    // Block elements first
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
+    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (_, c) => c.split('\n').map((l: string) => `> ${l.replace(/<\/?p[^>]*>/gi, '').trim()}`).filter(Boolean).join('\n') + '\n')
+    .replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gis, '```\n$1\n```\n')
+    // Lists — convert <li> items then strip wrapper tags
+    .replace(/<li[^>]*><p[^>]*>(.*?)<\/p><\/li>/gi, '- $1\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+    .replace(/<\/?[ou]l[^>]*>/gi, '\n')
+    // Task list items
+    .replace(/- <label><input[^>]*checked[^>]*><\/label>\s*/gi, '- [x] ')
+    .replace(/- <label><input[^>]*><\/label>\s*/gi, '- [ ] ')
+    // Inline
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+    .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+    .replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~')
+    // Paragraphs and breaks
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>(.*?)<\/p>/gis, '$1\n\n')
+    // Strip remaining tags
+    .replace(/<[^>]+>/g, '')
+    // Clean up entities
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+    // Normalize whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return md
+}
+
 // ── Shared markdown body (used by noteToMarkdown + vault writer) ────────
 
 /**
@@ -67,7 +102,7 @@ export function buildMarkdownBody(note: SavedNote): string[] {
 
   if (note.personalNotes?.trim()) {
     parts.push('## Personal Notes')
-    parts.push(note.personalNotes.trim())
+    parts.push(htmlToMarkdown(note.personalNotes.trim()))
   }
 
   // Transcript excluded from default export — too verbose for sharing.

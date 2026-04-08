@@ -10,6 +10,7 @@ import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
 import { getSetting } from '../storage/database'
 import { notifyRecordingStateChanged } from '../power-manager'
+import { updateTrayRecordingState } from '../tray'
 import { getThermalState } from '../thermal-monitor'
 import { StreamingDiarizer } from './streaming-diarizer'
 
@@ -332,6 +333,7 @@ export async function startRecording(
       isPaused = true
       pauseStartedAt = Date.now()
       notifyRecordingStateChanged()
+      updateTrayRecordingState(false)
       statusCallback?.({ state: 'auto-paused' })
     }
   }, 5000) // Check every 5s
@@ -361,7 +363,7 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
     clearInterval(silenceTimer)
     silenceTimer = null
   }
-  // silenceTimer no longer used (auto-pause disabled)
+  // Clear silence watchdog on stop
 
   const hasData = (audioBuffers[0].length > 0 || audioBuffers[1].length > 0)
   if (deferTranscription && hasData && transcriptCallback) {
@@ -423,6 +425,7 @@ export function resumeRecording(options?: { sttModel?: string }): void {
       isPaused = true
       pauseStartedAt = Date.now()
       notifyRecordingStateChanged()
+      updateTrayRecordingState(false)
       statusCallback?.({ state: 'auto-paused' })
     }
   }, 5000)

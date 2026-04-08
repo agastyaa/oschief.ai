@@ -21,8 +21,8 @@
 @layer base {
   :root {
     /* ── Executive Utilitarian — warm neutrals, slate navy primary ── */
-    --background: 228 14% 96%;
-    --background-warm: 34 20% 96%;
+    --background: 220 12% 97%;
+    --background-warm: 34 18% 97%;
     --foreground: 225 22% 10%;
 
     --card: 228 12% 99%;
@@ -254,4 +254,117 @@
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ── Rich Text Editor (Tiptap) ───────────────────────────────────── */
+
+.rich-text-editor {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: hsl(var(--foreground));
+  line-height: 1.7;
+}
+
+.rich-text-editor p {
+  margin: 0 0 0.5em;
+}
+
+.rich-text-editor h1,
+.rich-text-editor h2,
+.rich-text-editor h3 {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  line-height: 1.3;
+}
+.rich-text-editor h1 { font-size: 1.3em; }
+.rich-text-editor h2 { font-size: 1.15em; }
+.rich-text-editor h3 { font-size: 1.05em; }
+
+.rich-text-editor ul,
+.rich-text-editor ol {
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+.rich-text-editor ul { list-style-type: disc; }
+.rich-text-editor ol { list-style-type: decimal; }
+.rich-text-editor li { margin: 0.15em 0; }
+.rich-text-editor li p { margin: 0; }
+
+.rich-text-editor blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.rich-text-editor code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+  background: hsl(var(--muted));
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.rich-text-editor pre {
+  background: hsl(var(--muted));
+  padding: 0.75em 1em;
+  border-radius: 6px;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+.rich-text-editor pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Tables */
+.rich-text-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+.rich-text-editor th,
+.rich-text-editor td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.4em 0.6em;
+  text-align: left;
+  font-size: 0.95em;
+}
+.rich-text-editor th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+/* Task list (checklist) */
+.rich-text-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.rich-text-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+.rich-text-editor ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.25em;
+}
+.rich-text-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  accent-color: hsl(var(--primary));
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.rich-text-editor ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+/* Placeholder */
+.rich-text-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground) / 0.6);
+  pointer-events: none;
+  height: 0;
 }

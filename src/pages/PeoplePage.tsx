@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
+
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
@@ -367,9 +367,6 @@ const PeoplePage = () => {
       <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
-        </div>
-        <div className="px-6 pt-2">
-          <SectionTabs tabs={WORK_TABS} />
         </div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-4xl px-6 py-8 font-body">

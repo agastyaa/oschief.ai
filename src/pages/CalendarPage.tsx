@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
-import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
+
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useNotes } from "@/contexts/NotesContext";
@@ -275,9 +275,6 @@ export default function CalendarPage() {
       <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
-        </div>
-        <div className="px-6 pt-2">
-          <SectionTabs tabs={MEETING_TABS} />
         </div>
         <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
           {!showMainCalendar ? (

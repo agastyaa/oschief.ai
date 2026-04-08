@@ -318,6 +318,13 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `ALTER TABLE commitments ADD COLUMN confidence TEXT DEFAULT 'medium'`,
     ]
   },
+  {
+    version: 17,
+    up: [
+      // Track mic-only recordings to exclude from coaching metrics
+      `ALTER TABLE notes ADD COLUMN mic_only INTEGER DEFAULT 0`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {

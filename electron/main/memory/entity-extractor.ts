@@ -240,37 +240,9 @@ export async function storeExtractedEntities(
       console.error('[entity-extractor] Failed to store project:', err)
     }
 
-    // 3. Process commitments
-    for (const c of entities.commitments) {
-      try {
-        let assigneeId: string | undefined
-        if (c.assignee) {
-          assigneeId = nameToPersonId[c.assignee.toLowerCase()]
-        }
-
-        // Normalize natural language dates to ISO format
-        const rawDueDate = c.dueDate || undefined
-        const normalizedDueDate = rawDueDate ? (normalizeDueDate(rawDueDate) ?? rawDueDate) : undefined
-
-        // Validate confidence value — default to 'medium' if missing or invalid
-        const validConfidence = ['high', 'medium', 'low'].includes(c.confidence || '')
-          ? c.confidence!
-          : 'medium'
-
-        addCommitment({
-          noteId,
-          text: c.text,
-          owner: c.owner || 'you',
-          assigneeId,
-          dueDate: normalizedDueDate,
-          projectId,
-          confidence: validConfidence,
-        })
-        commitmentCount++
-      } catch (err) {
-        console.error(`[entity-extractor] Failed to store commitment:`, err)
-      }
-    }
+    // 3. Commitments — no longer extracted here. Commitments are synced 1:1
+    // from action items in the meeting summary via syncActionItemsToCommitments().
+    // See ipc-handlers.ts llm:summarize-background and memory:sync-action-items.
 
     // 4. Process decisions
     for (const d of entities.decisions || []) {

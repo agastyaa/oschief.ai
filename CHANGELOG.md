@@ -4,6 +4,40 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.3.0] — 2026-04-07
+
+### Added
+- **Rich text personal notes** — Tiptap editor with bold, italic, bullet/numbered lists, checklists, headings, blockquotes, code blocks, and tables. Toolbar on focus. Backward compatible with plain text.
+- **Sidebar redesign** — flat navigation with icons for every item. Projects shown under All Meetings. Section labels (YOUR WORK, INTELLIGENCE) removed; all items always visible. Calendar, Routines, Settings at bottom.
+- **Today page: date in greeting** — shows full date (e.g. "Good evening. Monday, April 7").
+- **Today page: This Week commitments** — overdue + due-this-week commitments with quick check-off.
+- **Today page: today's meetings only** — home page shows only today's meetings, not all recent.
+- **Commitments = action items** — commitments now mirror action items 1:1. Entity extractor no longer creates separate commitments. Edits to action items (assignee, text, done) sync to commitments automatically.
+- **Coaching: Manage Meetings** — include/exclude any meeting from coaching analysis. Select All / Deselect All. Shows all meetings with transcripts.
+- **Coaching: manual analysis** — coaching no longer auto-runs when viewing a note. "Analyze this meeting" button lets you choose when to spend LLM resources.
+- **Mic-only detection** — notes recorded without system audio flagged as `micOnly`. Excluded from coaching (unreliable speaker attribution).
+
+### Changed
+- **Coaching prompts rewritten** — Shreyas Doshi–style: only what you missed, KB-grounded, under 30 words per insight. No praise, no scores, no generic advice.
+- **All scores removed** — no numeric scores anywhere (CoachingPage, NoteDetailPage, meeting list rows). Coaching is purely qualitative.
+- **Action item extraction strengthened** — LLM prompt now captures every commitment including implicit ones ("I'll look into it").
+- **Commitments page UI** — redesigned form (proper spacing, prominent Add button, underline tabs). Assignee input is now text with autocomplete. Project name and due date display when set.
+- **Calendar Settings simplified** — single "Add Calendar" button with ICS URL input replaces three provider-specific cards. Connected feeds shown as a list.
+- **Settings cleanup** — removed unwired toggles (Weekly Digest, Sync Calendar, Show Upcoming, Audio Denoise). Removed dead Delete Account button. Reordered integrations logically. Gmail badge "Active" → "Connected". Apple Calendar button styling normalized.
+- **Background warmed** — `228 14% 96%` → `220 12% 97%` for a lighter, less clinical feel.
+
+### Fixed
+- **Tray timer on auto-pause** — tray icon and timer now stop when recording auto-pauses after silence.
+- **Auto-summary on auto-pause** — notes auto-generated on both manual and silence-detected pause.
+- **No auto-resume** — removed latent path that could flip UI back to recording.
+- **Hallucinated action items** — replaced few-shot example with fictional content + anti-copy instructions.
+- **Meeting title generation** — added fallbacks for markdown headings, standalone bold, short first lines.
+- **amber_notified_at crash** — graceful fallback when DB migration 12 hasn't applied yet.
+- **Meeting dividers** — divider lines between meetings in the list for better readability.
+- **All Notes count readability** — bumped from 14px muted to 18px foreground/50.
+
+---
+
 ## [2.2.1] — 2026-04-07
 
 ### Added

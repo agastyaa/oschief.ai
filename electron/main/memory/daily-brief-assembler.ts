@@ -71,17 +71,37 @@ const STALE_THRESHOLD_DAYS = 14
  */
 export function computeRiskLevels(): RiskCommitment[] {
   const db = getDb()
-  const rows = db.prepare(`
-    SELECT c.id, c.text, c.owner, c.due_date, c.note_id, c.snoozed_until, c.amber_notified_at,
-           p.name as assignee_name, n.title as note_title
-    FROM commitments c
-    LEFT JOIN people p ON p.id = c.assignee_id
-    LEFT JOIN notes n ON n.id = c.note_id
-    WHERE c.status IN ('open', 'overdue')
-      AND c.due_date IS NOT NULL
-      AND c.due_date GLOB '????-??-??*'
-    ORDER BY c.due_date ASC
-  `).all() as any[]
+  let rows: any[]
+  try {
+    rows = db.prepare(`
+      SELECT c.id, c.text, c.owner, c.due_date, c.note_id, c.snoozed_until, c.amber_notified_at,
+             p.name as assignee_name, n.title as note_title
+      FROM commitments c
+      LEFT JOIN people p ON p.id = c.assignee_id
+      LEFT JOIN notes n ON n.id = c.note_id
+      WHERE c.status IN ('open', 'overdue')
+        AND c.due_date IS NOT NULL
+        AND c.due_date GLOB '????-??-??*'
+      ORDER BY c.due_date ASC
+    `).all() as any[]
+  } catch (err: any) {
+    if (/no such column/i.test(err.message)) {
+      // Fallback: query without amber_notified_at if migration 12 hasn't run
+      rows = db.prepare(`
+        SELECT c.id, c.text, c.owner, c.due_date, c.note_id, c.snoozed_until,
+               p.name as assignee_name, n.title as note_title
+        FROM commitments c
+        LEFT JOIN people p ON p.id = c.assignee_id
+        LEFT JOIN notes n ON n.id = c.note_id
+        WHERE c.status IN ('open', 'overdue')
+          AND c.due_date IS NOT NULL
+          AND c.due_date GLOB '????-??-??*'
+        ORDER BY c.due_date ASC
+      `).all() as any[]
+    } else {
+      throw err
+    }
+  }
 
   const now = Date.now()
 

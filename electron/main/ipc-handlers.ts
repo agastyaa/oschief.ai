@@ -455,6 +455,14 @@ export function registerIPCHandlers(): void {
         )
         const durationMs = Date.now() - startMs
         updateNote(noteId, { summary })
+        // Sync action items → commitments (1:1 mirror)
+        try {
+          const { syncActionItemsToCommitments } = await import('./memory/commitment-store')
+          const actionItems = summary.actionItems || summary.nextSteps || []
+          syncActionItemsToCommitments(noteId, actionItems)
+        } catch (syncErr) {
+          console.error(`[summarize-background] Commitment sync failed:`, syncErr)
+        }
         console.log(`[summarize-background] ${noteId} done in ${(durationMs / 1000).toFixed(1)}s (${model})`)
         event.sender.send('note:summary-ready', noteId, summary, durationMs)
       } catch (err) {
@@ -1252,6 +1260,10 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('memory:commitments-snooze', async (_e, id: string, until: string) => {
     const { snoozeCommitment } = await import('./memory/commitment-store')
     return snoozeCommitment(id, until)
+  })
+  ipcMain.handle('memory:sync-action-items', async (_e, noteId: string, actionItems: any[]) => {
+    const { syncActionItemsToCommitments } = await import('./memory/commitment-store')
+    return syncActionItemsToCommitments(noteId, actionItems)
   })
 
   // ── Proactive Intelligence Layer ───────────────────────────────────

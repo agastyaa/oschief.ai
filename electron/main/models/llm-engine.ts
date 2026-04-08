@@ -148,12 +148,32 @@ function extractTitleFromResponse(response: string): string {
     }
   }
 
+  // Markdown heading: # Title or ## Title (common from local models)
+  const heading = trimmed.match(/^#{1,3}\s+(.+?)(?:\s*[—\-].*)?$/m)
+  if (heading?.[1]) {
+    const t = heading[1].replace(/\*\*/g, '').trim()
+    if (t.length > 2 && !GENERIC_TITLES.includes(t.toLowerCase())) return t
+  }
+
+  // Standalone bold without date suffix: **Title** on its own line
+  const standaloneBold = trimmed.match(/^\*\*([^*]+)\*\*\s*$/m)
+  if (standaloneBold?.[1]) {
+    const t = standaloneBold[1].trim()
+    if (t.length > 2 && !GENERIC_TITLES.includes(t.toLowerCase())) return t
+  }
+
   // Try to derive from TL;DR line (first 4–5 words, max 40 chars)
   const tldr = trimmed.match(/\*\*TL;DR:\*\*\s*(.+?)(?:\n|$)/i)?.[1]?.trim()
   if (tldr && tldr.length > 10) {
     const words = tldr.split(/\s+/).slice(0, 5).join(' ')
     const derived = words.length > 40 ? words.slice(0, 37) + '...' : words
     if (derived) return derived
+  }
+
+  // Last resort: first non-empty line if short and not a body marker
+  if (firstLine.length > 3 && firstLine.length <= 60 && !/^(TL;DR|[-→>*]|\d+\.)/.test(firstLine.trim())) {
+    const t = firstLine.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim()
+    if (t && !GENERIC_TITLES.includes(t.toLowerCase())) return t
   }
 
   return 'Meeting Notes'
@@ -670,7 +690,7 @@ function isSummaryGroundedBool(summary: MeetingSummary, transcriptText: string):
   if (summaryNouns.length === 0) return true // no proper nouns to check
   const lower = transcriptText.toLowerCase()
   const grounded = summaryNouns.filter(n => lower.includes(n.toLowerCase()))
-  return grounded.length / summaryNouns.length >= 0.3
+  return grounded.length / summaryNouns.length >= 0.4
 }
 
 /**

@@ -430,6 +430,7 @@ const electronAPI = {
       update: (id: string, data: any) => ipcRenderer.invoke('memory:commitments-update', id, data),
       delete: (id: string) => ipcRenderer.invoke('memory:commitments-delete', id),
       snooze: (id: string, until: string) => ipcRenderer.invoke('memory:commitments-snooze', id, until),
+      syncActionItems: (noteId: string, actionItems: any[]) => ipcRenderer.invoke('memory:sync-action-items', noteId, actionItems),
     },
     topics: {
       getAll: () => ipcRenderer.invoke('memory:topics-get-all'),

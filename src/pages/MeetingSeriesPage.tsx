@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs"
+
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
@@ -108,9 +108,6 @@ export default function MeetingSeriesPage() {
       <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
         <div className={cn("flex items-center px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
-        </div>
-        <div className="px-6 pt-2">
-          <SectionTabs tabs={MEETING_TABS} />
         </div>
         <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 mb-1">

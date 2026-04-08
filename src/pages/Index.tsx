@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
-import { SectionTabs, MEETING_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI, type MemoryStats } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
-import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase, Loader2 } from "lucide-react";
+import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase, Loader2, CheckCircle2, Circle, Search } from "lucide-react";
+import { useSearchCommand } from "@/components/SearchCommand";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AskBar } from "@/components/AskBar";
 import { useFolders } from "@/contexts/FolderContext";
@@ -83,6 +83,7 @@ const Index = () => {
     [deleteNote, activeSession?.noteId, clearSession]
   );
   const { displayEvents, icsSource, calendarViewId } = useCalendar();
+  const { open: openSearch } = useSearchCommand();
   const [icsOpen, setIcsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
@@ -100,7 +101,7 @@ const Index = () => {
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
   const [latestCoachingHeadline, setLatestCoachingHeadline] = useState<string | null>(null);
   const viewAll = searchParams.get("view") === "all";
-  const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(viewAll);
+
   // Prep brief: all hooks must be above the early return (folder view) to respect React rules
   const [prepBrief, setPrepBrief] = useState<{ previousMeetings: any[]; openCommitments: any[] } | null>(null);
 
@@ -112,10 +113,6 @@ const Index = () => {
 
   // Professional Memory stats
   const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
-
-  useEffect(() => {
-    if (viewAll) setRecentMeetingsExpanded(true);
-  }, [viewAll]);
 
   useEffect(() => {
     if (!api?.memory?.commitments) return;
@@ -240,18 +237,11 @@ const Index = () => {
     setSelectedEvent(null);
   }, [findNoteForEvent, activeSession?.noteId, navigate]);
 
-  const scoreColor = (score: number) => {
-    if (score >= 80) return "bg-emerald-500";
-    if (score >= 60) return "bg-amber-500";
-    return "bg-red-500";
-  };
-
   const selectionActive = selectedIds.size > 0;
 
   const NoteRow = ({ n }: { n: (typeof notes)[0] }) => {
     const isRecording = activeSession?.noteId === n.id && !n.summary;
     const isSummarizing = summarizingNoteIds.has(n.id);
-    const score = n.coachingMetrics?.overallScore;
     const selected = selectedIds.has(n.id);
     return (
       <div
@@ -306,9 +296,6 @@ const Index = () => {
           </span>
           {isRecording && (
             <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          )}
-          {score != null && score > 0 && (
-            <span className={cn("flex-shrink-0 w-2 h-2 rounded-full", scoreColor(score))} title={`Score: ${score}`} />
           )}
           <NoteCardMenu
             noteId={n.id}
@@ -417,6 +404,15 @@ const Index = () => {
     try { const d = new Date(c.due_date); const t = new Date(); t.setHours(0,0,0,0); return d < t; } catch { return false; }
   });
 
+  // "This Week" commitments: overdue + due within 7 days (owned by user)
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const thisWeekCommitments = openCommitments.filter(c => {
+    if (!c.due_date) return false;
+    const due = c.due_date.slice(0, 10);
+    return due <= sevenDaysFromNow; // includes overdue (past dates) + this week
+  }).sort((a: any, b: any) => (a.due_date || '').localeCompare(b.due_date || ''));
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
@@ -437,25 +433,30 @@ const Index = () => {
             </button>
           )}
         </div>
-        {viewAll && (
-          <div className="px-6 pt-2">
-            <SectionTabs tabs={MEETING_TABS} />
-          </div>
-        )}
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
             {/* ── Header ── */}
             <div className="mb-6">
               {viewAll ? (
-                <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
-                  All Notes
-                  {notes.length > 0 && <span className="text-muted-foreground font-normal ml-2 text-[14px]">{notes.length}</span>}
-                </h1>
+                <div className="flex items-center justify-between">
+                  <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
+                    All Notes
+                    {notes.length > 0 && <span className="text-foreground/50 font-normal ml-2 text-[18px]">{notes.length}</span>}
+                  </h1>
+                  <button
+                    onClick={openSearch}
+                    className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    Search
+                    <kbd className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+                  </button>
+                </div>
               ) : (
                 <>
                   <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
-                    Good {timeOfDay}.
+                    Good {timeOfDay}. <span className="text-muted-foreground/60 font-normal text-[15px] ml-1">{format(now, "EEEE, MMMM d")}</span>
                   </h1>
                   {(todayEvents.length > 0 || openCommitments.length > 0 || atRisk.length > 0) && (
                     <p className="text-[13px] text-muted-foreground mt-1">
@@ -518,6 +519,66 @@ const Index = () => {
                     variant="compact"
                     hideDayEventCount
                   />
+                </div>
+              </div>
+            )}
+
+            {/* ── This Week (commitments due soon) ── */}
+            {thisWeekCommitments.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">This week</span>
+                  <button onClick={() => navigate('/commitments')} className="text-[11px] text-primary hover:underline">
+                    View all
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {thisWeekCommitments.slice(0, 6).map((c: any) => {
+                    const isOverdue = c.due_date && c.due_date.slice(0, 10) < todayStr;
+                    const isDueToday = c.due_date && c.due_date.slice(0, 10) === todayStr;
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex items-start gap-2.5 rounded-md px-3 py-2 hover:bg-secondary/40 transition-colors group"
+                      >
+                        <button
+                          onClick={() => {
+                            api?.memory?.commitments?.updateStatus(c.id, 'completed').then(() => {
+                              setOpenCommitments(prev => prev.filter(x => x.id !== c.id));
+                            }).catch(() => {});
+                          }}
+                          className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                          title="Mark done"
+                        >
+                          <Circle className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] text-foreground leading-snug">{c.text}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {c.owner && c.owner !== 'you' && (
+                              <span className="text-[11px] text-muted-foreground">{c.owner}</span>
+                            )}
+                            {c.due_date && (
+                              <span className={cn(
+                                "text-[11px] font-medium",
+                                isOverdue ? "text-destructive" : isDueToday ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                              )}>
+                                {isOverdue ? "Overdue" : isDueToday ? "Today" : new Date(c.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {thisWeekCommitments.length > 6 && (
+                    <button
+                      onClick={() => navigate('/commitments?filter=upcoming')}
+                      className="text-[12px] text-primary hover:underline px-3 py-1"
+                    >
+                      +{thisWeekCommitments.length - 6} more
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -685,20 +746,19 @@ const Index = () => {
             ) : (
               <div>
                 {!viewAll && (
-                  <button
-                    onClick={() => setRecentMeetingsExpanded(!recentMeetingsExpanded)}
-                    className="flex items-center gap-1.5 mb-2 group"
-                  >
-                    <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
-                      Recent meetings
-                    </h2>
-                    <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", recentMeetingsExpanded && "rotate-180")} />
-                    <span className="text-[10px] text-muted-foreground">{notes.length}</span>
-                  </button>
+                  <h2 className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">
+                    Today's meetings <span className="font-normal normal-case tracking-normal ml-1">{format(now, "EEE, MMM d")}</span>
+                  </h2>
                 )}
-                {(viewAll || recentMeetingsExpanded) && (
-                  <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
-                    {Object.entries(grouped).map(([date, items]) => (
+                <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {Object.entries(viewAll ? grouped : Object.fromEntries(
+                      Object.entries(grouped).filter(([date]) => {
+                        try {
+                          const parsed = parse(date, "MMM d, yyyy", new Date());
+                          return isValid(parsed) && parsed.toDateString() === now.toDateString();
+                        } catch { return false; }
+                      })
+                    )).map(([date, items]) => (
                       <div key={date}>
                         <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5 px-1">
                           {(() => {
@@ -710,13 +770,12 @@ const Index = () => {
                             }
                           })()}
                         </h3>
-                        <div className="space-y-[2px]">
+                        <div className="divide-y divide-border/50">
                           {items.map((n) => <NoteRow key={n.id} n={n} />)}
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
               </div>
             )}
           </div>

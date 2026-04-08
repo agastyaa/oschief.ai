@@ -21,6 +21,7 @@ import { noteToMarkdown } from "@/lib/export-markdown";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { CoachingCard } from "@/components/CoachingCard";
 import { computeCoachingMetrics } from "@/lib/coaching-analytics";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { computeConversationHeuristics, findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";
 import { SlackShareDialog } from "@/components/SlackShareDialog";
 import { TeamsShareDialog } from "@/components/TeamsShareDialog";
@@ -556,7 +557,12 @@ export default function NoteDetailPage() {
                             })),
                           }}
                           onUpdate={(updated) => {
-                            if (id) updateNote(id, { summary: updated });
+                            if (id) {
+                              updateNote(id, { summary: updated });
+                              // Sync action items → commitments (1:1 mirror)
+                              const actionItems = updated.actionItems || updated.nextSteps || [];
+                              api?.memory?.commitments?.syncActionItems?.(id, actionItems)?.catch(console.error);
+                            }
                           }}
                           meetingTitle={note.title}
                           meetingDate={note.date}
@@ -586,13 +592,14 @@ export default function NoteDetailPage() {
                       <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
                       <h2 className="font-display text-base font-semibold text-foreground/70">My Notes</h2>
                     </div>
-                    <textarea
-                      value={note.personalNotes || ""}
-                      onChange={(e) => {
-                        if (id) updateNote(id, { personalNotes: e.target.value });
+                    <RichTextEditor
+                      content={note.personalNotes || ""}
+                      onChange={(html) => {
+                        if (id) updateNote(id, { personalNotes: html });
                       }}
                       placeholder="Write your personal notes here..."
-                      className="w-full min-h-[200px] resize-none bg-transparent text-[15px] text-foreground/70 leading-relaxed whitespace-pre-line pl-6 focus:outline-none placeholder:text-muted-foreground/50"
+                      className="w-full bg-transparent text-[15px] text-foreground/70 leading-relaxed pl-6"
+                      minHeight="200px"
                     />
                   </div>
                 )}
@@ -788,12 +795,13 @@ function CoachingView({
   }, []);
 
   const metrics = useMemo(() => {
+    if (note.micOnly) return null; // Skip coaching for mic-only — speaker attribution unreliable
     if (note.coachingMetrics) return note.coachingMetrics;
     if (!note.transcript?.length || meetingDurationSec <= 0) return null;
     const computed = computeCoachingMetrics(note.transcript, meetingDurationSec);
     updateNote(note.id, { coachingMetrics: computed });
     return computed;
-  }, [note.coachingMetrics, note.transcript, meetingDurationSec, note.id, updateNote]);
+  }, [note.coachingMetrics, note.transcript, meetingDurationSec, note.id, updateNote, note.micOnly]);
 
   const heuristics = useMemo(() => {
     if (!note.transcript?.length || meetingDurationSec <= 0) return null;
@@ -818,80 +826,37 @@ function CoachingView({
     conversationAnalysisStarted.current = false;
   }, [note.id]);
 
-  useEffect(() => {
-    if (
-      !metrics ||
-      metrics.conversationInsights != null ||
-      !api?.coaching?.analyzeConversation ||
-      !note.transcript?.length ||
-      !accountRoleId ||
-      conversationAnalysisStarted.current
-    ) {
-      return;
-    }
-    conversationAnalysisStarted.current = true;
-    let cancelled = false;
+  // Coaching analysis is NOT auto-triggered — runs only when user clicks "Analyze" on the Coaching page
+  // or "Reanalyze all meetings". This saves LLM resources. Existing insights from previous runs are shown.
+  const runConversationAnalysis = useCallback(async () => {
+    if (!metrics || !api?.coaching?.analyzeConversation || !note.transcript?.length || !accountRoleId) return;
     setConversationLoading(true);
-    (async () => {
-      try {
-        const { roleInsights: _ri, conversationInsights: _ci, ...metricsForApi } = metrics;
-        const result = await api.coaching!.analyzeConversation({
-          transcript: note.transcript,
-          metrics: metricsForApi as unknown as Record<string, unknown>,
-          heuristics,
-          roleId: accountRoleId,
-          model: selectedAIModel || undefined,
-        });
-        if (cancelled) return;
-        if (result.ok) {
-          updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
-          setConversationErrorDetail(null);
-        } else {
-          setConversationFailed(true);
-          setConversationErrorDetail(result.message);
-        }
-      } catch {
-        if (!cancelled) {
-          setConversationFailed(true);
-          setConversationErrorDetail("Conversation analysis failed unexpectedly.");
-        }
-      } finally {
-        if (!cancelled) setConversationLoading(false);
+    setConversationFailed(false);
+    try {
+      const { roleInsights: _ri, conversationInsights: _ci, ...metricsForApi } = metrics;
+      const result = await api.coaching.analyzeConversation({
+        transcript: note.transcript,
+        metrics: metricsForApi as unknown as Record<string, unknown>,
+        heuristics,
+        roleId: accountRoleId,
+        model: selectedAIModel || undefined,
+      });
+      if (result.ok) {
+        updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
+        setConversationErrorDetail(null);
+      } else {
+        setConversationFailed(true);
+        setConversationErrorDetail(result.message);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      setConversationFailed(true);
+      setConversationErrorDetail("Conversation analysis failed unexpectedly.");
+    } finally {
+      setConversationLoading(false);
+    }
   }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, heuristics]);
 
-  /** Metrics-only LLM coaching — skipped while transcript+role analysis is expected (primary), or once it exists. */
-  useEffect(() => {
-    if (!metrics || metrics.roleInsights?.length || !api?.coaching) return;
-    if (metrics.conversationInsights) return;
-    const transcriptCoachingEligible = !!(
-      api?.coaching?.analyzeConversation &&
-      accountRoleId &&
-      note.transcript?.length
-    );
-    if (transcriptCoachingEligible && !conversationFailed) return;
-
-    let cancelled = false;
-    (async () => {
-      if (!accountRoleId || cancelled) return;
-      setInsightsLoading(true);
-      try {
-        const result = await api.coaching!.generateRoleInsights(metrics, accountRoleId, selectedAIModel || undefined);
-        if (!cancelled && result.roleInsights.length > 0) {
-          setRoleInsights(result.roleInsights);
-          updateNote(note.id, { coachingMetrics: { ...metrics, roleInsights: result.roleInsights, roleId: accountRoleId } });
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setInsightsLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, conversationFailed]);
+  // Role-only LLM coaching also disabled for auto-trigger — included in runConversationAnalysis
 
   const conv = metrics?.conversationInsights;
 
@@ -911,6 +876,18 @@ function CoachingView({
         <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
           Choose your <span className="font-medium text-foreground">role</span> in Settings to unlock transcript-grounded coaching and role frameworks.
         </div>
+      )}
+
+      {/* Analyze button — only shown when no insights exist */}
+      {!conv && !conversationLoading && accountRoleId && note.transcript?.length > 0 && (
+        <button
+          onClick={runConversationAnalysis}
+          className="w-full rounded-[10px] border border-border bg-card p-4 text-center hover:bg-secondary/50 transition-colors"
+        >
+          <Sparkles className="h-5 w-5 text-primary mx-auto mb-2" />
+          <p className="text-[13px] font-medium text-foreground">Analyze this meeting</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Find what you missed — grounded in your transcript and role playbook</p>
+        </button>
       )}
 
       {/* Transcript-grounded meeting coaching (primary) */}
@@ -1135,30 +1112,7 @@ function CoachingView({
         </div>
       )}
 
-      {/* Speaking Metrics (collapsible — secondary to qualitative coaching above) */}
-      <div className="rounded-[10px] border border-border bg-card">
-        <button
-          type="button"
-          onClick={() => setMetricsExpanded(!metricsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors rounded-xl"
-        >
-          <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Mic className="h-3 w-3" />
-            Speaking Metrics
-          </h4>
-          {metricsExpanded ? (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-        </button>
-        {metricsExpanded && (
-          <div className="px-4 pb-4 space-y-4">
-            <CommunicationMixBar metrics={metrics} />
-            <CoachingCard metrics={metrics} meetingDurationSec={meetingDurationSec} />
-          </div>
-        )}
-      </div>
+      {/* Speaking metrics removed — coaching is qualitative only */}
     </div>
   );
 }

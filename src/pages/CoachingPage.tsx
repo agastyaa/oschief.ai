@@ -1,30 +1,16 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
-import { SectionTabs, INTELLIGENCE_TABS } from "@/components/SectionTabs";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { useNotes } from "@/contexts/NotesContext";
+import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
-  Brain, TrendingUp, TrendingDown, Minus, ArrowRight, RefreshCw, ChevronDown,
+  Brain, RefreshCw, ChevronDown, Check,
 } from "lucide-react";
 import type { CoachingMetrics, ConversationInsights } from "@/lib/coaching-analytics";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-function scoreColor(score: number): string {
-  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 60) return "text-amber-600 dark:text-amber-400";
-  return "text-red-500 dark:text-red-400";
-}
-
-function trendIcon(current: number, previous: number) {
-  const diff = current - previous;
-  if (diff > 3) return <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />;
-  if (diff < -3) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
-  return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
-}
 
 function formatTag(tag: string): string {
   return tag.replace(/_/g, " ");
@@ -51,8 +37,15 @@ interface MeetingData {
 export default function CoachingPage() {
   const navigate = useNavigate();
   const { sidebarOpen } = useSidebarVisibility();
-  const { notes } = useNotes();
+  const { notes, updateNote } = useNotes();
   const api = getElectronAPI();
+
+  // All notes with transcripts (including excluded ones) — for manage list
+  const allCoachableNotes = useMemo(() => {
+    return notes
+      .filter(n => n.transcript?.length > 0)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [notes]);
 
   const accountRoleId = useMemo(() => {
     try {
@@ -64,14 +57,14 @@ export default function CoachingPage() {
 
   const meetings: MeetingData[] = useMemo(() => {
     return notes
-      .filter(n => n.coachingMetrics && n.coachingMetrics.overallScore > 0)
+      .filter(n => n.coachingMetrics && n.coachingMetrics.overallScore > 0 && !n.micOnly)
       .map(n => ({ id: n.id, title: n.title || "Untitled Meeting", date: n.date, metrics: n.coachingMetrics! }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [notes]);
 
   const notesWithInsights = useMemo(() => {
     return notes
-      .filter((n) => n.coachingMetrics?.conversationInsights?.headline)
+      .filter((n) => n.coachingMetrics?.conversationInsights?.headline && !n.micOnly)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-12);
   }, [notes]);
@@ -123,11 +116,6 @@ export default function CoachingPage() {
     void runAggregateInsights();
   }, [notesWithInsights.length, accountRoleId, crossMeeting, crossLoading, runAggregateInsights]);
 
-  // Metrics data
-  const latestScore = meetings.length > 0 ? meetings[meetings.length - 1].metrics.overallScore : 0;
-  const prevScore = meetings.length > 1 ? meetings[meetings.length - 2].metrics.overallScore : latestScore;
-  const firstScore = meetings.length > 0 ? meetings[0].metrics.overallScore : 0;
-  const avgScore = meetings.length > 0 ? Math.round(meetings.reduce((s, m) => s + m.metrics.overallScore, 0) / meetings.length) : 0;
 
   // Batch coaching state
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; noteTitle?: string } | null>(null);
@@ -160,17 +148,10 @@ export default function CoachingPage() {
     if (latestInsights) {
       return { headline: latestInsights.headline, body: latestInsights.narrative, type: "latest" };
     }
-    if (meetings.length > 0 && latestScore >= 85) {
-      return {
-        headline: "Strong meeting performance",
-        body: `Your last meeting scored ${latestScore}/100. You were prepared, asked the right questions, and drove clear outcomes. Keep this energy — consistency is what separates good from great.`,
-        type: "metrics",
-      };
-    }
     if (meetings.length > 0) {
       return {
         headline: "Generate your first coaching analysis",
-        body: "Open any meeting below and click the Coaching tab. I\u2019ll analyze what you said, what you committed to, and how it aligns with your role — not just how fast you talked.",
+        body: "Open any meeting below and click the Coaching tab. I\u2019ll analyze what you said, what you committed to, and how it aligns with your role.",
         type: "metrics",
       };
     }
@@ -193,7 +174,6 @@ export default function CoachingPage() {
   const coachMsg = buildCoachMessage();
 
   // Collapsible sections state
-  const [showScoreTrend, setShowScoreTrend] = useState(false);
   const [showMeetingList, setShowMeetingList] = useState(false);
 
   return (
@@ -207,9 +187,6 @@ export default function CoachingPage() {
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3", !sidebarOpen && isElectron && "pl-20")}>
           <SidebarTopBarLeft />
           <div />
-        </div>
-        <div className="px-6 pt-2">
-          <SectionTabs tabs={INTELLIGENCE_TABS} />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -245,25 +222,11 @@ export default function CoachingPage() {
               </div>
             )}
 
-            {/* ── Coach Message (hero) with inline score ── */}
+            {/* ── Coach Message (hero) ── */}
             {coachMsg.type !== "empty" && (
               <div className="rounded-[10px] border border-border bg-card p-5 mb-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-foreground leading-snug mb-2">{coachMsg.headline}</p>
-                    <p className="text-[13.5px] text-foreground/80 leading-relaxed">{coachMsg.body}</p>
-                  </div>
-                  {/* Inline score badge */}
-                  {meetings.length > 0 && latestScore > 0 && (
-                    <div className="text-center shrink-0">
-                      <span className={cn("text-2xl font-bold tabular-nums", scoreColor(latestScore))}>{latestScore}</span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {meetings.length >= 2 && trendIcon(latestScore, prevScore)}
-                        {meetings.length >= 2 ? ` from ${meetings.length}` : 'latest'}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <p className="text-[15px] font-semibold text-foreground leading-snug mb-2">{coachMsg.headline}</p>
+                <p className="text-[13.5px] text-foreground/80 leading-relaxed">{coachMsg.body}</p>
 
                 {/* Focus next callout */}
                 {crossMeeting?.focusNext && (
@@ -358,52 +321,8 @@ export default function CoachingPage() {
               </div>
             )}
 
-            {/* ── Score Trend (collapsed) ── */}
-            {meetings.length >= 2 && (
-              <div className="mb-3">
-                <button
-                  onClick={() => setShowScoreTrend(!showScoreTrend)}
-                  className="flex items-center gap-2 w-full text-left group"
-                >
-                  <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showScoreTrend && "rotate-180")} />
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium group-hover:text-foreground transition-colors">
-                    Score Trend
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground ml-auto">
-                    <span className={cn("font-bold tabular-nums", scoreColor(firstScore))}>{firstScore}</span>
-                    <span>→</span>
-                    <span className={cn("font-bold tabular-nums", scoreColor(latestScore))}>{latestScore}</span>
-                    <span className="text-[10px]">over {meetings.length}</span>
-                    {trendIcon(latestScore, prevScore)}
-                  </span>
-                </button>
-                {showScoreTrend && (
-                  <div className="mt-2 rounded-[10px] border border-border bg-card p-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Avg Score</p>
-                        <p className={cn("text-lg font-bold tabular-nums", scoreColor(avgScore))}>{avgScore}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">First → Latest</p>
-                        <p className="text-lg font-bold tabular-nums">
-                          <span className={scoreColor(firstScore)}>{firstScore}</span>
-                          <span className="text-muted-foreground mx-1">→</span>
-                          <span className={scoreColor(latestScore)}>{latestScore}</span>
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Meetings</p>
-                        <p className="text-lg font-bold tabular-nums text-foreground">{meetings.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Recent Meetings (collapsed) ── */}
-            {meetings.length > 0 && (
+            {/* ── Manage Meetings (exclude/include from coaching) ── */}
+            {allCoachableNotes.length > 0 && (
               <div className="mb-4">
                 <button
                   onClick={() => setShowMeetingList(!showMeetingList)}
@@ -411,42 +330,77 @@ export default function CoachingPage() {
                 >
                   <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", showMeetingList && "rotate-180")} />
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium group-hover:text-foreground transition-colors">
-                    Recent Coaching
+                    Manage Meetings
                   </span>
-                  <span className="text-[10px] text-muted-foreground ml-auto">{meetings.length}</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {meetings.length} of {allCoachableNotes.length} included
+                  </span>
                 </button>
                 {showMeetingList && (
-                  <div className="mt-2 rounded-[10px] border border-border bg-card overflow-hidden divide-y divide-border animate-in fade-in slide-in-from-top-1 duration-200">
-                    {[...meetings].reverse().slice(0, 5).map(m => (
+                  <div className="mt-2 rounded-[10px] border border-border bg-card overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-border/50 bg-secondary/30">
                       <button
-                        key={m.id}
-                        onClick={() => navigate(`/note/${m.id}`)}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors"
+                        onClick={() => {
+                          allCoachableNotes.forEach(n => {
+                            if (n.micOnly) {
+                              updateNote(n.id, { micOnly: false } as any);
+                              getElectronAPI()?.db?.notes?.update(n.id, { micOnly: false });
+                            }
+                          });
+                        }}
+                        className="text-[11px] text-primary hover:underline font-medium"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-medium text-foreground truncate">{m.title}</span>
-                            <span className="text-[10px] text-muted-foreground shrink-0">{m.date}</span>
+                        Include all
+                      </button>
+                      <span className="text-[10px] text-muted-foreground">·</span>
+                      <button
+                        onClick={() => {
+                          allCoachableNotes.forEach(n => {
+                            if (!n.micOnly) {
+                              updateNote(n.id, { micOnly: true } as any);
+                              getElectronAPI()?.db?.notes?.update(n.id, { micOnly: true });
+                            }
+                          });
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        Exclude all
+                      </button>
+                    </div>
+                    <div className="max-h-[280px] overflow-y-auto divide-y divide-border/50">
+                    {allCoachableNotes.map(n => {
+                      const excluded = !!n.micOnly;
+                      return (
+                        <div
+                          key={n.id}
+                          className={cn("flex items-center gap-3 px-4 py-2.5 transition-colors", excluded && "opacity-50")}
+                        >
+                          <button
+                            onClick={() => {
+                              const api = getElectronAPI();
+                              api?.db?.notes?.update(n.id, { micOnly: !excluded });
+                              // Optimistic UI: toggle in notes context
+                              updateNote(n.id, { micOnly: !excluded } as any);
+                            }}
+                            className={cn(
+                              "flex items-center justify-center w-4 h-4 rounded border transition-colors shrink-0",
+                              !excluded ? "bg-primary border-primary text-white" : "border-border hover:border-primary/50"
+                            )}
+                            title={excluded ? "Include in coaching" : "Exclude from coaching"}
+                          >
+                            {!excluded && <Check className="h-2.5 w-2.5" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[13px] text-foreground truncate block">{n.title || "Untitled"}</span>
+                            <span className="text-[10px] text-muted-foreground">{n.date}</span>
                           </div>
-                          {m.metrics.conversationInsights?.headline ? (
-                            <p className="text-[11px] text-foreground/70 truncate mt-0.5">
-                              {m.metrics.conversationInsights.headline}
-                            </p>
-                          ) : (
-                            <p className="text-[10px] text-muted-foreground italic mt-0.5">
-                              Click to generate coaching analysis
-                            </p>
+                          {excluded && (
+                            <span className="text-[10px] text-muted-foreground">excluded</span>
                           )}
                         </div>
-                        {m.metrics.conversationInsights ? (
-                          <span className={cn("text-sm font-bold tabular-nums shrink-0", scoreColor(m.metrics.overallScore))}>
-                            {m.metrics.overallScore}
-                          </span>
-                        ) : (
-                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                      );
+                    })}
+                    </div>
                   </div>
                 )}
               </div>

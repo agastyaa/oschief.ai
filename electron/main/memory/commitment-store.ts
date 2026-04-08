@@ -8,23 +8,27 @@ function logCommitmentSync(op: 'INSERT' | 'UPDATE' | 'DELETE', id: string, data:
 }
 
 export function getAllCommitments(filters?: { status?: string; assigneeId?: string }): any[] {
-  let sql = 'SELECT * FROM commitments'
+  let sql = `SELECT c.*, p.name as assignee_name, pr.name as project_name, n.date as note_date, n.title as note_title
+    FROM commitments c
+    LEFT JOIN people p ON p.id = c.assignee_id
+    LEFT JOIN projects pr ON pr.id = c.project_id
+    LEFT JOIN notes n ON n.id = c.note_id`
   const conditions: string[] = []
   const values: any[] = []
 
   if (filters?.status) {
-    conditions.push('status = ?')
+    conditions.push('c.status = ?')
     values.push(filters.status)
   }
   if (filters?.assigneeId) {
-    conditions.push('assignee_id = ?')
+    conditions.push('c.assignee_id = ?')
     values.push(filters.assigneeId)
   }
 
   if (conditions.length > 0) {
     sql += ' WHERE ' + conditions.join(' AND ')
   }
-  sql += ' ORDER BY created_at DESC'
+  sql += ' ORDER BY c.created_at DESC'
 
   return getDb().prepare(sql).all(...values) as any[]
 }
@@ -139,6 +143,105 @@ export function deleteCommitment(id: string): boolean {
   return true
 }
 
+/**
+ * Sync commitments 1:1 with action items from a meeting summary.
+ * Creates, updates, or removes commitments so they exactly mirror action items.
+ * Preserves commitment-side state (status, snooze, Jira/Asana links) when updating.
+ */
+export function syncActionItemsToCommitments(
+  noteId: string,
+  actionItems: Array<{
+    text: string
+    assignee?: string
+    dueDate?: string
+    done: boolean
+    priority?: string
+    jiraIssueKey?: string
+    jiraIssueUrl?: string
+    asanaTaskGid?: string
+    asanaTaskUrl?: string
+  }>
+): { created: number; updated: number; removed: number } {
+  const db = getDb()
+  const existing = db.prepare('SELECT * FROM commitments WHERE note_id = ? ORDER BY created_at ASC').all(noteId) as any[]
+  const now = new Date().toISOString()
+
+  let created = 0
+  let updated = 0
+  let removed = 0
+
+  // Match existing commitments to action items by position (index order)
+  for (let i = 0; i < actionItems.length; i++) {
+    const ai = actionItems[i]
+    const assigneeName = ai.assignee && ai.assignee !== 'Unassigned' ? ai.assignee : null
+    const status = ai.done ? 'completed' : 'open'
+
+    if (i < existing.length) {
+      // Update existing commitment — preserve Jira/Asana links if not provided
+      const c = existing[i]
+      const changes: string[] = []
+      const values: any[] = []
+
+      if (c.text !== ai.text) { changes.push('text = ?'); values.push(ai.text) }
+      if ((c.owner || 'you') !== (assigneeName ? assigneeName : 'you')) {
+        changes.push('owner = ?'); values.push(assigneeName || 'you')
+      }
+      if (c.due_date !== (ai.dueDate || null)) { changes.push('due_date = ?'); values.push(ai.dueDate || null) }
+      // Sync done status: action item done → commitment completed, not done → open
+      if (ai.done && c.status !== 'completed') {
+        changes.push('status = ?'); values.push('completed')
+        changes.push('completed_at = ?'); values.push(now)
+      } else if (!ai.done && c.status === 'completed') {
+        changes.push('status = ?'); values.push('open')
+        changes.push('completed_at = ?'); values.push(null)
+      }
+      // Sync Jira/Asana links from action item if present
+      if (ai.jiraIssueKey !== undefined) { changes.push('jira_issue_key = ?'); values.push(ai.jiraIssueKey || null) }
+      if (ai.jiraIssueUrl !== undefined) { changes.push('jira_issue_url = ?'); values.push(ai.jiraIssueUrl || null) }
+
+      if (changes.length > 0) {
+        changes.push('updated_at = ?'); values.push(now)
+        values.push(c.id)
+        db.prepare(`UPDATE commitments SET ${changes.join(', ')} WHERE id = ?`).run(...values)
+        const u = getCommitment(c.id)
+        if (u) logCommitmentSync('UPDATE', c.id, u)
+        updated++
+      }
+    } else {
+      // Create new commitment for this action item
+      const id = randomUUID()
+      db.prepare(`
+        INSERT INTO commitments (id, note_id, text, owner, due_date, jira_issue_key, jira_issue_url, confidence, status, completed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'high', ?, ?, ?, ?)
+      `).run(
+        id, noteId, ai.text,
+        assigneeName || 'you',
+        ai.dueDate || null,
+        ai.jiraIssueKey || null, ai.jiraIssueUrl || null,
+        status, ai.done ? now : null,
+        now, now
+      )
+      const c = getCommitment(id)
+      if (c) logCommitmentSync('INSERT', id, c)
+      created++
+    }
+  }
+
+  // Remove extra commitments if action items were deleted
+  for (let i = actionItems.length; i < existing.length; i++) {
+    const c = existing[i]
+    db.prepare('DELETE FROM commitments WHERE id = ?').run(c.id)
+    logCommitmentSync('DELETE', c.id, null)
+    removed++
+  }
+
+  if (created || updated || removed) {
+    console.log(`[commitments] Synced for note ${noteId}: ${created} created, ${updated} updated, ${removed} removed`)
+  }
+
+  return { created, updated, removed }
+}
+
 export function markOverdueCommitments(): void {
   const now = new Date().toISOString()
   const result = getDb().prepare(`
@@ -171,17 +274,27 @@ export function checkAmberTransitions(): number {
   let notified = 0
 
   // Find open commitments approaching due date that haven't been notified
-  const candidates = db.prepare(`
-    SELECT c.id, c.text, c.due_date, c.owner, c.amber_notified_at,
-           p.name as assignee_name
-    FROM commitments c
-    LEFT JOIN people p ON p.id = c.assignee_id
-    WHERE c.status = 'open'
-      AND c.due_date IS NOT NULL
-      AND c.due_date GLOB '????-??-??*'
-      AND c.amber_notified_at IS NULL
-      AND (c.snoozed_until IS NULL OR datetime(c.snoozed_until) < datetime('now'))
-  `).all() as any[]
+  let candidates: any[]
+  try {
+    candidates = db.prepare(`
+      SELECT c.id, c.text, c.due_date, c.owner, c.amber_notified_at,
+             p.name as assignee_name
+      FROM commitments c
+      LEFT JOIN people p ON p.id = c.assignee_id
+      WHERE c.status = 'open'
+        AND c.due_date IS NOT NULL
+        AND c.due_date GLOB '????-??-??*'
+        AND c.amber_notified_at IS NULL
+        AND (c.snoozed_until IS NULL OR datetime(c.snoozed_until) < datetime('now'))
+    `).all() as any[]
+  } catch (err: any) {
+    // amber_notified_at column may not exist if migration 12 hasn't run yet
+    if (/no such column/i.test(err.message)) {
+      console.warn('[commitments] amber_notified_at column missing — migration pending. Skipping amber check.')
+      return 0
+    }
+    throw err
+  }
 
   for (const c of candidates) {
     try {
@@ -216,7 +329,12 @@ export function checkAmberTransitions(): number {
  * or is completed. Called from updateCommitment/updateCommitmentStatus.
  */
 export function clearAmberNotification(id: string): void {
-  getDb().prepare('UPDATE commitments SET amber_notified_at = NULL WHERE id = ?').run(id)
+  try {
+    getDb().prepare('UPDATE commitments SET amber_notified_at = NULL WHERE id = ?').run(id)
+  } catch (err: any) {
+    if (/no such column/i.test(err.message)) return // migration pending
+    throw err
+  }
 }
 
 /**

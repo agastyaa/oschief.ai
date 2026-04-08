@@ -94,11 +94,18 @@ FORMATTING
 LENGTH
 - <15 min → 5-8 bullets | 15-30 min → 8-15 | 30-60 min → 15-25 | 60+ min → 25-40
 
+ACTION ITEMS — BE THOROUGH
+- Capture EVERY commitment, promise, follow-up, or next step from the transcript — even implicit ones.
+- "I'll look into it", "Let me check", "We should probably" → these are action items. Capture them.
+- Include the person who committed (→ **Name** to [task]) and any deadline mentioned.
+- If {{USER_NAME}} said they would do something, use → [task] (no name prefix needed).
+- Better to over-extract action items than to miss one. A missed commitment is worse than a redundant one.
+
 NEVER HALLUCINATE
 - Only include content from the transcript or user notes. No fabricated action items or decisions.
 - Short transcript (<5 real lines) → summarize only what was said. <50 words of substance → brief summary only.
 - Transcript missing → generate from user notes only. Both empty → title + "No notes captured."
-- When in doubt, output LESS.
+- When in doubt, output LESS (for summaries). But for action items, capture ALL of them.
 
 OUTPUT FORMAT
 
@@ -275,23 +282,25 @@ export function getTemplate(templateId: string): MeetingTemplate {
 
 /** Few-shot output example for local models that need extra formatting guidance. */
 const FEW_SHOT_EXAMPLE = `
-EXAMPLE OUTPUT (follow this format exactly):
+EXAMPLE OUTPUT (follow this format exactly — DO NOT copy this content, use the actual transcript):
 
-**Weekly Product Sync** — Mon, Mar 17, 2026
+**Project Zephyr Sprint Planning** — Tue, Jan 7, 2025
 
-**TL;DR:** Pushed v2.1 launch to April 4; onboarding redesign approved; hired senior BE.
+**TL;DR:** Moved deadline to Feb 20; approved new dashboard design; assigning onboarding docs to Kai.
 
-**Launch Timeline**
-- v2.1 pushed two weeks to April 4 — QA found auth edge cases in SSO flow
-  - Affects enterprise pilot with Acme Corp; Sarah will notify their team
-→ Fix SSO token refresh by March 28
-→ **Decision:** Ship without SAML support; add in v2.2
+**Sprint Goals**
+- Sprint 14 deadline extended to Feb 20 — dependency on external API not ready
+  - Alex to follow up with vendor by Friday
+→ Update project timeline in tracker by end of week
+→ **Decision:** Delay release rather than ship without integration
 
-**Onboarding Redesign**
-- New 3-step flow approved — removes company-size step, adds role picker
-- A/B test showed 22% completion lift in prototype
-→ **Maya** to finalize Figma by Friday
-→ Ship behind feature flag by April 1
+**Dashboard Redesign**
+- New layout approved — sidebar nav replaces top tabs
+- Prototype testing showed positive user feedback
+→ **Kai** to write onboarding docs by Jan 15
+→ Ship redesign behind feature flag
+
+IMPORTANT: The above is a FORMAT example only. Your output must use ONLY information from the transcript and notes below. Do not invent names, decisions, or action items.
 `
 
 export function buildPrompt(

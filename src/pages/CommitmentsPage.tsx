@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-import { SectionTabs, WORK_TABS } from "@/components/SectionTabs"
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
@@ -196,9 +195,6 @@ const CommitmentsPage = () => {
         <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
           <SidebarCollapseButton />
         </div>
-        <div className="px-6 pt-2">
-          <SectionTabs tabs={WORK_TABS} />
-        </div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-8 font-body">
             {/* Header */}
@@ -215,9 +211,9 @@ const CommitmentsPage = () => {
             </div>
 
             {/* Add to-do */}
-            <div className="mb-5 rounded-[10px] border border-border bg-card/40 p-3">
-              <p className="text-xs text-muted-foreground mb-2">Add a personal to-do</p>
-              <div className="flex items-center gap-2">
+            <div className="mb-6 rounded-[10px] border border-border bg-card p-4">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Add a personal to-do</p>
+              <div className="flex items-center gap-3">
                 <input
                   value={newTodoText}
                   onChange={(e) => setNewTodoText(e.target.value)}
@@ -228,20 +224,20 @@ const CommitmentsPage = () => {
                     }
                   }}
                   placeholder="Write a to-do..."
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-[13.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <input
                   type="date"
                   value={newTodoDueDate}
                   onChange={(e) => setNewTodoDueDate(e.target.value)}
-                  className="rounded-md border border-border bg-background px-2 py-2 text-xs text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   title="Due date (optional)"
                 />
                 {projects.length > 0 && (
                   <select
                     value={newTodoProjectId || ""}
                     onChange={(e) => setNewTodoProjectId(e.target.value || null)}
-                    className="rounded-md border border-border bg-background px-2 py-2 text-xs text-muted-foreground"
+                    className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground min-w-[120px]"
                   >
                     <option value="">No project</option>
                     {projects.map((p: any) => (
@@ -252,7 +248,7 @@ const CommitmentsPage = () => {
                 <button
                   onClick={() => void handleAddTodo()}
                   disabled={addingTodo || !newTodoText.trim()}
-                  className="rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md bg-primary px-4 py-2 text-[13px] font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {addingTodo ? "Adding..." : "Add"}
                 </button>
@@ -260,30 +256,30 @@ const CommitmentsPage = () => {
             </div>
 
             {/* Filter tabs */}
-            <div className="flex items-center gap-1 mb-6 border-b border-border pb-2">
+            <div className="flex items-center gap-1 mb-6 border-b border-border">
               {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={cn(
-                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    "px-3 py-2.5 text-[13px] font-medium transition-colors border-b-2 -mb-px",
                     filter === f
-                      ? "bg-accent/10 text-accent"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {f === "all" ? "All" : f === "my" ? "My" : f === "upcoming" ? "Upcoming" : STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label}
                   {f !== "all" && f === "open" && counts.open > 0 && (
-                    <span className="ml-1.5 text-[10px] opacity-60">{counts.open}</span>
+                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.open}</span>
                   )}
                   {f === "overdue" && counts.overdue > 0 && (
-                    <span className="ml-1.5 text-[10px] opacity-60">{counts.overdue}</span>
+                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.overdue}</span>
                   )}
                   {f === "my" && counts.my > 0 && (
-                    <span className="ml-1.5 text-[10px] opacity-60">{counts.my}</span>
+                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.my}</span>
                   )}
                   {f === "upcoming" && counts.upcoming > 0 && (
-                    <span className="ml-1.5 text-[10px] opacity-60">{counts.upcoming}</span>
+                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.upcoming}</span>
                   )}
                 </button>
               ))}
@@ -377,27 +373,39 @@ const CommitmentsPage = () => {
                                   </span>
                                 )}
                                 {editingAssigneeId === c.id ? (
-                                  <select
-                                    autoFocus
-                                    defaultValue={c.assignee_name || ""}
-                                    onBlur={(e) => {
-                                      setEditingAssigneeId(null)
-                                      const selected = people.find(p => p.name === e.target.value)
-                                      api?.memory?.commitments?.update(c.id, { assigneeId: selected?.id ?? null })
-                                        .then(() => loadCommitments())
-                                    }}
-                                    onChange={(e) => {
-                                      const selected = people.find(p => p.name === e.target.value)
-                                      api?.memory?.commitments?.update(c.id, { assigneeId: selected?.id ?? null })
-                                        .then(() => { loadCommitments(); setEditingAssigneeId(null) })
-                                    }}
-                                    className="text-[11px] rounded border border-border bg-background px-1 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                  >
-                                    <option value="">No assignee</option>
-                                    {people.map(p => (
-                                      <option key={p.id} value={p.name}>{p.name}</option>
-                                    ))}
-                                  </select>
+                                  <>
+                                    <input
+                                      autoFocus
+                                      defaultValue={c.assignee_name || (c.owner === 'you' ? 'Me' : c.owner || "")}
+                                      list={`assignee-list-${c.id}`}
+                                      placeholder="Type a name..."
+                                      onBlur={(e) => {
+                                        const val = e.target.value.trim()
+                                        setEditingAssigneeId(null)
+                                        if (!val || val.toLowerCase() === 'me') {
+                                          api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                            .then(() => loadCommitments())
+                                        } else {
+                                          const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
+                                          api?.memory?.commitments?.update(c.id, {
+                                            owner: val,
+                                            assigneeId: selected?.id ?? null,
+                                          }).then(() => loadCommitments())
+                                        }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                        if (e.key === 'Escape') setEditingAssigneeId(null)
+                                      }}
+                                      className="text-[11px] rounded border border-border bg-background px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-28"
+                                    />
+                                    <datalist id={`assignee-list-${c.id}`}>
+                                      <option value="Me" />
+                                      {people.map((p: any) => (
+                                        <option key={p.id} value={p.name} />
+                                      ))}
+                                    </datalist>
+                                  </>
                                 ) : c.assignee_name ? (
                                   <button
                                     onClick={() => setEditingAssigneeId(c.id)}
@@ -483,6 +491,15 @@ const CommitmentsPage = () => {
                                       <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                   </select>
+                                ) : (c as any).project_name ? (
+                                  <button
+                                    onClick={() => setEditingProjectId(c.id)}
+                                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                                    title="Click to change project"
+                                  >
+                                    <FolderKanban className="h-2.5 w-2.5" />
+                                    {(c as any).project_name}
+                                  </button>
                                 ) : (
                                   <button
                                     onClick={() => setEditingProjectId(c.id)}
@@ -490,7 +507,7 @@ const CommitmentsPage = () => {
                                     title="Assign to project"
                                   >
                                     <FolderKanban className="h-2.5 w-2.5" />
-                                    {(c as any).project_name || "Project"}
+                                    Project
                                   </button>
                                 )}
                               </div>

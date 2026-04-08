@@ -143,7 +143,7 @@ export function initDatabase(): void {
 
 export function getAllNotes(): any[] {
   const rows = getDb().prepare(`
-    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics, mic_only
     FROM notes ORDER BY created_at DESC
   `).all() as any[]
   return rows.map(deserializeNote)
@@ -151,7 +151,7 @@ export function getAllNotes(): any[] {
 
 export function getNote(id: string): any | null {
   const row = getDb().prepare(`
-    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics
+    SELECT id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics, mic_only
     FROM notes WHERE id = ?
   `).get(id) as any
   return row ? deserializeNote(row) : null
@@ -159,8 +159,8 @@ export function getNote(id: string): any | null {
 
 export function addNote(note: any): void {
   getDb().prepare(`
-    INSERT OR REPLACE INTO notes (id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO notes (id, title, date, time, duration, time_range, personal_notes, transcript, summary, folder_id, coaching_metrics, mic_only)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     note.id,
     note.title,
@@ -172,7 +172,8 @@ export function addNote(note: any): void {
     JSON.stringify(note.transcript || []),
     note.summary ? JSON.stringify(note.summary) : null,
     note.folderId || null,
-    note.coachingMetrics ? JSON.stringify(note.coachingMetrics) : null
+    note.coachingMetrics ? JSON.stringify(note.coachingMetrics) : null,
+    note.micOnly ? 1 : 0
   )
   logSync('notes', 'INSERT', note.id, {
     id: note.id, title: note.title, date: note.date, time: note.time,
@@ -182,6 +183,7 @@ export function addNote(note: any): void {
     summary: note.summary ? JSON.stringify(note.summary) : null,
     folder_id: note.folderId || null,
     coaching_metrics: note.coachingMetrics ? JSON.stringify(note.coachingMetrics) : null,
+    mic_only: note.micOnly ? 1 : 0,
   })
 }
 
@@ -394,6 +396,7 @@ function deserializeNote(row: any): any {
     transcript: safeJsonParse(row.transcript, [], `note ${row.id} transcript`),
     summary: safeJsonParse(row.summary, null, `note ${row.id} summary`),
     folderId: row.folder_id,
+    micOnly: !!row.mic_only,
     coachingMetrics: safeJsonParse(row.coaching_metrics, undefined, `note ${row.id} coachingMetrics`),
   }
 }

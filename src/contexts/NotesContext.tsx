@@ -26,6 +26,8 @@ export interface SavedNote {
     attachments?: { type: "image"; url: string }[];
   } | null;
   folderId: string | null;
+  /** True when recorded with mic only (no system audio). Used to exclude from coaching. */
+  micOnly?: boolean;
   /** Computed speech coaching metrics — generated after transcription completes */
   coachingMetrics?: CoachingMetrics;
 }

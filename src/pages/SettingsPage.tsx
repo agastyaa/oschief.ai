@@ -61,12 +61,8 @@ const TOGGLE_DB_KEYS: Record<string, string> = {
   aiSummaries: 'auto-generate-notes',
   summaryReady: 'summary-ready-notification',
   actionReminder: 'action-reminder-notification',
-  weeklyDigest: 'weekly-digest-notification',
-  calendarSync: 'calendar-sync',
-  showUpcoming: 'show-upcoming-meetings',
   meetingDetectionRequireMic: 'meeting-detection-require-mic',
   audioNoiseSuppression: 'audio-noise-suppression',
-  audioDenoiseBeforeStt: 'audio-denoise-before-stt',
   useDiarization: 'use-diarization',
 };
 
@@ -78,12 +74,8 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   aiSummaries: true,
   summaryReady: true,
   actionReminder: true,
-  weeklyDigest: false,
-  calendarSync: true,
-  showUpcoming: true,
   meetingDetectionRequireMic: false,
   audioNoiseSuppression: true,
-  audioDenoiseBeforeStt: false,
   useDiarization: true,
 };
 
@@ -1283,9 +1275,6 @@ function AccountSection() {
           Save Changes
         </button>
         {saved && <span className="text-xs text-accent flex items-center gap-1"><Check className="h-3 w-3" /> Saved</span>}
-      </div>
-      <div className="pt-4 border-t border-border">
-        <button className="text-[12px] text-destructive hover:underline">Delete Account</button>
       </div>
     </>
   );
@@ -2771,12 +2760,6 @@ export default function SettingsPage() {
               {active === "connections" && (
                 <div className="space-y-5">
                   <SectionHeader title="Connections" description="Calendar, integrations, and sync" />
-                  <SettingRow label="Sync calendar" description="Keep your meetings synced with your calendar">
-                    <Toggle enabled={toggles.calendarSync} onToggle={() => toggle("calendarSync")} />
-                  </SettingRow>
-                  <SettingRow label="Show upcoming meetings" description="Display upcoming meetings on the home screen">
-                    <Toggle enabled={toggles.showUpcoming} onToggle={() => toggle("showUpcoming")} />
-                  </SettingRow>
                   <SettingRow label="Only notify when microphone is in use" description="Fewer false positives: show “Meeting detected” only when a meeting app is in use and the mic is active (ad-hoc calls). Turn off if you join muted and miss prompts.">
                     <Toggle enabled={toggles.meetingDetectionRequireMic} onToggle={() => toggle("meetingDetectionRequireMic")} />
                   </SettingRow>
@@ -2839,54 +2822,51 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <h3 className="text-[13px] font-medium text-foreground">Connected Calendars</h3>
-                    <p className="text-[11px] text-muted-foreground -mt-1 mb-2">
-                      Add several ICS feeds or use OAuth (below in Integrations). On the Calendar page, use{" "}
-                      <strong className="text-foreground/90">All calendars</strong> or pick one source — like Google Calendar or Notion.
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[13px] font-medium text-foreground">Calendars</h3>
+                      <button
+                        onClick={() => {
+                          setIcsDialogProvider(null);
+                          setIcsDialogOpen(true);
+                        }}
+                        className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 transition-colors"
+                      >
+                        + Add Calendar
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground -mt-1">
+                      Paste an ICS feed URL or upload a .ics file. Works with Google, Outlook, Apple, Notion, or any ICS-compatible calendar.
                     </p>
-                    {(
-                      [
-                        { id: "google" as CalendarProviderId, name: "Google Calendar", desc: "Sync with Google Calendar" },
-                        { id: "outlook" as CalendarProviderId, name: "Outlook Calendar", desc: "Sync with Microsoft Outlook" },
-                        { id: "apple" as CalendarProviderId, name: "Apple Calendar", desc: "Sync with iCloud Calendar" },
-                      ] as const
-                    ).map((cal) => {
-                      const connected = icsFeeds.some((f) => f.providerHint === cal.id);
-                      return (
-                        <div key={cal.name} className="flex items-center justify-between rounded-md border border-border bg-card p-3">
-                          <div>
-                            <span className="text-[13px] font-medium text-foreground">{cal.name}</span>
-                            <p className="text-[11px] text-muted-foreground">{cal.desc}</p>
+                    {icsFeeds.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {icsFeeds.map((feed) => (
+                          <div key={feed.id} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                                <Check className="h-3 w-3" />
+                              </span>
+                              <span className="text-[13px] text-foreground truncate">
+                                {feed.providerHint ? feed.providerHint.charAt(0).toUpperCase() + feed.providerHint.slice(1) + ' Calendar' : feed.name || 'Calendar feed'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                removeCalendarFeed(feed.id);
+                                if (icsFeeds.length <= 1) {
+                                  setCalendarProvider(null);
+                                  try { localStorage.removeItem(CALENDAR_PROVIDER_KEY); } catch {}
+                                }
+                              }}
+                              className="rounded-md border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+                            >
+                              Remove
+                            </button>
                           </div>
-                          {connected ? (
-                            <button
-                              onClick={() => {
-                                icsFeeds
-                                  .filter((f) => f.providerHint === cal.id)
-                                  .forEach((f) => removeCalendarFeed(f.id));
-                                setCalendarProvider(null);
-                                try {
-                                  localStorage.removeItem(CALENDAR_PROVIDER_KEY);
-                                } catch {}
-                              }}
-                              className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              Disconnect
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setIcsDialogProvider(cal.id);
-                                setIcsDialogOpen(true);
-                              }}
-                              className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            >
-                              Connect
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground/60 py-2">No calendars connected yet.</p>
+                    )}
                   </div>
                   <ICSDialog
                     open={icsDialogOpen}
@@ -2911,9 +2891,6 @@ export default function SettingsPage() {
                     <SettingRow label="Action item reminders" description="Reminders about pending action items from meetings">
                       <Toggle enabled={toggles.actionReminder} onToggle={() => toggle("actionReminder")} />
                     </SettingRow>
-                    <SettingRow label="Weekly digest" description="Weekly summary of all your meetings and action items">
-                      <Toggle enabled={toggles.weeklyDigest} onToggle={() => toggle("weeklyDigest")} />
-                    </SettingRow>
                   </div>
                 </div>
               )}
@@ -2922,14 +2899,14 @@ export default function SettingsPage() {
                 <div className="space-y-5 mt-6 border-t border-border pt-5">
                   <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
                   <div className="space-y-2">
-                    <AppleCalendarIntegrationRow />
-                    <JiraIntegrationRow />
                     <GoogleCalendarIntegrationRow />
-                    <GmailIntegrationRow />
                     <MicrosoftCalendarIntegrationRow />
-                    <AsanaIntegrationRow />
+                    <AppleCalendarIntegrationRow />
+                    <GmailIntegrationRow />
                     <SlackIntegrationRow />
                     <TeamsIntegrationRow />
+                    <JiraIntegrationRow />
+                    <AsanaIntegrationRow />
                   </div>
                 </div>
               )}
@@ -3276,17 +3253,21 @@ function AppleCalendarIntegrationRow() {
           </p>
         </div>
       </div>
-      <button
-        onClick={toggle}
-        className={cn(
-          "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
-          enabled
-            ? "bg-secondary text-foreground hover:bg-secondary/80"
-            : "bg-primary text-primary-foreground hover:opacity-90"
-        )}
-      >
-        {enabled ? "Disconnect" : "Connect"}
-      </button>
+      {enabled ? (
+        <button
+          onClick={toggle}
+          className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          Disconnect
+        </button>
+      ) : (
+        <button
+          onClick={toggle}
+          className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          Connect
+        </button>
+      )}
     </div>
   );
 }
@@ -3429,7 +3410,7 @@ function GmailIntegrationRow() {
       {connected ? (
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-            <Check className="h-3 w-3" /> Active
+            <Check className="h-3 w-3" /> Connected
           </span>
           <button
             onClick={handleSync}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat } from "lucide-react";
+import { FileText, Search, Settings, Sparkles, FolderOpen, Users, Briefcase, Star, Archive, Plus, X, Check, Home, Trash2, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Zap, Gavel, Repeat, Calendar } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
@@ -122,6 +122,24 @@ const calendarIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+/** Sub-navigation item for sidebar sections */
+function SubNavItem({ icon: Icon, label, to, active, navigate }: { icon?: any; label: string; to: string; active: boolean; navigate: (to: string) => void }) {
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors text-left",
+        active
+          ? "bg-secondary text-foreground font-medium"
+          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+      )}
+    >
+      {Icon && <Icon className="h-3.5 w-3.5" />}
+      {label}
+    </button>
+  );
+}
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -130,12 +148,16 @@ export function Sidebar() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Projects for sidebar nav (replaces folders)
+  const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
+
   // Commitment weather dot — fetch once on mount, refresh on location change (user navigated)
   const [riskLevels, setRiskLevels] = useState<any[]>([]);
   useEffect(() => {
     const api = getElectronAPI();
     if (!api?.intelligence?.getRiskLevels) return;
     api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
+    api?.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setSidebarProjects((p || []).slice(0, 5))).catch(() => {});
   }, [location.pathname]);
   const redCount = riskLevels.filter((c: any) => c.risk_level === 'RED').length;
   const amberCount = riskLevels.filter((c: any) => c.risk_level === 'AMBER').length;
@@ -216,133 +238,61 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-3 py-2">
-        <button
-          onClick={openSearch}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span>Search</span>
-          <kbd className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-        </button>
-      </div>
-
       {/* Today */}
       <nav className="flex flex-col gap-0.5 px-3 mt-1">
-        <NavItem label="Today" to="/" active={
+        <NavItem icon={Home} label="Today" to="/" active={
           isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder") && !location.search.includes("view=all")
         } />
       </nav>
 
-      {/* Meetings — expands to show Notes | Calendar | Series via SectionTabs on target pages */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-2">
+      {/* All Meetings — projects as sub-items */}
+      <nav className="flex flex-col gap-0.5 px-3 mt-0.5">
         <NavItem
-          label="Meetings"
+          icon={FileText}
+          label="All Meetings"
           to="/?view=all"
-          active={
-            isActive("/calendar") || isActive("/series") || location.search.includes("view=all") || location.search.includes("folder")
-          }
+          active={location.search.includes("view=all") || isActive("/project/")}
         />
-        {/* Folders nested under Meetings when expanded */}
-        {(isActive("/calendar") || isActive("/series") || location.search.includes("view=all") || location.search.includes("folder")) && (
-          <>
-            {folders.length > 0 && (
-              <div className="flex flex-col gap-0.5 ml-3 border-l border-border/50 pl-2 mt-0.5">
-                {folders.map((f) => {
-                  const Icon = iconMap[f.icon] || FolderOpen;
-                  return (
-                    <div
-                      key={f.id}
-                      className={cn(
-                        "group/folder flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors",
-                        new URLSearchParams(location.search).get("folder") === f.id
-                          ? "bg-secondary text-foreground font-medium"
-                          : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
-                      )}
-                    >
-                      <button
-                        onClick={() => navigate(`/?folder=${f.id}`)}
-                        className="flex flex-1 items-center gap-2 min-w-0"
-                      >
-                        <div className={cn("flex h-3.5 w-3.5 items-center justify-center rounded flex-shrink-0", f.color)}>
-                          <Icon className="h-2 w-2" />
-                        </div>
-                        <span className="truncate">{f.name}</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteFolder(f.id);
-                          if (new URLSearchParams(location.search).get("folder") === f.id) navigate("/");
-                        }}
-                        className="hidden group-hover/folder:block rounded p-0.5 text-muted-foreground hover:text-destructive flex-shrink-0"
-                      >
-                        <Trash2 className="h-2.5 w-2.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="ml-3 border-l border-border/50 pl-2 mt-0.5">
+        {sidebarProjects.length > 0 && (
+          <div className="flex flex-col gap-0.5 ml-6 mt-0.5">
+            {sidebarProjects.map((p: any) => (
               <button
-                onClick={() => setCreatingFolder(true)}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                key={p.id}
+                onClick={() => navigate(`/project/${p.id}`)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors text-left",
+                  location.pathname === `/project/${p.id}`
+                    ? "bg-secondary text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                )}
               >
-                <Plus className="h-2.5 w-2.5" />
-                New folder
+                <FolderKanban className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{p.name}</span>
               </button>
-            </div>
-            {creatingFolder && (
-              <div className="flex items-center gap-1 ml-3 pl-2 border-l border-border/50 px-2 py-1">
-                <input
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreateFolder();
-                    if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                  }}
-                  placeholder="Folder name"
-                  className="flex-1 min-w-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-                <button onClick={handleCreateFolder} className="rounded p-0.5 text-accent hover:text-accent/80">
-                  <Check className="h-2.5 w-2.5" />
-                </button>
-                <button onClick={() => { setCreatingFolder(false); setNewFolderName(""); }} className="rounded p-0.5 text-muted-foreground hover:text-foreground">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </nav>
 
-      {/* Your Work — People, Projects, Commitments, Decisions via SectionTabs */}
+      {/* Flat nav — no section labels */}
       <nav className="flex flex-col gap-0.5 px-3 mt-2">
-        <NavItem
-          label="Your Work"
-          to="/people"
-          active={isActive("/people") || isActive("/projects") || isActive("/project/") || isActive("/commitments")}
-        />
+        <NavItem icon={Contact} label="People" to="/people" />
+        <NavItem icon={CheckCircle2} label="Commitments" to="/commitments" />
       </nav>
 
-      {/* Intelligence — Ask, Coaching, Routines via SectionTabs */}
       <nav className="flex flex-col gap-0.5 px-3 mt-2">
-        <NavItem
-          label="Intelligence"
-          to="/ask"
-          active={isActive("/ask") || isActive("/coaching") || isActive("/routines") || isActive("/digest")}
-        />
+        <NavItem icon={Sparkles} label="Ask" to="/ask" />
+        <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
       </nav>
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom — Settings only (Calendar moved to Meetings group) */}
+      {/* Bottom — Settings + Routines */}
       <div className="flex flex-col gap-0.5 px-3 pb-2">
         <div className="h-px bg-border mx-2 mb-1" />
+        <NavItem icon={Calendar} label="Calendar" to="/calendar" />
+        <NavItem icon={Repeat} label="Routines" to="/routines" />
         <NavItem icon={Settings} label="Settings" to="/settings" />
       </div>
 

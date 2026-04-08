@@ -32,6 +32,7 @@ import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 import { BUILTIN_TEMPLATES, BUILTIN_TEMPLATE_IDS } from "@/data/templates";
 import { loadAccountFromStorage } from "@/lib/account-context";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 type RecordingState = "recording" | "paused" | "stopped";
 
@@ -45,6 +46,12 @@ const fakeTranscriptLines = [
   { speaker: "You", time: "0:38", text: "The landing page still needs copy review." },
   { speaker: "You", time: "0:45", text: "And we should schedule the demo recording for next Tuesday." },
 ];
+
+/** Strip HTML tags from rich text notes for LLM context. */
+function stripHtml(html: string): string {
+  if (!html || !html.includes('<')) return html
+  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+}
 
 const generateLocalSummary = (
   notes: string,
@@ -566,6 +573,8 @@ export default function NewNotePage() {
     lastGeneratedNotesRef.current = override?.personalNotes ?? personalNotes;
 
     // Save the note immediately (without summary) so it's not lost if summarize hangs
+    // Detect mic-only: no "Others" speaker in transcript means no system audio was captured
+    const isMicOnly = usingRealAudio && finalTranscript.length > 0 && !finalTranscript.some(t => t.speaker === 'Others');
     try {
       addNote({
         id: noteIdToSave,
@@ -579,6 +588,7 @@ export default function NewNotePage() {
         transcript: finalTranscript,
         summary: null,
         folderId: selectedFolderId,
+        micOnly: isMicOnly,
       });
     } catch (err) {
       console.error('Failed to save note:', err);
@@ -596,7 +606,7 @@ export default function NewNotePage() {
       addSummarizingNote(noteIdToSave);
       api.llm.summarizeBackground(noteIdToSave, {
         transcript: finalTranscript,
-        personalNotes: useNotes,
+        personalNotes: stripHtml(useNotes),
         model: selectedAIModel,
         meetingTemplateId: templateId,
         customPrompt,
@@ -614,7 +624,7 @@ export default function NewNotePage() {
       }, 180000);
     } else {
       // No AI model — generate local summary synchronously
-      const localSummary = generateLocalSummary(useNotes, finalTranscript, !!selectedSTTModel);
+      const localSummary = generateLocalSummary(stripHtml(useNotes), finalTranscript, !!selectedSTTModel);
       setSummary(localSummary);
       api?.db?.notes?.update(noteIdToSave, { summary: localSummary }).catch(console.error);
       setIsSummarizing(false);
@@ -698,7 +708,6 @@ export default function NewNotePage() {
       recordingState !== "paused" ||
       hasReal ||
       isSummarizing ||
-      !userPausedRef.current ||
       !autoGenerateNotes
     ) {
       return clearPauseTimer;
@@ -923,16 +932,15 @@ export default function NewNotePage() {
     eventState?.eventId,
   ]);
 
-  // Sync recording state with main process (auto-pause disabled — manual pause only)
+  // Sync recording state: detect auto-pause from main process (silence watchdog)
   useEffect(() => {
     if (recordingState === "stopped") return;
     if (resumingRef.current) return;
     if (activeSession && !activeSession.isRecording && recordingState === "recording") {
       userPausedRef.current = false;
       setRecordingState("paused");
-    } else if (activeSession && activeSession.isRecording && recordingState === "paused" && !userPausedRef.current) {
-      setRecordingState("recording");
     }
+    // No auto-resume path: user must explicitly click Resume
   }, [activeSession?.isRecording]);
 
   // Simulate live transcription for web mode only
@@ -1381,22 +1389,24 @@ export default function NewNotePage() {
 
                 {/* Content: recording vs paused/stopped with notes */}
                 {!showSummaryPanel ? (
-                  <textarea
-                    value={personalNotes}
-                    onChange={(e) => setPersonalNotes(e.target.value)}
+                  <RichTextEditor
+                    content={personalNotes}
+                    onChange={setPersonalNotes}
                     placeholder="Write notes..."
-                    className="min-h-[60vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+                    className="w-full bg-transparent text-[17px] font-medium text-foreground leading-relaxed"
                     autoFocus
+                    minHeight="60vh"
                   />
                 ) : (
                   <div className="animate-fade-in">
                     {viewMode === "my-notes" ? (
-                      <textarea
-                        value={personalNotes}
-                        onChange={(e) => setPersonalNotes(e.target.value)}
+                      <RichTextEditor
+                        content={personalNotes}
+                        onChange={setPersonalNotes}
                         placeholder="Add your personal notes..."
-                        className="min-h-[40vh] w-full resize-none bg-transparent text-[17px] font-medium text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+                        className="w-full bg-transparent text-[17px] font-medium text-foreground leading-relaxed"
                         autoFocus
+                        minHeight="40vh"
                       />
                     ) : isSummarizing ? (
                       <SummarySkeleton />
@@ -1404,7 +1414,14 @@ export default function NewNotePage() {
                       <div className="animate-fade-in">
                         <EditableSummary
                           summary={summary}
-                          onUpdate={(updated) => setSummary(updated)}
+                          onUpdate={(updated) => {
+                            setSummary(updated);
+                            // Sync action items → commitments (1:1 mirror)
+                            if (noteId && api?.memory?.commitments?.syncActionItems) {
+                              const actionItems = updated.actionItems || updated.nextSteps || [];
+                              api.memory.commitments.syncActionItems(noteId, actionItems).catch(console.error);
+                            }
+                          }}
                         />
                       </div>
                     )}
