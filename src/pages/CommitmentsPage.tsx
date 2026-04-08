@@ -420,11 +420,6 @@ const CommitmentsPage = () => {
                                     Assign
                                   </button>
                                 )}
-                                {!c.note_id && (
-                                  <span className="text-[11px] text-muted-foreground">
-                                    Personal
-                                  </span>
-                                )}
                                 {editingDueDateId === c.id ? (
                                   <input
                                     type="date"
