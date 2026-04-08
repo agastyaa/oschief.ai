@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar } from "lucide-react";
+import { FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
