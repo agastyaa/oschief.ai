@@ -8,14 +8,6 @@ import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 
-const iconMap = {
-  folder: FolderOpen,
-  users: Users,
-  briefcase: Briefcase,
-  star: Star,
-  archive: Archive,
-};
-
 const COLLAPSE_BTN_CLASS =
   "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
 
