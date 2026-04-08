@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
@@ -133,8 +133,6 @@ function SubNavItem({ icon: Icon, label, to, active, navigate }: { icon?: any; l
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { open: openSearch } = useSearchCommand();
-
   // Projects for sidebar nav (replaces folders)
   const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
 
