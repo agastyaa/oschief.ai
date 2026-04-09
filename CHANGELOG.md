@@ -4,6 +4,17 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.3] — 2026-04-09
+
+### Added
+- **Sidebar folders** — folders now appear below "All Meetings" in the sidebar with a "New Folder" inline creation button. Clicking a folder navigates to its filtered view.
+- **Decision approval flow** — decisions extracted from meeting summaries are no longer auto-saved to the Decisions page. Each decision shows a circle/checkmark toggle to explicitly promote it.
+
+### Fixed
+- **Qwen3-ASR Python version detection** — install now detects if system Python is below 3.10 and automatically finds a suitable Homebrew Python (3.10–3.13) to create a venv. Shows a clear error message if no compatible Python is found.
+
+---
+
 ## [2.5.2] — 2026-04-09
 
 ### Added
