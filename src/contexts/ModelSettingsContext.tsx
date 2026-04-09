@@ -56,6 +56,7 @@ export const localModels: LocalModel[] = [
   { id: "mlx-whisper-large-v3-turbo", name: "MLX Whisper Large V3 Turbo", size: "~3 GB", type: "stt", description: "Apple Silicon \u2014 auto-installs ffmpeg + pip package; best quality on-device STT" },
   { id: "whisper-large-v3-turbo", name: "Whisper Large V3 Turbo", size: "1.6 GB", type: "stt", description: "whisper.cpp \u2014 model download + whisper-cli setup (build or Homebrew)" },
   { id: "parakeet-coreml", name: "Parakeet CoreML (Apple Silicon)", size: "~600 MB", type: "stt", description: "NVIDIA Parakeet via CoreML — fastest on Mac (110x RTF), 6% WER, no Python needed. English only." },
+  { id: "qwen3-asr-0.6b", name: "Qwen3-ASR 0.6B (MLX)", size: "~1.2 GB", type: "stt", description: "MLX on Apple Silicon — half the memory of Whisper, better accuracy (2.3% WER), built-in diarization." },
   { id: "llama-3.2-3b", name: "Llama 3.2 3B", size: "2.0 GB", type: "llm", description: "Compact local LLM for summarization and chat (no internet needed)" },
   { id: "mlx-qwen3-4b", name: "Qwen3 4B (MLX)", size: "~2.5 GB", type: "llm", description: "MLX on Apple Silicon — fast 4-bit Qwen3 inference. Best quality on-device LLM." },
 ];
@@ -464,12 +465,14 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
       api.models.checkMLXWhisper(),
       api.models.checkMLXWhisper8Bit?.(),
       api.models.checkTheStageWhisper?.(),
-    ]).then(([mlxAvailable, mlx8BitAvailable, thestageAvailable]) => {
+      api.models.checkQwen3ASR?.(),
+    ]).then(([mlxAvailable, mlx8BitAvailable, thestageAvailable, qwen3AsrAvailable]) => {
       setDownloadStates((prev) => {
         const next = { ...prev };
         if (mlxAvailable && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo')) next['mlx-whisper-large-v3-turbo'] = 'downloaded';
         if (mlx8BitAvailable && !hiddenLocalModels.includes('mlx-whisper-large-v3-turbo-8bit')) next['mlx-whisper-large-v3-turbo-8bit'] = 'downloaded';
         if (thestageAvailable && !hiddenLocalModels.includes('thestage-whisper-apple')) next['thestage-whisper-apple'] = 'downloaded';
+        if (qwen3AsrAvailable) next['qwen3-asr-0.6b'] = 'downloaded';
         return next;
       });
     }).catch(() => {});
@@ -526,6 +529,32 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         console.error('MLX Whisper 8-bit install failed:', err);
         setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
         toast.error("MLX 8-bit install failed", {
+          description: err instanceof Error ? err.message : "Ensure Python 3 and pip are available.",
+          duration: 12_000,
+        });
+      }
+      return;
+    }
+    if (modelId === 'qwen3-asr-0.6b' && api) {
+      try {
+        const result = api.models.installQwen3ASR ? await api.models.installQwen3ASR() : { ok: false, steps: [], error: "Not available in this build" };
+        if (result.ok) {
+          setDownloadStates((prev) => ({ ...prev, [modelId]: "downloaded" }));
+          toast.success("Qwen3-ASR 0.6B ready", {
+            description: setupToastDescription(result),
+            duration: 14_000,
+          });
+        } else {
+          setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+          toast.error("Qwen3-ASR install did not finish", {
+            description: setupToastDescription(result),
+            duration: 22_000,
+          });
+        }
+      } catch (err) {
+        console.error('Qwen3-ASR install failed:', err);
+        setDownloadStates((prev) => { const n = { ...prev }; delete n[modelId]; return n; });
+        toast.error("Qwen3-ASR install failed", {
           description: err instanceof Error ? err.message : "Ensure Python 3 and pip are available.",
           duration: 12_000,
         });
@@ -723,6 +752,12 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
           if (result.ok) toast.success("MLX 8-bit uninstalled and cache cleared");
           if (result.error) console.warn('MLX 8-bit uninstall note:', result.error);
         } catch (err) { console.error('MLX 8-bit uninstall error:', err); }
+      } else if (modelId === 'qwen3-asr-0.6b' && api.models.uninstallQwen3ASR) {
+        try {
+          const result = await api.models.uninstallQwen3ASR();
+          if (result.ok) toast.success("Qwen3-ASR uninstalled and cache cleared");
+          if (result.error) console.warn('Qwen3-ASR uninstall note:', result.error);
+        } catch (err) { console.error('Qwen3-ASR uninstall error:', err); }
       } else {
         api.models.delete(modelId).catch(console.error);
       }

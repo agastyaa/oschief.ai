@@ -212,6 +212,20 @@ export function registerIPCHandlers(): void {
     return uninstallMLXWhisper8Bit()
   })
 
+  // --- Qwen3-ASR 0.6B (MLX) ---
+  ipcMain.handle('models:check-qwen3-asr', async () => {
+    const { checkQwen3ASRAvailable } = await import('./models/stt-engine')
+    return checkQwen3ASRAvailable()
+  })
+  ipcMain.handle('models:install-qwen3-asr', async () => {
+    const { installQwen3ASR } = await import('./models/stt-engine')
+    return installQwen3ASR()
+  })
+  ipcMain.handle('models:uninstall-qwen3-asr', async () => {
+    const { uninstallQwen3ASR } = await import('./models/stt-engine')
+    return uninstallQwen3ASR()
+  })
+
   // --- Parakeet TDT (onnx-asr) ---
   ipcMain.handle('models:check-parakeet', async () => {
     try {

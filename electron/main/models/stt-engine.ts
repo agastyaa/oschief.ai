@@ -666,6 +666,9 @@ export async function processWithLocalSTT(
   if (modelId === 'mlx-whisper-large-v3-turbo-8bit') {
     return processWithMLXWhisper8Bit(wavBuffer, customVocabulary, stereoChannel)
   }
+  if (modelId === 'qwen3-asr-0.6b') {
+    return processWithQwen3ASR(wavBuffer, customVocabulary, stereoChannel)
+  }
   if (modelId === 'parakeet-tdt-0.6b') {
     return processWithParakeet(wavBuffer)
   }
@@ -1758,5 +1761,393 @@ async function processWithParakeetCoreML(wavBuffer: Buffer): Promise<STTResult> 
   return {
     text,
     words: [],  // CoreML Parakeet returns full text, not word-level timestamps
+  }
+}
+
+// ─── Qwen3-ASR 0.6B: persistent Python worker ───────────────────────────────
+
+let qwen3ASRAvailable: boolean | null = null
+let qwen3Worker: ReturnType<typeof spawn> | null = null
+let qwen3WorkerReady = false
+let qwen3IdleTimer: ReturnType<typeof setTimeout> | null = null
+let qwen3Transcribing = false
+let qwen3Buffer = ''
+const qwen3PendingResolvers: Array<{ resolve: (r: STTResult) => void; reject: (err: Error) => void }> = []
+const QWEN3_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle
+const QWEN3_STARTUP_READY_TIMEOUT_MS = 30000 // 30s to get "ready" after spawn
+const QWEN3_HINT = ' Ensure Python 3 and mlx-qwen3-asr are installed (pip3 install mlx-qwen3-asr). First run may take several minutes to download the model.'
+
+const QWEN3_WORKER_SCRIPT = `
+import json, sys, os
+
+from mlx_qwen3_asr import transcribe as qwen3_transcribe
+
+sys.stdout.write('{"status":"ready"}\\n')
+sys.stdout.flush()
+
+for line in sys.stdin:
+    try:
+        req = json.loads(line.strip())
+        audio_path = req.get("audio_path", "")
+        result = qwen3_transcribe(audio_path)
+        text = result.get("text", "") if isinstance(result, dict) else str(result)
+        words = []
+        if isinstance(result, dict):
+            for seg in result.get("segments", []):
+                for w in seg.get("words", []):
+                    words.append({"word": w.get("word", ""), "start": w.get("start", 0), "end": w.get("end", 0)})
+        sys.stdout.write(json.dumps({"text": text, "words": words}) + '\\n')
+        sys.stdout.flush()
+    except Exception as e:
+        sys.stdout.write(json.dumps({"error": str(e)}) + '\\n')
+        sys.stdout.flush()
+`
+
+// Permanent stdout handler for Qwen3-ASR worker — resolves pending requests in FIFO order.
+function onQwen3Data(data: Buffer): void {
+  qwen3Buffer += data.toString()
+  const lines = qwen3Buffer.split('\n')
+  qwen3Buffer = lines.pop() ?? ''
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const pending = qwen3PendingResolvers.shift()
+    if (!pending) {
+      console.warn('[Qwen3-ASR] Received data with no pending resolver:', trimmed.slice(0, 80))
+      continue
+    }
+    qwen3Transcribing = false
+    resetQwen3IdleTimer()
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.error) { pending.reject(new Error(parsed.error)); continue }
+      const text = cleanTranscriptText(parsed.text || '')
+      const words: WordTimestamp[] = (parsed.words || [])
+        .map((w: any) => ({ word: (w.word || '').trim(), start: w.start || 0, end: w.end || 0 }))
+        .filter((w: WordTimestamp) => w.word.length > 0)
+      if (text) console.log('[Qwen3-ASR] Result:', text.slice(0, 80) + (text.length > 80 ? '...' : ''))
+      pending.resolve({ text, words })
+    } catch {
+      pending.resolve({ text: cleanTranscriptText(trimmed), words: [] })
+    }
+  }
+}
+
+function ensureQwen3ASRWorker(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (qwen3Worker && qwen3WorkerReady) {
+      resetQwen3IdleTimer()
+      resolve()
+      return
+    }
+
+    if (qwen3Worker) {
+      // Worker exists but not ready — wait for it
+      const waitTimer = setTimeout(() => reject(new Error('Qwen3-ASR worker startup timeout' + QWEN3_HINT)), QWEN3_STARTUP_READY_TIMEOUT_MS)
+      const check = setInterval(() => {
+        if (qwen3WorkerReady) {
+          clearInterval(check)
+          clearTimeout(waitTimer)
+          resolve()
+        }
+      }, 200)
+      return
+    }
+
+    qwen3WorkerReady = false
+    console.log('[Qwen3-ASR] Spawning Python worker (python3 -c mlx_qwen3_asr)...')
+    qwen3Worker = spawn('nice', ['-n', '10', 'python3', '-u', '-c', QWEN3_WORKER_SCRIPT], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: getMlxChildEnv(),
+    })
+
+    let resolved = false
+    let stderrBuf = ''
+
+    qwen3Worker.stderr?.on('data', (d: Buffer) => {
+      const s = d.toString()
+      stderrBuf += s
+      if (s.trim()) console.warn('[Qwen3-ASR] stderr:', s.trim())
+    })
+
+    const onFirstLine = (data: Buffer) => {
+      const raw = data.toString()
+      const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
+      for (const line of lines) {
+        try {
+          const msg = JSON.parse(line)
+          if (msg.status === 'ready') {
+            qwen3WorkerReady = true
+            resetQwen3IdleTimer()
+            console.log('[Qwen3-ASR] Worker ready (model will load on first transcription).')
+            // Attach the single permanent listener for all transcription responses
+            qwen3Buffer = ''
+            qwen3Worker?.stdout?.on('data', onQwen3Data)
+            if (!resolved) {
+              resolved = true
+              resolve()
+            }
+            return
+          }
+        } catch {}
+      }
+    }
+
+    qwen3Worker.stdout!.once('data', onFirstLine)
+
+    const failWithStderr = (base: string) => {
+      const tail = stderrBuf.trim().split('\n').slice(-8).join('\n')
+      const suffix = tail ? ` Last stderr: ${tail.slice(-500)}` : ''
+      return base + suffix + QWEN3_HINT
+    }
+
+    qwen3Worker.on('exit', (code) => {
+      qwen3Worker = null
+      qwen3WorkerReady = false
+      if (!resolved) {
+        resolved = true
+        reject(new Error(failWithStderr('Qwen3-ASR worker exited during startup.')))
+      } else {
+        console.warn(`[Qwen3-ASR] Worker exited unexpectedly (code ${code}). Will respawn on next transcription request.`)
+      }
+    })
+
+    qwen3Worker.on('error', (err) => {
+      qwen3Worker = null
+      qwen3WorkerReady = false
+      if (!resolved) {
+        resolved = true
+        reject(err)
+      } else {
+        console.warn('[Qwen3-ASR] Worker error after startup:', err.message)
+      }
+    })
+
+    // Startup timeout (ready line expected within 30s; no heavy warmup)
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        killQwen3ASRWorker()
+        reject(new Error(failWithStderr('Qwen3-ASR worker startup timed out.')))
+      }
+    }, QWEN3_STARTUP_READY_TIMEOUT_MS)
+  })
+}
+
+function resetQwen3IdleTimer(): void {
+  if (qwen3IdleTimer) clearTimeout(qwen3IdleTimer)
+  qwen3IdleTimer = setTimeout(() => {
+    if (qwen3Transcribing) {
+      console.log('[Qwen3-ASR] Idle timer fired but transcription in progress — skipping kill')
+      resetQwen3IdleTimer()
+      return
+    }
+    console.log('[Qwen3-ASR] Killing idle worker after 5 min')
+    killQwen3ASRWorker()
+  }, QWEN3_IDLE_TIMEOUT_MS)
+}
+
+export function killQwen3ASRWorker(): void {
+  if (qwen3IdleTimer) { clearTimeout(qwen3IdleTimer); qwen3IdleTimer = null }
+  if (qwen3Worker) {
+    try { qwen3Worker.kill() } catch {}
+    qwen3Worker = null
+    qwen3WorkerReady = false
+    qwen3Buffer = ''
+    for (const p of qwen3PendingResolvers.splice(0)) {
+      p.reject(new Error('Qwen3-ASR worker was killed'))
+    }
+  }
+}
+
+export function probeQwen3ASRImport(): Promise<MlxImportProbe> {
+  const script = [
+    'import sys',
+    'try:',
+    '    from mlx_qwen3_asr import transcribe',
+    '    print(sys.executable)',
+    'except BaseException:',
+    '    import traceback',
+    '    traceback.print_exc()',
+    '    sys.exit(1)',
+  ].join('\n')
+
+  return new Promise((resolve) => {
+    const proc = spawn('python3', ['-c', script], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: getMlxChildEnv(),
+    })
+    let stderr = ''
+    let stdout = ''
+    proc.stdout?.on('data', (d) => {
+      stdout += d.toString()
+    })
+    proc.stderr?.on('data', (d) => {
+      stderr += d.toString()
+    })
+    proc.on('close', (code) => {
+      const pythonExecutable = stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .pop()
+        ?.trim() || ''
+      resolve({
+        ok: code === 0,
+        pythonExecutable,
+        stderr: stderr.trim(),
+      })
+    })
+    proc.on('error', (err) => {
+      resolve({ ok: false, pythonExecutable: '', stderr: err.message })
+    })
+  })
+}
+
+export async function checkQwen3ASRAvailable(): Promise<boolean> {
+  if (qwen3ASRAvailable !== null) return qwen3ASRAvailable
+  const probe = await probeQwen3ASRImport()
+  qwen3ASRAvailable = probe.ok
+  return probe.ok
+}
+
+export async function installQwen3ASR(): Promise<LocalSetupResult> {
+  const steps: string[] = []
+  const hint =
+    'Needs Python 3, pip, and usually Homebrew for ffmpeg. In Terminal: brew install ffmpeg && pip3 install mlx-qwen3-asr'
+
+  steps.push('Step 1/3 — ffmpeg (converts audio for Qwen3-ASR)')
+  if (checkFfmpegAvailable()) {
+    steps.push('ffmpeg already available.')
+  } else {
+    if (require('os').platform() !== 'darwin') {
+      return {
+        ok: false,
+        steps,
+        error: 'ffmpeg not found; automatic install is only set up for macOS.',
+        hint: 'Install ffmpeg with your OS package manager, then: pip3 install mlx-qwen3-asr',
+      }
+    }
+    steps.push('ffmpeg not found — trying Homebrew install (requires Homebrew at /opt/homebrew or /usr/local)…')
+    const ffOk = await installFfmpeg()
+    if (!ffOk) {
+      return {
+        ok: false,
+        steps,
+        error: 'Could not install ffmpeg automatically.',
+        hint,
+      }
+    }
+    steps.push('ffmpeg installed.')
+  }
+
+  steps.push('Step 2/3 — Python package mlx-qwen3-asr (pip; may take several minutes)')
+  const pipResult = await pipInstallSafe('mlx-qwen3-asr')
+  if (!pipResult.ok) {
+    if (pipResult.stderr) steps.push(`Last pip output: ${pipResult.stderr}`)
+    return {
+      ok: false,
+      steps,
+      error: 'pip install mlx-qwen3-asr failed (check that python3 and pip work in Terminal).',
+      hint,
+    }
+  }
+  steps.push('pip install finished.')
+
+  steps.push('Step 3/3 — Verifying import…')
+  qwen3ASRAvailable = null
+  const probe = await probeQwen3ASRImport()
+  qwen3ASRAvailable = probe.ok
+  if (!probe.ok) {
+    console.warn('[Qwen3-ASR] pip install succeeded but import check failed:', probe.stderr?.slice(0, 400))
+    const bin = getPython3ExecutableHint()
+    const detail = (probe.stderr || probe.pythonExecutable || 'unknown error')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 520)
+    return {
+      ok: false,
+      steps,
+      error:
+        `Import failed for mlx-qwen3-asr (Syag uses: ${bin}` +
+        (probe.pythonExecutable ? ` → ${probe.pythonExecutable}` : '') +
+        `). ${detail}. In Terminal: ${bin} -m pip install --user --force-reinstall mlx-qwen3-asr && ${bin} -c "from mlx_qwen3_asr import transcribe"`,
+      hint,
+    }
+  }
+  steps.push('Qwen3-ASR is ready.')
+  return { ok: true, steps }
+}
+
+export async function uninstallQwen3ASR(): Promise<{ ok: boolean; error?: string }> {
+  killQwen3ASRWorker()
+  qwen3ASRAvailable = null
+  const errors: string[] = []
+  // 1. pip uninstall mlx-qwen3-asr
+  const pipOk = await pipUninstall('mlx-qwen3-asr')
+  if (!pipOk) errors.push('pip uninstall mlx-qwen3-asr may have partially failed')
+  // 2. Remove HuggingFace model cache
+  try {
+    const hfCacheDir = join(require('os').homedir(), '.cache', 'huggingface', 'hub', 'models--Qwen--Qwen3-ASR-0.6B')
+    if (existsSync(hfCacheDir)) {
+      rmSync(hfCacheDir, { recursive: true, force: true })
+    }
+  } catch (err: any) {
+    errors.push(`Could not remove HF cache: ${err.message}`)
+  }
+  return errors.length > 0
+    ? { ok: true, error: errors.join('; ') }
+    : { ok: true }
+}
+
+async function processWithQwen3ASR(wavBuffer: Buffer, customVocabulary?: string, stereoChannel?: 0 | 1): Promise<STTResult> {
+  const available = await checkQwen3ASRAvailable()
+  if (!available) {
+    throw new Error('mlx-qwen3-asr is not installed. Install it from Settings > AI Models or run: pip3 install mlx-qwen3-asr')
+  }
+
+  await ensureQwen3ASRWorker()
+
+  const tmpDir = join(app.getPath('temp'), 'syag-stt')
+  mkdirSync(tmpDir, { recursive: true })
+  const tmpFile = join(tmpDir, `qwen3-chunk-${Date.now()}.wav`)
+
+  try {
+    writeFileSync(tmpFile, wavBuffer)
+
+    const request = JSON.stringify({ audio_path: tmpFile }) + '\n'
+
+    const result = await new Promise<STTResult>((resolve, reject) => {
+      if (!qwen3Worker || !qwen3Worker.stdin) {
+        reject(new Error('Qwen3-ASR worker not available'))
+        return
+      }
+
+      console.log('[Qwen3-ASR] Sending chunk for transcription (first run may take several minutes to load model)...')
+      qwen3Transcribing = true
+
+      const pending: { resolve: (r: STTResult) => void; reject: (err: Error) => void } = {
+        resolve: (r) => { clearTimeout(timeout); resolve(r) },
+        reject: (e) => { clearTimeout(timeout); reject(e) },
+      }
+      const timeout = setTimeout(() => {
+        qwen3Transcribing = false
+        const idx = qwen3PendingResolvers.indexOf(pending)
+        if (idx >= 0) qwen3PendingResolvers.splice(idx, 1)
+        killQwen3ASRWorker() // Kill the hung worker so it respawns on next request
+        reject(new Error('Qwen3-ASR transcription timed out (300s). First run may take several minutes to load the model.'))
+      }, 300000)
+
+      qwen3PendingResolvers.push(pending)
+      qwen3Worker.stdin.write(request)
+    })
+
+    return result
+  } catch (err) {
+    // Clear availability cache so next attempt rechecks dependencies
+    qwen3ASRAvailable = null
+    throw err
+  } finally {
+    try { unlinkSync(tmpFile) } catch {}
   }
 }
