@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
   BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar,
-  Search, Plus, Gavel, BookOpen, Mic,
+  Search, Plus, Gavel, BookOpen,
 } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
@@ -11,8 +11,6 @@ import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { useNotes } from "@/contexts/NotesContext";
-import { useRecording } from "@/contexts/RecordingContext";
 import { useSearchCommand } from "@/components/SearchCommand";
 
 const COLLAPSE_BTN_CLASS =
@@ -115,29 +113,10 @@ function SectionLabel({ label }: { label: string }) {
   );
 }
 
-/** Relative time label (e.g. "2h ago", "Yesterday") */
-function relativeTime(dateStr: string, timeStr?: string): string {
-  if (!dateStr) return "";
-  const now = new Date();
-  const d = new Date(dateStr + (timeStr ? `T${timeStr}` : 'T12:00:00'));
-  if (isNaN(d.getTime())) return "";
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 0) return "Upcoming";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD === 1) return "Yesterday";
-  if (diffD < 7) return `${diffD}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { notes } = useNotes();
-  const { activeSession } = useRecording();
   const { open: openSearch } = useSearchCommand();
 
   // Risk levels for commitment badge
@@ -149,17 +128,6 @@ export function Sidebar() {
   }, [location.pathname]);
 
   const riskCount = riskLevels.filter((c: any) => c.risk_level === 'RED' || c.risk_level === 'AMBER').length;
-
-  // Recent meetings (last 5)
-  const recentMeetings = useMemo(() => {
-    return [...notes]
-      .sort((a, b) => {
-        const da = new Date(a.date + 'T' + (a.time || '00:00'));
-        const db = new Date(b.date + 'T' + (b.time || '00:00'));
-        return db.getTime() - da.getTime();
-      })
-      .slice(0, 5);
-  }, [notes]);
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
@@ -251,32 +219,6 @@ export function Sidebar() {
             to="/?view=all"
             active={location.search.includes("view=all")}
           />
-          {/* Recent meetings — inline like Slack DMs */}
-          {recentMeetings.map((note) => {
-            const isRecording = activeSession?.noteId === note.id;
-            return (
-              <button
-                key={note.id}
-                onClick={() => navigate(`/note/${note.id}`)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-2.5 py-1 text-[12px] transition-colors text-left w-full group",
-                  location.pathname === `/note/${note.id}`
-                    ? "bg-secondary text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                )}
-              >
-                {isRecording ? (
-                  <Mic className="h-3 w-3 flex-shrink-0 text-recording animate-pulse" />
-                ) : (
-                  <span className="w-3" />
-                )}
-                <span className="truncate flex-1">{note.title || "Untitled"}</span>
-                <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
-                  {relativeTime(note.date, note.time)}
-                </span>
-              </button>
-            );
-          })}
         </nav>
 
         {/* WORKSPACE */}
