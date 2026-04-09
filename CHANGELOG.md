@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.2] — 2026-04-09
+
+### Added
+- **Qwen3-ASR 0.6B STT engine** — new MLX-based speech-to-text option. Half the memory of Whisper (~1.2 GB vs 3 GB), better accuracy (2.3% WER), and built-in diarization. Auto-installs via `pip3 install mlx-qwen3-asr`. Available in Settings > AI Models > Local Models.
+
+---
+
 ## [2.5.1] — 2026-04-09
 
 ### Fixed
