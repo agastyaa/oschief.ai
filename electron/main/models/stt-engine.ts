@@ -620,7 +620,7 @@ function tryVenvInstall(packageName: string, pythonBin: string = 'python3'): Pro
       const venvPython = join(venvDir, 'bin', 'python3')
       const venvPip = join(venvDir, 'bin', 'pip3')
 
-      // Create venv if it doesn't exist (or recreate if using a different python)
+      // Create venv if it doesn't exist
       if (!existsSync(venvPython)) {
         console.log(`[pip] Creating venv at ${venvDir} using ${pythonBin}`)
         execSync(`"${pythonBin}" -m venv "${venvDir}"`, { timeout: 30000, env: getMlxChildEnv() })
