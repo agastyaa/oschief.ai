@@ -4,6 +4,25 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.0] — 2026-04-09
+
+### Added
+- **Slack-style unified layout** — new `AppShell` component wraps all pages with persistent sidebar + content area via React Router Outlet. No more per-page layout duplication (eliminated ~250 lines of boilerplate across 18 pages).
+- **Workspace-style sidebar** — sections: Briefing (Today, Digest), Meetings (All Meetings + last 5 recent meetings inline), Workspace (People, Commitments with risk badge, Projects, Decisions), Intelligence (Ask OSChief, Coaching).
+- **Sidebar search bar** — visible search trigger with ⌘K shortcut hint + New Note button.
+- **Recent meetings in sidebar** — last 5 meetings with relative timestamps and live recording indicator, like Slack DMs.
+- **ContentHeader system** — shared top bar with collapse toggle, back navigation, and action slots. Pages declare config via `useContentHeader()` hook.
+
+### Fixed
+- **Auto-updater stuck in loop** — "Restart to update" was minimizing the app instead of quitting. macOS close handler now bypasses hide-on-close when `quitAndInstall()` is called.
+
+### Changed
+- **App.tsx routing** — flat Routes replaced with nested layout routes. Standalone pages (onboarding, tray) outside shell, all main pages inside AppShell.
+- **Sidebar grouping** — nav items reorganized into labeled sections (BRIEFING, MEETINGS, WORKSPACE, INTELLIGENCE) instead of flat list.
+- **Commitment risk badge** — moved inline next to Commitments nav item (was in workspace header).
+
+---
+
 ## [2.4.0] — 2026-04-08
 
 ### Added
