@@ -218,23 +218,16 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Action Row — Search + New Note */}
+      {/* New Note button row */}
       <div className="flex items-center gap-1.5 px-3 pb-1" style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}>
         <button
-          onClick={openSearch}
-          className="flex items-center gap-2 flex-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground bg-secondary/50 hover:bg-secondary transition-colors"
-        >
-          <Search className="h-3 w-3" />
-          <span>Search</span>
-          <span className="ml-auto text-[10px] text-muted-foreground/60">&#8984;K</span>
-        </button>
-        <button
           onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          className="flex items-center gap-2 flex-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
           title="New Note"
           aria-label="New Note"
         >
           <Plus className="h-3.5 w-3.5" />
+          <span>New Note</span>
         </button>
       </div>
 
@@ -318,9 +311,18 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Bottom — Calendar, Routines, Settings */}
+      {/* Bottom — Search, Calendar, Routines, Settings */}
       <div className="flex flex-col gap-0.5 px-3 pb-2 flex-shrink-0">
         <div className="h-px bg-border mx-2 mb-1" />
+        {/* Search */}
+        <button
+          onClick={openSearch}
+          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground bg-secondary/50 hover:bg-secondary transition-colors w-full"
+        >
+          <Search className="h-3 w-3" />
+          <span>Search</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/60">&#8984;K</span>
+        </button>
         <NavItem icon={Calendar} label="Calendar" to="/calendar" />
         <NavItem icon={Repeat} label="Routines" to="/routines" />
         <NavItem icon={Settings} label="Settings" to="/settings" />

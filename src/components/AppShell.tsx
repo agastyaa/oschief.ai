@@ -8,7 +8,8 @@ import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
 import { TrayAgendaSync } from "@/components/TrayAgendaSync";
 import { isElectron } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Search } from "lucide-react";
+import { useSearchCommand } from "@/components/SearchCommand";
 
 function AppShellInner() {
   const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
