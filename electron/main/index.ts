@@ -190,6 +190,21 @@ app.whenReady().then(async () => {
     setupAutoUpdater(mainWindow)
   }
 
+  // Pre-download diarization models so they're ready when needed
+  try {
+    const diarizationEnabled = getSetting('use-diarization')
+    if (diarizationEnabled !== 'false') {
+      import('./audio/streaming-diarizer').then(({ StreamingDiarizer }) => {
+        const diarizer = new StreamingDiarizer()
+        diarizer.ensureModel().then(() => {
+          console.log('[startup] Diarization models ready')
+        }).catch((err) => {
+          console.warn('[startup] Diarization model download failed (will retry on use):', err)
+        })
+      }).catch(() => {})
+    }
+  } catch {}
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow()

@@ -13,6 +13,7 @@ import { RecordingProvider } from "@/contexts/RecordingContext";
 import { CalendarProvider } from "@/contexts/CalendarContext";
 import { SidebarVisibilityProvider } from "@/contexts/SidebarVisibilityContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
+import { GlobalDragRegion } from "@/components/Sidebar";
 import { loadPreferences, applyAppearance } from "@/pages/SettingsPage";
 import { isOnboardingComplete } from "@/pages/OnboardingPage";
 
@@ -118,6 +119,7 @@ function AppContent() {
 
   return (
     <>
+      <GlobalDragRegion />
       {!isOnRecordingPage && <GlobalRecordingBanner />}
       <MeetingDetectionHandler />
       {isElectron && <TrayAgendaSync />}

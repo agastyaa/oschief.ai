@@ -94,8 +94,9 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
  * need this to remain draggable.
  */
 export function GlobalDragRegion() {
-  const { sidebarOpen } = useSidebarVisibility();
-  if (!isElectron || sidebarOpen) return null;
+  if (!isElectron) return null;
+  // Always show a drag region across the full top of the window — behind buttons (z-40)
+  // so the window is always draggable from empty space in the title bar area
   return (
     <div
       className="fixed top-0 left-0 right-0 h-10 z-40 pointer-events-auto"
