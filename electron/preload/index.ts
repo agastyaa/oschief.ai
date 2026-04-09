@@ -200,6 +200,7 @@ const electronAPI = {
   audio: {
     getDevices: () => ipcRenderer.invoke('audio:get-devices'),
     getDesktopSources: () => ipcRenderer.invoke('audio:get-desktop-sources'),
+    ensureDiarizationModels: () => ipcRenderer.invoke('audio:ensure-diarization-models'),
   },
 
   permissions: {

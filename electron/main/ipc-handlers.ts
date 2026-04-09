@@ -535,6 +535,16 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('audio:get-devices', async () => {
     return [] // Devices are enumerated in the renderer via navigator.mediaDevices
   })
+  ipcMain.handle('audio:ensure-diarization-models', async () => {
+    try {
+      const { StreamingDiarizer } = await import('./audio/streaming-diarizer')
+      const diarizer = new StreamingDiarizer()
+      await diarizer.ensureModel()
+      return { ok: true }
+    } catch (err: any) {
+      return { ok: false, error: err.message }
+    }
+  })
   ipcMain.handle('audio:get-desktop-sources', async () => {
     const sources = await desktopCapturer.getSources({
       types: ['screen'],

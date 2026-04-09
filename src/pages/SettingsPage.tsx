@@ -1568,6 +1568,10 @@ export default function SettingsPage() {
       if (api && dbKey) {
         api.db.settings.set(dbKey, JSON.stringify(next[key])).catch(console.error);
       }
+      // When diarization is turned ON, pre-download the models
+      if (key === 'useDiarization' && next[key] && api) {
+        (api as any).audio?.ensureDiarizationModels?.().catch(() => {});
+      }
       return next;
     });
   };
