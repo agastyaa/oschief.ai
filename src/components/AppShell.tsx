@@ -46,7 +46,7 @@ function AppShellInner() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <ContentHeader />
         <div className={cn(
-          "flex-1 overflow-y-auto",
+          "flex-1 overflow-y-auto relative flex flex-col",
           !config.fullWidth && "max-w-none"
         )}>
           <Outlet />

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
   BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar,
-  Search, Plus, Gavel, BookOpen,
+  Search, Plus, Gavel,
 } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
@@ -207,7 +207,6 @@ export function Sidebar() {
           <NavItem icon={Home} label="Today" to="/" active={
             isActive("/") && !location.search.includes("view=all") && !location.search.includes("folder")
           } />
-          <NavItem icon={BookOpen} label="Digest" to="/digest" />
         </nav>
 
         {/* MEETINGS */}
