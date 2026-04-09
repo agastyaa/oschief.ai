@@ -4,6 +4,16 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.1] — 2026-04-09
+
+### Fixed
+- **AskBar pinned to bottom** — Ask bar now stays at the viewport bottom on Today and Note Detail pages instead of floating mid-page.
+- **Search moved to sidebar bottom** — search bar repositioned next to Calendar/Routines/Settings for consistency with original layout.
+- **Removed Digest from sidebar** — Weekly Summary is not a primary nav item; removed from BRIEFING section.
+- **Removed inline recent meetings** — sidebar meetings list was noisy; simplified to just "All Meetings" link.
+
+---
+
 ## [2.5.0] — 2026-04-09
 
 ### Added
