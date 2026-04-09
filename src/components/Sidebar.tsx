@@ -10,6 +10,7 @@ import { PrivacyIndicator } from "@/components/PrivacyIndicator";
 import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useFolders } from "@/contexts/FolderContext";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useSearchCommand } from "@/components/SearchCommand";
 
@@ -156,6 +157,9 @@ export function Sidebar() {
   };
 
   const { sidebarWidth, startResize } = useSidebarVisibility();
+  const { folders, createFolder } = useFolders();
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   return (
     <aside className="relative flex h-screen flex-shrink-0 flex-col bg-sidebar" style={{ width: sidebarWidth }}>
@@ -218,6 +222,47 @@ export function Sidebar() {
             to="/?view=all"
             active={location.search.includes("view=all")}
           />
+          {folders.map((folder) => (
+            <NavItem
+              key={folder.id}
+              icon={FolderKanban}
+              label={folder.name}
+              to={`/?folder=${folder.id}`}
+              active={location.search.includes(`folder=${folder.id}`)}
+            />
+          ))}
+          {creatingFolder ? (
+            <div className="flex items-center gap-2 px-2.5 py-1">
+              <FolderKanban className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newFolderName.trim()) {
+                    createFolder(newFolderName.trim());
+                    setCreatingFolder(false);
+                    setNewFolderName("");
+                  }
+                  if (e.key === "Escape") {
+                    setCreatingFolder(false);
+                    setNewFolderName("");
+                  }
+                }}
+                onBlur={() => { setCreatingFolder(false); setNewFolderName(""); }}
+                className="flex-1 bg-transparent text-[13px] outline-none border-b border-muted-foreground/30"
+                placeholder="Folder name…"
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground/60 hover:text-muted-foreground transition-colors w-full"
+            >
+              <Plus className="h-3 w-3" />
+              <span>New Folder</span>
+            </button>
+          )}
         </nav>
 
         {/* WORKSPACE */}

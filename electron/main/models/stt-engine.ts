@@ -412,6 +412,45 @@ function getPython3ExecutableHint(): string {
   }
 }
 
+/** Parse Python version from `python3 --version` output → [major, minor] or null. */
+function getPythonVersion(pythonPath: string): [number, number] | null {
+  try {
+    const out = execSync(`"${pythonPath}" --version`, {
+      encoding: 'utf8', timeout: 5000, env: getMlxChildEnv(),
+    }).trim()
+    const match = out.match(/Python\s+(\d+)\.(\d+)/)
+    if (match) return [parseInt(match[1], 10), parseInt(match[2], 10)]
+  } catch {}
+  return null
+}
+
+/**
+ * Find a Python executable >= minMajor.minMinor.
+ * Checks default python3 first, then versioned Homebrew executables.
+ */
+function findSuitablePython(minMajor: number, minMinor: number): string | null {
+  const defaultPy = getPython3ExecutableHint()
+  const defaultVer = getPythonVersion(defaultPy)
+  if (defaultVer && (defaultVer[0] > minMajor || (defaultVer[0] === minMajor && defaultVer[1] >= minMinor))) {
+    return defaultPy
+  }
+  console.log(`[python] Default python3 is ${defaultVer ? `${defaultVer[0]}.${defaultVer[1]}` : 'unknown'}, need >= ${minMajor}.${minMinor}. Searching Homebrew…`)
+  const candidates = ['python3.13', 'python3.12', 'python3.11', 'python3.10']
+  for (const dir of BREW_BIN_PATHS) {
+    for (const name of candidates) {
+      const fullPath = join(dir, name)
+      if (existsSync(fullPath)) {
+        const ver = getPythonVersion(fullPath)
+        if (ver && (ver[0] > minMajor || (ver[0] === minMajor && ver[1] >= minMinor))) {
+          console.log(`[python] Found suitable Python: ${fullPath} (${ver[0]}.${ver[1]})`)
+          return fullPath
+        }
+      }
+    }
+  }
+  return null
+}
+
 type MlxImportProbe = { ok: boolean; pythonExecutable: string; stderr: string }
 
 /** Run `import mlx_whisper` under the same env as the worker; capture traceback on failure. */
@@ -574,17 +613,17 @@ function pipInstallSafe(packageName: string, extraArgs: string[] = []): Promise<
  * Create a venv at ~/Library/Application Support/OSChief/python-venv/ and install there.
  * This handles PEP 668 on macOS where system Python refuses all installs.
  */
-function tryVenvInstall(packageName: string): Promise<{ ok: boolean; stderr: string }> {
+function tryVenvInstall(packageName: string, pythonBin: string = 'python3'): Promise<{ ok: boolean; stderr: string }> {
   return new Promise(async (resolve) => {
     try {
       const venvDir = join(app.getPath('userData'), 'python-venv')
       const venvPython = join(venvDir, 'bin', 'python3')
       const venvPip = join(venvDir, 'bin', 'pip3')
 
-      // Create venv if it doesn't exist
+      // Create venv if it doesn't exist (or recreate if using a different python)
       if (!existsSync(venvPython)) {
-        console.log(`[pip] Creating venv at ${venvDir}`)
-        execSync(`python3 -m venv "${venvDir}"`, { timeout: 30000, env: getMlxChildEnv() })
+        console.log(`[pip] Creating venv at ${venvDir} using ${pythonBin}`)
+        execSync(`"${pythonBin}" -m venv "${venvDir}"`, { timeout: 30000, env: getMlxChildEnv() })
       }
 
       // Install in the venv
@@ -2042,7 +2081,25 @@ export async function installQwen3ASR(): Promise<LocalSetupResult> {
   }
 
   steps.push('Step 2/3 — Python package mlx-qwen3-asr (pip; may take several minutes)')
-  const pipResult = await pipInstallSafe('mlx-qwen3-asr')
+  const suitablePython = findSuitablePython(3, 10)
+  if (!suitablePython) {
+    const defaultVer = getPythonVersion(getPython3ExecutableHint())
+    return {
+      ok: false,
+      steps,
+      error: `Python 3.10+ is required for mlx-qwen3-asr, but your python3 is ${defaultVer ? `${defaultVer[0]}.${defaultVer[1]}` : 'not found'}. Install Python 3.10+ and retry.`,
+      hint: 'Install a newer Python with Homebrew: brew install python@3.12, then retry.',
+    }
+  }
+
+  let pipResult: { ok: boolean; stderr: string }
+  const defaultPy = getPython3ExecutableHint()
+  if (suitablePython !== defaultPy) {
+    steps.push(`Default python3 is below 3.10; using ${suitablePython} via venv.`)
+    pipResult = await tryVenvInstall('mlx-qwen3-asr', suitablePython)
+  } else {
+    pipResult = await pipInstallSafe('mlx-qwen3-asr')
+  }
   if (!pipResult.ok) {
     if (pipResult.stderr) steps.push(`Last pip output: ${pipResult.stderr}`)
     return {

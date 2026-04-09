@@ -182,8 +182,6 @@ export async function storeExtractedEntities(
   // commitment creation moved to syncActionItemsToCommitments (called from ipc-handlers after summary)
   const { upsertTopic, linkTopicToNote } = await import('./topic-store')
   const { upsertProject, linkProjectToNote, parseProjectFromCalendarTitle } = await import('./project-store')
-  const { addDecision, linkDecisionToPeople } = await import('./decision-store')
-
   let peopleCount = 0
   let commitmentCount = 0
   let topicCount = 0
@@ -244,27 +242,9 @@ export async function storeExtractedEntities(
     // from action items in the meeting summary via syncActionItemsToCommitments().
     // See ipc-handlers.ts llm:summarize-background and memory:sync-action-items.
 
-    // 4. Process decisions
-    for (const d of entities.decisions || []) {
-      try {
-        const decision = addDecision({
-          noteId,
-          projectId,
-          text: d.text,
-          context: d.context,
-        })
-        if (decision) {
-          // Link all meeting attendees to the decision
-          const personIds = Object.values(nameToPersonId)
-          if (personIds.length > 0) {
-            linkDecisionToPeople(decision.id, personIds)
-          }
-          decisionCount++
-        }
-      } catch (err) {
-        console.error('[entity-extractor] Failed to store decision:', err)
-      }
-    }
+    // 4. Decisions — no longer auto-saved here. Decisions are shown in the
+    // meeting summary and promoted to the Decisions page only when the user
+    // explicitly approves them via the EditableSummary UI.
 
     // 5. Process topics
     for (const label of entities.topics) {

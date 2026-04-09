@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, memo } from "react";
 import {
   CheckCircle2, Circle, Pencil, Users, X, Copy, Check, ExternalLink
 } from "lucide-react";
+import { getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
   overviewToMarkdown,
@@ -133,13 +134,15 @@ interface EditableSummaryProps {
   onUpdate?: (summary: SummaryData) => void;
   meetingTitle?: string;
   meetingDate?: string;
+  noteId?: string;
 }
 
-export const EditableSummary = memo(function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate }: EditableSummaryProps) {
+export const EditableSummary = memo(function EditableSummary({ summary, onUpdate, meetingTitle, meetingDate, noteId }: EditableSummaryProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localSummary, setLocalSummary] = useState<SummaryData>(summary);
   const [jiraDialogItem, setJiraDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
   const [asanaDialogItem, setAsanaDialogItem] = useState<{ index: number; item: ActionItem } | null>(null);
+  const [promotedDecisions, setPromotedDecisions] = useState<Set<number>>(new Set());
   useEffect(() => {
     setLocalSummary(summary);
   }, [summary]);
@@ -420,7 +423,25 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
           <ul className="space-y-0.5">
             {decisions.map((d, i) => (
               <li key={i} className="flex gap-1.5 text-[14px] font-medium text-foreground/90 leading-snug">
-                <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-accent" />
+                {promotedDecisions.has(i) ? (
+                  <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0 mt-[2px]" />
+                ) : (
+                  <button
+                    title="Lock in — add to Decisions page"
+                    onClick={async () => {
+                      const api = getElectronAPI();
+                      if (!api?.memory?.decisions?.create) return;
+                      await api.memory.decisions.create({
+                        text: stripBoldMarkdown(d),
+                        noteId: noteId || undefined,
+                      });
+                      setPromotedDecisions((prev) => new Set(prev).add(i));
+                    }}
+                    className="flex-shrink-0 mt-[2px] text-muted-foreground/30 hover:text-accent transition-colors"
+                  >
+                    <Circle className="h-4 w-4" />
+                  </button>
+                )}
                 {editingField === `decision-${i}` ? (
                   <input
                     autoFocus
@@ -441,7 +462,10 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                 ) : (
                   <span
                     onClick={() => setEditingField(`decision-${i}`)}
-                    className="cursor-text hover:bg-secondary/30 rounded px-1 -mx-1"
+                    className={cn(
+                      "cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 flex-1",
+                      promotedDecisions.has(i) && "text-accent"
+                    )}
                   >
                     {stripBoldMarkdown(d)}
                   </span>

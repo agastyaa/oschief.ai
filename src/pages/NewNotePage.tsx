@@ -1355,6 +1355,7 @@ export default function NewNotePage() {
                       <div className="animate-fade-in">
                         <EditableSummary
                           summary={summary}
+                          noteId={noteId || undefined}
                           onUpdate={(updated) => {
                             setSummary(updated);
                             // Sync action items → commitments (1:1 mirror)

@@ -535,6 +535,7 @@ export default function NoteDetailPage() {
                               priority: (["high", "medium", "low"].includes(item.priority) ? item.priority : "medium") as "high" | "medium" | "low",
                             })),
                           }}
+                          noteId={id}
                           onUpdate={(updated) => {
                             if (id) {
                               updateNote(id, { summary: updated });
