@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Sidebar, SidebarTopBarLeft, SidebarCollapseButton } from "@/components/Sidebar";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { isElectron, getElectronAPI, type MemoryStats } from "@/lib/electron-api";
+import { getElectronAPI, type MemoryStats } from "@/lib/electron-api";
 import { NoteCardMenu } from "@/components/NoteCardMenu";
 import { Plus, FolderOpen, ArrowLeft, FileText, Calendar, List, Mic, Check, X, ChevronDown, FolderKanban, Brain, Zap, ChevronRight, AlertCircle, Clock, ArrowUpRight, Pause, Briefcase, Loader2, CheckCircle2, Circle, Search } from "lucide-react";
 import { useSearchCommand } from "@/components/SearchCommand";
@@ -30,7 +28,6 @@ function accentFromId(id: string): string {
 const Index = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { sidebarOpen } = useSidebarVisibility();
   const { folders, createFolder } = useFolders();
   const { notes, deleteNote, updateNoteFolder, updateNote, summarizingNoteIds } = useNotes();
   const { activeSession, clearSession } = useRecording();
@@ -310,69 +307,54 @@ const Index = () => {
   // Folder view — show loading spinner if folder ID is in URL but folders haven't loaded yet
   if (activeFolderId && !activeFolder) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        {sidebarOpen && (
-          <div className="flex-shrink-0 overflow-hidden">
-            <Sidebar />
-          </div>
-        )}
-        <main className={cn("flex flex-1 flex-col min-w-0 relative items-center justify-center", !sidebarOpen && isElectron && "pl-20")}>
-          <div className="text-center">
-            <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
-            <p className="text-sm text-muted-foreground">Loading folder...</p>
-          </div>
-        </main>
+      <div className="flex flex-1 flex-col min-w-0 relative items-center justify-center">
+        <div className="text-center">
+          <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
+          <p className="text-sm text-muted-foreground">Loading folder...</p>
+        </div>
       </div>
     );
   }
 
   if (activeFolder) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        {sidebarOpen && (
-          <div className="flex-shrink-0 overflow-hidden">
-            <Sidebar />
-          </div>
-        )}
-        <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
-          <div className="flex-1 overflow-y-auto pb-24">
-            <div className={cn("px-4", isElectron && !sidebarOpen ? "pt-10" : "pt-6")}>
-              <div className="relative flex items-center mb-4">
-                <SidebarTopBarLeft
-                  backLabel="Back to home"
-                  onBack={() => navigate("/")}
-                  backIcon
-                />
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5 text-accent" />
-                  <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
-                  <span className="text-xs text-muted-foreground ml-1">{folderNotes.length} notes</span>
-                </div>
+      <div className="flex flex-1 flex-col min-w-0 relative">
+        <div className="flex-1 overflow-y-auto pb-24">
+          <div className="px-4 pt-6">
+            <div className="relative flex items-center mb-4">
+              <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                Back to home
+              </button>
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-accent" />
+                <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
+                <span className="text-xs text-muted-foreground ml-1">{folderNotes.length} notes</span>
               </div>
             </div>
-            <div
-              className={cn(
-                "mx-auto max-w-2xl px-6 font-body pb-8"
-              )}
-            >
+          </div>
+          <div
+            className={cn(
+              "mx-auto max-w-2xl px-6 font-body pb-8"
+            )}
+          >
 
-              {folderNotes.length === 0 ? (
-                <div className="text-center py-16">
-                  <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">No notes in this folder yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Record a note and add it to this folder</p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {folderNotes.map((n) => <NoteRow key={n.id} n={n} />)}
-                </div>
-              )}
-            </div>
+            {folderNotes.length === 0 ? (
+              <div className="text-center py-16">
+                <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No notes in this folder yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Record a note and add it to this folder</p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {folderNotes.map((n) => <NoteRow key={n.id} n={n} />)}
+              </div>
+            )}
           </div>
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
-            <AskBar context="home" noteContext={homeNoteContext} />
-          </div>
-        </main>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
+          <AskBar context="home" noteContext={homeNoteContext} />
+        </div>
       </div>
     );
   }
@@ -411,26 +393,20 @@ const Index = () => {
   }).sort((a: any, b: any) => (a.due_date || '').localeCompare(b.due_date || ''));
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-          {notes.length > 0 && (
-            <button
-              onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-all hover:opacity-90"
-            >
-              <Mic className="h-3 w-3" />
-              Quick Note
-            </button>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto pb-24">
+    <div className="flex flex-1 flex-col min-w-0 relative">
+      <div className="flex items-center justify-between px-4 pb-0 pt-3">
+        <div />
+        {notes.length > 0 && (
+          <button
+            onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-all hover:opacity-90"
+          >
+            <Mic className="h-3 w-3" />
+            Quick Note
+          </button>
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto pb-24">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
             {/* ── Header ── */}
@@ -860,10 +836,9 @@ const Index = () => {
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
-          <AskBar context="home" noteContext={homeNoteContext} />
-        </div>
-      </main>
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
+        <AskBar context="home" noteContext={homeNoteContext} />
+      </div>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
       <EventDetailSheet
         event={selectedEvent}

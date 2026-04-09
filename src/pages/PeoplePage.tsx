@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
-import { isElectron, getElectronAPI } from "@/lib/electron-api"
+import { getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
 import {
   Users, Search, FileText, Mail, Building2, Briefcase, ArrowRight,
@@ -258,7 +255,6 @@ function MergePicker({
 
 const PeoplePage = () => {
   const navigate = useNavigate()
-  const { sidebarOpen } = useSidebarVisibility()
   const [people, setPeople] = useState<Person[]>([])
   const [search, setSearch] = useState("")
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
@@ -358,248 +354,238 @@ const PeoplePage = () => {
     : people
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-4xl px-6 py-8 font-body">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Users className="h-6 w-6 text-accent" />
-                <h1 className="font-display text-2xl text-foreground">People</h1>
-                <span className="text-sm text-muted-foreground">
-                  {people.length} {people.length === 1 ? "person" : "people"}
-                </span>
-              </div>
-              <button
-                onClick={async () => {
-                  const result = await api?.contacts?.importVCF?.();
-                  if (result?.ok) {
-                    toast.success(`Imported ${result.imported} contacts (${result.skipped} already existed)`);
-                    loadPeople();
-                  } else if (result?.error !== 'Cancelled') {
-                    toast.error(result?.error || 'Import failed');
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                Import Contacts (.vcf)
-              </button>
+    <>
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-4xl px-6 py-8 font-body">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Users className="h-6 w-6 text-accent" />
+              <h1 className="font-display text-2xl text-foreground">People</h1>
+              <span className="text-sm text-muted-foreground">
+                {people.length} {people.length === 1 ? "person" : "people"}
+              </span>
             </div>
+            <button
+              onClick={async () => {
+                const result = await api?.contacts?.importVCF?.();
+                if (result?.ok) {
+                  toast.success(`Imported ${result.imported} contacts (${result.skipped} already existed)`);
+                  loadPeople();
+                } else if (result?.error !== 'Cancelled') {
+                  toast.error(result?.error || 'Import failed');
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              Import Contacts (.vcf)
+            </button>
+          </div>
 
-            {/* Search */}
-            <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search people by name, email, or company..."
-                className="w-full rounded-[10px] border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
-              />
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search people by name, email, or company..."
+              className="w-full rounded-[10px] border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-center py-16">
+              <p className="text-sm text-muted-foreground">Loading...</p>
             </div>
-
-            {loading ? (
-              <div className="text-center py-16">
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
-            ) : people.length === 0 ? (
-              <div className="text-center py-16">
-                <Users className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-foreground font-medium mb-1">No people yet</p>
-                <p className="text-xs text-muted-foreground">
-                  Record and summarize meetings — OSChief will automatically extract the people you interact with.
-                </p>
-              </div>
-            ) : (
-              <div className="flex gap-6">
-                {/* People list */}
-                <div className={cn("space-y-1", selectedPerson ? "w-1/2" : "w-full")}>
-                  {filtered.map((person) => (
-                    <button
-                      key={person.id}
-                      onClick={() => handleSelectPerson(person)}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors",
-                        selectedPerson?.id === person.id
-                          ? "bg-accent/10 border border-accent/20"
-                          : "hover:bg-card border border-transparent hover:border-border"
-                      )}
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent font-medium text-sm flex-shrink-0">
-                        {person.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-foreground truncate">{person.name}</h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {person.company && (
-                            <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                              <Building2 className="h-2.5 w-2.5" />
-                              {person.company}
-                            </span>
-                          )}
-                          {person.role && (
-                            <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                              <Briefcase className="h-2.5 w-2.5" />
-                              {person.role}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
-                        {typeof person.meetingCount === "number" && person.meetingCount > 0 && (
-                          <span className="text-[10px] text-muted-foreground tabular-nums">
-                            {person.meetingCount} {person.meetingCount === 1 ? "meeting" : "meetings"}
-                          </span>
-                        )}
-                        {person.last_seen && (
-                          <span className="text-[10px] text-muted-foreground/60">
-                            {(() => { try { return format(new Date(person.last_seen), "MMM d") } catch { return "" } })()}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  {filtered.length === 0 && search && (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground">No people matching "{search}"</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Person detail panel */}
-                {selectedPerson && (
-                  <div className="w-1/2 rounded-[10px] border border-border bg-card p-5 sticky top-4 self-start">
-                    {/* Header with actions */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent font-medium text-lg flex-shrink-0">
-                          {selectedPerson.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <EditableField
-                            value={selectedPerson.name}
-                            onSave={(v) => handleUpdateField("name", v)}
-                            label="Name"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                        <button
-                          onClick={() => setMergeOpen(true)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          title="Merge with another person"
-                        >
-                          <Merge className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(selectedPerson)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                          title="Delete person"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Editable fields */}
-                    <div className="space-y-2 mb-4">
-                      <EditableField
-                        value={selectedPerson.email || ""}
-                        onSave={(v) => handleUpdateField("email", v)}
-                        label="Email"
-                        icon={<Mail className="h-3 w-3" />}
-                      />
-                      <EditableField
-                        value={selectedPerson.company || ""}
-                        onSave={(v) => handleUpdateField("company", v)}
-                        label="Company"
-                        icon={<Building2 className="h-3 w-3" />}
-                      />
-                      <EditableField
-                        value={selectedPerson.role || ""}
-                        onSave={(v) => handleUpdateField("role", v)}
-                        label="Role"
-                        icon={<Briefcase className="h-3 w-3" />}
-                      />
-                      <RelationshipDropdown
-                        value={selectedPerson.relationship || ""}
-                        onSave={(v) => handleUpdateField("relationship", v)}
-                      />
-                      <EditableField
-                        value={selectedPerson.notes || ""}
-                        onSave={(v) => handleUpdateField("notes", v)}
-                        label="Personal Notes"
-                        placeholder="Add notes about this person..."
-                        icon={<StickyNote className="h-3 w-3" />}
-                        multiline
-                      />
-                    </div>
-
-                    {/* Recent Emails */}
-                    {personEmails.length > 0 && (
-                      <div className="border-t border-border pt-4">
-                        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                          Recent Emails ({personEmails.length})
-                        </h3>
-                        <div className="space-y-1">
-                          {personEmails.map((thread: any) => (
-                            <div
-                              key={thread.id}
-                              className="flex items-start gap-2 rounded-md px-2 py-2"
-                            >
-                              <Mail className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-foreground truncate">{thread.subject || '(no subject)'}</p>
-                                <p className="text-[10px] text-muted-foreground line-clamp-1">{thread.snippet}</p>
-                                <p className="text-[10px] text-muted-foreground/70">{thread.date?.split('T')[0]}{thread.message_count > 1 ? ` · ${thread.message_count} messages` : ''}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+          ) : people.length === 0 ? (
+            <div className="text-center py-16">
+              <Users className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-foreground font-medium mb-1">No people yet</p>
+              <p className="text-xs text-muted-foreground">
+                Record and summarize meetings — OSChief will automatically extract the people you interact with.
+              </p>
+            </div>
+          ) : (
+            <div className="flex gap-6">
+              {/* People list */}
+              <div className={cn("space-y-1", selectedPerson ? "w-1/2" : "w-full")}>
+                {filtered.map((person) => (
+                  <button
+                    key={person.id}
+                    onClick={() => handleSelectPerson(person)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors",
+                      selectedPerson?.id === person.id
+                        ? "bg-accent/10 border border-accent/20"
+                        : "hover:bg-card border border-transparent hover:border-border"
                     )}
-
-                    {/* Meeting history */}
-                    <div className="border-t border-border pt-4">
-                      <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                        Meeting History ({personMeetings.length})
-                      </h3>
-                      {personMeetings.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No meetings found</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {personMeetings.slice(0, 10).map((meeting: any) => (
-                            <button
-                              key={meeting.id}
-                              onClick={() => navigate(`/note/${meeting.id}`)}
-                              className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-secondary transition-colors"
-                            >
-                              <FileText className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-foreground truncate">{meeting.title}</p>
-                                <p className="text-[10px] text-muted-foreground">{meeting.date}</p>
-                              </div>
-                              <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-                            </button>
-                          ))}
-                        </div>
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent font-medium text-sm flex-shrink-0">
+                      {person.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-foreground truncate">{person.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {person.company && (
+                          <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                            <Building2 className="h-2.5 w-2.5" />
+                            {person.company}
+                          </span>
+                        )}
+                        {person.role && (
+                          <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                            <Briefcase className="h-2.5 w-2.5" />
+                            {person.role}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                      {typeof person.meetingCount === "number" && person.meetingCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {person.meetingCount} {person.meetingCount === 1 ? "meeting" : "meetings"}
+                        </span>
+                      )}
+                      {person.last_seen && (
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {(() => { try { return format(new Date(person.last_seen), "MMM d") } catch { return "" } })()}
+                        </span>
                       )}
                     </div>
+                  </button>
+                ))}
+                {filtered.length === 0 && search && (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No people matching "{search}"</p>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+
+              {/* Person detail panel */}
+              {selectedPerson && (
+                <div className="w-1/2 rounded-[10px] border border-border bg-card p-5 sticky top-4 self-start">
+                  {/* Header with actions */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent font-medium text-lg flex-shrink-0">
+                        {selectedPerson.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <EditableField
+                          value={selectedPerson.name}
+                          onSave={(v) => handleUpdateField("name", v)}
+                          label="Name"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      <button
+                        onClick={() => setMergeOpen(true)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        title="Merge with another person"
+                      >
+                        <Merge className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(selectedPerson)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                        title="Delete person"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Editable fields */}
+                  <div className="space-y-2 mb-4">
+                    <EditableField
+                      value={selectedPerson.email || ""}
+                      onSave={(v) => handleUpdateField("email", v)}
+                      label="Email"
+                      icon={<Mail className="h-3 w-3" />}
+                    />
+                    <EditableField
+                      value={selectedPerson.company || ""}
+                      onSave={(v) => handleUpdateField("company", v)}
+                      label="Company"
+                      icon={<Building2 className="h-3 w-3" />}
+                    />
+                    <EditableField
+                      value={selectedPerson.role || ""}
+                      onSave={(v) => handleUpdateField("role", v)}
+                      label="Role"
+                      icon={<Briefcase className="h-3 w-3" />}
+                    />
+                    <RelationshipDropdown
+                      value={selectedPerson.relationship || ""}
+                      onSave={(v) => handleUpdateField("relationship", v)}
+                    />
+                    <EditableField
+                      value={selectedPerson.notes || ""}
+                      onSave={(v) => handleUpdateField("notes", v)}
+                      label="Personal Notes"
+                      placeholder="Add notes about this person..."
+                      icon={<StickyNote className="h-3 w-3" />}
+                      multiline
+                    />
+                  </div>
+
+                  {/* Recent Emails */}
+                  {personEmails.length > 0 && (
+                    <div className="border-t border-border pt-4">
+                      <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                        Recent Emails ({personEmails.length})
+                      </h3>
+                      <div className="space-y-1">
+                        {personEmails.map((thread: any) => (
+                          <div
+                            key={thread.id}
+                            className="flex items-start gap-2 rounded-md px-2 py-2"
+                          >
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{thread.subject || '(no subject)'}</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">{thread.snippet}</p>
+                              <p className="text-[10px] text-muted-foreground/70">{thread.date?.split('T')[0]}{thread.message_count > 1 ? ` · ${thread.message_count} messages` : ''}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Meeting history */}
+                  <div className="border-t border-border pt-4">
+                    <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                      Meeting History ({personMeetings.length})
+                    </h3>
+                    {personMeetings.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No meetings found</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {personMeetings.slice(0, 10).map((meeting: any) => (
+                          <button
+                            key={meeting.id}
+                            onClick={() => navigate(`/note/${meeting.id}`)}
+                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-secondary transition-colors"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{meeting.title}</p>
+                              <p className="text-[10px] text-muted-foreground">{meeting.date}</p>
+                            </div>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </main>
+      </div>
 
       {/* Modals */}
       {deleteTarget && (
@@ -617,7 +603,7 @@ const PeoplePage = () => {
           onClose={() => setMergeOpen(false)}
         />
       )}
-    </div>
+    </>
   )
 }
 

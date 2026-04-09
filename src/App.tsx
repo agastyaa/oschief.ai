@@ -12,10 +12,9 @@ import { NotesProvider } from "@/contexts/NotesContext";
 import { RecordingProvider } from "@/contexts/RecordingContext";
 import { CalendarProvider } from "@/contexts/CalendarContext";
 import { SidebarVisibilityProvider } from "@/contexts/SidebarVisibilityContext";
-import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
-import { GlobalDragRegion } from "@/components/Sidebar";
 import { loadPreferences, applyAppearance } from "@/pages/SettingsPage";
 import { isOnboardingComplete } from "@/pages/OnboardingPage";
+import { AppShell } from "@/components/AppShell";
 
 // Eager imports — critical paths that must be immediately available
 import Index from "./pages/Index";
@@ -40,8 +39,6 @@ const WeeklyDigestPage = lazy(() => import("./pages/WeeklyDigestPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TrayAgendaPage = lazy(() => import("./pages/TrayAgendaPage"));
 import { TrayMenu } from "@/components/TrayMenu";
-import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
-import { TrayAgendaSync } from "@/components/TrayAgendaSync";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SearchCommandProvider } from "@/components/SearchCommand";
 
@@ -110,7 +107,6 @@ function TrayNavigationHandler() {
 
 function AppContent() {
   const location = useLocation();
-  const isOnRecordingPage = location.pathname === "/new-note";
   const onboardingDone = isOnboardingComplete();
 
   if (!onboardingDone && location.pathname !== "/onboarding" && location.pathname !== "/tray-agenda") {
@@ -119,42 +115,42 @@ function AppContent() {
 
   return (
     <>
-      <GlobalDragRegion />
-      {!isOnRecordingPage && <GlobalRecordingBanner />}
-      <MeetingDetectionHandler />
-      {isElectron && <TrayAgendaSync />}
       <TrayNavigationHandler />
       <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-pulse text-muted-foreground text-sm">Loading...</div></div>}>
         <Routes>
+          {/* Standalone pages — no AppShell */}
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/" element={<Index />} />
-          <Route path="/notes" element={<AllNotes />} />
-          <Route path="/ask" element={<AskSyag />} />
-
-          <Route path="/note/:id" element={<NoteDetailPage />} />
-          <Route path="/new-note" element={
-            <ErrorBoundary>
-              <NewNotePage />
-            </ErrorBoundary>
-          } />
-          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tray-agenda" element={<TrayAgendaPage />} />
-          <Route path="/coaching" element={<CoachingPage />} />
-          <Route path="/people" element={<PeoplePage />} />
-          <Route path="/commitments" element={<CommitmentsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/project/:id" element={<ProjectDetailPage />} />
-          <Route path="/routines" element={<RoutinesPage />} />
-          <Route path="/digest" element={<WeeklyDigestPage />} />
-          <Route path="/decisions" element={<DecisionsPage />} />
-          <Route path="/series" element={<MeetingSeriesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/tray-preview" element={
             <div className="flex items-center justify-center min-h-screen bg-muted/50">
               <TrayMenu />
             </div>
           } />
-          <Route path="*" element={<NotFound />} />
+
+          {/* All main pages inside AppShell */}
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/notes" element={<AllNotes />} />
+            <Route path="/ask" element={<AskSyag />} />
+            <Route path="/note/:id" element={<NoteDetailPage />} />
+            <Route path="/new-note" element={
+              <ErrorBoundary>
+                <NewNotePage />
+              </ErrorBoundary>
+            } />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/coaching" element={<CoachingPage />} />
+            <Route path="/people" element={<PeoplePage />} />
+            <Route path="/commitments" element={<CommitmentsPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/project/:id" element={<ProjectDetailPage />} />
+            <Route path="/routines" element={<RoutinesPage />} />
+            <Route path="/digest" element={<WeeklyDigestPage />} />
+            <Route path="/decisions" element={<DecisionsPage />} />
+            <Route path="/series" element={<MeetingSeriesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
       </Suspense>
     </>

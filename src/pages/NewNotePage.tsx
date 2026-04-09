@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
@@ -9,7 +7,6 @@ import { SummarySkeleton } from "@/components/SummarySkeleton";
 import { NotesViewToggle } from "@/components/NotesViewToggle";
 import {
   Mic, MicOff, Pause, Play, Eye, EyeOff, Square, Search,
-  Share2, MoreHorizontal,
   Calendar, Clock, Plus, FolderOpen, Check, X, Hash,
   CheckCircle2, Circle, Loader2, Copy, Trash2, ChevronDown, FileText, Info
 } from "lucide-react";
@@ -161,7 +158,6 @@ export default function NewNotePage() {
   const startFreshFromUrl = searchParams.get("startFresh") === "1";
   const startFresh = eventState?.startFresh === true || startFreshFromUrl;
 
-  const { sidebarOpen } = useSidebarVisibility();
   const { events: calendarEvents } = useCalendar();
   const [recordingState, setRecordingState] = useState<RecordingState>(() => {
     if (isReturning && activeSession) {
@@ -1204,62 +1200,7 @@ export default function NewNotePage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen ? (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      ) : (
-        <SidebarCollapseRail>
-          <SidebarCollapseButton />
-        </SidebarCollapseRail>
-      )}
-
-      <main className="flex flex-1 flex-col min-w-0">
-        {/* Top bar — compact: back + actions on one tight line */}
-        <div className={cn(
-          "flex items-center justify-between px-4 pb-0",
-          isElectron ? "pt-10" : "pt-3",
-          !sidebarOpen && isElectron && "pl-20"
-        )}>
-          <SidebarTopBarLeft
-            backLabel="Back to home"
-            onBack={() => navigate("/")}
-            backIcon
-          />
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleCopyText}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              title="Copy text"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-            <button className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Share">
-              <Share2 className="h-3.5 w-3.5" />
-            </button>
-            <div ref={moreMenuRef} className="relative">
-              <button
-                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-              {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 w-44 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
-                  <button
-                    onClick={handleDeleteNote}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
+    <div className="flex flex-1 flex-col min-w-0">
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
         {captureError && (
           <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
@@ -1707,9 +1648,6 @@ export default function NewNotePage() {
           />
         )}
 
-      </main>
-
-      {/* Context panel removed — meeting context now flows through Ask OSChief on demand */}
     </div>
   );
 }

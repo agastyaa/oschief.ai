@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { AskBar } from "@/components/AskBar";
 import { EditableSummary } from "@/components/EditableSummary";
 import { SummarySkeleton, CoachLoadingLine } from "@/components/SummarySkeleton";
@@ -40,7 +38,6 @@ export default function NoteDetailPage() {
   const { activeSession, resumeSession, updateSession, clearSession, pauseAudioCapture } = useRecording();
   const { selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
-  const { sidebarOpen } = useSidebarVisibility();
   const [viewMode, setViewMode] = useState<"my-notes" | "ai-notes" | "coaching">("ai-notes");
   const [transcriptVisible, setTranscriptVisible] = useState(false);
   const { width: transcriptWidth, startResize: startTranscriptResize } = useResizablePanel({ storageKey: "syag_transcript_width" });
@@ -250,7 +247,7 @@ export default function NoteDetailPage() {
     if (!waitedForLoad) {
       // Show loading state while notes are being fetched from DB
       return (
-        <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-6 w-6 text-muted-foreground/40 mx-auto mb-3 animate-spin" />
             <p className="text-[12px] text-muted-foreground">Loading note...</p>
@@ -259,7 +256,7 @@ export default function NoteDetailPage() {
       );
     }
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
           <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-[13px] text-muted-foreground mb-3">Note not found</p>
@@ -272,26 +269,9 @@ export default function NoteDetailPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen ? (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      ) : (
-        <SidebarCollapseRail>
-          <SidebarCollapseButton />
-        </SidebarCollapseRail>
-      )}
-      <main className="flex flex-1 flex-col min-w-0">
-        <div className={cn(
-          "flex items-center justify-between px-4 pb-0",
-          isElectron ? "pt-10" : "pt-3",
-          !sidebarOpen && isElectron && "pl-20"
-        )}>
-          <SidebarTopBarLeft
-            backLabel="← Back to notes"
-            onBack={() => navigate(-1)}
-          />
+    <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <div />
           <div className="flex items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -742,7 +722,6 @@ export default function NoteDetailPage() {
             </div>
           )}
         </div>
-      </main>
       {note && (
         <>
           <SlackShareDialog

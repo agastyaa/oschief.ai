@@ -1,11 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, ChevronDown, ChevronRight, FileText, Square, Sparkles } from "lucide-react";
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
-
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
 import { useNotes } from "@/contexts/NotesContext";
-import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { getElectronAPI } from "@/lib/electron-api";
 
 import { cn } from "@/lib/utils";
 import { askSyagInputShell } from "@/lib/ask-syag-styles";
@@ -28,7 +25,6 @@ const recipes = [
 export default function AskSyag() {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const { notes } = useNotes();
-  const { sidebarOpen } = useSidebarVisibility();
   const api = getElectronAPI();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -182,17 +178,8 @@ export default function AskSyag() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex flex-1 flex-col min-w-0", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
+    <div className="flex flex-1 flex-col min-w-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {isEmpty ? (
             <div className="flex h-full flex-col items-center justify-center px-6 pb-8">
               <div className="mb-8 text-center max-w-lg">
@@ -385,7 +372,6 @@ export default function AskSyag() {
             </div>
           </div>
         )}
-      </main>
     </div>
   );
 }

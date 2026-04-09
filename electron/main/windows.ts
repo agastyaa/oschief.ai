@@ -3,6 +3,11 @@ import { join } from 'path'
 import { getSetting } from './storage/database'
 
 let mainWindow: BrowserWindow | null = null
+let isQuittingForUpdate = false
+
+export function setQuittingForUpdate() {
+  isQuittingForUpdate = true
+}
 
 export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
@@ -37,7 +42,7 @@ export function createMainWindow(): BrowserWindow {
   })
 
   mainWindow.on('close', (e) => {
-    if (process.platform === 'darwin') {
+    if (process.platform === 'darwin' && !isQuittingForUpdate) {
       e.preventDefault()
       mainWindow?.hide()
     }

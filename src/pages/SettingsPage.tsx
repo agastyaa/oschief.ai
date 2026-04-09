@@ -6,8 +6,6 @@ import {
   FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -1417,7 +1415,6 @@ export default function SettingsPage() {
   const [calendarProvider, setCalendarProvider] = useState<CalendarProviderId | null>(getStoredCalendarProvider);
   const [icsDialogOpen, setIcsDialogOpen] = useState(false);
   const [icsDialogProvider, setIcsDialogProvider] = useState<CalendarProviderId | null>(null);
-  const { sidebarOpen } = useSidebarVisibility();
   const {
     selectedAIModel, setSelectedAIModel,
     selectedSTTModel, setSelectedSTTModel,
@@ -1734,17 +1731,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="w-48 flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
-        <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
+    <div className="mx-auto max-w-3xl px-6 pt-4 pb-12">
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
           <div className="flex gap-8">
@@ -3052,8 +3039,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </div>
-      </main>
     </div>
   );
 }

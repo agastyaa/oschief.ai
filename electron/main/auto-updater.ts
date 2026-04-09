@@ -4,6 +4,7 @@ import { BrowserWindow, dialog } from 'electron'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
+import { setQuittingForUpdate } from './windows'
 
 /** Read GH_TOKEN from shell profile (~/.zshrc, ~/.zprofile, ~/.bashrc) since macOS GUI apps don't inherit shell env vars. */
 function readTokenFromShellProfile(): string | null {
@@ -58,6 +59,7 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
       defaultId: 0,
     }).then(({ response }) => {
       if (response === 0) {
+        setQuittingForUpdate()
         autoUpdater.quitAndInstall(false, true)
       }
     })

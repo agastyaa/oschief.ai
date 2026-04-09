@@ -10,13 +10,10 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar";
-
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useNotes } from "@/contexts/NotesContext";
 import { useRecordingSession } from "@/contexts/RecordingContext";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { ICSDialog } from "@/components/ICSDialog";
 import { CalendarAgendaList } from "@/components/CalendarAgendaList";
@@ -99,7 +96,6 @@ export default function CalendarPage() {
   const [view, setView] = useState<"grid" | "list">(initialView);
   const [listAnchorDate, setListAnchorDate] = useState(() => startOfDay(today));
   const listViewScrollRef = useRef<HTMLDivElement>(null);
-  const { sidebarOpen } = useSidebarVisibility();
   const {
     events,
     displayEvents,
@@ -266,18 +262,9 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
-        <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
-          {!showMainCalendar ? (
+    <>
+      <div className="mx-auto max-w-4xl px-6 pt-4 pb-8 font-body">
+        {!showMainCalendar ? (
             <div className="mb-6 rounded-[10px] border border-border bg-card p-6 text-center space-y-4">
               <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-1" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar yet</h2>
@@ -509,8 +496,7 @@ export default function CalendarPage() {
               )}
             </>
           )}
-        </div>
-      </main>
+      </div>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />
 
       <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
@@ -588,6 +574,6 @@ export default function CalendarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

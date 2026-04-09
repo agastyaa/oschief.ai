@@ -2161,6 +2161,8 @@ export function registerIPCHandlers(): void {
     }
   })
   ipcMain.handle('app:install-update', async () => {
+    const { setQuittingForUpdate } = await import('./windows')
+    setQuittingForUpdate()
     const pkg = await import('electron-updater')
     const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
     autoUpdater?.quitAndInstall(false, true)

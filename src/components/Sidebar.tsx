@@ -1,5 +1,9 @@
-import { useState, useEffect } from "react";
-import { FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft, BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
+  BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar,
+  Search, Plus, Gavel, BookOpen, Mic,
+} from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { PrivacyIndicator } from "@/components/PrivacyIndicator";
@@ -7,6 +11,9 @@ import { cn } from "@/lib/utils";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
+import { useNotes } from "@/contexts/NotesContext";
+import { useRecording } from "@/contexts/RecordingContext";
+import { useSearchCommand } from "@/components/SearchCommand";
 
 const COLLAPSE_BTN_CLASS =
   "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
@@ -19,13 +26,11 @@ export function SidebarTopBarLeft({
 }: {
   backLabel?: string;
   onBack?: () => void;
-  /** When true, show ArrowLeft icon before back label (e.g. for "Back to home") */
   backIcon?: boolean;
 }) {
   const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
   return (
     <div className="flex items-center gap-2">
-      {/* Only show collapse button when sidebar is open — when collapsed, SidebarCollapseRail already renders one */}
       {sidebarOpen && (
         <button
           onClick={toggleSidebar}
@@ -49,7 +54,7 @@ export function SidebarTopBarLeft({
   );
 }
 
-/** Collapse button only (no back link). For pages that only need the sidebar toggle. */
+/** Collapse button only (no back link). */
 export function SidebarCollapseButton() {
   const { sidebarOpen, toggleSidebar } = useSidebarVisibility();
   return (
@@ -66,7 +71,7 @@ export function SidebarCollapseButton() {
 
 /**
  * When the sidebar is collapsed, use this as the left column before `<main>` on Electron so
- * content clears `titleBarStyle: hiddenInset` traffic lights (top + horizontal inset).
+ * content clears `titleBarStyle: hiddenInset` traffic lights.
  */
 export function SidebarCollapseRail({ children }: { children: React.ReactNode }) {
   return (
@@ -76,7 +81,6 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
         isElectron ? "w-20 min-w-[5rem] pt-10" : "w-10 pt-2"
       )}
     >
-      {/* Drag region when sidebar is collapsed — allows window movement from the rail area */}
       {isElectron && (
         <div
           className="absolute top-0 left-0 right-0 h-10 z-50"
@@ -90,13 +94,10 @@ export function SidebarCollapseRail({ children }: { children: React.ReactNode })
 
 /**
  * Global drag region for Electron — covers the full top of the window when
- * sidebar is collapsed. Pages that use `pl-20` instead of SidebarCollapseRail
- * need this to remain draggable.
+ * sidebar is collapsed.
  */
 export function GlobalDragRegion() {
   if (!isElectron) return null;
-  // Always show a drag region across the full top of the window — behind buttons (z-40)
-  // so the window is always draggable from empty space in the title bar area
   return (
     <div
       className="fixed top-0 left-0 right-0 h-10 z-40 pointer-events-auto"
@@ -105,74 +106,86 @@ export function GlobalDragRegion() {
   );
 }
 
-// Calendar icon (inline SVG — matches existing style)
-const calendarIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "h-3.5 w-3.5"} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <rect x="2" y="3" width="12" height="11" rx="1.5" />
-    <path d="M2 6.5h12M5.5 2v2M10.5 2v2" />
-  </svg>
-);
-
-/** Sub-navigation item for sidebar sections */
-function SubNavItem({ icon: Icon, label, to, active, navigate }: { icon?: any; label: string; to: string; active: boolean; navigate: (to: string) => void }) {
+/** Section label for sidebar grouping */
+function SectionLabel({ label }: { label: string }) {
   return (
-    <button
-      onClick={() => navigate(to)}
-      className={cn(
-        "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors text-left",
-        active
-          ? "bg-secondary text-foreground font-medium"
-          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-      )}
-    >
-      {Icon && <Icon className="h-3.5 w-3.5" />}
+    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground px-2.5 pt-3 pb-1 block select-none">
       {label}
-    </button>
+    </span>
   );
+}
+
+/** Relative time label (e.g. "2h ago", "Yesterday") */
+function relativeTime(dateStr: string, timeStr?: string): string {
+  if (!dateStr) return "";
+  const now = new Date();
+  const d = new Date(dateStr + (timeStr ? `T${timeStr}` : 'T12:00:00'));
+  if (isNaN(d.getTime())) return "";
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 0) return "Upcoming";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return "Yesterday";
+  if (diffD < 7) return `${diffD}d ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  // Projects for sidebar nav (replaces folders)
-  const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
+  const { notes } = useNotes();
+  const { activeSession } = useRecording();
+  const { open: openSearch } = useSearchCommand();
 
-  // Commitment weather dot — fetch once on mount, refresh on location change (user navigated)
+  // Risk levels for commitment badge
   const [riskLevels, setRiskLevels] = useState<any[]>([]);
   useEffect(() => {
     const api = getElectronAPI();
     if (!api?.intelligence?.getRiskLevels) return;
     api.intelligence.getRiskLevels().then(setRiskLevels).catch(() => {});
-    api?.memory?.projects?.getAll({ status: 'active' }).then((p: any[]) => setSidebarProjects((p || []).slice(0, 5))).catch(() => {});
   }, [location.pathname]);
-  const redCount = riskLevels.filter((c: any) => c.risk_level === 'RED').length;
-  const amberCount = riskLevels.filter((c: any) => c.risk_level === 'AMBER').length;
+
+  const riskCount = riskLevels.filter((c: any) => c.risk_level === 'RED' || c.risk_level === 'AMBER').length;
+
+  // Recent meetings (last 5)
+  const recentMeetings = useMemo(() => {
+    return [...notes]
+      .sort((a, b) => {
+        const da = new Date(a.date + 'T' + (a.time || '00:00'));
+        const db = new Date(b.date + 'T' + (b.time || '00:00'));
+        return db.getTime() - da.getTime();
+      })
+      .slice(0, 5);
+  }, [notes]);
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  // Reusable nav item — icon is optional (Dia-style: labels-only for primary nav)
-  const NavItem = ({ icon: Icon, label, to, onClick, active, iconClass }: {
+  // Reusable nav item
+  const NavItem = ({ icon: Icon, label, to, onClick, active, badge }: {
     icon?: any; label: string; to?: string; onClick?: () => void;
-    active?: boolean; iconClass?: string;
+    active?: boolean; badge?: React.ReactNode;
   }) => {
     const isItemActive = active ?? (to ? isActive(to) : false);
     return (
       <button
         onClick={onClick || (() => to && navigate(to))}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-1 text-[13px] transition-colors",
+          "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors w-full text-left",
           isItemActive
             ? "bg-secondary text-foreground font-medium"
             : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
         )}
       >
-        {Icon && <Icon className={cn("h-3.5 w-3.5", iconClass)} />}
-        {label}
+        {Icon && <Icon className="h-3.5 w-3.5 flex-shrink-0" />}
+        <span className="truncate flex-1">{label}</span>
+        {badge}
       </button>
     );
   };
-
 
   const { sidebarWidth, startResize } = useSidebarVisibility();
 
@@ -183,14 +196,15 @@ export function Sidebar() {
         className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
         onMouseDown={startResize}
       />
-      {/* Drag region for window movement (Electron hiddenInset titlebar) */}
+      {/* Drag region for Electron */}
       {isElectron && (
         <div
           className="absolute top-0 left-0 right-0 h-10 z-50"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         />
       )}
-      {/* Logo only — collapse is in content top bar via SidebarTopBarLeft */}
+
+      {/* Workspace Header — Logo + Status */}
       <div
         className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}
         style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
@@ -201,74 +215,111 @@ export function Sidebar() {
         <div className="flex items-center gap-1">
           <PrivacyIndicator />
           <SyncStatusIndicator />
-          {redCount + amberCount > 0 ? (
-            <button
-              onClick={() => navigate('/commitments')}
-              className="ml-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80"
-              style={{
-                backgroundColor: redCount > 0 ? 'hsl(25 65% 45% / 0.15)' : 'hsl(30 55% 64% / 0.15)',
-                color: redCount > 0 ? 'hsl(25 65% 40%)' : 'hsl(30 55% 45%)',
-              }}
-              aria-label={`${redCount + amberCount} commitments at risk`}
-            >
-              {redCount + amberCount} at risk
-            </button>
-          ) : null}
         </div>
       </div>
 
-      {/* Today */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-4">
-        <NavItem icon={Home} label="Today" to="/" active={
-          isActive("/") && !isActive("/notes") && !isActive("/ask") && !isActive("/coaching") && !isActive("/calendar") && !isActive("/settings") && !location.search.includes("folder") && !location.search.includes("view=all")
-        } />
-      </nav>
+      {/* Action Row — Search + New Note */}
+      <div className="flex items-center gap-1.5 px-3 pb-1" style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}>
+        <button
+          onClick={openSearch}
+          className="flex items-center gap-2 flex-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground bg-secondary/50 hover:bg-secondary transition-colors"
+        >
+          <Search className="h-3 w-3" />
+          <span>Search</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/60">&#8984;K</span>
+        </button>
+        <button
+          onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          title="New Note"
+          aria-label="New Note"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-      {/* All Meetings — projects as sub-items */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-0.5">
-        <NavItem
-          icon={FileText}
-          label="All Meetings"
-          to="/?view=all"
-          active={location.search.includes("view=all") || isActive("/project/")}
-        />
-        {sidebarProjects.length > 0 && (
-          <div className="flex flex-col gap-0.5 ml-6 mt-0.5">
-            {sidebarProjects.map((p: any) => (
+      {/* Scrollable nav area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* BRIEFING */}
+        <nav className="flex flex-col gap-0.5 px-3">
+          <SectionLabel label="Briefing" />
+          <NavItem icon={Home} label="Today" to="/" active={
+            isActive("/") && !location.search.includes("view=all") && !location.search.includes("folder")
+          } />
+          <NavItem icon={BookOpen} label="Digest" to="/digest" />
+        </nav>
+
+        {/* MEETINGS */}
+        <nav className="flex flex-col gap-0.5 px-3 mt-1">
+          <SectionLabel label="Meetings" />
+          <NavItem
+            icon={FileText}
+            label="All Meetings"
+            to="/?view=all"
+            active={location.search.includes("view=all")}
+          />
+          {/* Recent meetings — inline like Slack DMs */}
+          {recentMeetings.map((note) => {
+            const isRecording = activeSession?.noteId === note.id;
+            return (
               <button
-                key={p.id}
-                onClick={() => navigate(`/project/${p.id}`)}
+                key={note.id}
+                onClick={() => navigate(`/note/${note.id}`)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1 text-[12px] transition-colors text-left",
-                  location.pathname === `/project/${p.id}`
+                  "flex items-center gap-2 rounded-md px-2.5 py-1 text-[12px] transition-colors text-left w-full group",
+                  location.pathname === `/note/${note.id}`
                     ? "bg-secondary text-foreground font-medium"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 )}
               >
-                <FolderKanban className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{p.name}</span>
+                {isRecording ? (
+                  <Mic className="h-3 w-3 flex-shrink-0 text-recording animate-pulse" />
+                ) : (
+                  <span className="w-3" />
+                )}
+                <span className="truncate flex-1">{note.title || "Untitled"}</span>
+                <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
+                  {relativeTime(note.date, note.time)}
+                </span>
               </button>
-            ))}
-          </div>
-        )}
-      </nav>
+            );
+          })}
+        </nav>
 
-      {/* Flat nav — no section labels */}
-      <nav className="flex flex-col gap-0.5 px-3 mt-2">
-        <NavItem icon={Contact} label="People" to="/people" />
-        <NavItem icon={CheckCircle2} label="Commitments" to="/commitments" />
-      </nav>
+        {/* WORKSPACE */}
+        <nav className="flex flex-col gap-0.5 px-3 mt-1">
+          <SectionLabel label="Workspace" />
+          <NavItem icon={Contact} label="People" to="/people" />
+          <NavItem
+            icon={CheckCircle2}
+            label="Commitments"
+            to="/commitments"
+            badge={riskCount > 0 ? (
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                style={{
+                  backgroundColor: 'hsl(30 55% 64% / 0.15)',
+                  color: 'hsl(30 55% 45%)',
+                }}
+              >
+                {riskCount}
+              </span>
+            ) : undefined}
+          />
+          <NavItem icon={FolderKanban} label="Projects" to="/projects" />
+          <NavItem icon={Gavel} label="Decisions" to="/decisions" />
+        </nav>
 
-      <nav className="flex flex-col gap-0.5 px-3 mt-2">
-        <NavItem icon={Sparkles} label="Ask" to="/ask" />
-        <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
-      </nav>
+        {/* INTELLIGENCE */}
+        <nav className="flex flex-col gap-0.5 px-3 mt-1">
+          <SectionLabel label="Intelligence" />
+          <NavItem icon={Sparkles} label="Ask OSChief" to="/ask" />
+          <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
+        </nav>
+      </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Bottom — Settings + Routines */}
-      <div className="flex flex-col gap-0.5 px-3 pb-2">
+      {/* Bottom — Calendar, Routines, Settings */}
+      <div className="flex flex-col gap-0.5 px-3 pb-2 flex-shrink-0">
         <div className="h-px bg-border mx-2 mb-1" />
         <NavItem icon={Calendar} label="Calendar" to="/calendar" />
         <NavItem icon={Repeat} label="Routines" to="/routines" />

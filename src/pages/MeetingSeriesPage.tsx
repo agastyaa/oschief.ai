@@ -1,10 +1,7 @@
-import { useState, useEffect, useMemo } from "react"
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
+import { useState, useMemo } from "react"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { Repeat, FileText, CheckCircle2, TrendingUp, Users, ChevronRight, ChevronDown, Gavel, Clock } from "lucide-react"
+import { Repeat, FileText, CheckCircle2, Users, ChevronRight, ChevronDown, Gavel, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useNotes } from "@/contexts/NotesContext"
 
@@ -72,7 +69,6 @@ function detectSeries(notes: any[]): MeetingSeries[] {
 }
 
 export default function MeetingSeriesPage() {
-  const { sidebarOpen } = useSidebarVisibility()
   const navigate = useNavigate()
   const { notes } = useNotes()
   const api = isElectron ? getElectronAPI() : null
@@ -99,17 +95,7 @@ export default function MeetingSeriesPage() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
-        <div className="max-w-3xl mx-auto px-6 py-6">
+    <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 mb-1">
             <Repeat className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Meeting Series</h1>
@@ -277,8 +263,6 @@ export default function MeetingSeriesPage() {
 
             </div>
           )}
-        </div>
-      </main>
     </div>
   )
 }

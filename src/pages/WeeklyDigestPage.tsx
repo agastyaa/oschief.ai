@@ -1,13 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
-
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
-import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
   BarChart3, Users, FolderKanban, Scale, CheckCircle2,
-  AlertTriangle, ArrowRight, Clock, Calendar, Mail, ChevronDown, ChevronRight,
+  AlertTriangle, Clock, Calendar, Mail, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 type DigestData = {
@@ -64,7 +61,6 @@ function formatTime12(time: string): string {
 
 export default function WeeklyDigestPage() {
   const navigate = useNavigate();
-  const { sidebarOpen } = useSidebarVisibility();
   const api = getElectronAPI();
 
   const [data, setData] = useState<DigestData | null>(null);
@@ -111,20 +107,8 @@ export default function WeeklyDigestPage() {
   }, [data]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen ? (
-        <div className="flex-shrink-0 overflow-hidden"><Sidebar /></div>
-      ) : (
-        <SidebarCollapseRail><SidebarCollapseButton /></SidebarCollapseRail>
-      )}
-      <main className="flex flex-1 flex-col min-w-0">
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3", !sidebarOpen && isElectron && "pl-20")}>
-          <SidebarTopBarLeft />
-          <div />
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-8 py-6">
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-3xl px-8 py-6">
 
             {/* Header + Mode Toggle */}
             <div className="flex items-center gap-3 mb-5">
@@ -374,9 +358,7 @@ export default function WeeklyDigestPage() {
                 )}
               </>
             )}
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

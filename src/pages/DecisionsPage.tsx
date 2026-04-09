@@ -1,7 +1,4 @@
 import { useState, useEffect } from "react"
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
 import { Gavel, Search, FolderKanban, FileText, Users, Trash2 } from "lucide-react"
@@ -43,7 +40,6 @@ const statusLabels: Record<string, string> = {
 type FilterMode = "all" | "by-project" | "by-person"
 
 export default function DecisionsPage() {
-  const { sidebarOpen } = useSidebarVisibility()
   const navigate = useNavigate()
   const api = isElectron ? getElectronAPI() : null
 
@@ -117,16 +113,6 @@ export default function DecisionsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex-1 overflow-y-auto", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
         <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 mb-1">
             <Gavel className="h-4.5 w-4.5 text-muted-foreground" />
@@ -377,7 +363,5 @@ export default function DecisionsPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
   )
 }

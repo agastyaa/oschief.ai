@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react"
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate, useParams } from "react-router-dom"
 import {
@@ -18,7 +16,6 @@ interface ProjectTimeline {
 }
 
 export default function ProjectDetailPage() {
-  const { sidebarOpen } = useSidebarVisibility()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const api = isElectron ? getElectronAPI() : null
@@ -64,11 +61,8 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="flex h-screen bg-background text-foreground">
-        {sidebarOpen && <Sidebar />}
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-muted-foreground text-sm">Loading...</div>
-        </main>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">Loading...</div>
       </div>
     )
   }
@@ -82,14 +76,10 @@ export default function ProjectDetailPage() {
   const refreshTimeline = () => { if (id) api?.memory?.projects?.timeline(id).then(setTimeline) }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {sidebarOpen && <Sidebar />}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          {/* Header row */}
-          <div className="flex items-center gap-2 mb-3">
-            {!sidebarOpen && <SidebarCollapseButton />}
-            <button onClick={() => navigate("/projects")} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+    <div className="max-w-4xl mx-auto px-6 py-4">
+      {/* Header row */}
+      <div className="flex items-center gap-2 mb-3">
+        <button onClick={() => navigate("/projects")} className="p-1 rounded hover:bg-secondary text-muted-foreground">
               <ArrowLeft className="h-4 w-4" />
             </button>
             <FolderKanban className="h-4.5 w-4.5 text-muted-foreground" />
@@ -447,8 +437,6 @@ export default function ProjectDetailPage() {
               </div>
             )}
           </div>
-        </div>
-      </main>
     </div>
   )
 }

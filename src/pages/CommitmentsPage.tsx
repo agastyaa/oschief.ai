@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { Sidebar, SidebarCollapseButton } from "@/components/Sidebar"
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext"
-import { isElectron, getElectronAPI } from "@/lib/electron-api"
+import { getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
 import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X } from "lucide-react"
@@ -36,7 +34,6 @@ const STATUS_CONFIG = {
 
 const CommitmentsPage = () => {
   const navigate = useNavigate()
-  const { sidebarOpen } = useSidebarVisibility()
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [filter, setFilter] = useState<FilterStatus>("open")
   const [loading, setLoading] = useState(true)
@@ -190,16 +187,6 @@ const CommitmentsPage = () => {
   const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <Sidebar />
-        </div>
-      )}
-      <main className={cn("flex flex-1 flex-col min-w-0 relative", !sidebarOpen && isElectron && "pl-20")}>
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3")}>
-          <SidebarCollapseButton />
-        </div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-8 font-body">
             {/* Header */}
@@ -548,8 +535,6 @@ const CommitmentsPage = () => {
             )}
           </div>
         </div>
-      </main>
-    </div>
   )
 }
 

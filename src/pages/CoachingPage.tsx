@@ -1,14 +1,12 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sidebar, SidebarCollapseButton, SidebarCollapseRail, SidebarTopBarLeft } from "@/components/Sidebar";
-import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useNotes } from "@/contexts/NotesContext";
-import { isElectron, getElectronAPI } from "@/lib/electron-api";
+import { getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
   Brain, ArrowRight, RefreshCw, ChevronDown, Check,
 } from "lucide-react";
-import type { CoachingMetrics, ConversationInsights } from "@/lib/coaching-analytics";
+import type { CoachingMetrics } from "@/lib/coaching-analytics";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -36,7 +34,6 @@ interface MeetingData {
 
 export default function CoachingPage() {
   const navigate = useNavigate();
-  const { sidebarOpen } = useSidebarVisibility();
   const { notes, updateNote } = useNotes();
   const api = getElectronAPI();
 
@@ -177,18 +174,6 @@ export default function CoachingPage() {
   const [showMeetingList, setShowMeetingList] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {sidebarOpen ? (
-        <div className="flex-shrink-0 overflow-hidden"><Sidebar /></div>
-      ) : (
-        <SidebarCollapseRail><SidebarCollapseButton /></SidebarCollapseRail>
-      )}
-      <main className="flex flex-1 flex-col min-w-0">
-        <div className={cn("flex items-center justify-between px-4 pb-0", isElectron ? "pt-10" : "pt-3", !sidebarOpen && isElectron && "pl-20")}>
-          <SidebarTopBarLeft />
-          <div />
-        </div>
-
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
@@ -422,7 +407,5 @@ export default function CoachingPage() {
 
           </div>
         </div>
-      </main>
-    </div>
   );
 }
