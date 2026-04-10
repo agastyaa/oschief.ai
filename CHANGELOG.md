@@ -4,6 +4,22 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.6] — 2026-04-10
+
+### Changed
+- **Settings simplified** — reduced from 10 sections to 7. Transcription merged into Meeting, Agent API moved into Connections, Knowledge Base and Obsidian Vault combined into Data.
+- **Coaching output pithier** — headlines capped at 10 words, narratives at 1-2 sentences, micro-insights at 1-2 per meeting. No hedging, no qualifiers.
+- **Project detail header** — split into nav row and title row so long project names no longer break layout.
+- **Back buttons standardized** — consistent icon-only style across folder, project, and note detail pages.
+- **Sidebar folder inputs** — create and rename inputs now match NavItem styling (rounded background, proper padding).
+
+### Fixed
+- **Commitments checkbox parsing** — `parseActionItem()` now reads `[x]`/`[X]` checkbox state instead of hard-coding `done: false`. Checked items correctly sync as completed commitments.
+- **Transcript avatar bubbles** — removed redundant initial badge from speaker labels, keeping just the text "Me"/"Them".
+- **Commitments assignee UX** — added UserPlus icon on hover, "Me" as first datalist option, typing "me" reassigns to self.
+
+---
+
 ## [2.5.3] — 2026-04-09
 
 ### Added

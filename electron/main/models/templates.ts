@@ -594,7 +594,7 @@ function parseActionItem(line: string): ParsedActionItem | null {
     // **Name**: task — by date
     { re: /\*\*(?<assignee>[^*]+)\*\*[:\s]+(?<text>.+?)(?:\s*—\s*by\s+(?<due>.+))?\s*$/i, hasAssignee: true },
     // - [ ] task (by date) — checkbox format some LLMs use
-    { re: /^[-→•]\s*\[[ x]\]\s*(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
+    { re: /^[-→•]\s*\[(?<check>[ xX])\]\s*(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
     // Plain action without assignee: "→ task" or "- task" or "- task (by date)"
     { re: /^[-→•]\s+(?<text>.+?)(?:\s*\(by\s+(?<due>[^)]+)\))?\s*$/i, hasAssignee: false },
     // Numbered: "1. task" or "1) task"
@@ -610,7 +610,7 @@ function parseActionItem(line: string): ParsedActionItem | null {
         assignee: hasAssignee ? (match.groups.assignee?.trim() ?? '') : '',
         text,
         dueDate: match.groups.due?.trim() ?? null,
-        done: false,
+        done: match.groups.check ? /[xX]/.test(match.groups.check) : false,
       }
     }
   }

@@ -7,7 +7,7 @@ import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair, Mic } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair, Mic, ArrowLeft } from "lucide-react";
 import { MeetingMetadata } from "@/components/MeetingMetadata";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
@@ -260,7 +260,8 @@ export default function NoteDetailPage() {
         <div className="text-center">
           <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-[13px] text-muted-foreground mb-3">Note not found</p>
-          <button onClick={() => navigate("/")} className="text-xs text-accent hover:underline">
+          <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto">
+            <ArrowLeft className="h-3 w-3" />
             Back to home
           </button>
         </div>
@@ -683,16 +684,13 @@ export default function NoteDetailPage() {
                         )}
                       >
                         {showLabel ? (
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-[8px] font-medium text-foreground">
-                              {displayLabel.charAt(0)}
-                            </div>
+                          <div className="mb-0.5">
                             <span className="text-[10px] font-medium text-foreground">{displayLabel}</span>
                           </div>
                         ) : (
                           <div className="h-1" />
                         )}
-                        <p className="text-[12px] text-muted-foreground leading-relaxed pl-6">
+                        <p className="text-[12px] text-muted-foreground leading-relaxed">
                           {searchRegex ? (
                             group.text.split(searchRegex).map((part, j) =>
                               part.toLowerCase() === transcriptSearch.toLowerCase() ? (

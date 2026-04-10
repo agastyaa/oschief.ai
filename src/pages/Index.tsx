@@ -320,17 +320,14 @@ const Index = () => {
     return (
       <div className="flex flex-1 flex-col min-w-0 relative">
         <div className="flex-1 overflow-y-auto">
-          <div className="px-4 pt-6">
-            <div className="relative flex items-center mb-4">
-              <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <div className="max-w-2xl mx-auto px-6 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => navigate("/")} className="p-1 rounded hover:bg-secondary text-muted-foreground">
                 <ArrowLeft className="h-4 w-4" />
-                Back to home
               </button>
-              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                <FolderOpen className="h-5 w-5 text-accent" />
-                <h1 className="font-display text-xl text-foreground">{activeFolder.name}</h1>
-                <span className="text-xs text-muted-foreground ml-1">{folderNotes.length} notes</span>
-              </div>
+              <FolderOpen className="h-4.5 w-4.5 text-accent" />
+              <h1 className="font-display text-lg text-foreground">{activeFolder.name}</h1>
+              <span className="text-xs text-muted-foreground">{folderNotes.length} notes</span>
             </div>
           </div>
           <div
