@@ -166,7 +166,7 @@ function RelationshipDropdown({ value, onSave }: { value: string; onSave: (v: st
 
 function DeleteConfirmation({ person, onConfirm, onCancel }: { person: Person; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-label={`Delete ${person.name}`}>
       <div className="rounded-[10px] border border-border bg-card p-6 shadow-xl max-w-sm w-full mx-4">
         <h3 className="text-sm font-semibold text-foreground mb-2">Delete {person.name}?</h3>
         <p className="text-xs text-muted-foreground mb-4">
@@ -204,7 +204,7 @@ function MergePicker({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-label={`Merge into ${currentPerson.name}`}>
       <div className="rounded-[10px] border border-border bg-card p-5 shadow-xl max-w-sm w-full mx-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-foreground">Merge into {currentPerson.name}</h3>
@@ -312,7 +312,7 @@ const PeoplePage = () => {
       setSelectedPerson(updated)
       setPeople(prev => prev.map(p => p.id === updated.id ? { ...p, [field]: value } : p))
     } catch {
-      toast.error("Failed to update")
+      toast.error("Couldn't save changes. Check your connection and try again.")
     }
   }, [selectedPerson, api])
 
@@ -327,7 +327,7 @@ const PeoplePage = () => {
       }
       toast.success(`${deleteTarget.name} deleted`)
     } catch {
-      toast.error("Failed to delete")
+      toast.error("Couldn't delete this person. Try again or restart the app.")
     }
     setDeleteTarget(null)
   }, [deleteTarget, api, selectedPerson])
@@ -341,7 +341,7 @@ const PeoplePage = () => {
       await loadPeople()
       loadPersonMeetings(selectedPerson.id)
     } catch {
-      toast.error("Merge failed")
+      toast.error("Couldn't merge these people. Try again or restart the app.")
     }
   }, [selectedPerson, api, loadPeople, loadPersonMeetings])
 

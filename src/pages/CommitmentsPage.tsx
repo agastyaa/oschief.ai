@@ -28,7 +28,7 @@ type FilterStatus = "all" | "open" | "completed" | "overdue" | "my" | "upcoming"
 const STATUS_CONFIG = {
   open: { label: "Open", icon: Circle, color: "text-primary", bg: "bg-primary/10" },
   completed: { label: "Done", icon: CheckCircle2, color: "text-green", bg: "bg-green-bg" },
-  overdue: { label: "Overdue", icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
+  overdue: { label: "Overdue", icon: AlertTriangle, color: "text-amber", bg: "bg-amber-bg" },
   cancelled: { label: "Cancelled", icon: XCircle, color: "text-muted-foreground", bg: "bg-muted/50" },
 }
 
@@ -98,7 +98,7 @@ const CommitmentsPage = () => {
       loadCommitments()
       toast.success("Deleted")
     } catch (err) {
-      toast.error("Failed to delete")
+      toast.error("Couldn't delete this item. Try again or restart the app.")
     }
   }, [api, loadCommitments])
 
@@ -123,7 +123,7 @@ const CommitmentsPage = () => {
       toast.success("Commitment updated")
     } catch (err) {
       console.error("Failed to update commitment:", err)
-      toast.error("Failed to update")
+      toast.error("Couldn't save changes. Check your connection and try again.")
     }
     setEditingId(null)
   }, [api, editingId, editText, loadCommitments])
@@ -346,7 +346,7 @@ const CommitmentsPage = () => {
                             </button>
 
                             {/* Content — left side */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0" aria-live="polite">
                               {editingId === c.id ? (
                                 <input
                                   ref={editInputRef}
@@ -396,7 +396,7 @@ const CommitmentsPage = () => {
                                     onClick={() => setEditingDueDateId(c.id)}
                                     className={cn(
                                       "text-[11px] flex items-center gap-1 hover:opacity-70 transition-opacity",
-                                      isOverdue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                                      isOverdue ? "text-amber" : "text-muted-foreground"
                                     )}
                                     title="Click to change due date"
                                   >

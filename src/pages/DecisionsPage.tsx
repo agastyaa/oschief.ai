@@ -21,7 +21,7 @@ interface Decision {
 
 const statusStyles: Record<string, string> = {
   MADE: 'bg-green-bg text-green',
-  IN_PROGRESS: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  IN_PROGRESS: 'bg-amber-bg text-amber',
   TBD: 'bg-muted text-muted-foreground',
   REJECTED: 'bg-destructive/10 text-destructive',
 }
@@ -346,6 +346,7 @@ export default function DecisionsPage() {
                             aria-label={`Select decision: ${d.text.slice(0, 50)}`}
                             className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20 flex-shrink-0"
                           />
+                          <div className="flex-1" aria-live="polite">
                           {editingTextId === d.id ? (
                             <input
                               autoFocus
@@ -365,15 +366,16 @@ export default function DecisionsPage() {
                                 }
                                 setEditingTextId(null)
                               }}
-                              className="text-sm flex-1 bg-transparent border-b border-primary focus:outline-none"
+                              className="text-sm w-full bg-transparent border-b border-primary focus:outline-none"
                             />
                           ) : (
                             <div
-                              className="text-sm flex-1 cursor-pointer hover:text-primary/80 transition-colors"
+                              className="text-sm cursor-pointer hover:text-primary/80 transition-colors"
                               onClick={() => { setEditingTextId(d.id); setEditText(d.text) }}
                               title="Click to edit" aria-label="Edit"
                             >{d.text}</div>
                           )}
+                          </div>
                           <select
                             value={d.status || 'MADE'}
                             onChange={(e) => { e.stopPropagation(); handleStatusChange(d.id, e.target.value) }}
@@ -399,6 +401,7 @@ export default function DecisionsPage() {
                             <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
+                        <div aria-live="polite">
                         {editingContextId === d.id ? (
                           <input
                             autoFocus
@@ -433,6 +436,7 @@ export default function DecisionsPage() {
                             Add context...
                           </button>
                         )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                           {d.note_title && (
                             <button

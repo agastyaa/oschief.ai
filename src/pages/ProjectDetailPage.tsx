@@ -278,7 +278,7 @@ export default function ProjectDetailPage() {
                   if (e.key === 'Enter' && actionItemText.trim()) {
                     api?.memory?.commitments?.add({ text: actionItemText.trim(), owner: actionItemOwner, projectId: id })
                       .then(() => { toast.success("Action item added"); setActionItemText(""); setActionItemOwner("you"); setAddingActionItem(false); refreshTimeline() })
-                      .catch(() => toast.error("Failed to add action item"))
+                      .catch(() => toast.error("Couldn't add action item. Check your connection and try again."))
                   }
                   if (e.key === 'Escape') { setAddingActionItem(false); setActionItemText("") }
                 }}
@@ -292,7 +292,7 @@ export default function ProjectDetailPage() {
                   if (!actionItemText.trim()) return
                   api?.memory?.commitments?.add({ text: actionItemText.trim(), owner: actionItemOwner, projectId: id })
                     .then(() => { toast.success("Action item added"); setActionItemText(""); setActionItemOwner("you"); setAddingActionItem(false); refreshTimeline() })
-                    .catch(() => toast.error("Failed to add action item"))
+                    .catch(() => toast.error("Couldn't add action item. Check your connection and try again."))
                 }} className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90">Add</button>
                 <button onClick={() => { setAddingActionItem(false); setActionItemText("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
               </div>
@@ -307,7 +307,7 @@ export default function ProjectDetailPage() {
                   if (e.key === 'Enter' && decisionText.trim()) {
                     api?.memory?.decisions?.create({ text: decisionText.trim(), context: decisionContext.trim() || undefined, projectId: id, date: new Date().toISOString().slice(0, 10) })
                       .then(() => { toast.success("Decision added"); setDecisionText(""); setDecisionContext(""); setAddingDecision(false); refreshTimeline() })
-                      .catch(() => toast.error("Failed to add decision"))
+                      .catch(() => toast.error("Couldn't add decision. Check your connection and try again."))
                   }
                   if (e.key === 'Escape') { setAddingDecision(false); setDecisionText(""); setDecisionContext("") }
                 }}
@@ -319,7 +319,7 @@ export default function ProjectDetailPage() {
                   if (!decisionText.trim()) return
                   api?.memory?.decisions?.create({ text: decisionText.trim(), context: decisionContext.trim() || undefined, projectId: id, date: new Date().toISOString().slice(0, 10) })
                     .then(() => { toast.success("Decision added"); setDecisionText(""); setDecisionContext(""); setAddingDecision(false); refreshTimeline() })
-                    .catch(() => toast.error("Failed to add decision"))
+                    .catch(() => toast.error("Couldn't add decision. Check your connection and try again."))
                 }} className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:opacity-90">Add</button>
                 <button onClick={() => { setAddingDecision(false); setDecisionText(""); setDecisionContext("") }} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
               </div>
@@ -343,7 +343,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async (e) => {
                         e.stopPropagation()
                         if (!confirm(`Unlink "${meeting.title || 'this meeting'}"?`)) return
-                        try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Failed to unlink meeting") }
+                        try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Couldn't unlink meeting. Try again or restart the app.") }
                       }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Unlink from project" aria-label="Unlink from project">
                         <Unlink className="h-3.5 w-3.5" />
                       </button>
@@ -368,7 +368,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <button onClick={async () => {
                         if (!confirm("Delete this decision?")) return
-                        try { await api?.memory?.decisions?.delete(decision.id); refreshTimeline(); toast.success("Decision deleted") } catch { toast.error("Failed to delete decision") }
+                        try { await api?.memory?.decisions?.delete(decision.id); refreshTimeline(); toast.success("Decision deleted") } catch { toast.error("Couldn't delete decision. Try again or restart the app.") }
                       }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -382,7 +382,7 @@ export default function ProjectDetailPage() {
                   {timeline.commitments.map(c => (
                     <div key={c.id} className="group flex items-start gap-2 px-3 py-2">
                       <button onClick={async () => {
-                        try { await api?.memory?.commitments?.updateStatus(c.id, c.status === "completed" ? "open" : "completed"); refreshTimeline() } catch { toast.error("Failed") }
+                        try { await api?.memory?.commitments?.updateStatus(c.id, c.status === "completed" ? "open" : "completed"); refreshTimeline() } catch { toast.error("Couldn't update status. Try again or restart the app.") }
                       }} className="mt-0.5 shrink-0 hover:scale-110 transition-transform" title={c.status === "completed" ? "Reopen" : "Done"} aria-label={c.status === "completed" ? "Reopen action item" : "Mark action item done"}>
                         <CheckSquare className={cn("h-3.5 w-3.5", c.status === "completed" ? "text-green" : "text-muted-foreground hover:text-primary")} />
                       </button>
@@ -390,7 +390,7 @@ export default function ProjectDetailPage() {
                         <div className={cn("text-sm", c.status === "completed" && "line-through text-muted-foreground")}>{c.text}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {c.owner === "you" ? "You" : c.assignee_name || c.owner}
-                          {c.due_date && <span className={cn("ml-2", c.status === "open" && new Date(c.due_date) < new Date() ? "text-amber-600 dark:text-amber-400 font-medium" : "")}>Due {c.due_date}</span>}
+                          {c.due_date && <span className={cn("ml-2", c.status === "open" && new Date(c.due_date) < new Date() ? "text-amber font-medium" : "")}>Due {c.due_date}</span>}
                           {c.note_id && (
                             <button onClick={(e) => { e.stopPropagation(); navigate(`/note/${c.note_id}`) }} className="ml-2 text-[10px] text-primary underline cursor-pointer hover:text-primary/80">Source note</button>
                           )}
@@ -398,7 +398,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <button onClick={async () => {
                         if (!confirm("Delete?")) return
-                        try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Action item deleted") } catch { toast.error("Failed to delete action item") }
+                        try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Action item deleted") } catch { toast.error("Couldn't delete action item. Try again or restart the app.") }
                       }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
