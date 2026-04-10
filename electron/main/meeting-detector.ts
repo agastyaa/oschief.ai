@@ -163,9 +163,9 @@ async function checkForMeetings(): Promise<void> {
     const calEvent = findCurrentCalendarEvent()
     const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
     if (matchedApp && !lastPollHadMeetingApp && !inCooldown) {
-      // Optional: require mic/audio in use (Granola-style) to reduce false positives when app is open but not in a call
-      const requireMic = getSetting('meeting-detection-require-mic') === 'true'
-      if (requireMic) {
+      // Require mic/audio in use to reduce false positives — meeting app running doesn't mean you're in a call
+      const skipMicCheck = getSetting('meeting-detection-require-mic') === 'false'
+      if (!skipMicCheck) {
         const micActive = await checkMicActive()
         if (!micActive) {
           isChecking = false
@@ -221,16 +221,24 @@ async function checkForMeetings(): Promise<void> {
 }
 
 async function checkMicActive(): Promise<boolean> {
-  // Check if any process is using the microphone via macOS IORegistry
-  const output = await execAsync(
-    'ioreg -c AppleHDAEngineInput -r -d 1 2>/dev/null | grep -c IOAudioEngineState',
+  // Primary: check macOS microphone-in-use indicator (the orange dot)
+  // When any app uses the mic, IOKit reports the audio engine as running
+  const ioreg = await execAsync(
+    'ioreg -c AppleHDAEngineInput -r -d 1 2>/dev/null | grep -c "IOAudioEngineState = 1"',
     2000
   )
-  if (parseInt(output.trim()) > 0) return true
+  if (parseInt(ioreg.trim()) > 0) return true
 
-  // Fallback: just check if audio device file descriptors are in use
-  const lsof = await execAsync('lsof +D /dev/ 2>/dev/null | grep -c audio', 1000)
-  return parseInt(lsof.trim()) > 0
+  // Fallback: check if the known meeting app has an open audio device handle
+  const lsof = await execAsync(
+    'lsof -c zoom -c Teams -c "Google Meet" -c webex 2>/dev/null | grep -ci "audio\\|coreaudio"',
+    2000
+  )
+  if (parseInt(lsof.trim()) > 0) return true
+
+  // Last resort: generic audio device check
+  const generic = await execAsync('lsof +D /dev/ 2>/dev/null | grep -ci audio', 1000)
+  return parseInt(generic.trim()) > 0
 }
 
 export function getActiveMeeting(): { app: string; startTime: number } | null {
