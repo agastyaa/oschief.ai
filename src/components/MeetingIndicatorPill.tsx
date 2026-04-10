@@ -14,10 +14,10 @@ const pillStyle: CSSProperties = {
   gap: 6,
   padding: "5px 10px",
   borderRadius: 20,
-  background: "rgba(30, 28, 25, 0.92)",
+  background: "hsl(var(--background) / 0.92)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
-  color: "#fff",
+  color: "hsl(var(--foreground))",
   cursor: "pointer",
   fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
   fontSize: 11,
@@ -57,7 +57,7 @@ export function MeetingIndicatorPill({
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "#ef4444",
+              background: "hsl(var(--recording))",
               flexShrink: 0,
               animation: "meeting-indicator-pulse 1.5s ease-in-out infinite",
             }}
@@ -68,7 +68,7 @@ export function MeetingIndicatorPill({
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "#f59e0b",
+              background: "hsl(var(--amber))",
               flexShrink: 0,
             }}
           />
