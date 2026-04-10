@@ -1458,7 +1458,7 @@ export default function NewNotePage() {
                             <Pause className="h-2.5 w-2.5" />
                           </span>
                         )}
-                        {activeSTTLabel && (
+                        {false && activeSTTLabel && (
                           <span className="text-[10px] text-muted-foreground/60">{activeSTTLabel}</span>
                         )}
                       </>

@@ -36,6 +36,30 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.6.1] — 2026-04-10
+
+### Added
+- **Enterprise Providers UI** — optional providers (Copart Genie) manageable in Settings > AI Models > Cloud tab
+- **Jira create button** — both Jira and Asana create buttons on action items (hover)
+- **Color-coded speaker labels** — Me (green), Them (blue), Speaker 3+ get distinct colors in transcript
+
+### Changed
+- **Coaching page** — "Executive Coach" with strategic leadership copy
+- **Settings** — no layout shift on section/tab switch, 12px nav fonts
+- **People chips** — sharper design with company subtitle, "Add person" text label, no empty chips
+- **Commitments** — assignee visible inline with avatar, two-row add-todo card
+- **Air-gapped mode** — now blocks cloud STT in addition to cloud LLM
+- **Transcript** — removed STT model name from header
+
+### Fixed
+- **ECAPA-TDNN model** — download URL was 404, switched to Wespeaker ONNX
+- **Diarization** — runs in meeting rooms even when system audio stream exists
+- **Diarization default** — enabled by default when setting unset
+- **Meeting title** — falls back to TL;DR first clause instead of staying "Meeting notes"
+- **People input** — "Create new" option when typed name doesn't match existing
+
+---
+
 ## [2.5.5] — 2026-04-10
 
 ### Fixed
