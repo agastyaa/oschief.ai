@@ -61,23 +61,25 @@ export function getUnassignedDecisions(): any[] {
 
 export function getAllDecisions(filters?: { projectId?: string; noteId?: string }): any[] {
   let sql = `
-    SELECT d.*, n.title as note_title, pr.name as project_name
+    SELECT d.*, n.title as note_title, pr.name as project_name, GROUP_CONCAT(p.name, ', ') as participant_names
     FROM decisions d
     LEFT JOIN notes n ON n.id = d.note_id
     LEFT JOIN projects pr ON pr.id = d.project_id
+    LEFT JOIN decision_people dp ON dp.decision_id = d.id
+    LEFT JOIN people p ON p.id = dp.person_id
   `
   const conditions: string[] = []
   const values: any[] = []
   if (filters?.projectId) { conditions.push('d.project_id = ?'); values.push(filters.projectId) }
   if (filters?.noteId) { conditions.push('d.note_id = ?'); values.push(filters.noteId) }
   if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ')
-  sql += ' ORDER BY d.created_at DESC'
+  sql += ' GROUP BY d.id ORDER BY d.created_at DESC'
   return getDb().prepare(sql).all(...values) as any[]
 }
 
 // ── Write ───────────────────────────────────────────────────────────
 
-export type DecisionStatus = 'MADE' | 'ASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED' | 'REVISITED'
+export type DecisionStatus = 'MADE' | 'IN_PROGRESS' | 'TBD' | 'REJECTED' | 'ASSIGNED' | 'DONE' | 'ABANDONED' | 'REVISITED'
 
 export function addDecision(data: {
   noteId?: string
@@ -158,4 +160,19 @@ export function linkDecisionToPeople(decisionId: string, personIds: string[]): v
   for (const personId of personIds) {
     if (personId) stmt.run(decisionId, personId)
   }
+}
+
+export function unlinkDecisionFromPerson(decisionId: string, personId: string): boolean {
+  const db = getDb()
+  const result = db.prepare('DELETE FROM decision_people WHERE decision_id = ? AND person_id = ?').run(decisionId, personId)
+  return (result as any).changes > 0
+}
+
+export function getPeopleForDecision(decisionId: string): Array<{ id: string; name: string }> {
+  const db = getDb()
+  return db.prepare(`
+    SELECT p.id, p.name FROM people p
+    JOIN decision_people dp ON dp.person_id = p.id
+    WHERE dp.decision_id = ?
+  `).all(decisionId) as any[]
 }

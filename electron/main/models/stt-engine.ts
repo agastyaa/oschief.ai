@@ -387,9 +387,10 @@ function getEnvPathWithBrew(): string {
  */
 function getMlxChildEnv(): NodeJS.ProcessEnv {
   const pathWithBrew = getEnvPathWithBrew()
-  // If an OSChief venv exists, prepend its bin/ so python3/pip3 resolve to the venv
-  const venvDir = process.env.SYAG_VENV_PATH
-  if (venvDir && existsSync(join(venvDir, 'bin', 'python3'))) {
+  // If an OSChief venv exists, prepend its bin/ so python3/pip3 resolve to the venv.
+  // Check both the env var (set during install) and the default venv path (survives restart).
+  const venvDir = process.env.SYAG_VENV_PATH || join(app.getPath('userData'), 'python-venv')
+  if (existsSync(join(venvDir, 'bin', 'python3'))) {
     return { ...process.env, PATH: `${join(venvDir, 'bin')}:${pathWithBrew}`, VIRTUAL_ENV: venvDir }
   }
   return { ...process.env, PATH: pathWithBrew }
@@ -1829,12 +1830,26 @@ for line in sys.stdin:
         req = json.loads(line.strip())
         audio_path = req.get("audio_path", "")
         result = qwen3_transcribe(audio_path)
-        text = result.get("text", "") if isinstance(result, dict) else str(result)
+        # Extract text from TranscriptionResult object or dict
+        if isinstance(result, dict):
+            text = result.get("text", "")
+        elif hasattr(result, 'text'):
+            text = result.text
+        else:
+            text = str(result)
         words = []
         if isinstance(result, dict):
             for seg in result.get("segments", []):
                 for w in seg.get("words", []):
                     words.append({"word": w.get("word", ""), "start": w.get("start", 0), "end": w.get("end", 0)})
+        elif hasattr(result, 'segments') and result.segments:
+            for seg in result.segments:
+                seg_words = seg.get("words", []) if isinstance(seg, dict) else getattr(seg, 'words', []) or []
+                for w in seg_words:
+                    word = w.get("word", "") if isinstance(w, dict) else getattr(w, 'word', "")
+                    start = w.get("start", 0) if isinstance(w, dict) else getattr(w, 'start', 0)
+                    end = w.get("end", 0) if isinstance(w, dict) else getattr(w, 'end', 0)
+                    words.append({"word": word, "start": start, "end": end})
         sys.stdout.write(json.dumps({"text": text, "words": words}) + '\\n')
         sys.stdout.flush()
     except Exception as e:

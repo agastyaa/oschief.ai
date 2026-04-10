@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { Gavel, Search, FolderKanban, FileText, Users, Trash2 } from "lucide-react"
+import { Gavel, Search, FolderKanban, FileText, Users, Trash2, X, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -20,21 +20,17 @@ interface Decision {
 }
 
 const statusStyles: Record<string, string> = {
-  MADE: 'bg-muted text-muted-foreground',
-  ASSIGNED: 'bg-primary/10 text-primary',
-  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  ABANDONED: 'bg-muted text-muted-foreground line-through',
-  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  MADE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  IN_PROGRESS: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  TBD: 'bg-muted text-muted-foreground',
+  REJECTED: 'bg-red-500/10 text-red-500 dark:text-red-400',
 }
 
 const statusLabels: Record<string, string> = {
   MADE: 'Made',
-  ASSIGNED: 'Assigned',
   IN_PROGRESS: 'In Progress',
-  DONE: 'Done',
-  ABANDONED: 'Abandoned',
-  REVISITED: 'Revisited',
+  TBD: 'TBD',
+  REJECTED: 'Rejected',
 }
 
 type FilterMode = "all" | "by-project" | "by-person"
@@ -57,6 +53,12 @@ export default function DecisionsPage() {
   const [editText, setEditText] = useState("")
   const [editingContextId, setEditingContextId] = useState<string | null>(null)
   const [editContext, setEditContext] = useState("")
+  const [editingPeopleId, setEditingPeopleId] = useState<string | null>(null)
+  const [linkedPeople, setLinkedPeople] = useState<Array<{ id: string; name: string }>>([])
+  const [allPeople, setAllPeople] = useState<Array<{ id: string; name: string }>>([])
+  const [peopleSearch, setPeopleSearch] = useState("")
+  const peopleRef = useRef<HTMLDivElement>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const refreshDecisions = () => {
     if (filter === "by-project" && selectedProjectId) {
@@ -65,6 +67,42 @@ export default function DecisionsPage() {
       api?.memory?.decisions?.getAll().then(setDecisions)
     }
   }
+
+  const openPeopleEditor = async (decisionId: string) => {
+    setEditingPeopleId(decisionId)
+    setPeopleSearch("")
+    const [linked, all] = await Promise.all([
+      api?.memory?.decisions?.getPeople?.(decisionId) ?? [],
+      api?.memory?.people?.getAll?.() ?? [],
+    ])
+    setLinkedPeople(linked || [])
+    setAllPeople((all || []).map((p: any) => ({ id: p.id, name: p.name })))
+  }
+
+  const addPersonToDecision = async (decisionId: string, personId: string) => {
+    await api?.memory?.decisions?.linkPerson?.(decisionId, personId)
+    const updated = await api?.memory?.decisions?.getPeople?.(decisionId)
+    setLinkedPeople(updated || [])
+    refreshDecisions()
+  }
+
+  const removePersonFromDecision = async (decisionId: string, personId: string) => {
+    await api?.memory?.decisions?.unlinkPerson?.(decisionId, personId)
+    const updated = await api?.memory?.decisions?.getPeople?.(decisionId)
+    setLinkedPeople(updated || [])
+    refreshDecisions()
+  }
+
+  useEffect(() => {
+    if (!editingPeopleId) return
+    const handler = (e: MouseEvent) => {
+      if (peopleRef.current && !peopleRef.current.contains(e.target as Node)) {
+        setEditingPeopleId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [editingPeopleId])
 
   const handleStatusChange = async (id: string, status: string) => {
     await api?.memory?.decisions?.updateStatus(id, status)
@@ -118,16 +156,6 @@ export default function DecisionsPage() {
             <Gavel className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Decisions</h1>
             <span className="text-xs text-muted-foreground ml-2">{decisions.length} total</span>
-            <div className="flex-1" />
-            {!creating && (
-              <button
-                onClick={() => setCreating(true)}
-                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-              >
-                <span className="text-sm">+</span>
-                Add Decision
-              </button>
-            )}
           </div>
           <p className="text-xs text-muted-foreground mb-5">
             Every decision made across your meetings — searchable by project, person, or keyword.
@@ -219,6 +247,70 @@ export default function DecisionsPage() {
             )}
           </div>
 
+          {/* Action bar: select all + bulk actions + add */}
+          <div className="flex items-center gap-2 mb-4">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+              <input
+                type="checkbox"
+                checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedIds(new Set(filtered.map(d => d.id)))
+                  } else {
+                    setSelectedIds(new Set())
+                  }
+                }}
+                className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20"
+              />
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+            </label>
+            <div className="flex-1" />
+            {selectedIds.size > 0 && (
+              <>
+                <select
+                  defaultValue=""
+                  onChange={async (e) => {
+                    if (!e.target.value) return
+                    for (const id of selectedIds) {
+                      await api?.memory?.decisions?.updateStatus(id, e.target.value)
+                    }
+                    refreshDecisions()
+                    e.target.value = ""
+                  }}
+                  className="text-xs rounded-md border border-border bg-background px-2 py-1.5 text-muted-foreground focus:outline-none"
+                >
+                  <option value="">Set status...</option>
+                  {Object.entries(statusLabels).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
+                    for (const id of selectedIds) {
+                      await api?.memory?.decisions?.delete?.(id)
+                    }
+                    setSelectedIds(new Set())
+                    refreshDecisions()
+                  }}
+                  className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete {selectedIds.size}
+                </button>
+              </>
+            )}
+            {!creating && selectedIds.size === 0 && (
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <Plus className="h-3 w-3" />
+                Add Decision
+              </button>
+            )}
+          </div>
+
           {/* Timeline */}
           {loading ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -242,6 +334,16 @@ export default function DecisionsPage() {
                     {items.map(d => (
                       <div key={d.id} className="group px-4 py-3 space-y-1 relative">
                         <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(d.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds)
+                              if (e.target.checked) next.add(d.id); else next.delete(d.id)
+                              setSelectedIds(next)
+                            }}
+                            className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20 flex-shrink-0"
+                          />
                           {editingTextId === d.id ? (
                             <input
                               autoFocus
@@ -347,12 +449,58 @@ export default function DecisionsPage() {
                               {d.project_name}
                             </button>
                           )}
-                          {d.participant_names && (
-                            <span className="flex items-center gap-1">
+                          <div className="relative">
+                            <button
+                              onClick={() => editingPeopleId === d.id ? setEditingPeopleId(null) : openPeopleEditor(d.id)}
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
                               <Users className="h-3 w-3" />
-                              {d.participant_names}
-                            </span>
-                          )}
+                              {d.participant_names || <span className="text-muted-foreground/40 italic">Add people</span>}
+                            </button>
+                            {editingPeopleId === d.id && (
+                              <div ref={peopleRef} className="absolute left-0 top-full mt-1 z-50 w-56 rounded-[10px] border border-border bg-card shadow-lg p-2 space-y-2">
+                                {linkedPeople.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {linkedPeople.map(p => (
+                                      <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px]">
+                                        {p.name}
+                                        <button onClick={() => removePersonFromDecision(d.id, p.id)} className="hover:text-destructive">
+                                          <X className="h-2.5 w-2.5" />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <input
+                                  autoFocus
+                                  value={peopleSearch}
+                                  onChange={e => setPeopleSearch(e.target.value)}
+                                  placeholder="Search people..."
+                                  className="w-full text-xs bg-transparent border-b border-border pb-1 focus:outline-none focus:border-primary"
+                                />
+                                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                  {allPeople
+                                    .filter(p => !linkedPeople.some(lp => lp.id === p.id))
+                                    .filter(p => !peopleSearch || p.name.toLowerCase().includes(peopleSearch.toLowerCase()))
+                                    .slice(0, 10)
+                                    .map(p => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => addPersonToDecision(d.id, p.id)}
+                                        className="w-full text-left text-xs px-2 py-1 rounded hover:bg-secondary transition-colors flex items-center gap-1.5"
+                                      >
+                                        <Plus className="h-3 w-3 text-muted-foreground" />
+                                        {p.name}
+                                      </button>
+                                    ))
+                                  }
+                                  {allPeople.filter(p => !linkedPeople.some(lp => lp.id === p.id)).filter(p => !peopleSearch || p.name.toLowerCase().includes(peopleSearch.toLowerCase())).length === 0 && (
+                                    <p className="text-[11px] text-muted-foreground px-2 py-1">No people found</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <span>{d.date}</span>
                         </div>
                       </div>

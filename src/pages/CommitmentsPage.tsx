@@ -506,20 +506,22 @@ const CommitmentsPage = () => {
                                   Assign to me
                                 </button>
                               )}
-                              {/* Actions: source meeting + delete */}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {c.note_id && (
+                              {/* Source meeting + delete */}
+                              <div className="flex items-center gap-2">
+                                {c.note_id && c.note_title && (
                                   <button
                                     onClick={() => navigate(`/note/${c.note_id}`)}
-                                    title={c.note_title || "View meeting"}
+                                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                                    title="View meeting"
                                   >
-                                    <FileText className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                    <FileText className="h-3 w-3" />
+                                    <span className="max-w-[120px] truncate">{c.note_title}</span>
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleDelete(c.id)}
                                   title="Delete" aria-label="Delete"
-                                  className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-opacity"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

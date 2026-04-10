@@ -284,8 +284,8 @@ const Index = () => {
             ) : null}
           </div>
         </button>
-        <div className="flex items-center gap-2 pr-2 shrink-0 justify-end">
-          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums text-right whitespace-nowrap">
+        <div className="flex items-center gap-2 pr-2 shrink-0 justify-end min-w-[140px]">
+          <span className="text-[10.5px] text-muted-foreground/50 tabular-nums text-right whitespace-nowrap ml-auto">
             {n.timeRange ?? n.time}
           </span>
           {isRecording && (
@@ -319,7 +319,7 @@ const Index = () => {
   if (activeFolder) {
     return (
       <div className="flex flex-1 flex-col min-w-0 relative">
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-6">
             <div className="relative flex items-center mb-4">
               <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -352,7 +352,7 @@ const Index = () => {
             )}
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
+        <div className="relative">
           <AskBar context="home" noteContext={homeNoteContext} />
         </div>
       </div>
@@ -406,7 +406,7 @@ const Index = () => {
           </button>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
             {/* ── Header ── */}
@@ -739,7 +739,7 @@ const Index = () => {
                             })()}
                           </h3>
                         )}
-                        <div className="divide-y divide-border/50">
+                        <div className="space-y-0.5">
                           {items.map((n) => <NoteRow key={n.id} n={n} />)}
                         </div>
                       </div>
@@ -836,7 +836,7 @@ const Index = () => {
           </div>
         )}
 
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6">
+      <div className="relative">
         <AskBar context="home" noteContext={homeNoteContext} />
       </div>
       <ICSDialog open={icsOpen} onOpenChange={setIcsOpen} />

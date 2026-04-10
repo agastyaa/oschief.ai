@@ -58,19 +58,13 @@ const monthNames = [
   "December",
 ];
 
-/** Derive a short label from calendar URL for display (e.g. "Outlook - work.example.com"). */
+/** Derive a short label from calendar URL for display. */
 function getSyncLabel(urlOrSource: string): string {
   if (!urlOrSource) return "Calendar";
   try {
     const url = urlOrSource.startsWith("http") ? urlOrSource : `https://${urlOrSource}`;
     const u = new URL(url);
     const host = u.hostname.toLowerCase();
-    const pathAndHash = u.pathname + u.search;
-    if (host.includes("outlook.office365.com") || host.includes("outlook.office.com")) {
-      const emailMatch = pathAndHash.match(/@([a-zA-Z0-9.-]+)/);
-      const domain = emailMatch ? emailMatch[1] : "";
-      return domain ? `Outlook - ${domain}` : "Outlook";
-    }
     if (host.includes("google") || host.includes("gmail")) return "Google Calendar";
     if (host.includes("icloud")) return "iCloud";
     return u.hostname.replace(/^www\./, "");
@@ -248,7 +242,7 @@ export default function CalendarPage() {
     }
     const eventId = await addLocalBlock({ title, start, end, noteId: null });
     setBlockOpen(false);
-    toast.success("Block added — only in OSChief, not in Google/Outlook");
+    toast.success("Block added — only in OSChief, not synced to your calendar");
     if (blockOpenNote && eventId) {
       navigate("/new-note", { state: { eventTitle: title, eventId } });
     }
@@ -311,7 +305,7 @@ export default function CalendarPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate("/settings?section=calendar")}
+                      onClick={() => navigate("/settings?section=connections")}
                       className="text-xs text-muted-foreground hover:underline whitespace-nowrap"
                     >
                       Manage
@@ -326,7 +320,7 @@ export default function CalendarPage() {
                 </div>
               ) : (
                 <div className="mb-6 rounded-[10px] border border-dashed border-border bg-card/30 px-4 py-2.5 text-xs text-muted-foreground">
-                  OSChief-only blocks — not synced to Google or Outlook. Connect a calendar in Settings to import
+                  OSChief-only blocks — not synced to your external calendar. Connect a calendar in Settings to import
                   meetings.
                 </div>
               )}
@@ -504,7 +498,7 @@ export default function CalendarPage() {
           <DialogHeader>
             <DialogTitle>Schedule block (OSChief only)</DialogTitle>
             <DialogDescription>
-              This block stays on your device and in OSChief. It is not written to Google Calendar or Outlook.
+              This block stays on your device and in OSChief. It is not written to your external calendar.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">

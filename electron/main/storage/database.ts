@@ -263,7 +263,7 @@ export function deleteFolder(id: string): void {
   logSync('folders', 'DELETE', id, null)
 }
 
-// --- Local calendar blocks (OSChief-only, not synced to Google/Outlook) ---
+// --- Local calendar blocks (OSChief-only, not synced to external calendars) ---
 
 export interface LocalCalendarBlockRow {
   id: string

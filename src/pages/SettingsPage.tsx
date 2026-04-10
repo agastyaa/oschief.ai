@@ -13,7 +13,6 @@ import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import {
   useCalendar,
   GOOGLE_CALENDAR_FEED_ID,
-  MICROSOFT_CALENDAR_FEED_ID,
 } from "@/contexts/CalendarContext";
 import { ICSDialog, type CalendarProviderId } from "@/components/ICSDialog";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
@@ -1066,7 +1065,7 @@ const CALENDAR_PROVIDER_KEY = "syag_calendar_provider";
 function getStoredCalendarProvider(): CalendarProviderId | null {
   try {
     const v = localStorage.getItem(CALENDAR_PROVIDER_KEY);
-    if (v === "google" || v === "outlook" || v === "apple") return v;
+    if (v === "google" || v === "apple") return v;
   } catch {}
   return null;
 }
@@ -1735,7 +1734,7 @@ export default function SettingsPage() {
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
           <div className="flex gap-8">
-            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 sticky top-0 self-start pt-1">
+            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 pt-1">
               {sections.map((s) => (
                 <button
                   key={s.id}
@@ -2826,7 +2825,7 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     <p className="text-[11px] text-muted-foreground -mt-1">
-                      Paste an ICS feed URL or upload a .ics file. Works with Google, Outlook, Apple, Notion, or any ICS-compatible calendar.
+                      Paste an ICS feed URL or upload a .ics file. Works with Google, Apple, Notion, or any ICS-compatible calendar.
                     </p>
                     {icsFeeds.length > 0 ? (
                       <div className="space-y-1.5">
@@ -2891,7 +2890,6 @@ export default function SettingsPage() {
                   <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
                   <div className="space-y-2">
                     <GoogleCalendarIntegrationRow />
-                    <MicrosoftCalendarIntegrationRow />
                     <AppleCalendarIntegrationRow />
                     <GmailIntegrationRow />
                     <SlackIntegrationRow />
@@ -3651,157 +3649,3 @@ function GoogleCalendarIntegrationRow() {
   );
 }
 
-function MicrosoftCalendarIntegrationRow() {
-  const { removeCalendarFeed, refetchAllCalendars } = useCalendar();
-  const api = getElectronAPI();
-  const [connected, setConnected] = useState(false);
-  const [email, setEmail] = useState("");
-  const [showSetup, setShowSetup] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api?.keychain?.get("microsoft-calendar-config").then((raw) => {
-      if (raw) {
-        try {
-          const config = JSON.parse(raw);
-          setConnected(true);
-          setEmail(config.email || "Connected");
-        } catch { /* ignore */ }
-      }
-    });
-  }, [api]);
-
-  const handleConnect = async () => {
-    if (!clientId.trim()) {
-      setError("Application (client) ID is required");
-      return;
-    }
-    setConnecting(true);
-    setError("");
-    try {
-      const result = await api?.microsoft?.calendarAuth(clientId.trim());
-      if (result?.ok) {
-        const config = {
-          clientId: clientId.trim(),
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
-          expiresAt: Date.now() + (result.expiresIn || 3600) * 1000,
-          email: result.email,
-        };
-        await api?.keychain?.set("microsoft-calendar-config", JSON.stringify(config));
-        setConnected(true);
-        setEmail(result.email || "Connected");
-        setShowSetup(false);
-        toast.success("Microsoft Calendar connected");
-        void refetchAllCalendars();
-      } else {
-        setError(result?.error || "Connection failed");
-      }
-    } catch (err: any) {
-      setError(err.message || "Connection failed");
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    await api?.keychain?.delete("microsoft-calendar-config");
-    removeCalendarFeed(MICROSOFT_CALENDAR_FEED_ID);
-    setConnected(false);
-    setEmail("");
-    toast.success("Microsoft Calendar disconnected");
-  };
-
-  return (
-    <>
-      <div className="flex items-center justify-between rounded-md border border-border bg-card p-3">
-        <div className="flex items-center gap-2.5">
-          <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-            <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
-            <rect x="13" y="1" width="10" height="10" fill="#7FBA00"/>
-            <rect x="1" y="13" width="10" height="10" fill="#00A4EF"/>
-            <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
-          </svg>
-          <div>
-            <span className="text-[13px] font-medium text-foreground">Microsoft Outlook</span>
-            <p className="text-[11px] text-muted-foreground">
-              {connected ? `Connected — ${email}` : "Sync Outlook calendar and Teams calls"}
-            </p>
-          </div>
-        </div>
-        {connected ? (
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-              <Check className="h-3 w-3" /> Connected
-            </span>
-            <button
-              onClick={handleDisconnect}
-              className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
-            >
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowSetup(true)}
-            className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            Connect
-          </button>
-        )}
-      </div>
-
-      {showSetup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-foreground">Connect Microsoft Outlook</h2>
-              <button onClick={() => setShowSetup(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">
-                <span className="text-lg">&times;</span>
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Enter your Azure AD Application (client) ID. Register an app in the{" "}
-              <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-0.5">
-                Azure Portal <ExternalLink className="h-2.5 w-2.5" />
-              </a>
-              . Add a Mobile &amp; Desktop redirect URI with <code className="text-[10px] bg-secondary px-1 rounded">http://localhost</code> and enable Calendars.Read permission.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Application (client) ID</label>
-                <input
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-            </div>
-            {error && (
-              <p className="mt-3 text-xs text-red-500">{error}</p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setShowSetup(false)} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleConnect}
-                disabled={connecting || !clientId.trim()}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  connecting ? "bg-accent/50 text-accent-foreground cursor-wait" : "bg-accent text-accent-foreground hover:bg-accent/90",
-                  !clientId.trim() && "opacity-50 cursor-not-allowed"
-                )}
-              >
-                {connecting ? "Connecting..." : "Sign in with Microsoft"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}

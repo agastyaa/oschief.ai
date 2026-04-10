@@ -19,7 +19,7 @@ export function createMainWindow(): BrowserWindow {
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'under-window',
     visualEffectState: 'followsWindowActivity',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#FFFFFF',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),

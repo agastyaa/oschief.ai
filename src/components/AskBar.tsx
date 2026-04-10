@@ -11,17 +11,10 @@ import {
   Sparkles,
   MessageCircle,
   ScrollText,
-  MessagesSquare,
   ScanEye,
-  Lightbulb,
   Target,
-  CalendarCheck,
   FileText,
   TicketCheck,
-  ClipboardList,
-  Users,
-  History,
-  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { askSyagInputShell, askSyagPanelShell, askSyagPanelHeader } from "@/lib/ask-syag-styles";
@@ -33,7 +26,7 @@ import { ChatMessageContent } from "@/components/ChatMessageContent";
 export const WHAT_SHOULD_I_SAY_PROMPT =
   "What should I say next? Using this meeting’s transcript and notes, give 2–4 short, concrete things I could say. If I was just mentioned by name, address that first.";
 
-type SlashPromptGroup = "live" | "catch_up" | "growth" | "output" | "context";
+type SlashPromptGroup = "live" | "catch_up" | "growth" | "output";
 
 export type SlashPromptDefinition = {
   label: string;
@@ -45,7 +38,6 @@ export type SlashPromptDefinition = {
 
 const SLASH_GROUP_LABEL: Record<SlashPromptGroup, string> = {
   live: "In the moment",
-  context: "Context",
   catch_up: "Catch up",
   growth: "Level up",
   output: "Generate",
@@ -55,31 +47,10 @@ const SLASH_GROUP_LABEL: Record<SlashPromptGroup, string> = {
 export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
   {
     label: "What should I say?",
-    description: "Next lines to say from transcript & notes",
+    description: "Suggested talking points from transcript",
     icon: MessageCircle,
     group: "live",
     prompt: WHAT_SHOULD_I_SAY_PROMPT,
-  },
-  {
-    label: "What do I owe?",
-    description: "Open commitments from past meetings",
-    icon: CheckSquare,
-    group: "context",
-    prompt: "Based on the meeting context, what are my open commitments and promises? List anything overdue first, then upcoming items. Include who I owe them to and any due dates.",
-  },
-  {
-    label: "Meeting history",
-    description: "Past meetings with these attendees",
-    icon: History,
-    group: "context",
-    prompt: "Based on the meeting context, summarize my meeting history with the current attendees. What have we discussed before? What decisions were made? What projects are we working on together?",
-  },
-  {
-    label: "Who's in this meeting?",
-    description: "Context on attendees and relationships",
-    icon: Users,
-    group: "context",
-    prompt: "Based on the meeting context, tell me about the people in this meeting. What's our history? What projects do we share? Any open items between us?",
   },
   {
     label: "TL;DR",
@@ -89,13 +60,6 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
     prompt: "Give me a brief TL;DR of these notes.",
   },
   {
-    label: "What is being discussed",
-    description: "Main topics on the table",
-    icon: MessagesSquare,
-    group: "catch_up",
-    prompt: "What are the main topics being discussed?",
-  },
-  {
     label: "What did I miss",
     description: "Key points you should know",
     icon: ScanEye,
@@ -103,27 +67,12 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
     prompt: "What did I miss? Summarize the key points I should know.",
   },
   {
-    label: "How can I look smart",
-    description: "Takeaways & talking points for follow-up",
-    icon: Lightbulb,
-    group: "growth",
-    prompt: "What are the key takeaways and talking points so I can contribute smartly in follow-up?",
-  },
-  {
     label: "Coach me",
-    description: "Role-based coaching on how you ran this meeting",
+    description: "Coaching on how you ran this meeting",
     icon: Target,
     group: "growth",
     prompt:
       "Coach me on how I ran this meeting based on my role. Focus on: (1) substance — did I say the right things at the right time? (2) questions — did I ask enough discovery/clarifying questions before jumping to solutions? (3) commitments — were next steps clear and assigned? (4) missed opportunities — what should I have said or asked? Reference specific transcript moments. Be direct, no generic praise.",
-  },
-  {
-    label: "Prep for follow-up",
-    description: "Who to ping, what to bring, frameworks",
-    icon: CalendarCheck,
-    group: "growth",
-    prompt:
-      "Help me prepare for a follow-up to this meeting. What should I bring up, who should I follow up with, and what frameworks should I apply?",
   },
   {
     label: "Exec one-pager",
@@ -140,14 +89,6 @@ export const SLASH_PROMPT_ITEMS: readonly SlashPromptDefinition[] = [
     group: "output",
     prompt:
       "Break this meeting into actionable tickets. For each ticket: Title (imperative verb + object), Description (1-2 sentences of context), Assignee (from meeting attendees), Priority (P0-P3), Due date (if mentioned). Format as a numbered list. Only include work items, not discussion topics.",
-  },
-  {
-    label: "PRD update",
-    description: "Changes to add to your product spec",
-    icon: ClipboardList,
-    group: "output",
-    prompt:
-      "Extract product requirement changes from this meeting. Format: (1) New requirements discussed, (2) Changed requirements (what was X, now Y), (3) Deprioritized or cut scope, (4) Open questions that need answers before implementation. Use precise language suitable for a PRD. Reference who requested each change.",
   },
 ] as const;
 
@@ -353,7 +294,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
   };
 
   return (
-    <div ref={barRef} className="px-4 pb-3 pt-2 pointer-events-none relative">
+    <div ref={barRef} className="px-4 pb-8 pt-2 pointer-events-none relative">
       <div className="mx-auto max-w-2xl pointer-events-auto">
         {showChat && messages.length > 0 && (
           <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full animate-fade-in">

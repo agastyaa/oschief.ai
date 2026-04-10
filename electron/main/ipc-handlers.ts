@@ -1043,32 +1043,6 @@ export function registerIPCHandlers(): void {
     }
   })
 
-  // --- Microsoft Teams / Outlook Calendar OAuth ---
-  ipcMain.handle('microsoft:calendar-auth', async (_e, clientId: string) => {
-    try {
-      const { startMicrosoftOAuth } = await import('./integrations/microsoft-auth')
-      return startMicrosoftOAuth(clientId)
-    } catch (err: any) {
-      return { ok: false, error: err.message }
-    }
-  })
-  ipcMain.handle('microsoft:calendar-fetch', async (_e, accessToken: string, range?: { daysPast?: number; daysAhead?: number }) => {
-    try {
-      const { fetchMicrosoftCalendarEvents } = await import('./integrations/microsoft-calendar')
-      const events = await fetchMicrosoftCalendarEvents(accessToken, range ?? { daysPast: 30, daysAhead: 30 })
-      return { ok: true, events }
-    } catch (err: any) {
-      return { ok: false, events: [], error: err.message }
-    }
-  })
-  ipcMain.handle('microsoft:calendar-refresh', async (_e, clientId: string, refreshToken: string) => {
-    try {
-      const { refreshMicrosoftToken } = await import('./integrations/microsoft-auth')
-      return refreshMicrosoftToken(clientId, refreshToken)
-    } catch (err: any) {
-      return { ok: false, error: err.message }
-    }
-  })
 
   // --- Apple Calendar (macOS Calendar.app via AppleScript) ---
   ipcMain.handle('apple:calendar-fetch', async (_e, range?: { daysPast?: number; daysAhead?: number }) => {
@@ -1358,6 +1332,20 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('memory:decisions-update-status', async (_e, id: string, status: string) => {
     const { updateDecisionStatus } = await import('./memory/decision-store')
     return updateDecisionStatus(id, status as any)
+  })
+
+  ipcMain.handle('memory:decisions-link-person', async (_e, decisionId: string, personId: string) => {
+    const { linkDecisionToPeople } = await import('./memory/decision-store')
+    linkDecisionToPeople(decisionId, [personId])
+    return true
+  })
+  ipcMain.handle('memory:decisions-unlink-person', async (_e, decisionId: string, personId: string) => {
+    const { unlinkDecisionFromPerson } = await import('./memory/decision-store')
+    return unlinkDecisionFromPerson(decisionId, personId)
+  })
+  ipcMain.handle('memory:decisions-get-people', async (_e, decisionId: string) => {
+    const { getPeopleForDecision } = await import('./memory/decision-store')
+    return getPeopleForDecision(decisionId)
   })
 
   // Project link/unlink
@@ -2092,6 +2080,16 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('window:show', async () => {
     const win = getMainWindow()
     if (win) win.show()
+  })
+
+  ipcMain.handle('window:toggle-maximize', async () => {
+    const win = getMainWindow()
+    if (!win) return
+    if (win.isMaximized()) {
+      win.unmaximize()
+    } else {
+      win.maximize()
+    }
   })
 
   // --- iCloud Sync ---

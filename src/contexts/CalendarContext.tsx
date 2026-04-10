@@ -6,10 +6,7 @@ import type { CalendarProviderId } from "@/components/ICSDialog";
 const FETCH_RANGE = { daysPast: 30, daysAhead: 30 } as const;
 
 export const GOOGLE_CALENDAR_FEED_ID = "google";
-/** Same id used for Microsoft Graph calendar merge */
-export const MICROSOFT_CALENDAR_FEED_ID = "microsoft";
 export const APPLE_CALENDAR_FEED_ID = "apple";
-
 const STORAGE_KEY = "syag_calendar_events";
 const SOURCE_KEY = "syag_calendar_source";
 const URL_KEY = "syag_calendar_url";
@@ -59,11 +56,6 @@ function getSyncLabel(urlOrSource: string): string {
     const u = new URL(url);
     const host = u.hostname.toLowerCase();
     const pathAndHash = u.pathname + u.search;
-    if (host.includes("outlook.office365.com") || host.includes("outlook.office.com")) {
-      const emailMatch = pathAndHash.match(/@([a-zA-Z0-9.-]+)/);
-      const domain = emailMatch ? emailMatch[1] : "";
-      return domain ? `Outlook — ${domain}` : "Outlook";
-    }
     if (host.includes("google") || host.includes("gmail")) return "Google (ICS)";
     if (host.includes("icloud")) return "iCloud";
     return u.hostname.replace(/^www\./, "");
@@ -177,7 +169,6 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     return loadRegistry();
   });
   const [hasGoogleCalendar, setHasGoogleCalendar] = useState(false);
-  const [hasMicrosoftCalendar, setHasMicrosoftCalendar] = useState(false);
   const [hasAppleCalendar, setHasAppleCalendar] = useState(false);
   const [calendarViewId, setCalendarViewIdState] = useState<string>(() => {
     try {
@@ -208,7 +199,6 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     const api = getElectronAPI();
     if (!api?.keychain) {
       setHasGoogleCalendar(false);
-      setHasMicrosoftCalendar(false);
       return;
     }
     try {
@@ -216,12 +206,6 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       setHasGoogleCalendar(!!g);
     } catch {
       setHasGoogleCalendar(false);
-    }
-    try {
-      const m = await api.keychain.get("microsoft-calendar-config");
-      setHasMicrosoftCalendar(!!m);
-    } catch {
-      setHasMicrosoftCalendar(false);
     }
     // Apple Calendar — check if enabled in settings and Calendar.app is accessible
     try {
@@ -246,12 +230,11 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     const out: CalendarSourceOption[] = [];
     if (hasAppleCalendar) out.push({ id: APPLE_CALENDAR_FEED_ID, label: "Apple Calendar" });
     if (hasGoogleCalendar) out.push({ id: GOOGLE_CALENDAR_FEED_ID, label: "Google Calendar" });
-    if (hasMicrosoftCalendar) out.push({ id: MICROSOFT_CALENDAR_FEED_ID, label: "Microsoft Outlook" });
     for (const f of icsFeeds) {
       out.push({ id: f.id, label: f.label });
     }
     return out;
-  }, [hasGoogleCalendar, hasMicrosoftCalendar, icsFeeds]);
+  }, [hasAppleCalendar, hasGoogleCalendar, icsFeeds]);
 
   const connectedCalendarSummary = useMemo(() => {
     if (calendarSources.length === 0) return null;
@@ -485,50 +468,6 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     [mergeFeedEvents]
   );
 
-  const fetchMicrosoftCalendar = useCallback(
-    async (silent = false) => {
-      const api = getElectronAPI();
-      if (!api?.microsoft || !api?.keychain) return;
-      try {
-        const raw = await api.keychain.get("microsoft-calendar-config");
-        if (!raw) return;
-        const config = JSON.parse(raw);
-        let accessToken = config.accessToken;
-
-        if (config.expiresAt && Date.now() > config.expiresAt - 60_000) {
-          const refreshResult = await api.microsoft.calendarRefresh(config.clientId, config.refreshToken);
-          if (refreshResult.ok && refreshResult.accessToken) {
-            accessToken = refreshResult.accessToken;
-            config.accessToken = accessToken;
-            config.expiresAt = Date.now() + (refreshResult.expiresIn || 3600) * 1000;
-            await api.keychain.set("microsoft-calendar-config", JSON.stringify(config));
-          } else {
-            if (!silent) setError("Microsoft Calendar token expired — please reconnect in Settings");
-            return;
-          }
-        }
-
-        const result = await api.microsoft.calendarFetch(accessToken, FETCH_RANGE);
-        if (result.ok) {
-          const mapped: CalendarEvent[] = (result.events || []).map((e: any) => ({
-            id: `ms-${e.id}`,
-            title: e.title,
-            start: new Date(e.start),
-            end: new Date(e.end),
-            joinLink: e.joinLink,
-            location: e.location,
-            isAllDay: e.isAllDay,
-            attendees: e.attendees?.map((a: any) => ({ email: a.email, name: a.name })),
-          }));
-          mergeFeedEvents(MICROSOFT_CALENDAR_FEED_ID, "Microsoft Outlook", mapped);
-        }
-      } catch {
-        if (!silent) setError("Failed to fetch Microsoft Calendar events");
-      }
-    },
-    [mergeFeedEvents]
-  );
-
   const fetchAppleCalendar = useCallback(
     async (silent = false) => {
       const api = getElectronAPI();
@@ -565,13 +504,11 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     });
     await fetchAppleCalendar(true);
     await fetchGoogleCalendar(true);
-    await fetchMicrosoftCalendar(true);
-  }, [refreshCalendarConnections, fetchAndParse, fetchAppleCalendar, fetchGoogleCalendar, fetchMicrosoftCalendar]);
+  }, [refreshCalendarConnections, fetchAndParse, fetchAppleCalendar, fetchGoogleCalendar]);
 
   const removeCalendarFeed = useCallback(
     (feedId: string) => {
       if (feedId === GOOGLE_CALENDAR_FEED_ID) setHasGoogleCalendar(false);
-      if (feedId === MICROSOFT_CALENDAR_FEED_ID) setHasMicrosoftCalendar(false);
       setSyncedEvents((prev) => {
         const next = prev.filter((e) => e.calendarFeedId !== feedId);
         persistSyncedToDisk(next);
@@ -621,7 +558,6 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
         });
         await fetchAppleCalendar(true);
         await fetchGoogleCalendar(true);
-        await fetchMicrosoftCalendar(true);
         await refreshLocalBlocks();
       } catch {
         /* ignore */
@@ -639,12 +575,11 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       });
       fetchAppleCalendar(true);
       fetchGoogleCalendar(true);
-      fetchMicrosoftCalendar(true);
     }, AUTO_REFRESH_INTERVAL);
     return () => {
       if (refreshTimer.current) clearInterval(refreshTimer.current);
     };
-  }, [fetchAndParse, fetchGoogleCalendar, fetchMicrosoftCalendar]);
+  }, [fetchAndParse, fetchGoogleCalendar, fetchAppleCalendar]);
 
   const importFromFile = useCallback(
     (content: string, name?: string, providerHint?: CalendarProviderId) => {

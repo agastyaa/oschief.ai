@@ -340,7 +340,7 @@ export default function AskSyag() {
 
         {/* Bottom input in chat mode */}
         {!isEmpty && (
-          <div className="px-4 py-3 border-t border-border/50 bg-gradient-to-t from-muted/15 to-transparent">
+          <div className="px-4 pt-3 pb-6 border-t border-border/50 bg-gradient-to-t from-muted/15 to-transparent">
             <div className="mx-auto max-w-2xl">
               <div className={cn("flex items-center gap-2.5 px-4 py-3", askSyagInputShell)}>
                 <Sparkles className="h-4 w-4 text-accent/60 shrink-0" aria-hidden />

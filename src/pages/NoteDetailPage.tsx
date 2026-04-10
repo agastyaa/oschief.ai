@@ -421,7 +421,7 @@ export default function NoteDetailPage() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: main content + ask bar */}
           <div className="flex flex-1 flex-col min-w-0">
-            <div className="flex-1 overflow-y-auto pb-24">
+            <div className="flex-1 overflow-y-auto">
               <div className="mx-auto max-w-3xl px-8 py-3">
                 {/* Title — editable */}
                 {isEditingTitle ? (
@@ -466,20 +466,22 @@ export default function NoteDetailPage() {
                     <Clock className="h-3 w-3" />
                     {note.timeRange ?? note.duration}
                   </span>
-                  {note.summary && (
+                  {(note.summary || note.transcript?.length) && (
                     <>
-                      <NotesViewToggle
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
-                        transcriptVisible={transcriptVisible}
-                        onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
-                        showCoaching={!!note.transcript?.length}
-                      />
+                      {note.summary && (
+                        <NotesViewToggle
+                          viewMode={viewMode}
+                          onViewModeChange={setViewMode}
+                          transcriptVisible={transcriptVisible}
+                          onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
+                          showCoaching={!!note.transcript?.length}
+                        />
+                      )}
                       <div ref={templateMenuRef} className="relative flex items-center gap-0.5">
                         <button
                           onClick={() => setShowTemplateMenu(!showTemplateMenu)}
                           className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-                          title="Regenerate with different template"
+                          title={note.summary ? "Regenerate with different template" : "Generate summary"}
                         >
                           <span>{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.icon ?? "📋"}</span>
                           <span className="max-w-[80px] truncate">{BUILTIN_TEMPLATES.find((t) => t.id === meetingTemplate)?.name ?? "General"}</span>
