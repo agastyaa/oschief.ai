@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.15] — 2026-04-10
+
+### Fixed
+- **Meeting room diarization** — speaker diarization now works in physical meeting rooms. System audio capture always "succeeds" even without a call (silent desktop audio), so the old `micOnlyMode` check was unreliable. Now the diarizer always initializes and runs on mic audio whenever system audio hasn't produced transcripts in 30 seconds. In a Teams call with active "Them" lines, diarization stays off (channel-based labeling is correct).
+
+---
+
 ## [2.5.14] — 2026-04-10
 
 ### Fixed
