@@ -469,6 +469,11 @@ const CommitmentsPage = () => {
                                       const val = e.target.value.trim()
                                       setEditingAssigneeId(null)
                                       if (!val) return
+                                      if (val.toLowerCase() === 'me') {
+                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                          .then(() => loadCommitments())
+                                        return
+                                      }
                                       const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
                                       api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
                                         .then(() => loadCommitments())
@@ -480,6 +485,7 @@ const CommitmentsPage = () => {
                                     className="text-[12px] rounded border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-32"
                                   />
                                   <datalist id={`assignee-list-${c.id}`}>
+                                    <option value="Me" />
                                     {people.map((p: any) => (
                                       <option key={p.id} value={p.name} />
                                     ))}
@@ -488,10 +494,11 @@ const CommitmentsPage = () => {
                               ) : (
                                 <button
                                   onClick={() => setEditingAssigneeId(c.id)}
-                                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                                  className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
                                   title="Click to change assignee"
                                 >
-                                  {c.owner === 'you' ? 'Me' : (c.assignee_name || c.owner || 'Me')}
+                                  <UserPlus className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                  {c.owner === 'you' ? 'Me' : (c.assignee_name || c.owner || 'Assign...')}
                                 </button>
                               )}
                               {/* Assign to me — only when assigned to someone else */}
