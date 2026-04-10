@@ -996,7 +996,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
           <div className="mt-2.5">
             <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
               <div
-                className="h-full rounded-full bg-primary transition-all duration-100"
+                className="h-full rounded-full bg-primary transition-[width] duration-100"
                 style={{ width: `${Math.max(2, micLevel * 100)}%` }}
               />
             </div>
@@ -2150,7 +2150,7 @@ export default function SettingsPage() {
                               <div className="px-3 pb-3">
                                 <div className="w-full h-1 rounded-full bg-secondary overflow-hidden">
                                   <div
-                                    className="h-full bg-accent rounded-full transition-all duration-300"
+                                    className="h-full bg-accent rounded-full transition-[width] duration-300"
                                     style={{ width: `${progress.percent}%` }}
                                   />
                                 </div>
@@ -2266,7 +2266,7 @@ export default function SettingsPage() {
                                     <div className="px-3 pb-3">
                                       <div className="w-full h-1 rounded-full bg-secondary overflow-hidden">
                                         <div
-                                          className="h-full bg-accent rounded-full transition-all duration-300"
+                                          className="h-full bg-accent rounded-full transition-[width] duration-300"
                                           style={{ width: `${ollamaStatus.pullPercent}%` }}
                                         />
                                       </div>

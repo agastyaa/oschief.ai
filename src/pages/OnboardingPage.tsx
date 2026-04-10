@@ -175,7 +175,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={cn(
-                "h-1.5 rounded-full transition-all duration-300",
+                "h-1.5 rounded-full transition-[width,background-color] duration-300",
                 i === currentStep ? "w-6 bg-accent" : i < currentStep ? "w-1.5 bg-accent/50" : "w-1.5 bg-muted-foreground/20"
               )}
             />
@@ -198,7 +198,7 @@ export default function OnboardingPage() {
             </p>
             <button
               onClick={handleNext}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
             >
               {isLastFeatureStep ? "Almost there" : "Next"}
               <ArrowRight className="h-4 w-4" />
@@ -237,7 +237,7 @@ export default function OnboardingPage() {
             {micStatus === "idle" && (
               <button
                 onClick={requestMic}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
               >
                 <Mic className="h-4 w-4" />
                 Allow microphone
@@ -247,7 +247,7 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={requestMic}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
                 >
                   Try again
                 </button>
@@ -293,7 +293,7 @@ export default function OnboardingPage() {
             {screenStatus === "idle" && (
               <button
                 onClick={requestScreen}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
               >
                 <Monitor className="h-4 w-4" />
                 Allow screen audio
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={requestScreen}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
                 >
                   Check again
                 </button>
@@ -346,7 +346,7 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={handleNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
               >
                 Next
                 <ArrowRight className="h-4 w-4" />
@@ -372,7 +372,7 @@ export default function OnboardingPage() {
                   key={r.id}
                   onClick={() => setSelectedRole(r.id)}
                   className={cn(
-                    "px-3 py-2 rounded-lg border text-sm text-left transition-all",
+                    "px-3 py-2 rounded-lg border text-sm text-left transition-colors",
                     selectedRole === r.id
                       ? "border-accent bg-accent/10 text-foreground font-medium"
                       : "border-border bg-card text-muted-foreground hover:border-accent/40"
@@ -391,7 +391,7 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={handleNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
               >
                 Next
                 <ArrowRight className="h-4 w-4" />
@@ -415,7 +415,7 @@ export default function OnboardingPage() {
               <button
                 onClick={() => setAiMode("local")}
                 className={cn(
-                  "flex-1 rounded-lg border p-4 text-left transition-all",
+                  "flex-1 rounded-lg border p-4 text-left transition-colors",
                   aiMode === "local"
                     ? "border-accent bg-accent/10"
                     : "border-border bg-card hover:border-accent/40"
@@ -428,7 +428,7 @@ export default function OnboardingPage() {
               <button
                 onClick={() => setAiMode("cloud")}
                 className={cn(
-                  "flex-1 rounded-lg border p-4 text-left transition-all",
+                  "flex-1 rounded-lg border p-4 text-left transition-colors",
                   aiMode === "cloud"
                     ? "border-accent bg-accent/10"
                     : "border-border bg-card hover:border-accent/40"
@@ -447,7 +447,7 @@ export default function OnboardingPage() {
                       key={p}
                       onClick={() => setCloudProvider(p)}
                       className={cn(
-                        "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-all",
+                        "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                         cloudProvider === p
                           ? "border-accent bg-accent/10 text-foreground"
                           : "border-border text-muted-foreground hover:border-accent/40"
@@ -476,7 +476,7 @@ export default function OnboardingPage() {
               <button
                 onClick={handleNext}
                 disabled={aiMode === "cloud" && !apiKey.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90 disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 Next
                 <ArrowRight className="h-4 w-4" />
@@ -502,7 +502,7 @@ export default function OnboardingPage() {
               <div className="flex flex-col items-center gap-3 mb-6">
                 <button
                   onClick={connectGoogleCalendar}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-all hover:opacity-90"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
                 >
                   <Calendar className="h-4 w-4" />
                   Connect Google Calendar
@@ -518,7 +518,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleFinish}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all hover:opacity-90",
+                "inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-opacity hover:opacity-90",
                 calendarConnected
                   ? "bg-accent text-accent-foreground"
                   : "bg-card border border-border text-foreground"

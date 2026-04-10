@@ -50,7 +50,7 @@ export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onM
     <div ref={menuRef} className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all hover:bg-secondary hover:text-foreground"
+        className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-[color,opacity] hover:bg-secondary hover:text-foreground"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>

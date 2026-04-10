@@ -291,7 +291,7 @@ export default function AllNotes() {
           <p className="text-sm text-muted-foreground">No notes yet. Start a quick recording to get started.</p>
           <button
             onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-            className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 transition-all"
+            className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 transition-opacity"
           >
             Start Recording
           </button>

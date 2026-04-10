@@ -133,7 +133,7 @@ export function MeetingDetectionHandler() {
         style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", minWidth: 340, maxWidth: 420 }}
       >
         {/* Progress bar that shrinks over 30s */}
-        <div className="absolute top-0 left-0 h-[2px] bg-accent/60 transition-all ease-linear" style={{ width: `${Math.max(0, 100 - (elapsedSec / 30) * 100)}%`, transitionDuration: "1s" }} />
+        <div className="absolute top-0 left-0 h-[2px] bg-accent/60 transition-[width] ease-linear" style={{ width: `${Math.max(0, 100 - (elapsedSec / 30) * 100)}%`, transitionDuration: "1s" }} />
 
         <div className="flex items-start gap-3 px-4 py-3.5">
           {/* App icon */}
@@ -163,7 +163,7 @@ export function MeetingDetectionHandler() {
           {/* Dismiss */}
           <button
             onClick={handleDismiss}
-            className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-all flex-shrink-0"
+            className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors flex-shrink-0"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -173,7 +173,7 @@ export function MeetingDetectionHandler() {
         <div className="flex items-center gap-2 px-4 pb-3.5 pt-0.5">
           <button
             onClick={handleTakeNotes}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 active:scale-[0.98] transition-all"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 active:scale-[0.98] transition-[opacity,transform]"
           >
             <Mic className="h-3.5 w-3.5" />
             Take notes
@@ -181,7 +181,7 @@ export function MeetingDetectionHandler() {
           </button>
           <button
             onClick={handleDismiss}
-            className="rounded-[10px] border border-border/50 bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            className="rounded-[10px] border border-border/50 bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           >
             Dismiss
           </button>

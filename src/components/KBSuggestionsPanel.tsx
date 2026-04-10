@@ -33,7 +33,7 @@ export function KBSuggestionsPanel({
     return (
       <button
         onClick={onToggle}
-        className="fixed bottom-36 right-4 z-40 rounded-full bg-card/80 backdrop-blur-sm border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm"
+        className="fixed bottom-36 right-4 z-40 rounded-full bg-card/80 backdrop-blur-sm border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-card transition-colors shadow-sm"
         title="Show KB suggestions"
       >
         <BookOpen className="h-3.5 w-3.5" />
@@ -77,7 +77,7 @@ export function KBSuggestionsPanel({
           >
             <button
               onClick={() => onDismiss(i)}
-              className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 rounded p-0.5 text-muted-foreground hover:text-foreground transition-all"
+              className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 rounded p-0.5 text-muted-foreground hover:text-foreground transition-[color,opacity]"
             >
               <X className="h-2.5 w-2.5" />
             </button>

@@ -205,7 +205,7 @@ export default function AskSyag() {
                 <div className="relative mb-3">
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-muted/30 px-3 py-1.5 text-sm transition-all hover:bg-muted/50 hover:border-accent/25"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-muted/30 px-3 py-1.5 text-sm transition-colors hover:bg-muted/50 hover:border-accent/25"
                   >
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                     {useTranscripts ? (
@@ -259,7 +259,7 @@ export default function AskSyag() {
                   {input.trim() && (
                     <button
                       onClick={() => handleSend()}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-opacity hover:opacity-90 flex-shrink-0"
                       aria-label="Send"
                     >
                       <ArrowUp className="h-4 w-4" />
@@ -276,7 +276,7 @@ export default function AskSyag() {
                     onClick={() => handleSend(r.prompt, r)}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3.5 py-2 text-xs font-medium text-foreground",
-                      "shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-accent/35 hover:bg-accent/5"
+                      "shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-accent/35 hover:bg-accent/5"
                     )}
                   >
                     <span className={cn("h-2.5 w-1 rounded-full shrink-0", r.color)} />
@@ -362,7 +362,7 @@ export default function AskSyag() {
                 ) : input.trim() ? (
                   <button
                     onClick={() => handleSend()}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-opacity hover:opacity-90 flex-shrink-0"
                     aria-label="Send"
                   >
                     <ArrowUp className="h-4 w-4" />

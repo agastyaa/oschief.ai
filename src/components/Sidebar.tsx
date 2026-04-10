@@ -257,7 +257,7 @@ export function Sidebar() {
                 />
                 <button
                   onClick={(e) => { e.stopPropagation(); setFolderMenuId(folderMenuId === folder.id ? null : folder.id); }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover/folder:opacity-100 hover:bg-secondary text-muted-foreground/50 hover:text-foreground transition-all"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover/folder:opacity-100 hover:bg-secondary text-muted-foreground/50 hover:text-foreground transition-[color,opacity]"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </button>

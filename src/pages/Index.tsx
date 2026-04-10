@@ -240,7 +240,7 @@ const Index = () => {
     return (
       <div
         className={cn(
-          "group flex items-stretch gap-0 rounded-lg transition-all",
+          "group flex items-stretch gap-0 rounded-lg transition-colors",
           selected ? "bg-accent/8 ring-1 ring-accent/25" : "hover:bg-card/80",
         )}
       >
@@ -396,7 +396,7 @@ const Index = () => {
         {notes.length > 0 && (
           <button
             onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-all hover:opacity-90"
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             <Mic className="h-3 w-3" />
             Quick Note
@@ -570,7 +570,7 @@ const Index = () => {
                     {atRisk.map((c: any) => (
                       <div
                         key={c.id}
-                        className="rounded-[10px] border border-border p-3.5 transition-all"
+                        className="rounded-[10px] border border-border p-3.5 transition-colors"
                         style={{
                           borderLeftWidth: '3px',
                           borderLeftColor: c.risk_level === 'RED' ? 'hsl(25 65% 45%)' : 'hsl(30 55% 64%)',
@@ -681,13 +681,13 @@ const Index = () => {
                     <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => setIcsOpen(true)}
-                        className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                        className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
                       >
                         Connect Calendar
                       </button>
                       <button
                         onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                        className="rounded-md border border-border px-3.5 py-1.5 text-[12px] font-medium text-foreground transition-all hover:bg-secondary"
+                        className="rounded-md border border-border px-3.5 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary"
                       >
                         Quick Note
                       </button>
@@ -705,7 +705,7 @@ const Index = () => {
                     </p>
                     <button
                       onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-                      className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90"
+                      className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
                     >
                       Quick Note
                     </button>

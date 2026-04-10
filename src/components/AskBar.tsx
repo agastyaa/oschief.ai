@@ -559,7 +559,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                 {hasInput && !showSlashMenu && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSend(); }}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-all hover:opacity-90 flex-shrink-0"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm transition-opacity hover:opacity-90 flex-shrink-0"
                     aria-label="Send"
                   >
                     <ArrowUp className="h-3.5 w-3.5" />

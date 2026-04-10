@@ -191,7 +191,7 @@ export default function CoachingPage() {
                 <p className="text-[13px] text-muted-foreground max-w-sm mx-auto mb-4">
                   Record a meeting and I'll tell you what you're doing well and what to change — grounded in your transcript, not generic tips.
                 </p>
-                <button onClick={() => navigate("/new-note?startFresh=1")} className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-all hover:opacity-90">
+                <button onClick={() => navigate("/new-note?startFresh=1")} className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90">
                   Quick Note
                 </button>
               </div>
