@@ -179,8 +179,8 @@ export default function CoachingPage() {
 
             {/* ── Header ── */}
             <div className="mb-8">
-              <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Work Coach</h1>
-              <p className="text-body-sm text-muted-foreground mt-1">Your CoS reviews how you run meetings — what you missed, what to change</p>
+              <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Executive Coach</h1>
+              <p className="text-body-sm text-muted-foreground mt-1">Your AI Chief of Staff analyzes how you lead. Strategic gaps, decision quality, authority, leverage. Not meeting tips. Leadership intelligence.</p>
             </div>
 
             {/* ── Empty state: no meetings ── */}
@@ -189,7 +189,7 @@ export default function CoachingPage() {
                 <Brain className="h-10 w-10 text-muted-foreground/20 mx-auto mb-4" />
                 <h2 className="font-display text-[17px] font-normal text-foreground mb-2">Your coach is ready.</h2>
                 <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mb-4">
-                  Record a meeting and I'll tell you what you're doing well and what to change — grounded in your transcript, not generic tips.
+                  Record a meeting and I'll assess your strategic thinking. Where you're operating below your level, what you're missing, and what to change.
                 </p>
                 <button onClick={() => navigate("/new-note?startFresh=1")} className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90">
                   Quick Note
