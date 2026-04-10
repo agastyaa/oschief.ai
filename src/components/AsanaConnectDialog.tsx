@@ -141,7 +141,7 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
 
         {step === "workspace" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-body-sm text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-2 text-body-sm text-green">
               <CheckCircle2 className="h-4 w-4" />
               Token verified
             </div>

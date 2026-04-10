@@ -137,7 +137,7 @@ export function AsanaCreateTaskDialog({
           </div>
         ) : created ? (
           <div className="text-center py-4 space-y-3">
-            <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-10 w-10 text-green mx-auto" />
             <p className="text-body-sm text-foreground">Task created in Asana</p>
             <a
               href={created.url}

@@ -24,7 +24,7 @@ const decisionStatusStyles: Record<string, string> = {
   IN_PROGRESS: 'bg-green-bg text-green',
   DONE: 'bg-green-bg text-green',
   ABANDONED: 'bg-muted text-muted-foreground line-through',
-  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  REVISITED: 'bg-amber-bg text-amber',
 }
 const decisionStatusLabels: Record<string, string> = {
   MADE: 'Made', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress',

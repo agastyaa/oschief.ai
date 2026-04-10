@@ -18,7 +18,7 @@ interface Message {
 const recipes = [
   { label: "TL;DR", color: "bg-primary/70", prompt: "Give me a concise TL;DR of my most recent meetings. Include top decisions and next steps." },
   { label: "Action items", color: "bg-green/70", prompt: "List my open action items across recent meetings, grouped by urgency and owner." },
-  { label: "Weekly recap", color: "bg-orange-400/70", prompt: "Create a weekly recap from recent meetings: wins, risks, blockers, and follow-ups." },
+  { label: "Weekly recap", color: "bg-amber/70", prompt: "Create a weekly recap from recent meetings: wins, risks, blockers, and follow-ups." },
   { label: "What's critical?", color: "bg-destructive/70", prompt: "What needs my attention right now? Surface overdue commitments, unresolved decisions, and any risks or blockers from recent meetings. Be direct — tell me what's falling through the cracks." },
 ];
 

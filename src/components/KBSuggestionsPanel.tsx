@@ -48,7 +48,7 @@ export function KBSuggestionsPanel({
       {/* Header */}
       <div className="flex items-center justify-between rounded-t-lg bg-card/95 backdrop-blur-sm border border-border border-b-0 px-3 py-2">
         <div className="flex items-center gap-2">
-          <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+          <Lightbulb className="h-3.5 w-3.5 text-amber" />
           <span className="text-[11px] font-medium text-foreground">Suggestions from your notes</span>
         </div>
         <button

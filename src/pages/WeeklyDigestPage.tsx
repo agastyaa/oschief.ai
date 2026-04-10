@@ -173,7 +173,7 @@ export default function WeeklyDigestPage() {
                   {data.commitments.overdue > 0 && (
                     <>
                       <span className="text-border">|</span>
-                      <MiniStat icon={<AlertTriangle className="h-3 w-3 text-amber-500" />} value={data.commitments.overdue} label="overdue" className="text-amber-600" />
+                      <MiniStat icon={<AlertTriangle className="h-3 w-3 text-amber" />} value={data.commitments.overdue} label="overdue" className="text-amber" />
                     </>
                   )}
                   {avgCoachingScore != null && (
@@ -251,10 +251,10 @@ export default function WeeklyDigestPage() {
 
                 {/* ── Overdue (always visible if any) ── */}
                 {data.commitments.overdue > 0 && (
-                  <div className="rounded-[10px] border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-3 mb-5">
+                  <div className="rounded-[10px] border border-amber bg-amber-bg p-3 mb-5">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <AlertTriangle className="h-3 w-3 text-amber-600" />
-                      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wider">Overdue ({data.commitments.overdue})</span>
+                      <AlertTriangle className="h-3 w-3 text-amber" />
+                      <span className="text-[11px] font-medium text-amber uppercase tracking-wider">Overdue ({data.commitments.overdue})</span>
                     </div>
                     {data.commitments.overdueItems.map((c, i) => (
                       <div key={i} className="text-[12px] py-0.5">
