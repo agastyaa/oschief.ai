@@ -279,7 +279,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
     const m = selectedAIModel;
     if (!m || !m.includes(":")) return;
     const prefix = m.split(":")[0];
-    if (prefix === "local" || prefix === "apple" || prefix === "ollama") {
+    if (prefix === "local" || prefix === "apple" || prefix === "ollama" || prefix === "mlx") {
       lastInvalidAiPrefixToastRef.current = null;
       return;
     }
