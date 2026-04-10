@@ -56,15 +56,15 @@ function fmtPct(ratio: number): string {
 // ── PIE CHART COLORS ───────────────────────────────────────────────────
 
 const PIE_COLORS = [
-  "hsl(24, 45%, 42%)",     // accent — You
-  "hsl(28, 18%, 72%)",     // muted — Others
-  "hsl(25, 14%, 89%)",     // border — Silence
+  "hsl(229, 51%, 37%)",    // primary — You
+  "hsl(226, 10%, 73%)",    // muted — Others
+  "hsl(228, 11%, 89%)",    // border — Silence
 ];
 
 const PIE_COLORS_DARK = [
-  "hsl(24, 42%, 55%)",     // accent dark
-  "hsl(28, 8%, 45%)",      // muted dark
-  "hsl(22, 8%, 22%)",      // border dark
+  "hsl(229, 45%, 62%)",    // primary dark — You
+  "hsl(228, 8%, 45%)",     // muted dark — Others
+  "hsl(225, 12%, 19%)",    // border dark — Silence
 ];
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
                     }}
                     formatter={(value: number) => [`${value} times`, "Count"]}
                   />
-                  <Bar dataKey="count" fill={isDark ? "hsl(24, 42%, 55%)" : "hsl(24, 45%, 42%)"} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill={isDark ? "hsl(229, 45%, 62%)" : "hsl(229, 51%, 37%)"} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -1090,21 +1090,21 @@ function CommunicationMixBar({ metrics }: { metrics: import("@/lib/coaching-anal
       <div className="flex rounded-full overflow-hidden h-4">
         {youPct > 0 && (
           <div
-            className="bg-[hsl(24,45%,42%)] dark:bg-[hsl(24,42%,55%)] transition-[width]"
+            className="bg-primary dark:bg-primary transition-[width]"
             style={{ width: `${youPct}%` }}
             title={`You: ${youPct}%`}
           />
         )}
         {othersPct > 0 && (
           <div
-            className="bg-[hsl(28,18%,72%)] dark:bg-[hsl(28,8%,45%)] transition-[width]"
+            className="bg-muted-foreground/40 dark:bg-muted-foreground/30 transition-[width]"
             style={{ width: `${othersPct}%` }}
             title={`Others: ${othersPct}%`}
           />
         )}
         {silencePct > 0 && (
           <div
-            className="bg-[hsl(25,14%,89%)] dark:bg-[hsl(22,8%,22%)] transition-[width]"
+            className="bg-border dark:bg-border transition-[width]"
             style={{ width: `${silencePct}%` }}
             title={`Silence: ${silencePct}%`}
           />
