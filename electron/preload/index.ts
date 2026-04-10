@@ -235,6 +235,7 @@ const electronAPI = {
     removeCustomProvider: (id: string) => ipcRenderer.invoke('custom-provider:remove', id) as Promise<boolean>,
     testCustomProvider: (apiKey: string, baseURL: string, model?: string) => ipcRenderer.invoke('custom-provider:test', apiKey, baseURL, model) as Promise<{ ok: boolean; error?: string }>,
     fetchCustomProviderModels: (apiKey: string, baseURL: string) => ipcRenderer.invoke('custom-provider:fetch-models', apiKey, baseURL) as Promise<string[]>,
+    testOptionalProvider: (id: string) => ipcRenderer.invoke(`${id}:test`) as Promise<{ ok: boolean; error?: string }>,
     /** Fetch URL from main process (bypasses CORS for calendar ICS feeds). Returns { ok, status, body }. */
     fetchUrl: (url: string) =>
       ipcRenderer.invoke('fetch:url', url) as Promise<{ ok: boolean; status: number; body: string }>,

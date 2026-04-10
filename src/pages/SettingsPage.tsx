@@ -1424,6 +1424,7 @@ export default function SettingsPage() {
     getAvailableAIModels,
     appleFoundationAvailable,
     effectiveProviders,
+    optionalProviders,
     ollamaStatus,
     refreshOllama,
     pullOllamaModel,
@@ -1434,6 +1435,9 @@ export default function SettingsPage() {
     updateCustomProvider,
     removeCustomProvider,
   } = modelSettings;
+  const [optProviderKeyId, setOptProviderKeyId] = useState<string | null>(null);
+  const [optProviderKey, setOptProviderKey] = useState("");
+  const [optProviderTesting, setOptProviderTesting] = useState(false);
   const [showCustomProviderModal, setShowCustomProviderModal] = useState(false);
   const [editingCustomProvider, setEditingCustomProvider] = useState<string | null>(null);
   const [cpName, setCpName] = useState("");
@@ -2413,6 +2417,125 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Optional Providers (e.g., Copart Genie — loaded from config files) */}
+                  {optionalProviders.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Enterprise Providers
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground -mt-2">
+                        Providers configured by your organization. API keys are stored encrypted on this device.
+                      </p>
+                      <div className="space-y-1.5">
+                        {optionalProviders.map((provider) => {
+                          const isConnected = connectedProviders[provider.id]?.connected;
+                          const isEditing = optProviderKeyId === provider.id;
+                          return (
+                            <div key={provider.id} className="rounded-md border border-border bg-card overflow-hidden">
+                              <div className="flex items-center justify-between p-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base">{provider.icon}</span>
+                                    <span className="text-body-sm font-medium text-foreground">{provider.name}</span>
+                                  </div>
+                                  {provider.models && (
+                                    <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
+                                      Models: {provider.models.slice(0, 3).join(", ")}{provider.models.length > 3 ? ` +${provider.models.length - 3} more` : ""}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {isConnected && (
+                                    <span className="flex items-center gap-1 text-[11px] text-accent font-medium">
+                                      <Check className="h-3 w-3" />
+                                      Connected
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      if (isEditing) {
+                                        setOptProviderKeyId(null);
+                                        setOptProviderKey("");
+                                      } else {
+                                        setOptProviderKeyId(provider.id);
+                                        setOptProviderKey(connectedProviders[provider.id]?.apiKey || "");
+                                      }
+                                    }}
+                                    className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors"
+                                  >
+                                    {isConnected ? "Update Key" : "+ Connect"}
+                                  </button>
+                                  {isConnected && (
+                                    <button
+                                      onClick={() => { disconnectProvider(provider.id); toast.success(`${provider.name} disconnected`); }}
+                                      className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Disconnect"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {isEditing && (
+                                <div className="border-t border-border px-3 py-3 space-y-2">
+                                  <div>
+                                    <label className="text-[11px] text-muted-foreground">API Key</label>
+                                    <input
+                                      type="password"
+                                      value={optProviderKey}
+                                      onChange={(e) => setOptProviderKey(e.target.value)}
+                                      placeholder="Enter your API key..."
+                                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 mt-1"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      disabled={!optProviderKey.trim() || optProviderTesting}
+                                      onClick={async () => {
+                                        if (!optProviderKey.trim()) return;
+                                        setOptProviderTesting(true);
+                                        try {
+                                          await connectProvider(provider.id, optProviderKey.trim());
+                                          // Test the connection
+                                          try {
+                                            const result = await api?.app?.testOptionalProvider?.(provider.id);
+                                            if (result?.ok === false) {
+                                              toast.error(result.error || "Connection test failed");
+                                            } else {
+                                              toast.success(`${provider.name} connected`);
+                                            }
+                                          } catch {
+                                            // Test IPC might not exist — that's ok, key is saved
+                                            toast.success(`${provider.name} connected`);
+                                          }
+                                          setOptProviderKeyId(null);
+                                          setOptProviderKey("");
+                                        } catch (err: any) {
+                                          toast.error(err.message || "Failed to connect");
+                                        }
+                                        setOptProviderTesting(false);
+                                      }}
+                                      className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-colors"
+                                    >
+                                      {optProviderTesting ? "Testing..." : "Save & Test"}
+                                    </button>
+                                    <button
+                                      onClick={() => { setOptProviderKeyId(null); setOptProviderKey(""); }}
+                                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Custom Providers */}
                   <div className="space-y-3 pt-2">

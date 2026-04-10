@@ -148,6 +148,7 @@ type ElectronAPI = {
     removeCustomProvider?: (id: string) => Promise<boolean>
     testCustomProvider?: (apiKey: string, baseURL: string, model?: string) => Promise<{ ok: boolean; error?: string }>
     fetchCustomProviderModels?: (apiKey: string, baseURL: string) => Promise<string[]>
+    testOptionalProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>
     getPlatform: () => string
     /** Fetch URL from main process (bypasses CORS for calendar ICS). */
     fetchUrl?: (url: string) => Promise<{ ok: boolean; status: number; body: string }>

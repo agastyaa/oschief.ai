@@ -116,6 +116,7 @@ interface ModelSettingsContextType {
   getAvailableAIModels: () => { value: string; label: string; group: string }[];
   appleFoundationAvailable: boolean;
   effectiveProviders: ModelProvider[];
+  optionalProviders: ModelProvider[];
   ollamaStatus: OllamaStatus;
   refreshOllama: () => Promise<void>;
   pullOllamaModel: (modelTag: string) => Promise<void>;
@@ -952,6 +953,7 @@ export function ModelSettingsProvider({ children }: { children: ReactNode }) {
         getActiveAIModelLabel, getAvailableAIModels,
         appleFoundationAvailable,
         effectiveProviders,
+        optionalProviders,
         ollamaStatus, refreshOllama, pullOllamaModel,
         openRouterModels, refreshOpenRouterModels,
         customProviders,
