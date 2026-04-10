@@ -422,8 +422,9 @@ export default function NoteDetailPage() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: main content + ask bar */}
           <div className="flex flex-1 flex-col min-w-0">
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto max-w-3xl px-8 py-3">
+            {/* Title + metadata — fixed at top, not scrollable */}
+            <div className="shrink-0">
+              <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
                 {/* Title — editable */}
                 {isEditingTitle ? (
                   <input
@@ -521,7 +522,12 @@ export default function NoteDetailPage() {
 
                 {/* People, Company, Tags */}
                 {id && <MeetingMetadata noteId={id} />}
+              </div>
+            </div>
 
+            {/* Scrollable content — summary/notes */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto max-w-3xl px-8">
                 <div className="border-t border-border/50 my-4" />
 
                 {viewMode === "ai-notes" ? (
@@ -589,8 +595,8 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Ask bar */}
-            <div className="relative">
+            {/* Ask bar — pinned to bottom */}
+            <div className="relative shrink-0">
               <AskBar
                 context="meeting"
                 meetingTitle={note.title}
@@ -617,14 +623,14 @@ export default function NoteDetailPage() {
 
           {/* Transcript side panel */}
           {transcriptVisible && (
-            <div className="relative flex-shrink-0 border-l border-border bg-card/50 rounded-tl-[10px] animate-slide-in-right overflow-hidden" style={{ width: transcriptWidth }}>
-              {/* Resize drag handle — absolute on the outer non-scrolling container so it stays fixed */}
+            <div className="relative flex flex-col flex-shrink-0 border-l border-border bg-card/50 rounded-tl-[10px] animate-slide-in-right overflow-hidden" style={{ width: transcriptWidth }}>
+              {/* Resize drag handle */}
               <div
                 className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors"
                 onMouseDown={startTranscriptResize}
               />
-              <div className="overflow-y-auto h-full">
-              <div className="px-4 py-3 border-b border-border">
+              {/* Transcript header — pinned */}
+              <div className="shrink-0 px-4 py-3 border-b border-border bg-card/50 z-10">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Transcript</span>
                   <button
@@ -649,6 +655,8 @@ export default function NoteDetailPage() {
                   )}
                 </div>
               </div>
+              {/* Transcript content — scrollable */}
+              <div className="flex-1 overflow-y-auto">
               <div className="p-4 space-y-4">
                 {/* Empty state */}
                 {note.transcript.length === 0 && newLines.length === 0 && recordingState !== "recording" && (
@@ -719,7 +727,7 @@ export default function NoteDetailPage() {
                   <p className="text-[11px] text-muted-foreground text-center py-4">No results found</p>
                 )}
               </div>
-              </div>{/* end overflow-y-auto scroll wrapper */}
+              </div>{/* end transcript scroll */}
             </div>
           )}
         </div>
@@ -852,7 +860,7 @@ function CoachingView({
   return (
     <div className="space-y-4">
       {!accountRoleId && (
-        <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+        <div className="rounded-[10px] border border-amber/30 bg-amber-bg px-3 py-2 text-[11px] text-muted-foreground">
           Choose your <span className="font-medium text-foreground">role</span> in Settings to unlock transcript-grounded coaching and role frameworks.
         </div>
       )}
@@ -954,13 +962,13 @@ function CoachingView({
           <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
           <div className="space-y-2">
             {heuristics.questionRatioYou < 0.15 && (
-              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber pl-3">
                 You didn&apos;t ask many questions — only {Math.round(heuristics.questionRatioYou * 100)}% of your {heuristics.yourTurns} turns were questions.
                 {accountRoleId === 'pm' || accountRoleId === 'founder-ceo' ? " For a PM or founder, discovery conversations should be 60-70% questions." : " Try opening with a question to draw out the other person's perspective."}
               </p>
             )}
             {heuristics.longestYouMonologueWords > 150 && (
-              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber pl-3">
                 Your longest uninterrupted run was {heuristics.longestYouMonologueWords} words. That's a monologue — most people stop listening after 60 seconds. Break it up with check-in questions.
               </p>
             )}
@@ -997,7 +1005,7 @@ function CoachingView({
       )}
 
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
-        <div className="flex items-center justify-between gap-2 rounded-[10px] border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 rounded-[10px] border border-amber bg-amber-bg px-3 py-2">
           <p className="text-[11px] text-foreground">
             Connect an AI model in <button onClick={() => navigate('/settings?section=ai-models')} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
           </p>
@@ -1128,7 +1136,7 @@ function highlightFillers(text: string): ReactNode {
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
     FILLER_PATTERN.test(part) ? (
-      <mark key={i} className="bg-orange-100/60 dark:bg-orange-900/25 text-orange-700 dark:text-orange-300 rounded-sm px-0.5">{part}</mark>
+      <mark key={i} className="bg-amber-bg text-amber rounded-sm px-0.5">{part}</mark>
     ) : (
       part
     )

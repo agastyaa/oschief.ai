@@ -1219,8 +1219,9 @@ export default function NewNotePage() {
         {/* Content area: stack on small screens so transcript doesn't squeeze layout */}
         <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
           <div className="flex flex-1 flex-col min-w-0">
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto max-w-3xl px-8 py-3">
+            {/* Title + metadata — fixed at top */}
+            <div className="shrink-0">
+              <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
                 {/* Title */}
                 {isEditingTitle ? (
                   <input
@@ -1327,7 +1328,12 @@ export default function NewNotePage() {
                     </>
                   )}
                 </div>
+              </div>
+            </div>
 
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto max-w-3xl px-8">
                 {/* Content: recording vs paused/stopped with notes */}
                 {!showSummaryPanel ? (
                   <RichTextEditor
@@ -1372,7 +1378,7 @@ export default function NewNotePage() {
               </div>
             </div>
 
-            <div className="relative space-y-2">
+            <div className="relative shrink-0 space-y-2">
               <AskBar
                 context="meeting"
                 meetingTitle={title || "New note"}
@@ -1427,13 +1433,14 @@ export default function NewNotePage() {
 
           {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-full lg:flex-shrink-0 border-t lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] max-h-[45vh] lg:max-h-none animate-slide-in-right relative" style={{ width: transcriptWidth }}>
+            <div className="w-full lg:flex-shrink-0 border-t lg:border-l border-border bg-card/50 flex flex-col rounded-tl-[10px] max-h-[45vh] lg:max-h-none animate-slide-in-right relative" style={{ width: transcriptWidth }}>
               {/* Resize drag handle */}
               <div
                 className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors hidden lg:block"
                 onMouseDown={startTranscriptResize}
               />
-              <div className="px-3 py-2 border-b border-border">
+              {/* Transcript header — pinned */}
+              <div className="shrink-0 px-3 py-2 border-b border-border bg-card/50 z-10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
@@ -1513,6 +1520,8 @@ export default function NewNotePage() {
                   </div>
                 )}
               </div>
+              {/* Transcript content — scrollable */}
+              <div className="flex-1 overflow-y-auto">
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
                   <div className="rounded-[10px] border border-amber/40 bg-amber-bg px-3 py-3">
@@ -1634,6 +1643,7 @@ export default function NewNotePage() {
                 )}
                 <div ref={transcriptEndRef} />
               </div>
+              </div>{/* end transcript scroll */}
             </div>
           )}
         </div>
