@@ -102,8 +102,10 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
   return (
     <div className="flex flex-col gap-2">
       {/* People */}
-      <div className="flex items-start gap-2 flex-wrap">
-          <Users className="h-3.5 w-3.5 text-muted-foreground/50 mt-1.5 flex-shrink-0" />
+      <div className="flex items-center gap-2 flex-wrap">
+          {people.filter((p) => p.name && p.name.trim()).length > 0 && (
+            <Users className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
+          )}
           <div className="flex items-center gap-1.5 flex-wrap flex-1">
             {people.filter((p) => p.name && p.name.trim()).map((person) => (
               <PersonChip
@@ -160,9 +162,10 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
             ) : (
               <button
                 onClick={() => setAddingPerson(true)}
-                className="flex items-center gap-0.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               >
-                <UserPlus className="h-2.5 w-2.5" />
+                <UserPlus className="h-3 w-3" />
+                <span>Add person</span>
               </button>
             )}
           </div>

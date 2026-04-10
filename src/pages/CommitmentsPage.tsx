@@ -205,7 +205,7 @@ const CommitmentsPage = () => {
             {/* Add to-do */}
             <div className="mb-6 rounded-[10px] border border-border bg-card p-4">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Add a personal to-do</p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 mb-2">
                 <input
                   value={newTodoText}
                   onChange={(e) => setNewTodoText(e.target.value)}
@@ -216,14 +216,23 @@ const CommitmentsPage = () => {
                     }
                   }}
                   placeholder="Write a to-do..."
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-[13.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <button
+                  onClick={() => void handleAddTodo()}
+                  disabled={addingTodo || !newTodoText.trim()}
+                  className="rounded-md bg-primary px-4 py-1.5 text-[12px] font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                  {addingTodo ? "..." : "Add"}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <input
                   value={newTodoAssignee}
                   onChange={(e) => setNewTodoAssignee(e.target.value)}
                   list="new-todo-assignee-list"
                   placeholder="Assign to..."
-                  className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring w-32"
+                  className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring w-28"
                 />
                 <datalist id="new-todo-assignee-list">
                   {people.map((p: any) => (
@@ -234,14 +243,14 @@ const CommitmentsPage = () => {
                   type="date"
                   value={newTodoDueDate}
                   onChange={(e) => setNewTodoDueDate(e.target.value)}
-                  className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   title="Due date (optional)"
                 />
                 {projects.length > 0 && (
                   <select
                     value={newTodoProjectId || ""}
                     onChange={(e) => setNewTodoProjectId(e.target.value || null)}
-                    className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground min-w-[120px]"
+                    className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
                   >
                     <option value="">No project</option>
                     {projects.map((p: any) => (
@@ -249,13 +258,6 @@ const CommitmentsPage = () => {
                     ))}
                   </select>
                 )}
-                <button
-                  onClick={() => void handleAddTodo()}
-                  disabled={addingTodo || !newTodoText.trim()}
-                  className="rounded-md bg-primary px-4 py-2 text-body-sm font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {addingTodo ? "Adding..." : "Add"}
-                </button>
               </div>
             </div>
 
