@@ -39,13 +39,10 @@ type AiModelsSubTab = "models" | "transcription";
 const sections = [
   { icon: User, label: "Account", id: "account" },
   { icon: Sparkles, label: "AI Models", id: "ai-models" },
-  { icon: Mic, label: "Transcription", id: "transcription" },
   { icon: FileText, label: "Meeting", id: "meeting" },
   { icon: Globe, label: "Connections", id: "connections" },
-  { icon: BookOpen, label: "Knowledge Base", id: "knowledge-base" },
-  { icon: HardDrive, label: "Obsidian Vault", id: "vault" },
+  { icon: HardDrive, label: "Data", id: "data" },
   { icon: Shield, label: "Privacy & Data", id: "privacy" },
-  { icon: Sliders, label: "Advanced", id: "advanced" },
   { icon: Info, label: "About", id: "about" },
 ];
 
@@ -1473,7 +1470,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const sec = searchParams.get("section");
-    if (sec && sections.some((s) => s.id === sec)) setActive(sec);
+    // Redirect removed sections to their new homes
+    const sectionRedirects: Record<string, string> = {
+      "transcription": "meeting",
+      "advanced": "connections",
+      "knowledge-base": "data",
+      "vault": "data",
+    };
+    const resolved = sectionRedirects[sec ?? ""] ?? sec;
+    if (resolved && sections.some((s) => s.id === resolved)) setActive(resolved);
     if (sec === "ai-models") {
       const sub = searchParams.get(AI_MODELS_SUB_QUERY);
       setAiModelsTab(sub === "transcription" ? "transcription" : "models");
@@ -2666,9 +2671,17 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "transcription" && (
-                <div className="space-y-5">
-                  <SectionHeader title="Transcription" description="Control how OSChief listens and transcribes your meetings" />
+              {/* Transcription section removed — content merged into Meeting */}
+
+              {active === "meeting" && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <TemplatesSection />
+                </div>
+              )}
+
+              {active === "meeting" && (
+                <div className="space-y-5 mt-6 border-t border-border pt-5">
+                  <h3 className="text-[13px] font-semibold text-foreground">Transcription</h3>
                   <div className="space-y-2">
                     <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
                       <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
@@ -2699,7 +2712,7 @@ export default function SettingsPage() {
                           </select>
                         </div>
                         <p className="text-[11px] text-muted-foreground rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-                          <strong className="text-foreground">macOS:</strong> allow <strong>Microphone</strong> for “Me” lines. For meeting audio on <strong>Them</strong>, Screen Recording (and system audio) must be allowed for Syag in System Settings → Privacy & Security.
+                          <strong className="text-foreground">macOS:</strong> allow <strong>Microphone</strong> for "Me" lines. For meeting audio on <strong>Them</strong>, Screen Recording (and system audio) must be allowed for Syag in System Settings → Privacy & Security.
                         </p>
                       </>
                     )}
@@ -2729,12 +2742,6 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <AudioTestPanel selectedDeviceId={selectedDeviceId} />
-                </div>
-              )}
-
-              {active === "meeting" && (
-                <div className="mt-6 border-t border-border pt-5">
-                  <TemplatesSection />
                 </div>
               )}
 
@@ -2859,12 +2866,6 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "advanced" && (
-                <div className="space-y-5">
-                  <SectionHeader title="Advanced" description="Notifications, Agent API, and developer settings" />
-                </div>
-              )}
-
               {active === "connections" && (
                 <div className="space-y-5 mt-6 border-t border-border pt-5">
                   <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
@@ -2880,12 +2881,14 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "knowledge-base" && (
-                <KnowledgeBaseSection api={api} />
-              )}
-
-              {active === "vault" && (
-                <VaultSection api={api} />
+              {active === "data" && (
+                <div className="space-y-5">
+                  <SectionHeader title="Data" description="Knowledge base, Obsidian vault, and external data connections" />
+                  <KnowledgeBaseSection api={api} />
+                  <div className="border-t border-border pt-5">
+                    <VaultSection api={api} />
+                  </div>
+                </div>
               )}
 
               {active === "privacy" && (
@@ -2898,7 +2901,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {active === "advanced" && (
+              {active === "connections" && (
                 <div className="mt-6 border-t border-border pt-5">
                   <AgentApiSection api={api} />
                 </div>
