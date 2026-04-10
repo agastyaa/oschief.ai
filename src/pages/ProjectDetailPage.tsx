@@ -77,82 +77,85 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-4">
-      {/* Header row */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Top nav row: back + stats + actions */}
+      <div className="flex items-center gap-2 mb-2">
         <button onClick={() => navigate("/projects")} className="p-1 rounded hover:bg-secondary text-muted-foreground">
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <FolderKanban className="h-4.5 w-4.5 text-muted-foreground" />
-            {editingName ? (
-              <input
-                ref={nameRef}
-                value={draftName}
-                onChange={e => setDraftName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    if (draftName.trim()) saveField("name", draftName.trim())
-                    setEditingName(false)
-                  }
-                  if (e.key === 'Escape') setEditingName(false)
-                }}
-                onBlur={() => {
-                  if (draftName.trim() && draftName.trim() !== project.name) {
-                    saveField("name", draftName.trim())
-                  }
-                  setEditingName(false)
-                }}
-                className="flex-1 text-xl font-semibold bg-transparent border-b-2 border-primary/40 outline-none px-0.5"
-              />
-            ) : (
-              <button
-                className="flex items-center gap-1.5 group text-left"
-                onClick={() => { setDraftName(project.name); setEditingName(true) }}
-              >
-                <h1 className="text-xl font-semibold group-hover:text-primary/80 transition-colors">
-                  {project.name}
-                </h1>
-                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            )}
-            <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-medium ml-1 shrink-0", statusStyles[project.status] || statusStyles.archived)}>
-              {project.status}
-            </span>
-            {/* Inline stats */}
-            <div className="flex items-center gap-3 ml-3 text-[11px] text-muted-foreground tabular-nums">
-              <span>{timeline?.meetings.length ?? 0} meetings</span>
-              <span>{timeline?.decisions.length ?? 0} decisions</span>
-              <span>{timeline?.commitments.length ?? 0} items</span>
-            </div>
-            <div className="flex-1" />
-            {project.status === "active" && (
-              <button
-                onClick={async () => {
-                  await api?.memory?.projects?.archive(id!)
-                  toast.success("Project archived")
-                  navigate("/projects")
-                }}
-                className="p-1.5 rounded hover:bg-secondary text-muted-foreground"
-                title="Archive project" aria-label="Archive project"
-              >
-                <Archive className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              onClick={async () => {
-                if (!confirm(`Delete "${project.name}"? This cannot be undone.`)) return
-                await api?.memory?.projects?.delete(id!)
-                toast.success("Project deleted")
-                navigate("/projects")
-              }}
-              className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-              title="Delete project" aria-label="Delete project"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <FolderKanban className="h-4 w-4 text-muted-foreground" />
+        <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0", statusStyles[project.status] || statusStyles.archived)}>
+          {project.status}
+        </span>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums">
+          <span>{timeline?.meetings.length ?? 0} meetings</span>
+          <span>{timeline?.decisions.length ?? 0} decisions</span>
+          <span>{timeline?.commitments.length ?? 0} items</span>
+        </div>
+        <div className="flex-1" />
+        {project.status === "active" && (
+          <button
+            onClick={async () => {
+              await api?.memory?.projects?.archive(id!)
+              toast.success("Project archived")
+              navigate("/projects")
+            }}
+            className="p-1.5 rounded hover:bg-secondary text-muted-foreground"
+            title="Archive project" aria-label="Archive project"
+          >
+            <Archive className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={async () => {
+            if (!confirm(`Delete "${project.name}"? This cannot be undone.`)) return
+            await api?.memory?.projects?.delete(id!)
+            toast.success("Project deleted")
+            navigate("/projects")
+          }}
+          className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+          title="Delete project" aria-label="Delete project"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
 
-          {/* Summary — compact single line, expands on edit */}
-          <div className="mb-3 ml-8">
+      {/* Title row */}
+      <div className="mb-2 ml-7">
+        {editingName ? (
+          <input
+            ref={nameRef}
+            value={draftName}
+            onChange={e => setDraftName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                if (draftName.trim()) saveField("name", draftName.trim())
+                setEditingName(false)
+              }
+              if (e.key === 'Escape') setEditingName(false)
+            }}
+            onBlur={() => {
+              if (draftName.trim() && draftName.trim() !== project.name) {
+                saveField("name", draftName.trim())
+              }
+              setEditingName(false)
+            }}
+            className="w-full text-lg font-semibold bg-transparent border-b-2 border-primary/40 outline-none"
+          />
+        ) : (
+          <button
+            className="flex items-center gap-1.5 group text-left"
+            onClick={() => { setDraftName(project.name); setEditingName(true) }}
+          >
+            <h1 className="text-lg font-semibold group-hover:text-primary/80 transition-colors">
+              {project.name}
+            </h1>
+            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </button>
+        )}
+      </div>
+
+      {/* Summary — compact single line, expands on edit */}
+      <div className="mb-3 ml-7">
             {editingDesc ? (
               <textarea
                 autoFocus

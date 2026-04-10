@@ -223,7 +223,7 @@ export function Sidebar() {
             const isActive = location.search.includes(`folder=${folder.id}`);
             if (renamingFolderId === folder.id) {
               return (
-                <div key={folder.id} className="flex items-center gap-2 px-2.5 py-1">
+                <div key={folder.id} className="flex items-center gap-2 rounded-md px-2.5 py-1.5 bg-secondary">
                   <FolderKanban className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                   <input
                     autoFocus
@@ -242,7 +242,7 @@ export function Sidebar() {
                       }
                       setRenamingFolderId(null);
                     }}
-                    className="flex-1 bg-transparent text-[13px] outline-none border-b border-muted-foreground/30"
+                    className="flex-1 bg-transparent text-[13px] font-medium outline-none text-foreground"
                   />
                 </div>
               );
@@ -281,7 +281,7 @@ export function Sidebar() {
             );
           })}
           {creatingFolder ? (
-            <div className="flex items-center gap-2 px-2.5 py-1">
+            <div className="flex items-center gap-2 rounded-md px-2.5 py-1.5 bg-secondary">
               <FolderKanban className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
               <input
                 autoFocus
@@ -299,7 +299,7 @@ export function Sidebar() {
                   }
                 }}
                 onBlur={() => { setCreatingFolder(false); setNewFolderName(""); }}
-                className="flex-1 bg-transparent text-[13px] outline-none border-b border-muted-foreground/30"
+                className="flex-1 bg-transparent text-[13px] outline-none text-foreground"
                 placeholder="Folder name…"
               />
             </div>
