@@ -100,7 +100,7 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
   if (!api?.memory) return null;
 
   return (
-    <div className="flex flex-col gap-2 mb-4">
+    <div className="flex flex-col gap-2">
       {/* People */}
       <div className="flex items-start gap-2 flex-wrap">
           <Users className="h-3.5 w-3.5 text-muted-foreground/50 mt-1.5 flex-shrink-0" />

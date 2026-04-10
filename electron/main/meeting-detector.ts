@@ -3,17 +3,19 @@ import { BrowserWindow } from 'electron'
 import { getSetting } from './storage/database'
 import { showMeetingDetectedNotification, showMeetingStartingSoonNotification, updateTrayMeetingInfo } from './tray'
 
-// Known meeting app process substrings -> display name (match ps -axo comm= output on macOS)
-const MEETING_PROCESS_PATTERNS: Array<[RegExp, string]> = [
-  [/zoom\.us|CptHost|^Zoom$/i, 'Zoom'],
-  [/MSTeams|Microsoft Teams|com\.microsoft\.teams|^Teams$/i, 'Microsoft Teams'],
-  [/Google Meet|^Meet$/i, 'Google Meet'],
-  [/webex|webexmta/i, 'Webex'],
-  [/FaceTime/i, 'FaceTime'],
-  [/GoTo Meeting|GoToMeeting/i, 'GoTo Meeting'],
-  [/BlueJeans/i, 'BlueJeans'],
-  [/Discord/i, 'Discord'],
-  [/Slack Helper|Slack$/i, 'Slack Huddle'],
+// Known meeting app process substrings -> [display name, alwaysRunning]
+// alwaysRunning = true means the app keeps background processes even when not in a call,
+// so we MUST verify audio/mic activity before triggering a notification.
+const MEETING_PROCESS_PATTERNS: Array<[RegExp, string, boolean]> = [
+  [/zoom\.us|CptHost|^Zoom$/i, 'Zoom', false],
+  [/MSTeams|Microsoft Teams|com\.microsoft\.teams|^Teams$/i, 'Microsoft Teams', true],
+  [/Google Meet|^Meet$/i, 'Google Meet', false],
+  [/webex|webexmta/i, 'Webex', false],
+  [/FaceTime/i, 'FaceTime', false],
+  [/GoTo Meeting|GoToMeeting/i, 'GoTo Meeting', false],
+  [/BlueJeans/i, 'BlueJeans', false],
+  [/Discord/i, 'Discord', true],
+  [/Slack Helper|Slack$/i, 'Slack Huddle', true],
 ]
 
 // Audio device process names that indicate a meeting
@@ -147,16 +149,34 @@ async function checkForMeetings(): Promise<void> {
 
     // Tier 2: match known meeting apps
     let matchedApp: string | null = null
+    let matchedAlwaysRunning = false
     for (const line of processes) {
       const basename = line.trim().split('/').pop() || ''
       if (!basename) continue
-      for (const [pattern, appName] of MEETING_PROCESS_PATTERNS) {
+      for (const [pattern, appName, alwaysRunning] of MEETING_PROCESS_PATTERNS) {
         if (pattern.test(basename)) {
           matchedApp = appName
+          matchedAlwaysRunning = alwaysRunning
           break
         }
       }
       if (matchedApp) break
+    }
+
+    // For always-running apps (Teams, Discord, Slack), require audio activity to distinguish
+    // "app installed" from "in a call". Without this, detection fires on app launch and never again.
+    if (matchedApp && matchedAlwaysRunning) {
+      const micActive = await checkMicActive()
+      if (!micActive) {
+        // App is running but no call — treat as no meeting detected
+        // Don't set lastPollHadMeetingApp so we re-check next poll
+        if (!activeMeetingApp) {
+          isChecking = false
+          return
+        }
+        // If we had an active meeting and mic stopped, the call ended
+        matchedApp = null
+      }
     }
 
     // Notify whenever meeting app transitions from absent to present (scheduled or ad-hoc). Calendar used only for title.
@@ -164,10 +184,9 @@ async function checkForMeetings(): Promise<void> {
     const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
     const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
     if (matchedApp && !lastPollHadMeetingApp && !inCooldown && autoDetectEnabled) {
-      // Require mic/audio in use to reduce false positives — meeting app running doesn't mean you're in a call
-      // Default: skip mic check (matches UI default where requireMic = false)
+      // For non-always-running apps, optionally require mic check (user setting)
       const requireMic = getSetting('meeting-detection-require-mic') === 'true'
-      if (requireMic) {
+      if (requireMic && !matchedAlwaysRunning) {
         const micActive = await checkMicActive()
         if (!micActive) {
           isChecking = false
