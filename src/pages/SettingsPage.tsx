@@ -201,11 +201,11 @@ function SyncSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
     : "Disabled";
 
   const stateColor = status?.state === "synced"
-    ? "text-emerald-600 dark:text-emerald-400"
+    ? "text-green"
     : status?.state === "syncing"
-    ? "text-amber-600 dark:text-amber-400"
+    ? "text-amber"
     : status?.state === "error"
-    ? "text-red-600 dark:text-red-400"
+    ? "text-destructive"
     : "text-muted-foreground";
 
   return (
@@ -355,9 +355,9 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           <p className="text-sm font-medium text-foreground">Enable Agent API</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {running ? (
-              <span className="text-emerald-600 dark:text-emerald-400">Running</span>
+              <span className="text-green">Running</span>
             ) : enabled ? (
-              <span className="text-amber-600 dark:text-amber-400">Enabled but not running</span>
+              <span className="text-amber">Enabled but not running</span>
             ) : (
               "Disabled"
             )}
@@ -472,7 +472,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
           <div>
             <div className="text-sm font-medium flex items-center gap-2">
               Air-Gapped Mode
-              {airgapped && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">Active</span>}
+              {airgapped && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-bg text-green">Active</span>}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               Guarantees zero network access. All transcription and summarization use on-device models only. Cloud providers are disabled.
@@ -491,7 +491,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors",
-              airgapped ? "bg-green-500" : "bg-muted"
+              airgapped ? "bg-green" : "bg-muted"
             )}
           >
             <span className={cn("pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5", airgapped ? "translate-x-4.5 ml-0.5" : "translate-x-0.5")} />
@@ -533,7 +533,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
         </div>
 
         {anonymize && (
-          <div className="text-xs text-amber-600 dark:text-amber-400 px-2 py-1.5 rounded bg-amber-50 dark:bg-amber-900/20">
+          <div className="text-xs text-amber px-2 py-1.5 rounded bg-amber-bg">
             When anonymization is on, cloud AI won't see real names. Summaries will use "Person A" etc., then OSChief restores real names locally.
           </div>
         )}
@@ -631,13 +631,13 @@ function VaultSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
               </div>
             </div>
             {configured && vaultName && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-bg text-green">
                 {vaultName}
               </span>
             )}
           </div>
           {warning && (
-            <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <div className="text-xs text-amber flex items-center gap-1.5">
               <span>⚠</span> {warning}
             </div>
           )}
@@ -752,7 +752,7 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
                 </button>
                 <button
                   onClick={handleClear}
-                  className="flex items-center gap-1.5 rounded-md border border-red-200 dark:border-red-900 px-2.5 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  className="flex items-center gap-1.5 rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="h-3 w-3" />
                   Clear
@@ -766,8 +766,8 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
           )}
         </div>
 
-        <div className="rounded-md border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-3">
-          <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+        <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+          <p className="text-[11px] text-primary leading-relaxed">
             <strong>How it works:</strong> OSChief reads .md and .txt files from this folder, chunks and indexes them locally. During live meetings, it searches your notes for context relevant to the conversation and suggests talking points — powered by your selected AI model. Everything stays on your machine.
           </p>
         </div>
@@ -945,7 +945,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
   const statusIcon = (status: AudioTestStatus) => {
     switch (status) {
       case "testing": return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />;
-      case "success": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />;
+      case "success": return <CheckCircle2 className="h-3.5 w-3.5 text-green" />;
       case "error": return <XCircle className="h-3.5 w-3.5 text-destructive" />;
       default: return null;
     }
@@ -968,7 +968,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
             <div className="min-w-0">
               <span className="text-[13px] text-foreground block">Microphone</span>
               {micPermission && (
-                <span className={cn("text-[10px]", micPermission === "granted" ? "text-emerald-500" : "text-muted-foreground")}>
+                <span className={cn("text-[10px]", micPermission === "granted" ? "text-green" : "text-muted-foreground")}>
                   Permission: {micPermission}
                 </span>
               )}
@@ -1005,7 +1005,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
         )}
 
         {micStatus === "success" && (
-          <p className="text-[11px] text-emerald-500 mt-2">Microphone is working — audio detected.</p>
+          <p className="text-[11px] text-green mt-2">Microphone is working — audio detected.</p>
         )}
 
         {micError && (
@@ -1023,7 +1023,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
             <div className="min-w-0">
               <span className="text-[13px] text-foreground block">System audio</span>
               {sysPermission && (
-                <span className={cn("text-[10px]", sysPermission === "granted" ? "text-emerald-500" : "text-muted-foreground")}>
+                <span className={cn("text-[10px]", sysPermission === "granted" ? "text-green" : "text-muted-foreground")}>
                   Screen Recording: {sysPermission}
                 </span>
               )}
@@ -1047,7 +1047,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
         </div>
 
         {sysStatus === "success" && (
-          <p className="text-[11px] text-emerald-500 mt-2">System audio capture is available.</p>
+          <p className="text-[11px] text-green mt-2">System audio capture is available.</p>
         )}
 
         {sysError && (
@@ -1352,7 +1352,7 @@ function TemplatesSection() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteCustomTemplate(ct.id); }}
-                    className="rounded p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                    className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -1843,6 +1843,9 @@ export default function SettingsPage() {
                           className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
                         />
                       </div>
+                    </TabsContent>
+
+                    <TabsContent value="templates" className="space-y-5 mt-0">
                       <div>
                         <label className="text-[13px] font-medium text-foreground mb-2 block">Default meeting template</label>
                         <p className="text-[11px] text-muted-foreground mb-2">Choose which template to use by default when starting a new meeting note.</p>
@@ -1865,9 +1868,6 @@ export default function SettingsPage() {
                           ))}
                         </select>
                       </div>
-                    </TabsContent>
-
-                    <TabsContent value="templates" className="mt-0">
                       <TemplatesSection />
                     </TabsContent>
 
@@ -1942,8 +1942,8 @@ export default function SettingsPage() {
                   <SectionHeader title="AI Models" description="Choose which AI models power your notes and transcription. Connect OpenRouter for 300+ cloud models, add custom providers, or use local models for privacy." />
 
                   {!isElectron && (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3">
-                      <p className="text-[12px] text-amber-700 dark:text-amber-300">
+                    <div className="rounded-md border border-amber/20 bg-amber-bg p-3">
+                      <p className="text-[12px] text-amber">
                         Running in web mode. Local model downloads require the desktop app. Cloud providers work in both modes.
                       </p>
                     </div>
@@ -2057,10 +2057,6 @@ export default function SettingsPage() {
                         <HardDrive className="h-3.5 w-3.5" />
                         Local Models
                       </h3>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
-                        <span>Use local by default</span>
-                        <Toggle enabled={useLocalModels} onToggle={() => setUseLocalModels(!useLocalModels)} />
-                      </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground -mt-2">Download models to run entirely on your device. With local models, transcription and summaries stay on this device.</p>
 
@@ -2775,8 +2771,7 @@ export default function SettingsPage() {
                     </TabsList>
 
                     <TabsContent value="calendar" className="space-y-5 mt-0">
-                      {isElectron && (
-                        <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
+                      <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
                           <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
                           <p className="text-[11px] text-muted-foreground -mt-1">
                             Show a compact agenda popover when you click the menu bar icon (when not recording).
@@ -2832,7 +2827,6 @@ export default function SettingsPage() {
                             </>
                           )}
                         </div>
-                      )}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <h3 className="text-[13px] font-medium text-foreground">Calendars</h3>
@@ -2854,7 +2848,7 @@ export default function SettingsPage() {
                             {icsFeeds.map((feed) => (
                               <div key={feed.id} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                                  <span className="flex items-center gap-1 text-[10px] text-green">
                                     <Check className="h-3 w-3" />
                                   </span>
                                   <span className="text-[13px] text-foreground truncate">
@@ -2952,7 +2946,7 @@ export default function SettingsPage() {
                         ) : (
                           <>
                             {updateResult === "latest" && (
-                              <span className="text-[11px] text-green-600 dark:text-green-400">You're on the latest version</span>
+                              <span className="text-[11px] text-green">You're on the latest version</span>
                             )}
                             {updateResult === "downloading" && (
                               <span className="text-[11px] text-muted-foreground max-w-[240px] text-right">
@@ -3096,7 +3090,7 @@ function JiraIntegrationRow() {
         </div>
         {connected ? (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
             <button
@@ -3175,7 +3169,7 @@ function SlackIntegrationRow() {
         </div>
         {connected ? (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
             <button
@@ -3315,7 +3309,7 @@ function TeamsIntegrationRow() {
         </div>
         {connected ? (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
             <button
@@ -3406,7 +3400,7 @@ function GmailIntegrationRow() {
       </div>
       {connected ? (
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+          <span className="flex items-center gap-1 text-[10px] text-green">
             <Check className="h-3 w-3" /> Connected
           </span>
           <button
@@ -3469,7 +3463,7 @@ function AsanaIntegrationRow() {
         </div>
         {connected ? (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
             <button
@@ -3585,7 +3579,7 @@ function GoogleCalendarIntegrationRow() {
         </div>
         {connected ? (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
             <button
@@ -3634,7 +3628,7 @@ function GoogleCalendarIntegrationRow() {
               </div>
             </div>
             {error && (
-              <p className="mt-3 text-xs text-red-500">{error}</p>
+              <p className="mt-3 text-xs text-destructive">{error}</p>
             )}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setShowSetup(false)} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary transition-colors">

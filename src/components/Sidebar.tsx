@@ -187,7 +187,7 @@ export function Sidebar() {
 
       {/* Workspace Header — Logo + Status */}
       <div
-        className={cn("flex items-center justify-between px-4 pb-2", isElectron ? "pt-10" : "pt-4")}
+        className={cn("flex items-center justify-between pb-2", isElectron ? "pt-10 px-4 pl-[78px]" : "pt-4 px-4")}
         style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
       >
         <div className="flex items-center gap-2">
@@ -271,7 +271,7 @@ export function Sidebar() {
                     </button>
                     <button
                       onClick={() => { deleteFolder(folder.id); setFolderMenuId(null); }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="h-3 w-3" /> Delete
                     </button>
