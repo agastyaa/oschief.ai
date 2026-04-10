@@ -145,10 +145,10 @@ export function MeetingDetectionHandler() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green" />
               </span>
-              <span className="text-[11px] font-medium text-green-600 dark:text-green-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-green uppercase tracking-wider">
                 Meeting detected
               </span>
             </div>
@@ -194,7 +194,7 @@ export function MeetingDetectionHandler() {
 function getAppIcon(appName: string) {
   const lower = appName.toLowerCase();
   if (lower.includes("zoom"))
-    return <Video className="h-5 w-5 text-blue-500" />;
+    return <Video className="h-5 w-5 text-primary" />;
   if (lower.includes("teams"))
     return (
       <span className="text-[18px] leading-none">

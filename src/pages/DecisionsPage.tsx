@@ -20,10 +20,10 @@ interface Decision {
 }
 
 const statusStyles: Record<string, string> = {
-  MADE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  MADE: 'bg-green-bg text-green',
   IN_PROGRESS: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   TBD: 'bg-muted text-muted-foreground',
-  REJECTED: 'bg-red-500/10 text-red-500 dark:text-red-400',
+  REJECTED: 'bg-destructive/10 text-destructive',
 }
 
 const statusLabels: Record<string, string> = {
@@ -293,7 +293,7 @@ export default function DecisionsPage() {
                     setSelectedIds(new Set())
                     refreshDecisions()
                   }}
-                  className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                  className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
                 >
                   <Trash2 className="h-3 w-3" />
                   Delete {selectedIds.size}
@@ -390,7 +390,7 @@ export default function DecisionsPage() {
                               await api?.memory?.decisions?.delete?.(d.id)
                               api?.memory?.decisions?.getAll?.().then(setDecisions)
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-opacity shrink-0"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
                             title="Delete" aria-label="Delete"
                           >
                             <Trash2 className="h-3 w-3" />

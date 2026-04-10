@@ -135,7 +135,7 @@ export function JiraCreateTicketDialog({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
         <div className="w-full max-w-sm rounded-[10px] border border-border bg-card p-6 shadow-xl text-center">
-          <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-3" />
+          <AlertCircle className="h-8 w-8 text-amber mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Jira Not Connected</h3>
           <p className="text-xs text-muted-foreground mb-4">
             Connect Jira in Settings &gt; Integrations to create tickets from action items.
@@ -160,7 +160,7 @@ export function JiraCreateTicketDialog({
 
         {created ? (
           <div className="text-center py-4">
-            <Check className="h-8 w-8 text-emerald-500 mx-auto mb-3" />
+            <Check className="h-8 w-8 text-green mx-auto mb-3" />
             <p className="text-sm font-medium text-foreground mb-1">Ticket Created</p>
             <a
               href={created.url}
@@ -239,7 +239,7 @@ export function JiraCreateTicketDialog({
             </div>
 
             {error && (
-              <div className="mt-3 flex items-center gap-2 rounded-md bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+              <div className="mt-3 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                 {error}
               </div>

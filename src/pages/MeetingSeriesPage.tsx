@@ -223,9 +223,9 @@ export default function MeetingSeriesPage() {
                             {details.commitments.map((c: any, i: number) => (
                               <div key={c.id || i} className="flex items-center gap-2 text-sm px-2 py-1">
                                 {c.status === 'completed'
-                                  ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                                  ? <CheckCircle2 className="h-3 w-3 text-green shrink-0" />
                                   : c.status === 'overdue'
-                                  ? <Clock className="h-3 w-3 text-red-500 shrink-0" />
+                                  ? <Clock className="h-3 w-3 text-destructive shrink-0" />
                                   : <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
                                 }
                                 <span className={cn(c.status === 'completed' && "line-through text-muted-foreground")}>{c.text}</span>

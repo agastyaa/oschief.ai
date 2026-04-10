@@ -15,15 +15,15 @@ interface CoachingCardProps {
 // ── Score badge colors ─────────────────────────────────────────────────
 
 function scoreColor(score: number): string {
-  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 60) return "text-amber-600 dark:text-amber-400";
-  return "text-red-500 dark:text-red-400";
+  if (score >= 80) return "text-green";
+  if (score >= 60) return "text-amber";
+  return "text-destructive";
 }
 
 function scoreBg(score: number): string {
-  if (score >= 80) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800";
-  if (score >= 60) return "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800";
-  return "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800";
+  if (score >= 80) return "bg-green-bg border-green/20";
+  if (score >= 60) return "bg-amber-bg border-amber/20";
+  return "bg-destructive/10 border-destructive/20";
 }
 
 function scoreLabel(score: number): string {
@@ -221,12 +221,12 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
               </div>
             </div>
             {metrics.interruptionCount > 3 && (
-              <div className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2">
+              <div className="text-[10px] text-amber bg-amber-bg rounded-lg p-2">
                 Tip: Try pausing briefly before speaking to avoid interrupting others.
               </div>
             )}
             {metrics.interruptionCount <= 3 && (
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-2">
+              <div className="text-[10px] text-green bg-green-bg rounded-lg p-2">
                 Great job! You maintained good conversational flow.
               </div>
             )}
@@ -271,7 +271,7 @@ export function CoachingCard({ metrics, meetingDurationSec }: CoachingCardProps)
             </div>
           )}
           {metrics.fillerWordsPerMinute > 3 && (
-            <div className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2 mt-3">
+            <div className="text-[10px] text-amber bg-amber-bg rounded-lg p-2 mt-3">
               Tip: Try replacing filler words with brief pauses. Silence sounds more confident than fillers.
             </div>
           )}

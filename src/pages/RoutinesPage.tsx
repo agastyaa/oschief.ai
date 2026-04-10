@@ -318,7 +318,7 @@ export default function RoutinesPage() {
                             {(runs[r.id] || []).map(run => (
                               <div key={run.id} className="rounded-md border border-border/50 p-2.5">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className={cn("w-1.5 h-1.5 rounded-full", run.status === 'success' ? "bg-green-500" : "bg-red-500")} />
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", run.status === 'success' ? "bg-green" : "bg-destructive")} />
                                   <span className="text-[10px] text-muted-foreground">{new Date(run.started_at).toLocaleString()}</span>
                                   <span className="text-[10px] text-muted-foreground">{run.duration_ms}ms</span>
                                 </div>

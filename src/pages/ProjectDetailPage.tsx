@@ -68,8 +68,8 @@ export default function ProjectDetailPage() {
   }
 
   const statusStyles: Record<string, string> = {
-    suggested: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    active: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    suggested: "bg-amber-bg text-amber",
+    active: "bg-green-bg text-green",
     archived: "bg-muted text-muted-foreground",
   }
 
@@ -112,7 +112,7 @@ export default function ProjectDetailPage() {
             toast.success("Project deleted")
             navigate("/projects")
           }}
-          className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
           title="Delete project" aria-label="Delete project"
         >
           <Trash2 className="h-4 w-4" />
@@ -344,7 +344,7 @@ export default function ProjectDetailPage() {
                         e.stopPropagation()
                         if (!confirm(`Unlink "${meeting.title || 'this meeting'}"?`)) return
                         try { await api?.memory?.projects?.unlinkFromNote(meeting.id, id!); refreshTimeline(); toast.success("Unlinked") } catch { toast.error("Failed to unlink meeting") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Unlink from project" aria-label="Unlink from project">
+                      }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Unlink from project" aria-label="Unlink from project">
                         <Unlink className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -369,7 +369,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async () => {
                         if (!confirm("Delete this decision?")) return
                         try { await api?.memory?.decisions?.delete(decision.id); refreshTimeline(); toast.success("Decision deleted") } catch { toast.error("Failed to delete decision") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Delete" aria-label="Delete">
+                      }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -384,7 +384,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async () => {
                         try { await api?.memory?.commitments?.updateStatus(c.id, c.status === "completed" ? "open" : "completed"); refreshTimeline() } catch { toast.error("Failed") }
                       }} className="mt-0.5 shrink-0 hover:scale-110 transition-transform" title={c.status === "completed" ? "Reopen" : "Done"}>
-                        <CheckSquare className={cn("h-3.5 w-3.5", c.status === "completed" ? "text-green-500" : "text-muted-foreground hover:text-primary")} />
+                        <CheckSquare className={cn("h-3.5 w-3.5", c.status === "completed" ? "text-green" : "text-muted-foreground hover:text-primary")} />
                       </button>
                       <div className="flex-1">
                         <div className={cn("text-sm", c.status === "completed" && "line-through text-muted-foreground")}>{c.text}</div>
@@ -399,7 +399,7 @@ export default function ProjectDetailPage() {
                       <button onClick={async () => {
                         if (!confirm("Delete?")) return
                         try { await api?.memory?.commitments?.delete(c.id); refreshTimeline(); toast.success("Action item deleted") } catch { toast.error("Failed to delete action item") }
-                      }} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 shrink-0" title="Delete" aria-label="Delete">
+                      }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0" title="Delete" aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>

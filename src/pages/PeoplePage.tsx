@@ -151,7 +151,7 @@ function RelationshipDropdown({ value, onSave }: { value: string; onSave: (v: st
           {value && (
             <button
               onClick={() => { onSave(""); setOpen(false) }}
-              className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border-t border-border mt-1 pt-1.5"
+              className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 border-t border-border mt-1 pt-1.5"
             >
               Clear
             </button>
@@ -176,7 +176,7 @@ function DeleteConfirmation({ person, onConfirm, onCancel }: { person: Person; o
           <button onClick={onCancel} className="px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-secondary transition-colors">
             Cancel
           </button>
-          <button onClick={onConfirm} className="px-3 py-1.5 rounded-md text-xs text-white bg-red-500 hover:bg-red-600 transition-colors">
+          <button onClick={onConfirm} className="px-3 py-1.5 rounded-md text-xs text-white bg-destructive hover:bg-destructive/90 transition-colors">
             Delete
           </button>
         </div>
@@ -488,7 +488,7 @@ const PeoplePage = () => {
                       </button>
                       <button
                         onClick={() => setDeleteTarget(selectedPerson)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Delete person"
                       >
                         <Trash2 className="h-4 w-4" />

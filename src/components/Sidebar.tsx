@@ -187,7 +187,7 @@ export function Sidebar() {
 
       {/* Workspace Header — Logo + Status */}
       <div
-        className={cn("flex items-center justify-between pb-2", isElectron ? "pt-10 px-4 pl-[78px]" : "pt-4 px-4")}
+        className={cn("flex items-center justify-between pb-2 px-4", isElectron ? "pt-10 pl-20" : "pt-4")}
         style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
       >
         <div className="flex items-center gap-2">

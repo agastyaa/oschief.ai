@@ -421,7 +421,7 @@ export default function OnboardingPage() {
                     : "border-border bg-card hover:border-accent/40"
                 )}
               >
-                <ShieldCheck className="h-5 w-5 text-emerald-500 mb-2" />
+                <ShieldCheck className="h-5 w-5 text-green mb-2" />
                 <p className="text-sm font-medium text-foreground">Local (private)</p>
                 <p className="text-[11px] text-muted-foreground mt-1">Runs on your Mac via Ollama. Nothing leaves your device.</p>
               </button>

@@ -42,8 +42,8 @@ export function PrivacyIndicator() {
         className={cn(
           "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
           isFullyLocal
-            ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-            : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+            ? "text-green hover:bg-green-bg"
+            : "text-amber hover:bg-amber-bg"
         )}
       >
         <Icon className="h-3 w-3" />
@@ -55,25 +55,25 @@ export function PrivacyIndicator() {
           <div style={popupStyle} className="w-72 rounded-[10px] border border-border bg-card p-3 shadow-lg text-xs space-y-2">
             <div className="font-medium text-foreground">Data boundary</div>
             <div className="flex items-start gap-2">
-              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <Lock className="h-3 w-3 text-green flex-shrink-0 mt-0.5" />
               <span><strong>Audio</strong> — always stays on your device</span>
             </div>
             <div className="flex items-start gap-2">
               {isCloudSTT
-                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
-                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+                ? <Cloud className="h-3 w-3 text-amber flex-shrink-0 mt-0.5" />
+                : <Lock className="h-3 w-3 text-green flex-shrink-0 mt-0.5" />
               }
               <span><strong>Transcription</strong> — {isCloudSTT ? "text sent to cloud STT" : "processed on device"}</span>
             </div>
             <div className="flex items-start gap-2">
               {isCloudAI
-                ? <Cloud className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
-                : <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+                ? <Cloud className="h-3 w-3 text-amber flex-shrink-0 mt-0.5" />
+                : <Lock className="h-3 w-3 text-green flex-shrink-0 mt-0.5" />
               }
               <span><strong>AI notes & chat</strong> — {isCloudAI ? "text sent to cloud LLM" : "processed on device"}</span>
             </div>
             <div className="flex items-start gap-2">
-              <Lock className="h-3 w-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <Lock className="h-3 w-3 text-green flex-shrink-0 mt-0.5" />
               <span><strong>Database</strong> — always local (SQLite)</span>
             </div>
           </div>

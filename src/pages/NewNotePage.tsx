@@ -1203,12 +1203,12 @@ export default function NewNotePage() {
     <div className="flex flex-1 flex-col min-w-0">
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
         {captureError && (
-          <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber/40 bg-amber-bg px-4 py-3 text-sm text-amber">
             <p className="flex-1 min-w-0">{captureError}</p>
             <button
               type="button"
               onClick={() => { clearCaptureError(); }}
-              className="flex-shrink-0 rounded p-1 text-amber-600 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+              className="flex-shrink-0 rounded p-1 text-amber hover:bg-amber/20 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -1515,11 +1515,11 @@ export default function NewNotePage() {
               </div>
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
-                  <div className="rounded-[10px] border border-amber-500/40 bg-amber-500/10 px-3 py-3">
-                    <p className="text-[13px] font-medium text-amber-800 dark:text-amber-200">
+                  <div className="rounded-[10px] border border-amber/40 bg-amber-bg px-3 py-3">
+                    <p className="text-[13px] font-medium text-amber">
                       No transcript captured yet ({Math.floor(elapsedSeconds / 60)} min)
                     </p>
-                    <p className="text-[12px] text-amber-700 dark:text-amber-300/90 mt-1 leading-relaxed">
+                    <p className="text-[12px] text-amber mt-1 leading-relaxed">
                       Check <strong>Settings → Transcription</strong>: try another STT model or verify your API key. Resume recording to retry.
                     </p>
                   </div>
@@ -1549,7 +1549,7 @@ export default function NewNotePage() {
                           className={cn(
                             "max-w-[95%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed",
                             isMe
-                              ? "bg-green-500/15 text-green-900 dark:text-green-100 rounded-br-md"
+                              ? "bg-green-bg text-foreground rounded-br-md"
                               : "bg-muted/80 text-foreground/90 rounded-bl-md"
                           )}
                         >
@@ -1604,8 +1604,8 @@ export default function NewNotePage() {
                   });
                 })()}
                 {!transcriptSearch && recordingState === "recording" && usingRealAudio && !selectedSTTModel && (
-                  <div className="rounded-[10px] border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 mb-2">
-                    <p className="text-[11px] text-blue-600 dark:text-blue-400 leading-relaxed">
+                  <div className="rounded-[10px] border border-primary/20 bg-primary/5 px-3 py-2.5 mb-2">
+                    <p className="text-[11px] text-primary leading-relaxed">
                       <Mic className="h-3 w-3 inline mr-1 -mt-0.5" />
                       {usingWebSpeech
                         ? <>Using browser speech recognition. For better accuracy, download a Whisper model in <strong>Settings → Transcription</strong>.</>
@@ -1620,11 +1620,11 @@ export default function NewNotePage() {
                   </p>
                 )}
                 {!transcriptSearch && sttStale && !sttStaleDismissed && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 pt-0.5 flex items-start gap-1">
+                  <p className="text-[10px] text-amber pt-0.5 flex items-start gap-1">
                     <span className="flex-1">No real-time speech detected for a while. Check your STT model, network, mic, and system audio permissions — or try higher capture sensitivity in Settings → AI Models → Transcription.</span>
                     <button
                       onClick={() => setSttStaleDismissed(true)}
-                      className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 shrink-0 ml-1 leading-none"
+                      className="text-amber hover:text-amber/80 shrink-0 ml-1 leading-none"
                       title="Dismiss"
                     >×</button>
                   </p>

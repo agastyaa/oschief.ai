@@ -21,8 +21,8 @@ type Tab = "active" | "suggested" | "archived"
 const decisionStatusStyles: Record<string, string> = {
   MADE: 'bg-muted text-muted-foreground',
   ASSIGNED: 'bg-primary/10 text-primary',
-  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  IN_PROGRESS: 'bg-green-bg text-green',
+  DONE: 'bg-green-bg text-green',
   ABANDONED: 'bg-muted text-muted-foreground line-through',
   REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
@@ -277,14 +277,14 @@ export default function ProjectsPage() {
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => handleConfirm(project.id)}
-                        className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400"
+                        className="p-1 rounded hover:bg-green-bg text-green"
                         title="Confirm project"
                       >
                         <Check className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(project.id)}
-                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                         title="Dismiss"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -309,7 +309,7 @@ export default function ProjectsPage() {
                       </button>
                       <button
                         onClick={() => { if (confirm(`Delete "${project.name}"? This cannot be undone.`)) handleDelete(project.id) }}
-                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                         title="Delete" aria-label="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -319,7 +319,7 @@ export default function ProjectsPage() {
                   {(project.status === "archived" || project.status === "completed") && (
                     <button
                       onClick={e => { e.stopPropagation(); if (confirm(`Delete "${project.name}"?`)) handleDelete(project.id) }}
-                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                       title="Delete" aria-label="Delete"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -421,8 +421,8 @@ export default function ProjectsPage() {
 
 function StatusPill({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    suggested: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    active: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    suggested: "bg-amber-bg text-amber",
+    active: "bg-green-bg text-green",
     archived: "bg-muted text-muted-foreground",
     completed: "bg-muted text-muted-foreground",
   }

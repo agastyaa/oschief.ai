@@ -289,7 +289,7 @@ const Index = () => {
             {n.timeRange ?? n.time}
           </span>
           {isRecording && (
-            <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-recording animate-pulse" />
           )}
           <NoteCardMenu
             noteId={n.id}

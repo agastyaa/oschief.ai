@@ -26,8 +26,8 @@ interface Commitment {
 type FilterStatus = "all" | "open" | "completed" | "overdue" | "my" | "upcoming"
 
 const STATUS_CONFIG = {
-  open: { label: "Open", icon: Circle, color: "text-blue-500", bg: "bg-blue-500/10" },
-  completed: { label: "Done", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  open: { label: "Open", icon: Circle, color: "text-primary", bg: "bg-primary/10" },
+  completed: { label: "Done", icon: CheckCircle2, color: "text-green", bg: "bg-green-bg" },
   overdue: { label: "Overdue", icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
   cancelled: { label: "Cancelled", icon: XCircle, color: "text-muted-foreground", bg: "bg-muted/50" },
 }
@@ -413,7 +413,7 @@ const CommitmentsPage = () => {
                                   </button>
                                 )}
                                 {c.jira_issue_key && (
-                                  <span className="text-[11px] text-blue-500 font-mono">
+                                  <span className="text-[11px] text-primary font-mono">
                                     {c.jira_issue_key}
                                   </span>
                                 )}
@@ -528,7 +528,7 @@ const CommitmentsPage = () => {
                                 <button
                                   onClick={() => handleDelete(c.id)}
                                   title="Delete" aria-label="Delete"
-                                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-opacity"
+                                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

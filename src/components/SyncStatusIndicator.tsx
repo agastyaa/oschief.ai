@@ -34,12 +34,12 @@ export function SyncStatusIndicator() {
   const config = {
     synced: {
       icon: Cloud,
-      color: "text-emerald-500",
+      color: "text-green",
       title: "iCloud sync: up to date",
     },
     syncing: {
       icon: Loader2,
-      color: "text-amber-500 animate-spin",
+      color: "text-amber animate-spin",
       title: "iCloud sync: syncing...",
     },
     offline: {
@@ -49,7 +49,7 @@ export function SyncStatusIndicator() {
     },
     error: {
       icon: AlertCircle,
-      color: "text-red-500",
+      color: "text-destructive",
       title: "iCloud sync: error",
     },
   }[state];

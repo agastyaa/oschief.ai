@@ -14,9 +14,9 @@ export function JiraStatusBadge({ issueKey, issueUrl }: JiraStatusBadgeProps) {
       rel="noopener noreferrer"
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-        "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400",
-        "border border-blue-200 dark:border-blue-800",
-        "hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+        "bg-primary/10 text-primary",
+        "border border-primary/20",
+        "hover:bg-primary/15 transition-colors"
       )}
       title={`Open ${issueKey} in Jira`}
     >
