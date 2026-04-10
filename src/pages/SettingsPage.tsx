@@ -1448,11 +1448,11 @@ export default function SettingsPage() {
   const [cpTesting, setCpTesting] = useState(false);
   const [cpFetching, setCpFetching] = useState(false);
   const [active, setActiveRaw] = useState("account");
+  const settingsContentRef = useRef<HTMLDivElement>(null);
   const setActive = (id: string) => {
     setActiveRaw(id);
-    // Scroll content area to top when switching tabs
-    const main = document.querySelector('main .overflow-y-auto');
-    if (main) main.scrollTop = 0;
+    // Scroll settings content to top (not the entire AppShell)
+    if (settingsContentRef.current) settingsContentRef.current.scrollTop = 0;
   };
   const [aiModelsTab, setAiModelsTab] = useState<AiModelsSubTab>("models");
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -1777,7 +1777,7 @@ export default function SettingsPage() {
               ))}
             </nav>
 
-            <div className="flex-1 min-w-0 animate-fade-in" key={active}>
+            <div ref={settingsContentRef} className="flex-1 min-w-0 min-h-[500px]">
               {active === "account" && (
                 <div className="space-y-5">
                   <SectionHeader title="Account" description="Your personal information and preferences" />
