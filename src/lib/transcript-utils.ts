@@ -115,3 +115,48 @@ export function groupTranscriptBySpeaker(
   groups.push(current);
   return splitLongGroups(groups);
 }
+
+/** Color palette for diarized speakers. Index 0 = "Me", 1+ = other speakers. */
+const SPEAKER_COLORS = [
+  { label: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', dot: 'bg-emerald-500' },   // Me / Speaker 1
+  { label: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/30', dot: 'bg-blue-500' },                   // Them / Speaker 2
+  { label: 'text-violet-700 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/30', dot: 'bg-violet-500' },          // Speaker 3
+  { label: 'text-amber-700 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/30', dot: 'bg-amber-500' },              // Speaker 4
+  { label: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-950/30', dot: 'bg-rose-500' },                   // Speaker 5
+  { label: 'text-cyan-700 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-950/30', dot: 'bg-cyan-500' },                   // Speaker 6
+] as const;
+
+/** Map a speaker string to a consistent color index. "You"/"Me" = 0, "Others"/"Them" = 1, "Speaker N" = N-1, etc. */
+const speakerColorCache = new Map<string, number>();
+let nextColorIndex = 2; // 0=Me, 1=Them, 2+ for diarized speakers
+
+export function getSpeakerColor(speaker: string): typeof SPEAKER_COLORS[number] {
+  if (speaker === 'You' || speaker === 'Me') return SPEAKER_COLORS[0];
+  if (speaker === 'Others' || speaker === 'Them') return SPEAKER_COLORS[1];
+
+  // Diarized speaker — extract number if present ("Speaker 3" → index 2)
+  const match = speaker.match(/Speaker\s*(\d+)/i);
+  if (match) {
+    const idx = Math.min(parseInt(match[1]) - 1, SPEAKER_COLORS.length - 1);
+    return SPEAKER_COLORS[Math.max(0, idx)];
+  }
+
+  // Named speaker — assign a consistent color
+  if (!speakerColorCache.has(speaker)) {
+    speakerColorCache.set(speaker, nextColorIndex % SPEAKER_COLORS.length);
+    nextColorIndex++;
+  }
+  return SPEAKER_COLORS[speakerColorCache.get(speaker)!];
+}
+
+/** Get the display label for a speaker. "You" → "Me", "Others" → "Them", "Speaker 1" stays. */
+export function getSpeakerDisplayLabel(speaker: string): string {
+  if (speaker === 'You') return 'Me';
+  if (speaker === 'Others') return 'Them';
+  return speaker;
+}
+
+export function resetSpeakerColors(): void {
+  speakerColorCache.clear();
+  nextColorIndex = 2;
+}

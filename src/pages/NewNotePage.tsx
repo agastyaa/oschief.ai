@@ -21,7 +21,7 @@ import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { toast } from "sonner";
 import type { SummaryData } from "@/components/EditableSummary";
-import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
+import { groupTranscriptBySpeaker, getSpeakerColor, getSpeakerDisplayLabel } from "@/lib/transcript-utils";
 import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppVisibility } from "@/hooks/useAppVisibility";
@@ -1541,7 +1541,8 @@ export default function NewNotePage() {
                   const searchRegex = transcriptSearch ? new RegExp(`(${transcriptSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi") : null;
                   return groups.map((group, groupIdx) => {
                     const isMe = group.speaker === "You";
-                    const displayLabel = isMe ? "Me" : "Them";
+                    const displayLabel = getSpeakerDisplayLabel(group.speaker);
+                    const speakerStyle = getSpeakerColor(group.speaker);
                     // Always show speaker label for clarity — especially after time-gap splits
                     const showLabel = true;
                     const isLastGroup = groupIdx === groups.length - 1;
@@ -1563,7 +1564,8 @@ export default function NewNotePage() {
                           )}
                         >
                           {showLabel && (
-                            <p className="text-[12px] font-medium text-foreground/70 mb-0.5">
+                            <p className={cn("text-[12px] font-semibold mb-0.5 flex items-center gap-1", speakerStyle.label)}>
+                              <span className={cn("h-1.5 w-1.5 rounded-full inline-block", speakerStyle.dot)} />
                               {displayLabel}
                             </p>
                           )}

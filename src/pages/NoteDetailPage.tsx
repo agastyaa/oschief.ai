@@ -11,7 +11,7 @@ import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, S
 import { MeetingMetadata } from "@/components/MeetingMetadata";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
-import { groupTranscriptBySpeaker } from "@/lib/transcript-utils";
+import { groupTranscriptBySpeaker, getSpeakerColor, getSpeakerDisplayLabel } from "@/lib/transcript-utils";
 import { loadAccountFromStorage } from "@/lib/account-context";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { toast } from "sonner";
@@ -676,7 +676,8 @@ export default function NoteDetailPage() {
                   const searchRegex = transcriptSearch ? new RegExp(`(${transcriptSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi") : null;
                   const totalSaved = note.transcript.length;
                     return groups.map((group, groupIdx) => {
-                    const displayLabel = group.speaker === "You" ? "Me" : "Them";
+                    const displayLabel = getSpeakerDisplayLabel(group.speaker);
+                    const speakerStyle = getSpeakerColor(group.speaker);
                     const isNew = group.indices.some((i) => i >= totalSaved);
                     const prevGroup = groupIdx > 0 ? groups[groupIdx - 1] : null;
                     const showLabel = !prevGroup || prevGroup.speaker !== group.speaker;
@@ -692,8 +693,9 @@ export default function NoteDetailPage() {
                         )}
                       >
                         {showLabel ? (
-                          <div className="mb-0.5">
-                            <span className="text-[10px] font-medium text-foreground">{displayLabel}</span>
+                          <div className="mb-0.5 flex items-center gap-1.5">
+                            <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", speakerStyle.dot)} />
+                            <span className={cn("text-[10px] font-semibold", speakerStyle.label)}>{displayLabel}</span>
                           </div>
                         ) : (
                           <div className="h-1" />
