@@ -94,6 +94,8 @@ let autoRepairInProgress = false
 let micOnlyDiarizationEnabled = false
 let micOnlyMode = false
 let streamingDiarizer: StreamingDiarizer | null = null
+/** Tracks when channel 1 (system audio) last produced a transcript line. 0 = never this session. */
+let lastSystemAudioTranscriptTime = 0
 /** Sliding window of recently corrected segments for LLM context continuity. */
 const recentCorrectedSegments: string[] = []
 const MAX_RECENT_CONTEXT = 3
@@ -298,6 +300,18 @@ export async function startRecording(
 
   if (currentSTTModel) {
     ensureVADModel().catch(err => console.warn('VAD model pre-load failed:', err.message))
+  }
+
+  // Always initialize diarizer when setting is enabled — don't wait for micOnlyMode
+  // System audio capture "succeeds" even without a meeting app (silent desktop audio),
+  // so micOnlyMode is unreliable. Diarization gate checks system audio activity instead.
+  lastSystemAudioTranscriptTime = 0
+  if (micOnlyDiarizationEnabled && !streamingDiarizer) {
+    console.log('[capture] Creating StreamingDiarizer on recording start...')
+    streamingDiarizer = new StreamingDiarizer()
+    streamingDiarizer.ensureModel()
+      .then(() => console.log('[capture] Diarization models ready'))
+      .catch(err => console.warn('[capture] Diarization model load failed:', err.message))
   }
 
   consecutiveSilentChunks = [0, 0]
@@ -675,9 +689,11 @@ async function processBufferedAudio(): Promise<void> {
         if (channel === 0) logMicCaptureDebug('resume_strict_pass_used', { remaining: resumeStrictPassCountdown[0] })
       }
 
-      // Mic-only diarization: run pyannote segmentation on full audio (needs contiguous signal, not VAD-extracted)
-      // Timeout prevents diarization from blocking the transcription pipeline (model download, ONNX failure, etc.)
-      if (channel === 0 && micOnlyDiarizationEnabled && micOnlyMode && streamingDiarizer?.isReady()) {
+      // Speaker diarization: run pyannote segmentation on mic audio to distinguish voices.
+      // Runs when mic-only mode OR when system audio hasn't produced transcripts (meeting room, no call).
+      // Timeout prevents diarization from blocking the transcription pipeline.
+      const systemAudioSilent = lastSystemAudioTranscriptTime === 0 || (Date.now() - lastSystemAudioTranscriptTime > 30_000)
+      if (channel === 0 && micOnlyDiarizationEnabled && streamingDiarizer?.isReady() && (micOnlyMode || systemAudioSilent)) {
         try {
           const diarizePromise = streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
           const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
@@ -798,6 +814,7 @@ async function processBufferedAudio(): Promise<void> {
         if (recentEmittedTexts.length > 100) recentEmittedTexts.splice(0, recentEmittedTexts.length - 100)
 
         lastSpeechTime = Date.now()
+        if (channel === 1) lastSystemAudioTranscriptTime = Date.now()
         const time = formatTimestamp(chunkStartSec)
         transcriptCallback({ speaker, time, text: deoverlapped, words: sttResult.words?.length ? sttResult.words : undefined })
         previousEmittedTail[channel] = deoverlapped
