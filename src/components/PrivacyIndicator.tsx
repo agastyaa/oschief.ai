@@ -10,10 +10,11 @@ export function PrivacyIndicator() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
 
-  const isCloudAI = selectedAIModel?.includes("openai:") || selectedAIModel?.includes("anthropic:") ||
-    selectedAIModel?.includes("google:") || selectedAIModel?.includes("groq:");
-  const isCloudSTT = selectedSTTModel?.includes("openai:") || selectedSTTModel?.includes("deepgram:") ||
-    selectedSTTModel?.includes("assemblyai:") || selectedSTTModel?.includes("groq:");
+  // Anything that isn't explicitly local/system/apple is cloud (covers custom providers, OpenRouter, etc.)
+  const isLocalAI = !selectedAIModel || selectedAIModel.startsWith("local:") || selectedAIModel.startsWith("system:") || selectedAIModel.startsWith("apple:");
+  const isLocalSTT = !selectedSTTModel || selectedSTTModel.startsWith("local:") || selectedSTTModel.startsWith("system:") || selectedSTTModel.startsWith("apple:");
+  const isCloudAI = !isLocalAI;
+  const isCloudSTT = !isLocalSTT;
 
   const isFullyLocal = !isCloudAI && !isCloudSTT;
   const label = isFullyLocal ? "Local" : "Cloud";
