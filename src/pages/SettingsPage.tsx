@@ -338,7 +338,7 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
   };
 
   const copyCurlExample = () => {
-    const cmd = `curl -s --unix-socket "${socketPath}" -H "Authorization: Bearer ${token ?? '<TOKEN>'}" http://localhost/v1/notes?limit=5`;
+    const cmd = `curl -s --unix-socket "${socketPath}" -H "Authorization: Bearer ${token ?? '<TOKEN>'}" "http://localhost/v1/notes?limit=5"`;
     navigator.clipboard.writeText(cmd);
     toast.success("curl example copied");
   };
@@ -426,9 +426,9 @@ function AgentApiSection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
               </button>
             </div>
             <pre className="font-mono text-[11px] bg-background rounded-md px-3 py-2 text-foreground/80 overflow-x-auto whitespace-pre-wrap">
-{`curl -s --unix-socket "$SYAG_SOCK" \\
-  -H "Authorization: Bearer $SYAG_TOKEN" \\
-  http://localhost/v1/notes?limit=5`}
+{`curl -s --unix-socket "${socketPath}" \\
+  -H "Authorization: Bearer ${token}" \\
+  "http://localhost/v1/notes?limit=5"`}
             </pre>
             <div className="space-y-1 mt-2">
               <p className="text-[11px] text-muted-foreground font-medium">Available endpoints:</p>
@@ -2673,26 +2673,6 @@ export default function SettingsPage() {
                     <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
                       <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
                     </SettingRow>
-                    <SettingRow label="Auto-record meetings" description="Start recording automatically when a meeting is detected">
-                      <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />
-                    </SettingRow>
-                    <SettingRow label="Live transcription" description="Recommended on. Real-time transcription during recording. Turn off only for privacy-friendly batch mode (full pass after you stop). When off, little or no text appears until you stop — and long meetings can look very delayed or incomplete on one side.">
-                      <Toggle enabled={!toggles.transcribeWhenStopped} onToggle={() => {
-                        setToggles((prev) => {
-                          const nextBatch = !prev.transcribeWhenStopped;
-                          const next = {
-                            ...prev,
-                            transcribeWhenStopped: nextBatch,
-                            realTimeTranscribe: !nextBatch,
-                          };
-                          if (api) {
-                            api.db.settings.set('transcribe-when-stopped', JSON.stringify(nextBatch)).catch(console.error);
-                            api.db.settings.set('real-time-transcription', JSON.stringify(!nextBatch)).catch(console.error);
-                          }
-                          return next;
-                        });
-                      }} />
-                    </SettingRow>
                     {isElectron && (
                       <>
                         <div className="rounded-md border border-border bg-card p-3 space-y-2">
@@ -2732,14 +2712,6 @@ export default function SettingsPage() {
                     <SettingRow label="Auto-generate AI notes" description="Create summaries and action items when recording ends">
                       <Toggle enabled={toggles.aiSummaries} onToggle={() => toggle("aiSummaries")} />
                     </SettingRow>
-                    <SettingRow label="Browser noise suppression" description="Use the browser’s built-in noise suppression on the microphone. Turn off if it causes artifacts or cuts speech.">
-                      <Toggle enabled={toggles.audioNoiseSuppression} onToggle={() => toggle("audioNoiseSuppression")} />
-                    </SettingRow>
-                    {/* "Reduce noise before transcription" removed — not wired to backend.
-                        VAD energy thresholds in capture.ts handle this automatically. */}
-                    <SettingRow label="Speaker diarization (mic only)" description="Label who spoke (Speaker 1, 2, ...) using on-device speaker embeddings when no system audio is available.">
-                      <Toggle enabled={toggles.useDiarization} onToggle={() => toggle("useDiarization")} />
-                    </SettingRow>
                   </div>
                   <div>
                     <label className="text-[13px] font-medium text-foreground mb-2 block">Audio input device</label>
@@ -2769,9 +2741,6 @@ export default function SettingsPage() {
               {active === "connections" && (
                 <div className="space-y-5">
                   <SectionHeader title="Connections" description="Calendar, integrations, and sync" />
-                  <SettingRow label="Only notify when microphone is in use" description="Fewer false positives: show “Meeting detected” only when a meeting app is in use and the mic is active (ad-hoc calls). Turn off if you join muted and miss prompts.">
-                    <Toggle enabled={toggles.meetingDetectionRequireMic} onToggle={() => toggle("meetingDetectionRequireMic")} />
-                  </SettingRow>
                   {isElectron && (
                     <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
                       <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
@@ -2893,14 +2862,6 @@ export default function SettingsPage() {
               {active === "advanced" && (
                 <div className="space-y-5">
                   <SectionHeader title="Advanced" description="Notifications, Agent API, and developer settings" />
-                  <div className="space-y-2">
-                    <SettingRow label="Meeting summary ready" description="Get notified when AI finishes generating a summary">
-                      <Toggle enabled={toggles.summaryReady} onToggle={() => toggle("summaryReady")} />
-                    </SettingRow>
-                    <SettingRow label="Action item reminders" description="Reminders about pending action items from meetings">
-                      <Toggle enabled={toggles.actionReminder} onToggle={() => toggle("actionReminder")} />
-                    </SettingRow>
-                  </div>
                 </div>
               )}
 

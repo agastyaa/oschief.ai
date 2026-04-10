@@ -430,32 +430,32 @@ export default function DecisionsPage() {
                             Add context...
                           </button>
                         )}
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                           {d.note_title && (
                             <button
                               onClick={() => d.note_id && navigate(`/note/${d.note_id}`)}
-                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                              className="flex items-center gap-1 hover:text-foreground transition-colors truncate max-w-[200px]"
                             >
-                              <FileText className="h-3 w-3" />
-                              {d.note_title}
+                              <FileText className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{d.note_title}</span>
                             </button>
                           )}
                           {d.project_name && (
                             <button
                               onClick={() => d.project_id && navigate(`/project/${d.project_id}`)}
-                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                              className="flex items-center gap-1 hover:text-foreground transition-colors truncate max-w-[200px]"
                             >
-                              <FolderKanban className="h-3 w-3" />
-                              {d.project_name}
+                              <FolderKanban className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{d.project_name}</span>
                             </button>
                           )}
                           <div className="relative">
                             <button
                               onClick={() => editingPeopleId === d.id ? setEditingPeopleId(null) : openPeopleEditor(d.id)}
-                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                              className="flex items-center gap-1 hover:text-foreground transition-colors truncate max-w-[200px]"
                             >
-                              <Users className="h-3 w-3" />
-                              {d.participant_names || <span className="text-muted-foreground/40 italic">Add people</span>}
+                              <Users className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{d.participant_names || <span className="text-muted-foreground/40 italic">Add people</span>}</span>
                             </button>
                             {editingPeopleId === d.id && (
                               <div ref={peopleRef} className="absolute left-0 top-full mt-1 z-50 w-56 rounded-[10px] border border-border bg-card shadow-lg p-2 space-y-2">
