@@ -13,9 +13,12 @@ export function ContentHeader() {
 
   if (config.hideHeader) return null;
 
-  // Don't render an empty header bar when sidebar is collapsed and no back/actions
+  // When sidebar is collapsed and no back/actions, still render a spacer in Electron for traffic lights
   const hasContent = sidebarOpen || config.backLabel || config.actions;
-  if (!hasContent) return null;
+  if (!hasContent) {
+    if (isElectron) return <div className="pt-8 flex-shrink-0" />;
+    return null;
+  }
 
   return (
     <div

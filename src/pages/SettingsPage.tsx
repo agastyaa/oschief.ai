@@ -58,6 +58,7 @@ const TOGGLE_DB_KEYS: Record<string, string> = {
   aiSummaries: 'auto-generate-notes',
   summaryReady: 'summary-ready-notification',
   actionReminder: 'action-reminder-notification',
+  meetingAutoDetect: 'meeting-auto-detect',
   meetingDetectionRequireMic: 'meeting-detection-require-mic',
   audioNoiseSuppression: 'audio-noise-suppression',
   useDiarization: 'use-diarization',
@@ -71,6 +72,7 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   aiSummaries: true,
   summaryReady: true,
   actionReminder: true,
+  meetingAutoDetect: true,
   meetingDetectionRequireMic: false,
   audioNoiseSuppression: true,
   useDiarization: true,
@@ -1444,13 +1446,20 @@ export default function SettingsPage() {
   const [cpIcon, setCpIcon] = useState("🔌");
   const [cpTesting, setCpTesting] = useState(false);
   const [cpFetching, setCpFetching] = useState(false);
-  const [active, setActive] = useState("account");
+  const [active, setActiveRaw] = useState("account");
+  const setActive = (id: string) => {
+    setActiveRaw(id);
+    // Scroll content area to top when switching tabs
+    const main = document.querySelector('main .overflow-y-auto');
+    if (main) main.scrollTop = 0;
+  };
   const [aiModelsTab, setAiModelsTab] = useState<AiModelsSubTab>("models");
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateResult, setUpdateResult] = useState<string | null>(null);
   const [updateErrorDetail, setUpdateErrorDetail] = useState<string | null>(null);
+  const [updateProgress, setUpdateProgress] = useState<{ percent: number; bytesPerSecond: number; transferred: number; total: number } | null>(null);
   const [benchmarkStats, setBenchmarkStats] = useState<any[]>([]);
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({ ...DEFAULT_TOGGLES });
@@ -1528,6 +1537,13 @@ export default function SettingsPage() {
       setUpdateChecking(false);
       setUpdateResult("error");
       setUpdateErrorDetail(message);
+    });
+  }, [api]);
+
+  useEffect(() => {
+    if (!(api?.app as any)?.onUpdateDownloadProgress) return;
+    return (api.app as any).onUpdateDownloadProgress((progress: any) => {
+      setUpdateProgress(progress);
     });
   }, [api]);
 
@@ -2654,7 +2670,10 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <SectionHeader title="Transcription" description="Control how OSChief listens and transcribes your meetings" />
                   <div className="space-y-2">
-                    <SettingRow label="Auto-record meetings" description="Start recording automatically when a calendar meeting begins">
+                    <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
+                      <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
+                    </SettingRow>
+                    <SettingRow label="Auto-record meetings" description="Start recording automatically when a meeting is detected">
                       <Toggle enabled={toggles.autoRecord} onToggle={() => toggle("autoRecord")} />
                     </SettingRow>
                     <SettingRow label="Live transcription" description="Recommended on. Real-time transcription during recording. Turn off only for privacy-friendly batch mode (full pass after you stop). When off, little or no text appears until you stop — and long meetings can look very delayed or incomplete on one side.">
@@ -2949,8 +2968,12 @@ export default function SettingsPage() {
                               <span className="text-[11px] text-green-600 dark:text-green-400">You're on the latest version</span>
                             )}
                             {updateResult === "downloading" && (
-                              <span className="text-[11px] text-muted-foreground max-w-[200px] text-right">
-                                Downloading update… the Install button appears when ready.
+                              <span className="text-[11px] text-muted-foreground max-w-[240px] text-right">
+                                {updateProgress ? (
+                                  <>Downloading {updateProgress.percent}% — {Math.round(updateProgress.transferred / 1024 / 1024)}/{Math.round(updateProgress.total / 1024 / 1024)} MB</>
+                                ) : (
+                                  <>Downloading update…</>
+                                )}
                               </span>
                             )}
                             {updateResult === "error" && (
