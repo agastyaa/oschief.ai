@@ -248,7 +248,7 @@ export async function startRecording(
   statusCallback = onStatus || null
   llmPostProcessEnabled = getSetting('llm-post-process-transcript') === 'true'
   const diarizationSetting = getSetting('use-diarization')
-  micOnlyDiarizationEnabled = diarizationSetting === 'true'
+  micOnlyDiarizationEnabled = diarizationSetting !== 'false' // default ON when unset
   console.log(`[capture] Diarization setting: "${diarizationSetting}" → enabled=${micOnlyDiarizationEnabled}`)
   correctionQueue.length = 0
   isCorrecting = false
