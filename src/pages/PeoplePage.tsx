@@ -208,7 +208,7 @@ function MergePicker({
       <div className="rounded-[10px] border border-border bg-card p-5 shadow-xl max-w-sm w-full mx-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-foreground">Merge into {currentPerson.name}</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} aria-label="Close merge picker" className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -483,6 +483,7 @@ const PeoplePage = () => {
                         onClick={() => setMergeOpen(true)}
                         className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                         title="Merge with another person"
+                        aria-label="Merge with another person"
                       >
                         <Merge className="h-4 w-4" />
                       </button>
@@ -490,6 +491,7 @@ const PeoplePage = () => {
                         onClick={() => setDeleteTarget(selectedPerson)}
                         className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Delete person"
+                        aria-label="Delete person"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

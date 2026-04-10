@@ -340,6 +340,7 @@ const CommitmentsPage = () => {
                               onClick={() => handleToggleStatus(c)}
                               className={cn("mt-0.5 flex-shrink-0 transition-colors", config.color, "hover:opacity-70")}
                               title={c.status === "completed" ? "Mark as open" : "Mark as done"}
+                              aria-label={c.status === "completed" ? "Mark as open" : "Mark as done"}
                             >
                               <StatusIcon className="h-4 w-4" />
                             </button>

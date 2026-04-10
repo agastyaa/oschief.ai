@@ -79,7 +79,7 @@ export default function ProjectDetailPage() {
     <div className="max-w-4xl mx-auto px-6 py-4">
       {/* Top nav row: back + stats + actions */}
       <div className="flex items-center gap-2 mb-2">
-        <button onClick={() => navigate("/projects")} className="p-1 rounded hover:bg-secondary text-muted-foreground">
+        <button onClick={() => navigate("/projects")} aria-label="Back to projects" className="p-1 rounded hover:bg-secondary text-muted-foreground">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <FolderKanban className="h-4 w-4 text-muted-foreground" />
@@ -383,7 +383,7 @@ export default function ProjectDetailPage() {
                     <div key={c.id} className="group flex items-start gap-2 px-3 py-2">
                       <button onClick={async () => {
                         try { await api?.memory?.commitments?.updateStatus(c.id, c.status === "completed" ? "open" : "completed"); refreshTimeline() } catch { toast.error("Failed") }
-                      }} className="mt-0.5 shrink-0 hover:scale-110 transition-transform" title={c.status === "completed" ? "Reopen" : "Done"}>
+                      }} className="mt-0.5 shrink-0 hover:scale-110 transition-transform" title={c.status === "completed" ? "Reopen" : "Done"} aria-label={c.status === "completed" ? "Reopen action item" : "Mark action item done"}>
                         <CheckSquare className={cn("h-3.5 w-3.5", c.status === "completed" ? "text-green" : "text-muted-foreground hover:text-primary")} />
                       </button>
                       <div className="flex-1">

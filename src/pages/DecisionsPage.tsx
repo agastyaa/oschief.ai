@@ -277,6 +277,7 @@ export default function DecisionsPage() {
                     refreshDecisions()
                     e.target.value = ""
                   }}
+                  aria-label="Set status for selected decisions"
                   className="text-xs rounded-md border border-border bg-background px-2 py-1.5 text-muted-foreground focus:outline-none"
                 >
                   <option value="">Set status...</option>
@@ -342,6 +343,7 @@ export default function DecisionsPage() {
                               if (e.target.checked) next.add(d.id); else next.delete(d.id)
                               setSelectedIds(next)
                             }}
+                            aria-label={`Select decision: ${d.text.slice(0, 50)}`}
                             className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20 flex-shrink-0"
                           />
                           {editingTextId === d.id ? (
@@ -375,6 +377,7 @@ export default function DecisionsPage() {
                           <select
                             value={d.status || 'MADE'}
                             onChange={(e) => { e.stopPropagation(); handleStatusChange(d.id, e.target.value) }}
+                            aria-label="Decision status"
                             className={cn(
                               "text-[11px] rounded-full px-2 py-0.5 border-0 cursor-pointer shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/40",
                               statusStyles[d.status || 'MADE']
@@ -464,7 +467,7 @@ export default function DecisionsPage() {
                                     {linkedPeople.map(p => (
                                       <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px]">
                                         {p.name}
-                                        <button onClick={() => removePersonFromDecision(d.id, p.id)} className="hover:text-destructive">
+                                        <button onClick={() => removePersonFromDecision(d.id, p.id)} aria-label={`Remove ${p.name}`} className="hover:text-destructive">
                                           <X className="h-2.5 w-2.5" />
                                         </button>
                                       </span>
