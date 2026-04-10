@@ -1734,7 +1734,7 @@ export default function SettingsPage() {
           <h1 className="font-display text-2xl text-foreground mb-6">Settings</h1>
 
           <div className="flex gap-8">
-            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 sticky top-0 self-start pt-1">
+            <nav className="flex w-40 flex-shrink-0 flex-col gap-0.5 pt-1">
               {sections.map((s) => (
                 <button
                   key={s.id}
