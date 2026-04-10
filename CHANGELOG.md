@@ -4,95 +4,42 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
-## [2.5.15] — 2026-04-10
-
-### Fixed
-- **Meeting room diarization** — speaker diarization now works in physical meeting rooms. System audio capture always "succeeds" even without a call (silent desktop audio), so the old `micOnlyMode` check was unreliable. Now the diarizer always initializes and runs on mic audio whenever system audio hasn't produced transcripts in 30 seconds. In a Teams call with active "Them" lines, diarization stays off (channel-based labeling is correct).
-
----
-
-## [2.5.14] — 2026-04-10
-
-### Fixed
-- **Mic-only diarization now works** — speaker diarization (pyannote + ECAPA-TDNN) was silently disabled for anyone who never toggled the setting. Same `null === 'true'` bug as meeting detection. Now defaults to ON, so in-room meetings with just a mic will distinguish speakers.
-- **Transcript flicker during recording** — changed auto-scroll from smooth to instant, eliminating layout reflow jitter when new lines appear.
-
----
-
-## [2.5.13] — 2026-04-10
-
-### Fixed
-- **Teams meeting detection** — Teams, Discord, and Slack run background processes permanently, so process-only detection never fired a second time. Now requires audio/mic activity for these always-running apps to distinguish "installed" from "in a call." Notification fires when you join, not when the app launches.
-- **People/notes spacing** — removed double margin between people section and content divider on note detail page.
-
----
-
-## [2.5.12] — 2026-04-10
+## [2.6.0] — 2026-04-10
 
 ### Added
-- **Enterprise Providers section** — optional providers (like Copart Genie) now show on Settings > AI Models > Cloud tab with connect, test connection, update API key, and disconnect buttons. API keys stored encrypted in macOS Keychain.
-
-### Fixed
-- **Note page layout** — title, metadata, and ask bar now stay pinned while scrolling content. Transcript panel scrolls independently with a pinned header. Applies to both NoteDetailPage and NewNotePage.
-
----
-
-## [2.5.11] — 2026-04-10
-
-### Fixed
-- **Logo position** — logo now sits below macOS traffic lights instead of beside them (was pushed too far right by left padding).
-- **Privacy indicator** — "Local" badge now correctly shows "Cloud" when using custom providers (copart, OpenRouter, etc.). Previously only checked hardcoded provider prefixes.
-
----
-
-## [2.5.10] — 2026-04-10
-
-### Fixed
-- **Preload script crash** — preload was built as ESM (.mjs) but Electron sandbox requires CommonJS. Changed to .cjs output. This was the root cause of: missing version in About, broken "Check for updates", no meeting detection, tray settings not appearing, and other Electron API failures.
-- **404 on /index.html** — instant redirect for the routing artifact caused by the broken preload.
-
----
-
-## [2.5.9] — 2026-04-10
-
-### Fixed
-- **Logo no longer overlaps macOS traffic lights** — sidebar header gets extra left padding in Electron to clear the red/yellow/green buttons.
-- **404 on app launch** — NotFound page now auto-redirects to home after 2 seconds instead of showing a dead end. Uses React Router navigate instead of broken `<a href="/">`.
-- **Tray settings visible** — Calendar & Tray tab in Connections now always shows tray options instead of hiding them.
+- **Enterprise Providers UI** — optional providers (like Copart Genie) now show on Settings > AI Models > Cloud tab with connect, test, update key, and disconnect. API keys stored encrypted in macOS Keychain.
+- **Settings tabs** — Meeting (General / Templates / Transcription), AI Models (Setup / Local / Cloud), and Connections (Calendar & Tray / Integrations / Developer) each use tabs instead of long scroll.
 
 ### Changed
-- **Default template moved to Templates tab** — the template selector now lives with the template list where it belongs, not in General.
-- **Removed "Use local by default" toggle** — confusing toggle that overrode cloud AI model selection. Users pick their model in the Setup tab directly.
-
----
-
-## [2.5.8] — 2026-04-10
-
-### Fixed
-- **Meeting detection with mic off** — notification now fires as soon as Teams/Zoom/Meet process appears, regardless of microphone state. Previously, an inverted default meant the mic check ran even when the "require mic" setting was off, silently blocking notifications when the mic wasn't active at call join. One click on the notification starts taking notes.
-
----
-
-## [2.5.7] — 2026-04-10
-
-### Changed
-- **Settings tabs** — Meeting, AI Models, and Connections sections now use tabs instead of long scrolling pages. Meeting splits into General / Templates / Transcription. AI Models into Setup / Local / Cloud. Connections into Calendar & Tray / Integrations / Developer.
-
----
-
-## [2.5.6] — 2026-04-10
-
-### Changed
-- **Settings simplified** — reduced from 10 sections to 7. Transcription merged into Meeting, Agent API moved into Connections, Knowledge Base and Obsidian Vault combined into Data.
-- **Coaching output pithier** — headlines capped at 10 words, narratives at 1-2 sentences, micro-insights at 1-2 per meeting. No hedging, no qualifiers.
-- **Project detail header** — split into nav row and title row so long project names no longer break layout.
-- **Back buttons standardized** — consistent icon-only style across folder, project, and note detail pages.
-- **Sidebar folder inputs** — create and rename inputs now match NavItem styling (rounded background, proper padding).
+- **Settings simplified** — 10 sections reduced to 7. Transcription merged into Meeting, Agent API into Connections, Knowledge Base + Obsidian Vault into Data.
+- **Coaching pithier** — headlines under 10 words, narratives 1-2 sentences, micro-insights 1-2 per meeting. No hedging.
+- **Project detail header** — split into nav row + title row so long names don't break layout.
+- **Back buttons standardized** — consistent icon-only style across all detail pages.
+- **Privacy indicator** — correctly shows "Cloud" for custom/optional providers (was hardcoded to only check built-in prefixes).
+- **Default template selector** moved to Templates tab.
+- **Removed "Use local by default" toggle** — confusing, overrode cloud model selection.
 
 ### Fixed
-- **Commitments checkbox parsing** — `parseActionItem()` now reads `[x]`/`[X]` checkbox state instead of hard-coding `done: false`. Checked items correctly sync as completed commitments.
-- **Transcript avatar bubbles** — removed redundant initial badge from speaker labels, keeping just the text "Me"/"Them".
-- **Commitments assignee UX** — added UserPlus icon on hover, "Me" as first datalist option, typing "me" reassigns to self.
+- **Meeting room diarization** — speaker diarization (pyannote + ECAPA-TDNN) now works in physical meeting rooms. System audio capture always "succeeded" silently, so mic-only mode was never triggered. Now the diarizer initializes on every recording and runs when system audio hasn't produced transcripts in 30 seconds.
+- **Teams/Discord/Slack detection** — these apps run background processes permanently. Detection now requires audio/mic activity to distinguish "installed" from "in a call."
+- **Meeting detection with mic off** — notification fires when meeting app appears, regardless of mic state. Inverted default meant mic check ran even when disabled.
+- **Preload script crash** — was built as ESM (.mjs) but Electron sandbox requires CommonJS. Changed to .cjs. Root cause of: missing version in About, broken updates, no meeting detection, tray settings hidden.
+- **Commitments checkbox parsing** — `[x]`/`[X]` state now correctly syncs as completed (was hard-coded `done: false`).
+- **Note page layout** — title, metadata, and ask bar pinned. Transcript scrolls independently with pinned header.
+- **Transcript flicker** — instant auto-scroll instead of smooth animation.
+- **404 on app launch** — auto-redirect to home, fixed HashRouter `<a href>` bug.
+- **Logo position** — sits below macOS traffic lights.
+- **People/notes spacing** — removed double margin.
+- **Sidebar folder inputs** — create/rename inputs match NavItem styling.
+- **Transcript avatar bubbles** — removed redundant initial badges.
+- **Commitments assignee UX** — UserPlus icon on hover, "Me" in datalist, typing "me" reassigns.
+
+---
+
+## [2.5.5] — 2026-04-10
+
+### Fixed
+- Settings simplification, decisions layout, API curl example.
 
 ---
 
