@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.8] — 2026-04-10
+
+### Fixed
+- **Meeting detection with mic off** — notification now fires as soon as Teams/Zoom/Meet process appears, regardless of microphone state. Previously, an inverted default meant the mic check ran even when the "require mic" setting was off, silently blocking notifications when the mic wasn't active at call join. One click on the notification starts taking notes.
+
+---
+
 ## [2.5.7] — 2026-04-10
 
 ### Changed
