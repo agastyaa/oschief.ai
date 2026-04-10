@@ -4,7 +4,7 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
-## [2.6.0] — 2026-04-10
+## [2.5.6] — 2026-04-10
 
 ### Changed
 - **Settings simplified** — reduced from 10 sections to 7. Transcription merged into Meeting, Agent API moved into Connections, Knowledge Base and Obsidian Vault combined into Data.
