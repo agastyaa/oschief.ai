@@ -23,7 +23,7 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     }

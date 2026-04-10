@@ -1783,80 +1783,157 @@ export default function SettingsPage() {
 
               {active === "meeting" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Meeting & Preferences" description="Recording behavior, templates, and appearance" />
-                  <div className="space-y-2">
-                    <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it. Open OSChief from the Dock or menu bar anytime.">
-                      <Toggle enabled={prefs.showRecordingIndicator} onToggle={() => updatePref("showRecordingIndicator", !prefs.showRecordingIndicator)} />
-                    </SettingRow>
-                    <SettingRow label="Launch OSChief on startup" description="OSChief will open automatically when you log in">
-                      <Toggle enabled={prefs.launchOnStartup} onToggle={() => updatePref("launchOnStartup", !prefs.launchOnStartup)} />
-                    </SettingRow>
-                    <SettingRow label="Hide from screen sharing" description="Prevents the OSChief window from appearing in screen shares and recordings — invisible to others on calls">
-                      <Toggle enabled={prefs.hideFromScreenShare ?? false} onToggle={() => {
-                        const newVal = !(prefs.hideFromScreenShare ?? false);
-                        updatePref("hideFromScreenShare", newVal);
-                        api?.contentProtection?.set(newVal);
-                      }} />
-                    </SettingRow>
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-foreground mb-2 block">Appearance</label>
-                    <p className="text-[11px] text-muted-foreground mb-3">Select your interface color scheme</p>
-                    <div className="flex gap-2">
-                      {([
-                        { value: "light" as const, label: "Light", icon: Sun },
-                        { value: "dark" as const, label: "Dark", icon: Moon },
-                        { value: "system" as const, label: "System", icon: Monitor },
-                      ]).map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => updatePref("appearance", opt.value)}
-                          className={cn(
-                            "flex items-center gap-2 rounded-md border px-4 py-2 text-[13px] font-medium transition-colors",
-                            prefs.appearance === opt.value
-                              ? "border-accent bg-accent/10 text-foreground"
-                              : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                          )}
+                  <SectionHeader title="Meeting & Preferences" description="Recording behavior, templates, transcription, and appearance" />
+                  <Tabs defaultValue="general" className="w-full">
+                    <TabsList className="w-full justify-start bg-secondary/50 rounded-lg p-0.5 mb-5">
+                      <TabsTrigger value="general" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">General</TabsTrigger>
+                      <TabsTrigger value="templates" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Templates</TabsTrigger>
+                      <TabsTrigger value="transcription" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Transcription</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="general" className="space-y-5 mt-0">
+                      <div className="space-y-2">
+                        <SettingRow label="Live recording indicator" description="Shows a compact pill at the top-right while transcribing when you’re not on the live note screen. Turn off to hide it.">
+                          <Toggle enabled={prefs.showRecordingIndicator} onToggle={() => updatePref("showRecordingIndicator", !prefs.showRecordingIndicator)} />
+                        </SettingRow>
+                        <SettingRow label="Launch OSChief on startup" description="OSChief will open automatically when you log in">
+                          <Toggle enabled={prefs.launchOnStartup} onToggle={() => updatePref("launchOnStartup", !prefs.launchOnStartup)} />
+                        </SettingRow>
+                        <SettingRow label="Hide from screen sharing" description="Prevents the OSChief window from appearing in screen shares and recordings — invisible to others on calls">
+                          <Toggle enabled={prefs.hideFromScreenShare ?? false} onToggle={() => {
+                            const newVal = !(prefs.hideFromScreenShare ?? false);
+                            updatePref("hideFromScreenShare", newVal);
+                            api?.contentProtection?.set(newVal);
+                          }} />
+                        </SettingRow>
+                      </div>
+                      <div>
+                        <label className="text-[13px] font-medium text-foreground mb-2 block">Appearance</label>
+                        <p className="text-[11px] text-muted-foreground mb-3">Select your interface color scheme</p>
+                        <div className="flex gap-2">
+                          {([
+                            { value: "light" as const, label: "Light", icon: Sun },
+                            { value: "dark" as const, label: "Dark", icon: Moon },
+                            { value: "system" as const, label: "System", icon: Monitor },
+                          ]).map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => updatePref("appearance", opt.value)}
+                              className={cn(
+                                "flex items-center gap-2 rounded-md border px-4 py-2 text-[13px] font-medium transition-colors",
+                                prefs.appearance === opt.value
+                                  ? "border-accent bg-accent/10 text-foreground"
+                                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                              )}
+                            >
+                              <opt.icon className="h-3.5 w-3.5" />
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[13px] font-medium text-foreground mb-2 block">Custom vocabulary</label>
+                        <p className="text-[11px] text-muted-foreground mb-2">Add company-specific terms to improve transcription accuracy. One term per line.</p>
+                        <textarea
+                          value={customTerms}
+                          onChange={(e) => handleCustomTermsChange(e.target.value)}
+                          placeholder={"Acme Corp\nProject Falcon\nQ3 Roadmap"}
+                          rows={4}
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[13px] font-medium text-foreground mb-2 block">Default meeting template</label>
+                        <p className="text-[11px] text-muted-foreground mb-2">Choose which template to use by default when starting a new meeting note.</p>
+                        <select
+                          value={defaultTemplate}
+                          onChange={(e) => {
+                            setDefaultTemplate(e.target.value);
+                            api?.db?.settings?.set("default-template", e.target.value).catch(console.error);
+                          }}
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                         >
-                          <opt.icon className="h-3.5 w-3.5" />
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-foreground mb-2 block">Custom vocabulary</label>
-                    <p className="text-[11px] text-muted-foreground mb-2">Add company-specific terms to improve transcription accuracy. Used as keywords for Deepgram and as context for local Whisper; one term per line.</p>
-                    <textarea
-                      value={customTerms}
-                      onChange={(e) => handleCustomTermsChange(e.target.value)}
-                      placeholder={"Acme Corp\nProject Falcon\nQ3 Roadmap"}
-                      rows={4}
-                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-foreground mb-2 block">Default meeting template</label>
-                    <p className="text-[11px] text-muted-foreground mb-2">Choose which template to use by default when starting a new meeting note.</p>
-                    <select
-                      value={defaultTemplate}
-                      onChange={(e) => {
-                        setDefaultTemplate(e.target.value);
-                        api?.db?.settings?.set('default-template', e.target.value).catch(console.error);
-                      }}
-                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                    >
-                      {BUILTIN_TEMPLATES.map((t) => (
-                        <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
-                      ))}
-                      {settingsCustomTemplates.length > 0 && (
-                        <option disabled>── Custom ──</option>
-                      )}
-                      {settingsCustomTemplates.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                          {BUILTIN_TEMPLATES.map((t) => (
+                            <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                          ))}
+                          {settingsCustomTemplates.length > 0 && (
+                            <option disabled>── Custom ──</option>
+                          )}
+                          {settingsCustomTemplates.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="templates" className="mt-0">
+                      <TemplatesSection />
+                    </TabsContent>
+
+                    <TabsContent value="transcription" className="space-y-5 mt-0">
+                      <div className="space-y-2">
+                        <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
+                          <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
+                        </SettingRow>
+                        {isElectron && (
+                          <>
+                            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+                              <div>
+                                <label htmlFor="stt-capture-sensitivity" className="text-[13px] font-medium text-foreground block">
+                                  Live capture sensitivity
+                                </label>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  <strong>Balanced</strong> reduces false mic transcripts when you are muted. <strong>More sensitive</strong> lowers energy and echo-suppression thresholds — use if live lines are sparse.
+                                </p>
+                              </div>
+                              <select
+                                id="stt-capture-sensitivity"
+                                value={sttCaptureSensitivity}
+                                onChange={(e) => {
+                                  const v = e.target.value === "sensitive" ? "sensitive" : "default";
+                                  setSttCaptureSensitivity(v);
+                                  api?.db.settings.set("stt-capture-sensitivity", v).catch(console.error);
+                                }}
+                                className="w-full max-w-xs rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                              >
+                                <option value="default">Balanced (default)</option>
+                                <option value="sensitive">More sensitive</option>
+                              </select>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+                              <strong className="text-foreground">macOS:</strong> allow <strong>Microphone</strong> for "Me" lines. For meeting audio on <strong>Them</strong>, Screen Recording permission must be granted in System Settings.
+                            </p>
+                          </>
+                        )}
+                        <SettingRow
+                          label="Enhance transcript with AI"
+                          description={selectedAIModel ? "Use your AI model to fix grammar, punctuation, and proper nouns in real-time." : "Requires an AI model — configure in AI Models."}
+                        >
+                          <Toggle enabled={toggles.llmPostProcess && !!selectedAIModel} onToggle={() => { if (selectedAIModel) toggle("llmPostProcess") }} disabled={!selectedAIModel} />
+                        </SettingRow>
+                        <SettingRow label="Auto-generate AI notes" description="Create summaries and action items when recording ends">
+                          <Toggle enabled={toggles.aiSummaries} onToggle={() => toggle("aiSummaries")} />
+                        </SettingRow>
+                      </div>
+                      <div>
+                        <label className="text-[13px] font-medium text-foreground mb-2 block">Audio input device</label>
+                        <select
+                          value={selectedDeviceId}
+                          onChange={(e) => handleDeviceChange(e.target.value)}
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                        >
+                          <option value="">System Default</option>
+                          {audioDevices.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.label || `Microphone (${d.deviceId.slice(0, 8)}...)`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <AudioTestPanel selectedDeviceId={selectedDeviceId} />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -2671,79 +2748,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Transcription section removed — content merged into Meeting */}
-
-              {active === "meeting" && (
-                <div className="mt-6 border-t border-border pt-5">
-                  <TemplatesSection />
-                </div>
-              )}
-
-              {active === "meeting" && (
-                <div className="space-y-5 mt-6 border-t border-border pt-5">
-                  <h3 className="text-[13px] font-semibold text-foreground">Transcription</h3>
-                  <div className="space-y-2">
-                    <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
-                      <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
-                    </SettingRow>
-                    {isElectron && (
-                      <>
-                        <div className="rounded-md border border-border bg-card p-3 space-y-2">
-                          <div>
-                            <label htmlFor="stt-capture-sensitivity" className="text-[13px] font-medium text-foreground block">
-                              Live capture sensitivity
-                            </label>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              <strong>Balanced</strong> reduces false mic transcripts when you are muted. <strong>More sensitive</strong> lowers energy and echo-suppression thresholds — use if live lines are sparse; may add noise or duplicate lines from speaker bleed. Applies after you resume or start the next recording.
-                            </p>
-                          </div>
-                          <select
-                            id="stt-capture-sensitivity"
-                            value={sttCaptureSensitivity}
-                            onChange={(e) => {
-                              const v = e.target.value === "sensitive" ? "sensitive" : "default";
-                              setSttCaptureSensitivity(v);
-                              api?.db.settings.set("stt-capture-sensitivity", v).catch(console.error);
-                            }}
-                            className="w-full max-w-xs rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                          >
-                            <option value="default">Balanced (default)</option>
-                            <option value="sensitive">More sensitive</option>
-                          </select>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-                          <strong className="text-foreground">macOS:</strong> allow <strong>Microphone</strong> for "Me" lines. For meeting audio on <strong>Them</strong>, Screen Recording (and system audio) must be allowed for Syag in System Settings → Privacy & Security.
-                        </p>
-                      </>
-                    )}
-                    <SettingRow
-                      label="Enhance transcript with AI"
-                      description={selectedAIModel ? "Use your AI model to fix grammar, punctuation, and proper nouns in real-time." : "Requires an AI model — configure in Models & Providers above."}
-                    >
-                      <Toggle enabled={toggles.llmPostProcess && !!selectedAIModel} onToggle={() => { if (selectedAIModel) toggle("llmPostProcess") }} disabled={!selectedAIModel} />
-                    </SettingRow>
-                    <SettingRow label="Auto-generate AI notes" description="Create summaries and action items when recording ends">
-                      <Toggle enabled={toggles.aiSummaries} onToggle={() => toggle("aiSummaries")} />
-                    </SettingRow>
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-foreground mb-2 block">Audio input device</label>
-                    <select
-                      value={selectedDeviceId}
-                      onChange={(e) => handleDeviceChange(e.target.value)}
-                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                    >
-                      <option value="">System Default</option>
-                      {audioDevices.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>
-                          {d.label || `Microphone (${d.deviceId.slice(0, 8)}...)`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <AudioTestPanel selectedDeviceId={selectedDeviceId} />
-                </div>
-              )}
+              {/* Templates and Transcription are now tabs inside the Meeting section above */}
 
               {active === "connections" && (
                 <div className="space-y-5">
