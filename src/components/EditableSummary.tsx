@@ -668,17 +668,30 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                           ) : item.jiraIssueKey && item.jiraIssueUrl ? (
                             <JiraStatusBadge issueKey={item.jiraIssueKey} issueUrl={item.jiraIssueUrl} />
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setAsanaDialogItem({ index: rawIndex, item })}
-                              className="opacity-0 group-hover/action:opacity-100 transition-opacity inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-950/30"
-                              title="Create Asana task"
-                              aria-label="Create Asana task"
-                            >
-                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                <circle cx="12" cy="7.5" r="2.5"/><circle cx="6" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/>
-                              </svg>
-                            </button>
+                            <div className="opacity-0 group-hover/action:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setJiraDialogItem({ index: rawIndex, item })}
+                                className="inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                title="Create Jira ticket"
+                                aria-label="Create Jira ticket"
+                              >
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                  <path d="M12.01 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm-2 15l-5-5 1.41-1.41L10.01 14.17l7.59-7.59L19.01 8l-9 9z"/>
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAsanaDialogItem({ index: rawIndex, item })}
+                                className="inline-flex items-center justify-center rounded p-1 text-muted-foreground/60 hover:text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-950/30"
+                                title="Create Asana task"
+                                aria-label="Create Asana task"
+                              >
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                  <circle cx="12" cy="7.5" r="2.5"/><circle cx="6" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/>
+                                </svg>
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
