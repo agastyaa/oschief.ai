@@ -320,7 +320,7 @@ const CommitmentsPage = () => {
                         }
                       })()}
                     </h3>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {grouped[dateKey].map((c) => {
                         const config = STATUS_CONFIG[c.status] || STATUS_CONFIG.open
                         const StatusIcon = config.icon
@@ -371,7 +371,55 @@ const CommitmentsPage = () => {
                                   {c.text}
                                 </p>
                               )}
-                              <div className="flex items-center gap-3 mt-1">
+                              {/* Metadata row: assignee, due date, project, source, delete */}
+                              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                {/* Assignee */}
+                                {editingAssigneeId === c.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      autoFocus
+                                      defaultValue={c.owner === 'you' ? '' : (c.assignee_name || c.owner || '')}
+                                      list={`assignee-list-${c.id}`}
+                                      placeholder="Type a name..."
+                                      onBlur={(e) => {
+                                        const val = e.target.value.trim()
+                                        setEditingAssigneeId(null)
+                                        if (!val) return
+                                        if (val.toLowerCase() === 'me') {
+                                          api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
+                                            .then(() => loadCommitments())
+                                          return
+                                        }
+                                        const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
+                                        api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
+                                          .then(() => loadCommitments())
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                        if (e.key === 'Escape') setEditingAssigneeId(null)
+                                      }}
+                                      className="text-[11px] rounded border border-border bg-background px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-28"
+                                    />
+                                    <datalist id={`assignee-list-${c.id}`}>
+                                      <option value="Me" />
+                                      {people.map((p: any) => (
+                                        <option key={p.id} value={p.name} />
+                                      ))}
+                                    </datalist>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setEditingAssigneeId(c.id)}
+                                    className="flex items-center gap-1 text-[11px] text-foreground/70 hover:text-foreground transition-colors"
+                                    title="Click to change assignee"
+                                  >
+                                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent/10 text-[8px] font-semibold text-accent flex-shrink-0">
+                                      {(c.owner === 'you' ? 'M' : (c.assignee_name || c.owner || '?').charAt(0)).toUpperCase()}
+                                    </span>
+                                    {c.owner === 'you' ? 'Me' : (c.assignee_name || c.owner || 'Assign...')}
+                                  </button>
+                                )}
+                                {/* Due date */}
                                 {editingDueDateId === c.id ? (
                                   <input
                                     type="date"
@@ -410,14 +458,16 @@ const CommitmentsPage = () => {
                                     title="Set due date"
                                   >
                                     <Clock className="h-2.5 w-2.5" />
-                                    Set deadline
+                                    Due
                                   </button>
                                 )}
+                                {/* Jira key */}
                                 {c.jira_issue_key && (
                                   <span className="text-[11px] text-primary font-mono">
                                     {c.jira_issue_key}
                                   </span>
                                 )}
+                                {/* Project */}
                                 {editingProjectId === c.id ? (
                                   <select
                                     autoFocus
@@ -453,85 +503,24 @@ const CommitmentsPage = () => {
                                     Project
                                   </button>
                                 )}
-                              </div>
-                            </div>
-
-                            {/* Right side: assignee + actions */}
-                            <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
-                              {/* Assignee badge */}
-                              {editingAssigneeId === c.id ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    autoFocus
-                                    defaultValue={c.owner === 'you' ? '' : (c.assignee_name || c.owner || '')}
-                                    list={`assignee-list-${c.id}`}
-                                    placeholder="Type a name..."
-                                    onBlur={(e) => {
-                                      const val = e.target.value.trim()
-                                      setEditingAssigneeId(null)
-                                      if (!val) return
-                                      if (val.toLowerCase() === 'me') {
-                                        api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
-                                          .then(() => loadCommitments())
-                                        return
-                                      }
-                                      const selected = people.find((p: any) => p.name.toLowerCase() === val.toLowerCase())
-                                      api?.memory?.commitments?.update(c.id, { owner: val, assigneeId: selected?.id ?? null })
-                                        .then(() => loadCommitments())
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                                      if (e.key === 'Escape') setEditingAssigneeId(null)
-                                    }}
-                                    className="text-[12px] rounded border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-32"
-                                  />
-                                  <datalist id={`assignee-list-${c.id}`}>
-                                    <option value="Me" />
-                                    {people.map((p: any) => (
-                                      <option key={p.id} value={p.name} />
-                                    ))}
-                                  </datalist>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => setEditingAssigneeId(c.id)}
-                                  className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-                                  title="Click to change assignee"
-                                >
-                                  <UserPlus className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
-                                  {c.owner === 'you' ? 'Me' : (c.assignee_name || c.owner || 'Assign...')}
-                                </button>
-                              )}
-                              {/* Assign to me — only when assigned to someone else */}
-                              {c.owner !== 'you' && editingAssigneeId !== c.id && (
-                                <button
-                                  onClick={() => {
-                                    api?.memory?.commitments?.update(c.id, { owner: 'you', assigneeId: null })
-                                      .then(() => loadCommitments())
-                                  }}
-                                  className="text-[10px] text-primary hover:underline"
-                                >
-                                  Assign to me
-                                </button>
-                              )}
-                              {/* Source meeting + delete */}
-                              <div className="flex items-center gap-2">
+                                {/* Source meeting */}
                                 {c.note_id && c.note_title && (
                                   <button
                                     onClick={() => navigate(`/note/${c.note_id}`)}
                                     className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                                     title="View meeting"
                                   >
-                                    <FileText className="h-3 w-3" />
-                                    <span className="max-w-[120px] truncate">{c.note_title}</span>
+                                    <FileText className="h-2.5 w-2.5" />
+                                    <span className="max-w-[100px] truncate">{c.note_title}</span>
                                   </button>
                                 )}
+                                {/* Delete */}
                                 <button
                                   onClick={() => handleDelete(c.id)}
                                   title="Delete" aria-label="Delete"
                                   className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
                               </div>
                             </div>
