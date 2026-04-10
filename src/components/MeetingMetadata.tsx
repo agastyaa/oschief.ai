@@ -105,7 +105,7 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
       <div className="flex items-start gap-2 flex-wrap">
           <Users className="h-3.5 w-3.5 text-muted-foreground/50 mt-1.5 flex-shrink-0" />
           <div className="flex items-center gap-1.5 flex-wrap flex-1">
-            {people.map((person) => (
+            {people.filter((p) => p.name && p.name.trim()).map((person) => (
               <PersonChip
                 key={person.id}
                 person={person}
@@ -239,17 +239,18 @@ function PersonChip({
     .toUpperCase();
 
   return (
-    <div className="group/person flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] hover:bg-secondary/50 transition-colors">
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent/10 text-[8px] font-semibold text-accent flex-shrink-0">
+    <div className="group/person flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] hover:bg-secondary/50 transition-colors">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/10 text-[9px] font-semibold text-accent flex-shrink-0">
         {initials}
       </span>
-      <span
+      <div
         onClick={onStartEdit}
-        className="font-medium text-foreground cursor-pointer"
+        className="cursor-pointer leading-tight"
         title={[person.role, person.company].filter(Boolean).join(" · ") || "Click to edit"}
       >
-        {person.name}
-      </span>
+        <span className="font-semibold text-foreground block">{person.name}</span>
+        {person.company && <span className="text-[9px] text-muted-foreground block">{person.company}</span>}
+      </div>
       <button
         onClick={onRemove}
         className="opacity-0 group-hover/person:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
