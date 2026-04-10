@@ -75,7 +75,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
       <div className="rounded-[10px] border border-dashed border-border/60 bg-card/50 p-4">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="h-4 w-4" />
-          <p className="text-[13px]">No upcoming meetings today. <span className="text-primary cursor-pointer hover:underline" onClick={() => onConnectCalendar ? onConnectCalendar() : navigate('/calendar')}>Connect calendar</span></p>
+          <p className="text-body-sm">No upcoming meetings today. <span className="text-primary cursor-pointer hover:underline" onClick={() => onConnectCalendar ? onConnectCalendar() : navigate('/calendar')}>Connect calendar</span></p>
         </div>
       </div>
     );

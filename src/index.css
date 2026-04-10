@@ -261,7 +261,7 @@
 .rich-text-editor {
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   color: hsl(var(--foreground));
-  line-height: 1.7;
+  line-height: 1.5;
 }
 
 .rich-text-editor p {

@@ -97,7 +97,7 @@ function SettingRow({ label, description, children, disabled }: { label: string;
   return (
     <div className={cn("flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4", disabled && "opacity-40 cursor-not-allowed pointer-events-none")}>
       <div className="min-w-0">
-        <span className="text-[13px] text-foreground">{label}</span>
+        <span className="text-body-sm text-foreground">{label}</span>
         {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <div className="flex-shrink-0">{children}</div>
@@ -717,7 +717,7 @@ function KnowledgeBaseSection({ api }: { api: ReturnType<typeof getElectronAPI> 
         <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-medium text-foreground flex items-center gap-2">
+              <p className="text-body-sm font-medium text-foreground flex items-center gap-2">
                 <FolderOpen className="h-3.5 w-3.5 text-accent" />
                 Notes folder
               </p>
@@ -953,7 +953,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
 
   return (
     <div className="space-y-3">
-      <label className="text-[13px] font-medium text-foreground mb-1 block">Audio test</label>
+      <label className="text-body-sm font-medium text-foreground mb-1 block">Audio test</label>
       <p className="text-[11px] text-muted-foreground -mt-2 mb-2">
         Check that your microphone and system audio are working before starting a recording.
       </p>
@@ -966,7 +966,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
               {micStatus === "error" ? <MicOff className="h-3.5 w-3.5 text-destructive" /> : <Mic className="h-3.5 w-3.5 text-muted-foreground" />}
             </div>
             <div className="min-w-0">
-              <span className="text-[13px] text-foreground block">Microphone</span>
+              <span className="text-body-sm text-foreground block">Microphone</span>
               {micPermission && (
                 <span className={cn("text-[10px]", micPermission === "granted" ? "text-green" : "text-muted-foreground")}>
                   Permission: {micPermission}
@@ -1021,7 +1021,7 @@ function AudioTestPanel({ selectedDeviceId }: { selectedDeviceId: string }) {
               <MonitorSpeaker className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <span className="text-[13px] text-foreground block">System audio</span>
+              <span className="text-body-sm text-foreground block">System audio</span>
               {sysPermission && (
                 <span className={cn("text-[10px]", sysPermission === "granted" ? "text-green" : "text-muted-foreground")}>
                   Screen Recording: {sysPermission}
@@ -1195,23 +1195,23 @@ function AccountSection() {
       <div className="space-y-3">
         {textFields.map((field) => (
           <div key={field.key}>
-            <label className="text-[13px] font-medium text-foreground">{field.label}</label>
+            <label className="text-body-sm font-medium text-foreground">{field.label}</label>
             <input
               value={account[field.key] || ""}
               onChange={(e) => handleChange(field.key, e.target.value)}
               placeholder={field.placeholder}
-              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
             />
           </div>
         ))}
 
         {/* Role selector — drives the coaching knowledge base */}
         <div ref={roleDropdownRef} className="relative">
-          <label className="text-[13px] font-medium text-foreground">Role</label>
+          <label className="text-body-sm font-medium text-foreground">Role</label>
           <p className="text-[11px] text-muted-foreground mb-1">Your role determines the coaching advice and frameworks OSChief uses.</p>
           <button
             onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-            className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground hover:bg-secondary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/20"
+            className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground hover:bg-secondary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/20"
           >
             <span className="flex items-center gap-2">
               {selectedRole ? (
@@ -1233,7 +1233,7 @@ function AccountSection() {
                   key={role.id}
                   onClick={() => handleRoleSelect(role.id)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 px-3 py-2 text-[13px] transition-colors",
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-body-sm transition-colors",
                     account.roleId === role.id
                       ? "bg-secondary text-foreground font-medium"
                       : "text-foreground hover:bg-secondary/60"
@@ -1251,12 +1251,12 @@ function AccountSection() {
         {/* Custom role text input — shown when "Other" is selected */}
         {isCustomRole && (
           <div>
-            <label className="text-[13px] font-medium text-foreground">Custom Role</label>
+            <label className="text-body-sm font-medium text-foreground">Custom Role</label>
             <input
               value={account.role || ""}
               onChange={(e) => handleChange("role", e.target.value)}
               placeholder="e.g. Product Marketing Manager"
-              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
             />
           </div>
         )}
@@ -1325,13 +1325,13 @@ function TemplatesSection() {
       <SectionHeader title="Note Templates" description="Customize the prompts used to generate meeting notes for each template type" />
 
       <div className="space-y-2">
-        <h3 className="text-[13px] font-medium text-foreground">Built-in Templates</h3>
+        <h3 className="text-body-sm font-medium text-foreground">Built-in Templates</h3>
         <p className="text-[11px] text-muted-foreground mb-2">Industry-standard templates. Locked; use as-is. Default is General.</p>
         {BUILTIN_TEMPLATES.map((t) => (
           <div key={t.id} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span>{t.icon}</span>
-              <span className="text-[13px] font-medium text-foreground">{t.name}</span>
+              <span className="text-body-sm font-medium text-foreground">{t.name}</span>
             </div>
             <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded-full border border-border">Locked</span>
           </div>
@@ -1339,7 +1339,7 @@ function TemplatesSection() {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-[13px] font-medium text-foreground">Custom Templates</h3>
+        <h3 className="text-body-sm font-medium text-foreground">Custom Templates</h3>
         {customTemplates.map((ct) => {
           const isExpanded = expandedId === ct.id;
           return (
@@ -1348,7 +1348,7 @@ function TemplatesSection() {
                 onClick={() => setExpandedId(isExpanded ? null : ct.id)}
                 className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-secondary/50 transition-colors"
               >
-                <span className="text-[13px] font-medium text-foreground">{ct.name}</span>
+                <span className="text-body-sm font-medium text-foreground">{ct.name}</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteCustomTemplate(ct.id); }}
@@ -1366,7 +1366,7 @@ function TemplatesSection() {
                     <input
                       value={ct.name}
                       onChange={(e) => updateCustomTemplate(ct.id, "name", e.target.value)}
-                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 mt-1"
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 mt-1"
                     />
                   </div>
                   <div>
@@ -1375,7 +1375,7 @@ function TemplatesSection() {
                       value={ct.prompt}
                       onChange={(e) => updateCustomTemplate(ct.id, "prompt", e.target.value)}
                       placeholder="Describe how notes should be structured for this type of meeting..."
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none mt-1"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none mt-1"
                       rows={5}
                     />
                   </div>
@@ -1390,7 +1390,7 @@ function TemplatesSection() {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCustomTemplate()}
             placeholder="New template name..."
-            className="flex-1 rounded-md border border-border bg-card px-3 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+            className="flex-1 rounded-md border border-border bg-card px-3 py-1.5 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
           <button
             onClick={addCustomTemplate}
@@ -1761,7 +1761,7 @@ export default function SettingsPage() {
                   key={s.id}
                   onClick={() => setActive(s.id)}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors text-left",
+                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-body-sm transition-colors text-left",
                     active === s.id
                       ? "bg-secondary text-foreground font-medium"
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
@@ -1808,7 +1808,7 @@ export default function SettingsPage() {
                         </SettingRow>
                       </div>
                       <div>
-                        <label className="text-[13px] font-medium text-foreground mb-2 block">Appearance</label>
+                        <label className="text-body-sm font-medium text-foreground mb-2 block">Appearance</label>
                         <p className="text-[11px] text-muted-foreground mb-3">Select your interface color scheme</p>
                         <div className="flex gap-2">
                           {([
@@ -1820,7 +1820,7 @@ export default function SettingsPage() {
                               key={opt.value}
                               onClick={() => updatePref("appearance", opt.value)}
                               className={cn(
-                                "flex items-center gap-2 rounded-md border px-4 py-2 text-[13px] font-medium transition-colors",
+                                "flex items-center gap-2 rounded-md border px-4 py-2 text-body-sm font-medium transition-colors",
                                 prefs.appearance === opt.value
                                   ? "border-accent bg-accent/10 text-foreground"
                                   : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -1833,21 +1833,21 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="text-[13px] font-medium text-foreground mb-2 block">Custom vocabulary</label>
+                        <label className="text-body-sm font-medium text-foreground mb-2 block">Custom vocabulary</label>
                         <p className="text-[11px] text-muted-foreground mb-2">Add company-specific terms to improve transcription accuracy. One term per line.</p>
                         <textarea
                           value={customTerms}
                           onChange={(e) => handleCustomTermsChange(e.target.value)}
                           placeholder={"Acme Corp\nProject Falcon\nQ3 Roadmap"}
                           rows={4}
-                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none font-mono"
                         />
                       </div>
                     </TabsContent>
 
                     <TabsContent value="templates" className="space-y-5 mt-0">
                       <div>
-                        <label className="text-[13px] font-medium text-foreground mb-2 block">Default meeting template</label>
+                        <label className="text-body-sm font-medium text-foreground mb-2 block">Default meeting template</label>
                         <p className="text-[11px] text-muted-foreground mb-2">Choose which template to use by default when starting a new meeting note.</p>
                         <select
                           value={defaultTemplate}
@@ -1855,7 +1855,7 @@ export default function SettingsPage() {
                             setDefaultTemplate(e.target.value);
                             api?.db?.settings?.set("default-template", e.target.value).catch(console.error);
                           }}
-                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                         >
                           {BUILTIN_TEMPLATES.map((t) => (
                             <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
@@ -1880,7 +1880,7 @@ export default function SettingsPage() {
                           <>
                             <div className="rounded-md border border-border bg-card p-3 space-y-2">
                               <div>
-                                <label htmlFor="stt-capture-sensitivity" className="text-[13px] font-medium text-foreground block">
+                                <label htmlFor="stt-capture-sensitivity" className="text-body-sm font-medium text-foreground block">
                                   Live capture sensitivity
                                 </label>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1895,7 +1895,7 @@ export default function SettingsPage() {
                                   setSttCaptureSensitivity(v);
                                   api?.db.settings.set("stt-capture-sensitivity", v).catch(console.error);
                                 }}
-                                className="w-full max-w-xs rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                                className="w-full max-w-xs rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                               >
                                 <option value="default">Balanced (default)</option>
                                 <option value="sensitive">More sensitive</option>
@@ -1917,11 +1917,11 @@ export default function SettingsPage() {
                         </SettingRow>
                       </div>
                       <div>
-                        <label className="text-[13px] font-medium text-foreground mb-2 block">Audio input device</label>
+                        <label className="text-body-sm font-medium text-foreground mb-2 block">Audio input device</label>
                         <select
                           value={selectedDeviceId}
                           onChange={(e) => handleDeviceChange(e.target.value)}
-                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                         >
                           <option value="">System Default</option>
                           {audioDevices.map((d) => (
@@ -1959,7 +1959,7 @@ export default function SettingsPage() {
                     <TabsContent value="setup" className="space-y-6 mt-0">
                   {/* Default Model Selection */}
                   <div className="space-y-3">
-                    <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                    <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                       <Brain className="h-3.5 w-3.5 text-accent" />
                       Default AI Model (for notes & chat)
                     </h3>
@@ -1967,7 +1967,7 @@ export default function SettingsPage() {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="w-full flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                          className="w-full flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                         >
                           <span className={selectedAILabel ? "" : "text-muted-foreground"}>
                             {selectedAILabel || "Select a model..."}
@@ -2004,7 +2004,7 @@ export default function SettingsPage() {
 
                   {/* Default STT Model */}
                   <div className="space-y-3">
-                    <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                    <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                       <Volume2 className="h-3.5 w-3.5 text-accent" />
                       Speech-to-Text Model (transcription)
                     </h3>
@@ -2012,7 +2012,7 @@ export default function SettingsPage() {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="w-full flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                          className="w-full flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                         >
                           <span className={selectedSTTLabel ? "" : "text-muted-foreground"}>
                             {selectedSTTLabel || "Select a model..."}
@@ -2053,7 +2053,7 @@ export default function SettingsPage() {
                   {/* Local Models Section */}
                   <div className="space-y-3 pt-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                      <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                         <HardDrive className="h-3.5 w-3.5" />
                         Local Models
                       </h3>
@@ -2094,7 +2094,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between p-3">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[13px] font-medium text-foreground">{model.name}</span>
+                                  <span className="text-body-sm font-medium text-foreground">{model.name}</span>
                                   <span className={cn(
                                     "rounded px-1.5 py-0.5 text-[9px] font-medium uppercase",
                                     model.type === "stt" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
@@ -2174,7 +2174,7 @@ export default function SettingsPage() {
                   {isElectron && (
                     <div className="space-y-3 pt-2">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                        <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                           <Monitor className="h-3.5 w-3.5" />
                           Ollama
                           {!ollamaStatus.available && (
@@ -2225,7 +2225,7 @@ export default function SettingsPage() {
                                   <div className="flex items-center justify-between p-3">
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-[13px] font-medium text-foreground">{RECOMMENDED_NAME}</span>
+                                        <span className="text-body-sm font-medium text-foreground">{RECOMMENDED_NAME}</span>
                                         <span className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase bg-primary/10 text-primary">
                                           LLM
                                         </span>
@@ -2313,7 +2313,7 @@ export default function SettingsPage() {
                     <TabsContent value="cloud" className="space-y-6 mt-0">
                   {/* OpenRouter */}
                   <div className="space-y-3 pt-2">
-                    <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                    <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                       <Cloud className="h-3.5 w-3.5" />
                       OpenRouter
                     </h3>
@@ -2327,7 +2327,7 @@ export default function SettingsPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-base">🌐</span>
-                            <span className="text-[13px] font-medium text-foreground">OpenRouter</span>
+                            <span className="text-body-sm font-medium text-foreground">OpenRouter</span>
                             {connectedProviders['openrouter']?.connected && openRouterModels.length > 0 && (
                               <span className="rounded px-1.5 py-0.5 text-[9px] font-medium bg-accent/10 text-accent">
                                 {openRouterModels.length} models
@@ -2384,7 +2384,7 @@ export default function SettingsPage() {
                                 value={tempApiKey}
                                 onChange={(e) => setTempApiKey(e.target.value)}
                                 placeholder="Enter your OpenRouter API key..."
-                                className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                                className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                                 autoFocus
                               />
                               <button
@@ -2417,7 +2417,7 @@ export default function SettingsPage() {
                   {/* Custom Providers */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                      <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                         <Globe className="h-3.5 w-3.5" />
                         Custom Providers
                       </h3>
@@ -2452,7 +2452,7 @@ export default function SettingsPage() {
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">{cp.icon}</span>
-                                  <span className="text-[13px] font-medium text-foreground">{cp.name}</span>
+                                  <span className="text-body-sm font-medium text-foreground">{cp.name}</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5 pl-7 truncate">
                                   {cp.baseURL}
@@ -2500,7 +2500,7 @@ export default function SettingsPage() {
                     {/* Custom Provider Modal */}
                     {showCustomProviderModal && (
                       <div className="rounded-md border border-accent/30 bg-card p-4 space-y-3">
-                        <h4 className="text-[13px] font-medium text-foreground">
+                        <h4 className="text-body-sm font-medium text-foreground">
                           {editingCustomProvider ? "Edit Provider" : "Add Custom Provider"}
                         </h4>
                         <div className="space-y-2">
@@ -2511,7 +2511,7 @@ export default function SettingsPage() {
                               value={cpName}
                               onChange={(e) => setCpName(e.target.value)}
                               placeholder="Code Genie"
-                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                             />
                           </div>
                           <div>
@@ -2521,7 +2521,7 @@ export default function SettingsPage() {
                               value={cpBaseURL}
                               onChange={(e) => setCpBaseURL(e.target.value)}
                               placeholder="https://api.example.com/v1"
-                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                             />
                           </div>
                           <div>
@@ -2531,7 +2531,7 @@ export default function SettingsPage() {
                               value={cpApiKey}
                               onChange={(e) => setCpApiKey(e.target.value)}
                               placeholder="Enter API key..."
-                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                             />
                           </div>
                           <div>
@@ -2567,7 +2567,7 @@ export default function SettingsPage() {
                               value={cpModels}
                               onChange={(e) => setCpModels(e.target.value)}
                               placeholder="GPT-4o, Claude Sonnet 4, llama-3.3-70b"
-                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                              className="w-full mt-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                             />
                             <p className="text-[10px] text-muted-foreground mt-1">Comma-separated model names, or use Fetch Models to auto-discover.</p>
                           </div>
@@ -2633,7 +2633,7 @@ export default function SettingsPage() {
 
                   {/* STT Providers */}
                   <div className="space-y-3 pt-2">
-                    <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                    <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                       <Mic className="h-3.5 w-3.5" />
                       Transcription Providers
                     </h3>
@@ -2652,7 +2652,7 @@ export default function SettingsPage() {
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">{provider.icon}</span>
-                                  <span className="text-[13px] font-medium text-foreground">{provider.name}</span>
+                                  <span className="text-body-sm font-medium text-foreground">{provider.name}</span>
                                   <span className="rounded px-1.5 py-0.5 text-[9px] font-medium uppercase bg-accent/10 text-accent">STT</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5 pl-7">
@@ -2696,7 +2696,7 @@ export default function SettingsPage() {
                                       value={tempApiKey}
                                       onChange={(e) => setTempApiKey(e.target.value)}
                                       placeholder={provider.id === 'microsoft' ? 'region:apikey (e.g. eastus:abc123...)' : `Enter your ${provider.name} API key...`}
-                                      className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+                                      className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                                       autoFocus
                                     />
                                     <button
@@ -2724,7 +2724,7 @@ export default function SettingsPage() {
                   {/* Summary Benchmark Stats */}
                   {benchmarkStats.length > 0 && (
                     <div className="space-y-2 pt-2">
-                      <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                      <h3 className="text-body-sm font-medium text-foreground flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 text-accent" />
                         Summary Generation Speed
                       </h3>
@@ -2772,7 +2772,7 @@ export default function SettingsPage() {
 
                     <TabsContent value="calendar" className="space-y-5 mt-0">
                       <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
-                          <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
+                          <h3 className="text-body-sm font-medium text-foreground">Menu bar & tray</h3>
                           <p className="text-[11px] text-muted-foreground -mt-1">
                             Show a compact agenda popover when you click the menu bar icon (when not recording).
                           </p>
@@ -2790,7 +2790,7 @@ export default function SettingsPage() {
                             <>
                               <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
                                 <div className="min-w-0">
-                                  <span className="text-[13px] text-foreground">Agenda range</span>
+                                  <span className="text-body-sm text-foreground">Agenda range</span>
                                   <p className="text-[11px] text-muted-foreground mt-0.5">Which days appear in the tray popover</p>
                                 </div>
                                 <select
@@ -2808,7 +2808,7 @@ export default function SettingsPage() {
                               </div>
                               <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
                                 <div className="min-w-0">
-                                  <span className="text-[13px] text-foreground">Clicking an event</span>
+                                  <span className="text-body-sm text-foreground">Clicking an event</span>
                                   <p className="text-[11px] text-muted-foreground mt-0.5">Where to go when you select a row</p>
                                 </div>
                                 <select
@@ -2829,7 +2829,7 @@ export default function SettingsPage() {
                         </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-[13px] font-medium text-foreground">Calendars</h3>
+                          <h3 className="text-body-sm font-medium text-foreground">Calendars</h3>
                           <button
                             onClick={() => {
                               setIcsDialogProvider(null);
@@ -2851,7 +2851,7 @@ export default function SettingsPage() {
                                   <span className="flex items-center gap-1 text-[10px] text-green">
                                     <Check className="h-3 w-3" />
                                   </span>
-                                  <span className="text-[13px] text-foreground truncate">
+                                  <span className="text-body-sm text-foreground truncate">
                                     {feed.providerHint ? feed.providerHint.charAt(0).toUpperCase() + feed.providerHint.slice(1) + ' Calendar' : feed.name || 'Calendar feed'}
                                   </span>
                                 </div>
@@ -2932,7 +2932,7 @@ export default function SettingsPage() {
                   <div className="rounded-[10px] border border-border bg-card p-4 space-y-3" style={{ boxShadow: "var(--card-shadow)" }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[14px] font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
+                        <p className="text-body-lg font-semibold text-foreground">OSChief {appVersion ?? ''}</p>
                         <p className="text-[11px] text-muted-foreground">macOS (Apple Silicon)</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -3009,7 +3009,7 @@ export default function SettingsPage() {
 
                   {/* What OSChief does */}
                   <div className="space-y-2">
-                    <h3 className="text-[13px] font-semibold text-foreground">What OSChief does</h3>
+                    <h3 className="text-body-sm font-semibold text-foreground">What OSChief does</h3>
                     <div className="text-[12px] text-muted-foreground space-y-1.5 leading-relaxed">
                       <p><strong className="text-foreground">Record & transcribe</strong> — Capture mic and system audio with live speaker-labeled transcription. Works with Zoom, Meet, Teams, or any audio source.</p>
                       <p><strong className="text-foreground">AI summaries</strong> — Structured notes after each meeting: overview, key points, action items, decisions, and open questions.</p>
@@ -3021,7 +3021,7 @@ export default function SettingsPage() {
 
                   {/* Privacy */}
                   <div className="space-y-2">
-                    <h3 className="text-[13px] font-semibold text-foreground">Privacy</h3>
+                    <h3 className="text-body-sm font-semibold text-foreground">Privacy</h3>
                     <div className="text-[12px] text-muted-foreground space-y-1 leading-relaxed">
                       <p>All data stored locally in <code className="text-[11px] bg-muted px-1 rounded">~/Library/Application Support/OSChief/</code></p>
                       <p>API keys encrypted via macOS Keychain</p>
@@ -3082,7 +3082,7 @@ function JiraIntegrationRow() {
             <path d="M11.53 2L3 10.53V14.47L11.53 22L14.47 22L22 14.47V10.53L11.53 2Z" fill="#2684FF" />
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Jira</span>
+            <span className="text-body-sm font-medium text-foreground">Jira</span>
             <p className="text-[11px] text-muted-foreground">
               {connected ? `Connected as ${displayName}` : "Create tickets from action items"}
             </p>
@@ -3161,7 +3161,7 @@ function SlackIntegrationRow() {
             <path d="M15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.521-2.522v-2.522h2.521zm0-1.27a2.527 2.527 0 0 1-2.521-2.522 2.527 2.527 0 0 1 2.521-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.521h-6.313z" fill="#ECB22E"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Slack</span>
+            <span className="text-body-sm font-medium text-foreground">Slack</span>
             <p className="text-[11px] text-muted-foreground">
               {connected ? `Connected — ${channelName}` : "Share summaries to channels"}
             </p>
@@ -3238,7 +3238,7 @@ function AppleCalendarIntegrationRow() {
           <text x="12" y="17" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">31</text>
         </svg>
         <div>
-          <span className="text-[13px] font-medium text-foreground">Apple Calendar</span>
+          <span className="text-body-sm font-medium text-foreground">Apple Calendar</span>
           <p className="text-[11px] text-muted-foreground">
             {enabled ? "Reading events from macOS Calendar.app" : "Sync with all calendars on your Mac"}
           </p>
@@ -3301,7 +3301,7 @@ function TeamsIntegrationRow() {
             <path d="M6 11h6v1H6zm0 2.5h6v1H6zm0 2.5h4v1H6z" fill="white"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Microsoft Teams</span>
+            <span className="text-body-sm font-medium text-foreground">Microsoft Teams</span>
             <p className="text-[11px] text-muted-foreground">
               {connected ? `Connected — ${channelName}` : "Share summaries to channels"}
             </p>
@@ -3388,7 +3388,7 @@ function GmailIntegrationRow() {
           <rect x="2" y="6" width="20" height="12" rx="1" stroke="#EA4335" strokeWidth="1.5" fill="none"/>
         </svg>
         <div>
-          <span className="text-[13px] font-medium text-foreground">Gmail</span>
+          <span className="text-body-sm font-medium text-foreground">Gmail</span>
           <p className="text-[11px] text-muted-foreground">
             {connected
               ? threadCount > 0
@@ -3455,7 +3455,7 @@ function AsanaIntegrationRow() {
             <circle cx="19" cy="17" r="3.5" fill="#F06A6A"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Asana</span>
+            <span className="text-body-sm font-medium text-foreground">Asana</span>
             <p className="text-[11px] text-muted-foreground">
               {connected ? `Connected — ${displayName}` : "Create tasks from action items"}
             </p>
@@ -3571,7 +3571,7 @@ function GoogleCalendarIntegrationRow() {
             <rect x="6" y="15" width="4" height="4" rx="0.5" fill="white"/>
           </svg>
           <div>
-            <span className="text-[13px] font-medium text-foreground">Google Calendar</span>
+            <span className="text-body-sm font-medium text-foreground">Google Calendar</span>
             <p className="text-[11px] text-muted-foreground">
               {connected ? `Connected — ${email}` : "Sync meetings and events via OAuth"}
             </p>
@@ -3623,7 +3623,7 @@ function GoogleCalendarIntegrationRow() {
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
                   placeholder="123456789.apps.googleusercontent.com"
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
             </div>

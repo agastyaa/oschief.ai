@@ -43,7 +43,7 @@ export function SidebarTopBarLeft({
       {backLabel != null && onBack != null && (
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1.5 text-body-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           {backIcon && <ArrowLeft className="h-4 w-4" />}
           {backLabel}
@@ -149,7 +149,7 @@ export function Sidebar() {
       <button
         onClick={onClick || (() => to && navigate(to))}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors w-full text-left",
+          "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm transition-colors w-full text-left",
           isItemActive
             ? "bg-secondary text-foreground font-medium"
             : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -242,7 +242,7 @@ export function Sidebar() {
                       }
                       setRenamingFolderId(null);
                     }}
-                    className="flex-1 bg-transparent text-[13px] font-medium outline-none text-foreground"
+                    className="flex-1 bg-transparent text-body-sm font-medium outline-none text-foreground"
                   />
                 </div>
               );
@@ -299,7 +299,7 @@ export function Sidebar() {
                   }
                 }}
                 onBlur={() => { setCreatingFolder(false); setNewFolderName(""); }}
-                className="flex-1 bg-transparent text-[13px] outline-none text-foreground"
+                className="flex-1 bg-transparent text-body-sm outline-none text-foreground"
                 placeholder="Folder name…"
               />
             </div>

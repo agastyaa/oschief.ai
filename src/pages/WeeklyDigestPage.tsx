@@ -193,7 +193,7 @@ export default function WeeklyDigestPage() {
                 {/* ── AI Narrative Summary ── */}
                 {data.narrative && (
                   <div className="rounded-[10px] border border-border bg-card p-4 mb-5">
-                    <p className="text-[13px] leading-relaxed text-foreground">{data.narrative}</p>
+                    <p className="text-body-sm leading-relaxed text-foreground">{data.narrative}</p>
                   </div>
                 )}
 

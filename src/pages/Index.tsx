@@ -429,7 +429,7 @@ const Index = () => {
                     Good {timeOfDay}. <span className="text-muted-foreground/60 font-normal text-[15px] ml-1">{format(now, "EEEE, MMMM d")}</span>
                   </h1>
                   {(todayEvents.length > 0 || openCommitments.length > 0 || atRisk.length > 0) && (
-                    <p className="text-[13px] text-muted-foreground mt-1">
+                    <p className="text-body-sm text-muted-foreground mt-1">
                       Your CoS prepared {[
                         todayEvents.length > 0 && `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''}`,
                         atRisk.length > 0 && `${atRisk.length} item${atRisk.length !== 1 ? 's' : ''} at risk`,
@@ -522,7 +522,7 @@ const Index = () => {
                           <Circle className="h-3.5 w-3.5" />
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] text-foreground leading-snug">{c.text}</p>
+                          <p className="text-body-sm text-foreground leading-snug">{c.text}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             {c.owner && c.owner !== 'you' && (
                               <span className="text-[11px] text-muted-foreground">{c.owner}</span>
@@ -580,7 +580,7 @@ const Index = () => {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] text-foreground leading-snug">{c.text}</p>
+                            <p className="text-body-sm text-foreground leading-snug">{c.text}</p>
                             <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                               {c.owner && <span>{c.owner}</span>}
                               {c.due_date && (
@@ -634,7 +634,7 @@ const Index = () => {
                         onClick={() => navigate(`/decisions`)}
                       >
                         <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-[13px] text-foreground/90 truncate flex-1">{d.text}</span>
+                        <span className="text-body-sm text-foreground/90 truncate flex-1">{d.text}</span>
                         <span className="text-[11px] text-muted-foreground shrink-0">unchanged 14+ days</span>
                         {d.note_id && (
                           <button

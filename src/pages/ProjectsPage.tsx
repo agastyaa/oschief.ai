@@ -334,7 +334,7 @@ export default function ProjectsPage() {
                       <>
                         {(projectDecisions[project.id] || []).slice(0, 5).map((d: any) => (
                           <div key={d.id} className="flex items-center gap-2 py-1.5">
-                            <span className="text-[13px] text-foreground flex-1 truncate">{d.text}</span>
+                            <span className="text-body-sm text-foreground flex-1 truncate">{d.text}</span>
                             <span className={cn(
                               "text-[11px] rounded-full px-2 py-0.5 shrink-0",
                               decisionStatusStyles[d.status || 'MADE']

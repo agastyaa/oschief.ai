@@ -263,7 +263,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users className="h-3 w-3 text-muted-foreground/40" />
           {attendees.map((a, i) => (
-            <span key={i} className="text-[13px] font-medium text-foreground/80">{a}{i < attendees.length - 1 ? "," : ""}</span>
+            <span key={i} className="text-body-sm font-medium text-foreground/80">{a}{i < attendees.length - 1 ? "," : ""}</span>
           ))}
         </div>
       )}
@@ -282,13 +282,13 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                 }
                 if (e.key === "Escape") setEditingField(null);
               }}
-              className="w-full resize-none bg-transparent text-[14px] leading-snug font-medium text-foreground focus:outline-none"
+              className="w-full resize-none bg-transparent text-body-lg leading-snug font-medium text-foreground focus:outline-none"
               rows={2}
             />
           ) : (
             <p
               onClick={() => setEditingField("overview")}
-              className="text-[14px] leading-snug font-medium text-foreground cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
+              className="text-body-lg leading-snug font-medium text-foreground cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
             >
               {stripBoldMarkdown(localSummary.overview)}
               <Pencil className="inline-block ml-1 h-2.5 w-2.5 text-muted-foreground/0 group-hover/section:text-muted-foreground/30 transition-colors" />
@@ -318,12 +318,12 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                   }
                   if (e.key === "Escape") setEditingField(null);
                 }}
-                className="text-[14px] font-semibold text-foreground bg-transparent border-none outline-none focus:ring-0 w-full mb-0.5"
+                className="text-body-lg font-semibold text-foreground bg-transparent border-none outline-none focus:ring-0 w-full mb-0.5"
               />
             ) : (
               <h3
                 onClick={() => setEditingField(`topic-title-${i}`)}
-                className="text-[14px] font-semibold text-foreground mb-0.5 cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
+                className="text-body-lg font-semibold text-foreground mb-0.5 cursor-text hover:bg-secondary/30 rounded px-1 -mx-1 transition-colors"
               >
                 {stripBoldMarkdown(topic.topic)}
                 <Pencil className="inline-block ml-1 h-2.5 w-2.5 text-muted-foreground/0 group-hover/section:text-muted-foreground/30" />
@@ -331,7 +331,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
             )}
             <ul className="space-y-0.5">
               {bullets.map((bullet, j) => (
-                <li key={j} className="text-[14px] leading-snug">
+                <li key={j} className="text-body-lg leading-snug">
                   <div className="flex gap-1.5">
                     <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-foreground/15" />
                     {editingField === `topic-${i}-bullet-${j}` ? (
@@ -396,12 +396,12 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                                 }
                                 if (e.key === "Escape") setEditingField(null);
                               }}
-                              className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-[14px] text-foreground/80"
+                              className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-body-lg text-foreground/80"
                             />
                           ) : (
                             <span
                               onClick={() => setEditingField(`topic-${i}-bullet-${j}-sub-${k}`)}
-                              className="text-[14px] text-foreground/80 cursor-text hover:bg-secondary/30 rounded px-1 -mx-1"
+                              className="text-body-lg text-foreground/80 cursor-text hover:bg-secondary/30 rounded px-1 -mx-1"
                             >
                               {stripBoldMarkdown(sub)}
                             </span>
@@ -419,10 +419,10 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
 
       {decisions.length > 0 && (
         <div className="group/section">
-          <h3 className="text-[14px] font-semibold text-foreground mb-0.5 flex items-center">Decisions<CopyButton getText={() => decisionsToMarkdown(localSummary)} /></h3>
+          <h3 className="text-body-lg font-semibold text-foreground mb-0.5 flex items-center">Decisions<CopyButton getText={() => decisionsToMarkdown(localSummary)} /></h3>
           <ul className="space-y-0.5">
             {decisions.map((d, i) => (
-              <li key={i} className="flex gap-1.5 text-[14px] font-medium text-foreground/90 leading-snug">
+              <li key={i} className="flex gap-1.5 text-body-lg font-medium text-foreground/90 leading-snug">
                 {promotedDecisions.has(i) ? (
                   <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0 mt-[2px]" />
                 ) : (
@@ -478,10 +478,10 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
 
       {keyPoints.length > 0 && topics.length === 0 && (
         <div className="group/section">
-          <h3 className="text-[14px] font-semibold text-foreground mb-0.5 flex items-center">Key Points<CopyButton getText={() => keyPointsToMarkdown(localSummary)} /></h3>
+          <h3 className="text-body-lg font-semibold text-foreground mb-0.5 flex items-center">Key Points<CopyButton getText={() => keyPointsToMarkdown(localSummary)} /></h3>
           <ul className="space-y-0.5">
             {keyPoints.map((point, i) => (
-              <li key={i} className="flex gap-1.5 text-[14px] font-medium text-foreground/90 leading-snug">
+              <li key={i} className="flex gap-1.5 text-body-lg font-medium text-foreground/90 leading-snug">
                 <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-foreground/15" />
                 {editingField === `keypoint-${i}` ? (
                   <input
@@ -516,9 +516,9 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
 
       {actions.length > 0 && (
         <div className="group/section">
-          <h3 className="text-[14px] font-semibold text-foreground mb-1 flex items-center">Action items<CopyButton getText={() => actionItemsToMarkdown(localSummary)} /></h3>
+          <h3 className="text-body-lg font-semibold text-foreground mb-1 flex items-center">Action items<CopyButton getText={() => actionItemsToMarkdown(localSummary)} /></h3>
           <div className="rounded-md border border-border overflow-hidden">
-            <table className="w-full border-collapse text-[14px]">
+            <table className="w-full border-collapse text-body-lg">
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-left text-[12px] text-muted-foreground font-medium">
                   <th className="w-8 p-1.5" aria-label="Done" />
@@ -565,7 +565,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                               if (e.key === "Escape") setEditingField(null);
                             }}
                             className={cn(
-                              "w-full text-[14px] bg-transparent border border-border rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-ring text-foreground",
+                              "w-full text-body-lg bg-transparent border border-border rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-ring text-foreground",
                               item.done && "text-muted-foreground/60 line-through"
                             )}
                           />
@@ -573,7 +573,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                           <span
                             onClick={() => setEditingField(`action-${i}`)}
                             className={cn(
-                              "block text-[14px] leading-snug cursor-text hover:bg-secondary/20 rounded px-1 -mx-1 py-0.5 break-words",
+                              "block text-body-lg leading-snug cursor-text hover:bg-secondary/20 rounded px-1 -mx-1 py-0.5 break-words",
                               item.done ? "text-muted-foreground/60 line-through" : "text-foreground/95"
                             )}
                           >
@@ -753,7 +753,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
         <div className="pt-1 group/section">
           {quotes.map((q, i) => (
             <blockquote key={i} className="border-l-2 border-accent/20 pl-2.5 py-0.5">
-              <p className="text-[14px] italic font-medium text-foreground/80">"{stripBoldMarkdown(q.text)}"</p>
+              <p className="text-body-lg italic font-medium text-foreground/80">"{stripBoldMarkdown(q.text)}"</p>
               <p className="text-[12px] text-muted-foreground/70">— {stripBoldMarkdown(q.speaker)}</p>
             </blockquote>
           ))}
@@ -762,7 +762,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
 
       {attachments.length > 0 && (
         <div className="pt-2">
-          <h3 className="text-[14px] font-semibold text-foreground mb-1">Attachments</h3>
+          <h3 className="text-body-lg font-semibold text-foreground mb-1">Attachments</h3>
           <div className="flex flex-wrap gap-2">
             {attachments.map((att, i) => (
               <div key={i} className="relative group/thumb rounded-[10px] border border-border overflow-hidden bg-muted/30">

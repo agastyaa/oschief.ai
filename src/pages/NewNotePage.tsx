@@ -1311,7 +1311,7 @@ export default function NewNotePage() {
                                     toast.error("Summary failed. Try again.");
                                   });
                                 }}
-                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body-sm text-foreground hover:bg-secondary transition-colors"
                               >
                                 <span className="flex items-center gap-2">
                                   <span>{t.icon}</span>
@@ -1516,7 +1516,7 @@ export default function NewNotePage() {
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
                   <div className="rounded-[10px] border border-amber/40 bg-amber-bg px-3 py-3">
-                    <p className="text-[13px] font-medium text-amber">
+                    <p className="text-body-sm font-medium text-amber">
                       No transcript captured yet ({Math.floor(elapsedSeconds / 60)} min)
                     </p>
                     <p className="text-[12px] text-amber mt-1 leading-relaxed">
@@ -1547,7 +1547,7 @@ export default function NewNotePage() {
                       >
                         <div
                           className={cn(
-                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed",
+                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-body-sm leading-relaxed",
                             isMe
                               ? "bg-green-bg text-foreground rounded-br-md"
                               : "bg-muted/80 text-foreground/90 rounded-bl-md"

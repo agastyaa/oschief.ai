@@ -259,7 +259,7 @@ export default function NoteDetailPage() {
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
           <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-[13px] text-muted-foreground mb-3">Note not found</p>
+          <p className="text-body-sm text-muted-foreground mb-3">Note not found</p>
           <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto">
             <ArrowLeft className="h-3 w-3" />
             Back to home
@@ -502,7 +502,7 @@ export default function NoteDetailPage() {
                                   setShowTemplateMenu(false);
                                   handleRegenerate(t.id);
                                 }}
-                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-foreground hover:bg-secondary transition-colors"
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body-sm text-foreground hover:bg-secondary transition-colors"
                               >
                                 <span className="flex items-center gap-2">
                                   <span>{t.icon}</span>
@@ -864,7 +864,7 @@ function CoachingView({
           className="w-full rounded-[10px] border border-border bg-card p-4 text-center hover:bg-secondary/50 transition-colors"
         >
           <Sparkles className="h-5 w-5 text-primary mx-auto mb-2" />
-          <p className="text-[13px] font-medium text-foreground">Analyze this meeting</p>
+          <p className="text-body-sm font-medium text-foreground">Analyze this meeting</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Find what you missed — grounded in your transcript and role playbook</p>
         </button>
       )}
@@ -894,7 +894,7 @@ function CoachingView({
               <div className="space-y-3">
                 {conv.microInsights.map((m, i) => (
                   <div key={i}>
-                    <p className="text-[13px] text-foreground leading-relaxed">{m.text}</p>
+                    <p className="text-body-sm text-foreground leading-relaxed">{m.text}</p>
                     {m.evidenceQuote && (
                       <p className="mt-1 text-[12px] text-muted-foreground italic">
                         — "{m.evidenceQuote}"{m.time ? ` [${m.time}]` : ''}
@@ -954,23 +954,23 @@ function CoachingView({
           <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
           <div className="space-y-2">
             {heuristics.questionRatioYou < 0.15 && (
-              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
                 You didn&apos;t ask many questions — only {Math.round(heuristics.questionRatioYou * 100)}% of your {heuristics.yourTurns} turns were questions.
                 {accountRoleId === 'pm' || accountRoleId === 'founder-ceo' ? " For a PM or founder, discovery conversations should be 60-70% questions." : " Try opening with a question to draw out the other person's perspective."}
               </p>
             )}
             {heuristics.longestYouMonologueWords > 150 && (
-              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-amber-400 pl-3">
                 Your longest uninterrupted run was {heuristics.longestYouMonologueWords} words. That's a monologue — most people stop listening after 60 seconds. Break it up with check-in questions.
               </p>
             )}
             {heuristics.questionRatioYou >= 0.3 && (
-              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-emerald-400 pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-emerald-400 pl-3">
                 Good question ratio — {Math.round(heuristics.questionRatioYou * 100)}% of your turns were questions. That's solid discovery behavior.
               </p>
             )}
             {heuristics.yourTurns < 3 && (
-              <p className="text-[13px] text-foreground leading-relaxed border-l-2 border-muted-foreground pl-3">
+              <p className="text-body-sm text-foreground leading-relaxed border-l-2 border-muted-foreground pl-3">
                 You only spoke {heuristics.yourTurns} time{heuristics.yourTurns === 1 ? "" : "s"} in this meeting. Either it was a listening session or the transcript didn&apos;t capture you well.
               </p>
             )}

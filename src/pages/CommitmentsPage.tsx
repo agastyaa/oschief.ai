@@ -223,7 +223,7 @@ const CommitmentsPage = () => {
                   onChange={(e) => setNewTodoAssignee(e.target.value)}
                   list="new-todo-assignee-list"
                   placeholder="Assign to..."
-                  className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring w-32"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring w-32"
                 />
                 <datalist id="new-todo-assignee-list">
                   {people.map((p: any) => (
@@ -234,14 +234,14 @@ const CommitmentsPage = () => {
                   type="date"
                   value={newTodoDueDate}
                   onChange={(e) => setNewTodoDueDate(e.target.value)}
-                  className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   title="Due date (optional)"
                 />
                 {projects.length > 0 && (
                   <select
                     value={newTodoProjectId || ""}
                     onChange={(e) => setNewTodoProjectId(e.target.value || null)}
-                    className="rounded-md border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground min-w-[120px]"
+                    className="rounded-md border border-border bg-background px-3 py-2 text-body-sm text-muted-foreground min-w-[120px]"
                   >
                     <option value="">No project</option>
                     {projects.map((p: any) => (
@@ -252,7 +252,7 @@ const CommitmentsPage = () => {
                 <button
                   onClick={() => void handleAddTodo()}
                   disabled={addingTodo || !newTodoText.trim()}
-                  className="rounded-md bg-primary px-4 py-2 text-[13px] font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-md bg-primary px-4 py-2 text-body-sm font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {addingTodo ? "Adding..." : "Add"}
                 </button>
@@ -266,7 +266,7 @@ const CommitmentsPage = () => {
                   key={f}
                   onClick={() => setFilter(f)}
                   className={cn(
-                    "px-3 py-2.5 text-[13px] font-medium transition-colors border-b-2 -mb-px",
+                    "px-3 py-2.5 text-body-sm font-medium transition-colors border-b-2 -mb-px",
                     filter === f
                       ? "border-primary text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground"

@@ -105,7 +105,7 @@ export function TeamsConnectDialog({ open, onClose, onConnected }: TeamsConnectD
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://outlook.office.com/webhook/..."
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
@@ -114,7 +114,7 @@ export function TeamsConnectDialog({ open, onClose, onConnected }: TeamsConnectD
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               placeholder="#meeting-notes"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
         </div>

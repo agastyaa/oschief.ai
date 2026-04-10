@@ -307,14 +307,14 @@ export default function AskSyag() {
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                       ) : (
-                        <div className="max-w-[85%] rounded-2xl bg-accent text-accent-foreground px-4 py-3 text-[13px] leading-relaxed shadow-sm font-medium">
+                        <div className="max-w-[85%] rounded-2xl bg-accent text-accent-foreground px-4 py-3 text-body-sm leading-relaxed shadow-sm font-medium">
                           {msg.text}
                         </div>
                       )}
                     </>
                   ) : (
                     <div className="rounded-2xl border border-border/50 bg-card/80 px-4 py-3 shadow-sm">
-                      <ChatMessageContent text={msg.text} className="text-[13px]" />
+                      <ChatMessageContent text={msg.text} className="text-body-sm" />
                     </div>
                   )}
                 </div>
@@ -322,7 +322,7 @@ export default function AskSyag() {
               {/* Streaming text display */}
               {streamingText && (
                 <div className="animate-fade-in rounded-2xl border border-border/50 bg-card/80 px-4 py-3 shadow-sm">
-                  <ChatMessageContent text={streamingText} className="text-[13px]" />
+                  <ChatMessageContent text={streamingText} className="text-body-sm" />
                 </div>
               )}
               {isLoading && !streamingText && (

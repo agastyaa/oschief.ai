@@ -180,7 +180,7 @@ export default function CoachingPage() {
             {/* ── Header ── */}
             <div className="mb-8">
               <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Work Coach</h1>
-              <p className="text-[13px] text-muted-foreground mt-1">Your CoS reviews how you run meetings — what you missed, what to change</p>
+              <p className="text-body-sm text-muted-foreground mt-1">Your CoS reviews how you run meetings — what you missed, what to change</p>
             </div>
 
             {/* ── Empty state: no meetings ── */}
@@ -188,7 +188,7 @@ export default function CoachingPage() {
               <div className="py-16 text-center">
                 <Brain className="h-10 w-10 text-muted-foreground/20 mx-auto mb-4" />
                 <h2 className="font-display text-[17px] font-normal text-foreground mb-2">Your coach is ready.</h2>
-                <p className="text-[13px] text-muted-foreground max-w-sm mx-auto mb-4">
+                <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mb-4">
                   Record a meeting and I'll tell you what you're doing well and what to change — grounded in your transcript, not generic tips.
                 </p>
                 <button onClick={() => navigate("/new-note?startFresh=1")} className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90">
@@ -200,7 +200,7 @@ export default function CoachingPage() {
             {/* ── Role not set warning ── */}
             {meetings.length > 0 && !accountRoleId && (
               <div className="rounded-[10px] border bg-card p-4 mb-6" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
-                <p className="text-[13px] text-foreground">Set your role in Settings so I can give you role-specific coaching.</p>
+                <p className="text-body-sm text-foreground">Set your role in Settings so I can give you role-specific coaching.</p>
                 <button onClick={() => navigate("/settings?section=account")} className="text-[12px] font-medium text-primary hover:underline mt-1">
                   Go to Settings →
                 </button>
@@ -374,7 +374,7 @@ export default function CoachingPage() {
                             {!excluded && <Check className="h-2.5 w-2.5" />}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <span className="text-[13px] text-foreground truncate block">{n.title || "Untitled"}</span>
+                            <span className="text-body-sm text-foreground truncate block">{n.title || "Untitled"}</span>
                             <span className="text-[10px] text-muted-foreground">{n.date}</span>
                           </div>
                           {excluded && (

@@ -99,7 +99,7 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
         {step === "token" && (
           <div className="space-y-4">
             <div>
-              <label className="text-[13px] font-medium text-foreground block mb-1">Personal Access Token</label>
+              <label className="text-body-sm font-medium text-foreground block mb-1">Personal Access Token</label>
               <p className="text-[11px] text-muted-foreground mb-2">
                 Generate a PAT in{" "}
                 <button
@@ -114,7 +114,7 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
                 value={token}
                 onChange={(e) => { setToken(e.target.value); setError(""); }}
                 placeholder="1/1234567890:abcdef..."
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
                 onKeyDown={(e) => e.key === "Enter" && handleTestToken()}
               />
             </div>
@@ -128,7 +128,7 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
             <button
               onClick={handleTestToken}
               disabled={!token.trim() || testing}
-              className="w-full rounded-[10px] bg-primary text-primary-foreground py-2 text-[13px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
+              className="w-full rounded-[10px] bg-primary text-primary-foreground py-2 text-body-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
             >
               {testing ? (
                 <span className="flex items-center justify-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying...</span>
@@ -141,17 +141,17 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
 
         {step === "workspace" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-[13px] text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-2 text-body-sm text-green-600 dark:text-green-400">
               <CheckCircle2 className="h-4 w-4" />
               Token verified
             </div>
 
             <div>
-              <label className="text-[13px] font-medium text-foreground block mb-1">Select Workspace</label>
+              <label className="text-body-sm font-medium text-foreground block mb-1">Select Workspace</label>
               <select
                 value={selectedWorkspace}
                 onChange={(e) => setSelectedWorkspace(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 {workspaces.map((ws) => (
                   <option key={ws.gid} value={ws.gid}>{ws.name}</option>
@@ -162,13 +162,13 @@ export function AsanaConnectDialog({ open, onClose, onConnected }: AsanaConnectD
             <div className="flex gap-2">
               <button
                 onClick={() => setStep("token")}
-                className="flex-1 rounded-[10px] border border-border py-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                className="flex-1 rounded-[10px] border border-border py-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Back
               </button>
               <button
                 onClick={handleConnect}
-                className="flex-1 rounded-[10px] bg-primary text-primary-foreground py-2 text-[13px] font-medium hover:bg-primary/90 transition-colors"
+                className="flex-1 rounded-[10px] bg-primary text-primary-foreground py-2 text-body-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 Connect
               </button>

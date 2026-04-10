@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        "body": ["13.5px", { lineHeight: "1.5" }],
+        "body-sm": ["13px", { lineHeight: "1.5" }],
+        "body-lg": ["14px", { lineHeight: "1.5" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

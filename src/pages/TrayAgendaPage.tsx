@@ -108,7 +108,7 @@ export default function TrayAgendaPage() {
               <span className="text-[9px] text-muted-foreground border border-border rounded px-0.5">OSChief</span>
             )}
           </div>
-          <p className="text-[13px] font-medium text-foreground truncate leading-tight">{evt.title}</p>
+          <p className="text-body-sm font-medium text-foreground truncate leading-tight">{evt.title}</p>
           <p className="text-[10px] text-muted-foreground">
             {format(start, "h:mm a")} – {format(new Date(evt.end), "h:mm a")}
           </p>

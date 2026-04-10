@@ -167,7 +167,7 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                           className="border-l-[3px] pl-2.5"
                           style={{ borderColor: accentColor }}
                         >
-                          <h4 className="text-[13px] font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          <h4 className="text-body-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                             {eventTitle(evt)}
                           </h4>
                           <div className="flex items-center gap-2 flex-wrap">

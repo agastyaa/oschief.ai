@@ -33,7 +33,7 @@ export function IntelligenceFeed({ coachingInsight, todaysPeople, staleRelations
             onClick={() => navigate('/coaching')}
           >
             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Coaching insight</p>
-            <p className="text-[13px] text-foreground/90 leading-relaxed">{coachingInsight.text}</p>
+            <p className="text-body-sm text-foreground/90 leading-relaxed">{coachingInsight.text}</p>
             {coachingInsight.meetingTitle && (
               <p className="text-[11px] text-muted-foreground mt-0.5">from: {coachingInsight.meetingTitle}</p>
             )}

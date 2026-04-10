@@ -327,7 +327,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                   <div key={i} className={cn("flex animate-fade-in", msg.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[90%] text-[13px] leading-relaxed shadow-sm",
+                        "max-w-[90%] text-body-sm leading-relaxed shadow-sm",
                         msg.role === "user"
                           ? "rounded-2xl bg-accent text-accent-foreground px-3.5 py-2.5"
                           : "rounded-2xl border border-border/50 bg-card/90 px-3.5 py-3 text-foreground"
@@ -336,7 +336,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                       {msg.role === "user" ? (
                         <span className="font-medium">{msg.displayText || msg.text}</span>
                       ) : (
-                        <ChatMessageContent text={msg.text} className="text-[13px]" />
+                        <ChatMessageContent text={msg.text} className="text-body-sm" />
                       )}
                     </div>
                   </div>
@@ -361,13 +361,13 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5">You were mentioned</p>
               {mentionHintLoading ? (
-                <p className="text-[13px] text-muted-foreground flex items-center gap-2">
+                <p className="text-body-sm text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                   Summarizing what to address…
                 </p>
               ) : (
                 <>
-                  <p className="text-[13px] text-foreground/90 leading-snug">{mentionContextHint}</p>
+                  <p className="text-body-sm text-foreground/90 leading-snug">{mentionContextHint}</p>
                   <div className="flex items-center gap-2 mt-2">
                     {onTriggerMentionLLM && (
                       <button
@@ -534,7 +534,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                             <Icon className="h-4 w-4" aria-hidden />
                           </span>
                           <span className="min-w-0 pt-0.5">
-                            <span className="block text-[13px] font-medium text-foreground leading-snug">{item.label}</span>
+                            <span className="block text-body-sm font-medium text-foreground leading-snug">{item.label}</span>
                             <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{item.description}</span>
                           </span>
                         </button>

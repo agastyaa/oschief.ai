@@ -88,7 +88,7 @@ export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onM
               {onRename && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setRenameValue(noteTitle || ""); setRenaming(true); }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-body-sm text-foreground hover:bg-secondary transition-colors"
                 >
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                   Rename
@@ -96,14 +96,14 @@ export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onM
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowFolders(true); }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-body-sm text-foreground hover:bg-secondary transition-colors"
               >
                 <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
                 {currentFolderId ? "Move to folder" : "Add to folder"}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(noteId).then(() => toast.success("Note ID copied")).catch(() => toast.error("Failed to copy")); setOpen(false); }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-secondary transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-body-sm text-foreground hover:bg-secondary transition-colors"
               >
                 <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
                 Share
@@ -111,7 +111,7 @@ export function NoteCardMenu({ noteId, noteTitle, currentFolderId, onDelete, onM
               <div className="border-t border-border" />
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(noteId); setOpen(false); }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-body-sm text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Move to trash

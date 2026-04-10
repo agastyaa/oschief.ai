@@ -152,7 +152,7 @@ export function MeetingDetectionHandler() {
                 Meeting detected
               </span>
             </div>
-            <h4 className="text-[14px] font-semibold text-foreground leading-tight truncate">
+            <h4 className="text-body-lg font-semibold text-foreground leading-tight truncate">
               {meetingTitle}
             </h4>
             <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -173,7 +173,7 @@ export function MeetingDetectionHandler() {
         <div className="flex items-center gap-2 px-4 pb-3.5 pt-0.5">
           <button
             onClick={handleTakeNotes}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 active:scale-[0.98] transition-[opacity,transform]"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-body-sm font-semibold text-accent-foreground hover:opacity-90 active:scale-[0.98] transition-[opacity,transform]"
           >
             <Mic className="h-3.5 w-3.5" />
             Take notes

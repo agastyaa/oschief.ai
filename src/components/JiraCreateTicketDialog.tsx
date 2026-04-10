@@ -193,7 +193,7 @@ export function JiraCreateTicketDialog({
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                   >
                     {projects.map((p) => (
                       <option key={p.key} value={p.key}>{p.key} — {p.name}</option>
@@ -208,7 +208,7 @@ export function JiraCreateTicketDialog({
                 <select
                   value={selectedIssueType}
                   onChange={(e) => setSelectedIssueType(e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   {issueTypes.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
@@ -222,7 +222,7 @@ export function JiraCreateTicketDialog({
                 <input
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
 
@@ -233,7 +233,7 @@ export function JiraCreateTicketDialog({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
             </div>

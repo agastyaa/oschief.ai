@@ -138,7 +138,7 @@ export function AsanaCreateTaskDialog({
         ) : created ? (
           <div className="text-center py-4 space-y-3">
             <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
-            <p className="text-[13px] text-foreground">Task created in Asana</p>
+            <p className="text-body-sm text-foreground">Task created in Asana</p>
             <a
               href={created.url}
               target="_blank"
@@ -148,7 +148,7 @@ export function AsanaCreateTaskDialog({
               Open in Asana <ExternalLink className="h-3 w-3" />
             </a>
             <div>
-              <button onClick={onClose} className="rounded-[10px] border border-border px-4 py-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={onClose} className="rounded-[10px] border border-border px-4 py-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors">
                 Close
               </button>
             </div>
@@ -160,7 +160,7 @@ export function AsanaCreateTaskDialog({
               <input
                 value={taskName}
                 onChange={(e) => setTaskName(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
@@ -170,7 +170,7 @@ export function AsanaCreateTaskDialog({
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
-                  className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">No project</option>
                   {projects.map((p) => (
@@ -186,7 +186,7 @@ export function AsanaCreateTaskDialog({
                 type="date"
                 value={taskDueDate}
                 onChange={(e) => setTaskDueDate(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
@@ -196,7 +196,7 @@ export function AsanaCreateTaskDialog({
                 value={taskNotes}
                 onChange={(e) => setTaskNotes(e.target.value)}
                 rows={3}
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               />
             </div>
 
@@ -209,7 +209,7 @@ export function AsanaCreateTaskDialog({
             <button
               onClick={handleCreate}
               disabled={!taskName.trim() || creating}
-              className="w-full rounded-[10px] bg-primary text-primary-foreground py-2 text-[13px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
+              className="w-full rounded-[10px] bg-primary text-primary-foreground py-2 text-body-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
             >
               {creating ? (
                 <span className="flex items-center justify-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Creating...</span>

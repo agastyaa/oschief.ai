@@ -99,7 +99,7 @@ export function JiraConnectDialog({ open, onClose, onConnected }: JiraConnectDia
               value={siteUrl}
               onChange={(e) => setSiteUrl(e.target.value)}
               placeholder="https://yourteam.atlassian.net"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
@@ -109,7 +109,7 @@ export function JiraConnectDialog({ open, onClose, onConnected }: JiraConnectDia
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               type="email"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
@@ -119,7 +119,7 @@ export function JiraConnectDialog({ open, onClose, onConnected }: JiraConnectDia
               onChange={(e) => setApiToken(e.target.value)}
               placeholder="Paste your API token"
               type="password"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
         </div>

@@ -43,7 +43,7 @@ export function ContentHeader() {
         {config.backLabel && config.onBack && (
           <button
             onClick={config.onBack}
-            className="flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1.5 text-body-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             {config.backLabel}

@@ -262,7 +262,7 @@ export default function CalendarPage() {
             <div className="mb-6 rounded-[10px] border border-border bg-card p-6 text-center space-y-4">
               <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-1" />
               <h2 className="text-[15px] font-medium text-foreground mb-1">No calendar yet</h2>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-body-sm text-muted-foreground">
                 Import an .ics feed or add an OSChief-only schedule block
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -540,7 +540,7 @@ export default function CalendarPage() {
                 />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+            <label className="flex items-center gap-2 text-body-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={blockOpenNote}
