@@ -244,6 +244,19 @@ export async function routeSTT(wavBuffer: Buffer, model: string, vocabulary?: st
     throw new Error('Invalid STT model. Choose a cloud provider (e.g. Deepgram) in Settings > AI Models.')
   }
 
+  // Air-gapped mode blocks cloud STT (same as LLM chat)
+  const localSTTProviders = new Set(['local', 'system', 'apple'])
+  if (!localSTTProviders.has(providerId)) {
+    try {
+      const { getSetting } = require('../storage/database')
+      if (getSetting('privacy-airgapped') === 'true') {
+        throw new Error('Air-gapped mode is enabled. Cloud STT providers are disabled. Switch to a local model (Whisper, Qwen3-ASR) or disable air-gapped mode in Settings > Privacy.')
+      }
+    } catch (e: any) {
+      if (e.message?.includes('Air-gapped')) throw e
+    }
+  }
+
   const optional = optionalProviders.get(providerId)
   if (optional?.stt) {
     const apiKey = getApiKey(providerId)

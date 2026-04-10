@@ -475,7 +475,7 @@ function PrivacySection({ api }: { api: ReturnType<typeof getElectronAPI> }) {
               {airgapped && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-bg text-green">Active</span>}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              Guarantees zero network access. All transcription and summarization use on-device models only. Cloud providers are disabled.
+              Blocks cloud AI and cloud STT. Transcription and summarization use on-device models only. Calendar sync, updates, and iCloud continue to work.
             </div>
           </div>
           <button
