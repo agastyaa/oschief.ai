@@ -20,11 +20,11 @@ const LS_KEY = "syag-folders";
 
 const colors = [
   "bg-accent/20 text-accent",
-  "bg-amber-100 text-amber-700",
-  "bg-blue-100 text-blue-700",
-  "bg-rose-100 text-rose-700",
-  "bg-purple-100 text-purple-700",
-  "bg-emerald-100 text-emerald-700",
+  "bg-amber-bg text-amber-text",
+  "bg-primary/10 text-primary",
+  "bg-destructive/10 text-destructive",
+  "bg-green-bg text-green-text",
+  "bg-muted text-muted-foreground",
 ];
 
 function loadFoldersFromLS(): { folders: Folder[]; noteFolders: Record<string, string> } {
