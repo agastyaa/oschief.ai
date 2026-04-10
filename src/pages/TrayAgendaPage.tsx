@@ -15,10 +15,21 @@ type TrayEvt = {
   source?: "synced" | "local";
 };
 
+const EVENT_ACCENTS = [
+  'hsl(229, 51%, 37%)',  // primary (slate navy)
+  'hsl(142, 50%, 45%)',  // green
+  'hsl(30, 55%, 64%)',   // amber
+  'hsl(4, 80%, 58%)',    // recording red
+  'hsl(229, 51%, 52%)',  // primary lighter
+  'hsl(142, 50%, 55%)',  // green lighter
+  'hsl(30, 55%, 50%)',   // amber darker
+  'hsl(225, 22%, 50%)',  // slate mid
+];
+
 function accentFromId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360} 42% 44%)`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return EVENT_ACCENTS[Math.abs(hash) % EVENT_ACCENTS.length];
 }
 
 export default function TrayAgendaPage() {

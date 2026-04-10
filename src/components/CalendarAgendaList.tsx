@@ -4,6 +4,23 @@ import { Calendar, Clock, FileText, MapPin, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/lib/ics-parser";
 
+const EVENT_ACCENTS = [
+  'hsl(229, 51%, 37%)',  // primary (slate navy)
+  'hsl(142, 50%, 45%)',  // green
+  'hsl(30, 55%, 64%)',   // amber
+  'hsl(4, 80%, 58%)',    // recording red
+  'hsl(229, 51%, 52%)',  // primary lighter
+  'hsl(142, 50%, 55%)',  // green lighter
+  'hsl(30, 55%, 50%)',   // amber darker
+  'hsl(225, 22%, 50%)',  // slate mid
+];
+
+function accentFromId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return EVENT_ACCENTS[Math.abs(hash) % EVENT_ACCENTS.length];
+}
+
 /** Format event title, handling empty/private events */
 function eventTitle(evt: CalendarEvent): string {
   if (evt.title && evt.title.trim()) return evt.title
@@ -152,7 +169,7 @@ export const CalendarAgendaList = forwardRef<HTMLDivElement, CalendarAgendaListP
                     ? "hsl(var(--muted-foreground) / 0.25)"
                     : evt.source === "local"
                       ? "hsl(var(--muted-foreground) / 0.5)"
-                      : `hsl(${(evt.id.charCodeAt(0) * 37) % 360} 40% 45%)`;
+                      : accentFromId(evt.id);
 
                   if (isCompact) {
                     // Granola-style: clean row — colored bar + title + time, no cards
