@@ -4,6 +4,19 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.9] — 2026-04-10
+
+### Fixed
+- **Logo no longer overlaps macOS traffic lights** — sidebar header gets extra left padding in Electron to clear the red/yellow/green buttons.
+- **404 on app launch** — NotFound page now auto-redirects to home after 2 seconds instead of showing a dead end. Uses React Router navigate instead of broken `<a href="/">`.
+- **Tray settings visible** — Calendar & Tray tab in Connections now always shows tray options instead of hiding them.
+
+### Changed
+- **Default template moved to Templates tab** — the template selector now lives with the template list where it belongs, not in General.
+- **Removed "Use local by default" toggle** — confusing toggle that overrode cloud AI model selection. Users pick their model in the Setup tab directly.
+
+---
+
 ## [2.5.8] — 2026-04-10
 
 ### Fixed
