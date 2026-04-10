@@ -951,7 +951,7 @@ export default function NewNotePage() {
   }, [recordingState, visibleLines, usingRealAudio]);
 
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    transcriptEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [visibleLines, transcriptLines.length]);
 
   useEffect(() => {
