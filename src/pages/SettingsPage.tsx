@@ -2487,7 +2487,7 @@ export default function SettingsPage() {
                                       value={optProviderKey}
                                       onChange={(e) => setOptProviderKey(e.target.value)}
                                       placeholder="Enter your API key..."
-                                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 mt-1"
+                                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 mt-1"
                                     />
                                   </div>
                                   <div className="flex items-center gap-2">
