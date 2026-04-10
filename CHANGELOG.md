@@ -4,6 +4,14 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.11] — 2026-04-10
+
+### Fixed
+- **Logo position** — logo now sits below macOS traffic lights instead of beside them (was pushed too far right by left padding).
+- **Privacy indicator** — "Local" badge now correctly shows "Cloud" when using custom providers (copart, OpenRouter, etc.). Previously only checked hardcoded provider prefixes.
+
+---
+
 ## [2.5.10] — 2026-04-10
 
 ### Fixed
