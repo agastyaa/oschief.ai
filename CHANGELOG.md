@@ -4,6 +4,14 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.13] — 2026-04-10
+
+### Fixed
+- **Teams meeting detection** — Teams, Discord, and Slack run background processes permanently, so process-only detection never fired a second time. Now requires audio/mic activity for these always-running apps to distinguish "installed" from "in a call." Notification fires when you join, not when the app launches.
+- **People/notes spacing** — removed double margin between people section and content divider on note detail page.
+
+---
+
 ## [2.5.12] — 2026-04-10
 
 ### Added
