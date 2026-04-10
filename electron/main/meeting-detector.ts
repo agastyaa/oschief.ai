@@ -165,8 +165,9 @@ async function checkForMeetings(): Promise<void> {
     const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
     if (matchedApp && !lastPollHadMeetingApp && !inCooldown && autoDetectEnabled) {
       // Require mic/audio in use to reduce false positives — meeting app running doesn't mean you're in a call
-      const skipMicCheck = getSetting('meeting-detection-require-mic') === 'false'
-      if (!skipMicCheck) {
+      // Default: skip mic check (matches UI default where requireMic = false)
+      const requireMic = getSetting('meeting-detection-require-mic') === 'true'
+      if (requireMic) {
         const micActive = await checkMicActive()
         if (!micActive) {
           isChecking = false
