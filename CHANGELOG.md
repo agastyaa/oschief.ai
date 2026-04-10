@@ -4,6 +4,14 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.10] — 2026-04-10
+
+### Fixed
+- **Preload script crash** — preload was built as ESM (.mjs) but Electron sandbox requires CommonJS. Changed to .cjs output. This was the root cause of: missing version in About, broken "Check for updates", no meeting detection, tray settings not appearing, and other Electron API failures.
+- **404 on /index.html** — instant redirect for the routing artifact caused by the broken preload.
+
+---
+
 ## [2.5.9] — 2026-04-10
 
 ### Fixed
