@@ -13,7 +13,7 @@ const MODEL_URLS: Record<string, { url: string; filename: string }> = {
     filename: 'silero_vad.onnx',
   },
   'ecapa-tdnn': {
-    url: 'https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb/resolve/main/embedding_model.onnx',
+    url: 'https://huggingface.co/Wespeaker/wespeaker-ecapa-tdnn512-LM/resolve/main/voxceleb_ECAPA512_LM.onnx',
     filename: 'ecapa_tdnn.onnx',
   },
   'pyannote-segmentation': {

@@ -6,7 +6,7 @@ let embeddingSession: any = null
 
 const SEGMENT_DURATION = 1.5
 const SEGMENT_OVERLAP = 0.75
-const EMBEDDING_DIM = 192
+const EMBEDDING_DIM = 512 // Wespeaker ECAPA-TDNN 512-LM
 
 export interface SpeakerEmbedding {
   embedding: Float32Array
