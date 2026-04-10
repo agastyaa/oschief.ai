@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { Gavel, Search, FolderKanban, FileText, Users, Trash2 } from "lucide-react"
+import { Gavel, Search, FolderKanban, FileText, Users, Trash2, X, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -20,15 +20,17 @@ interface Decision {
 }
 
 const statusStyles: Record<string, string> = {
-  MADE: 'bg-muted text-muted-foreground',
-  DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  ABANDONED: 'bg-red-500/10 text-red-500 dark:text-red-400',
+  MADE: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  IN_PROGRESS: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  TBD: 'bg-muted text-muted-foreground',
+  REJECTED: 'bg-red-500/10 text-red-500 dark:text-red-400',
 }
 
 const statusLabels: Record<string, string> = {
   MADE: 'Made',
-  DONE: 'Done',
-  ABANDONED: 'Abandoned',
+  IN_PROGRESS: 'In Progress',
+  TBD: 'TBD',
+  REJECTED: 'Rejected',
 }
 
 type FilterMode = "all" | "by-project" | "by-person"
@@ -51,6 +53,11 @@ export default function DecisionsPage() {
   const [editText, setEditText] = useState("")
   const [editingContextId, setEditingContextId] = useState<string | null>(null)
   const [editContext, setEditContext] = useState("")
+  const [editingPeopleId, setEditingPeopleId] = useState<string | null>(null)
+  const [linkedPeople, setLinkedPeople] = useState<Array<{ id: string; name: string }>>([])
+  const [allPeople, setAllPeople] = useState<Array<{ id: string; name: string }>>([])
+  const [peopleSearch, setPeopleSearch] = useState("")
+  const peopleRef = useRef<HTMLDivElement>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const refreshDecisions = () => {
@@ -60,6 +67,42 @@ export default function DecisionsPage() {
       api?.memory?.decisions?.getAll().then(setDecisions)
     }
   }
+
+  const openPeopleEditor = async (decisionId: string) => {
+    setEditingPeopleId(decisionId)
+    setPeopleSearch("")
+    const [linked, all] = await Promise.all([
+      api?.memory?.decisions?.getPeople?.(decisionId) ?? [],
+      api?.memory?.people?.getAll?.() ?? [],
+    ])
+    setLinkedPeople(linked || [])
+    setAllPeople((all || []).map((p: any) => ({ id: p.id, name: p.name })))
+  }
+
+  const addPersonToDecision = async (decisionId: string, personId: string) => {
+    await api?.memory?.decisions?.linkPerson?.(decisionId, personId)
+    const updated = await api?.memory?.decisions?.getPeople?.(decisionId)
+    setLinkedPeople(updated || [])
+    refreshDecisions()
+  }
+
+  const removePersonFromDecision = async (decisionId: string, personId: string) => {
+    await api?.memory?.decisions?.unlinkPerson?.(decisionId, personId)
+    const updated = await api?.memory?.decisions?.getPeople?.(decisionId)
+    setLinkedPeople(updated || [])
+    refreshDecisions()
+  }
+
+  useEffect(() => {
+    if (!editingPeopleId) return
+    const handler = (e: MouseEvent) => {
+      if (peopleRef.current && !peopleRef.current.contains(e.target as Node)) {
+        setEditingPeopleId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [editingPeopleId])
 
   const handleStatusChange = async (id: string, status: string) => {
     await api?.memory?.decisions?.updateStatus(id, status)
@@ -368,10 +411,58 @@ export default function DecisionsPage() {
                               {d.project_name}
                             </button>
                           )}
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {d.participant_names || <span className="text-muted-foreground/40 italic">No people linked</span>}
-                          </span>
+                          <div className="relative">
+                            <button
+                              onClick={() => editingPeopleId === d.id ? setEditingPeopleId(null) : openPeopleEditor(d.id)}
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              <Users className="h-3 w-3" />
+                              {d.participant_names || <span className="text-muted-foreground/40 italic">Add people</span>}
+                            </button>
+                            {editingPeopleId === d.id && (
+                              <div ref={peopleRef} className="absolute left-0 top-full mt-1 z-50 w-56 rounded-[10px] border border-border bg-card shadow-lg p-2 space-y-2">
+                                {linkedPeople.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {linkedPeople.map(p => (
+                                      <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px]">
+                                        {p.name}
+                                        <button onClick={() => removePersonFromDecision(d.id, p.id)} className="hover:text-destructive">
+                                          <X className="h-2.5 w-2.5" />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <input
+                                  autoFocus
+                                  value={peopleSearch}
+                                  onChange={e => setPeopleSearch(e.target.value)}
+                                  placeholder="Search people..."
+                                  className="w-full text-xs bg-transparent border-b border-border pb-1 focus:outline-none focus:border-primary"
+                                />
+                                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                  {allPeople
+                                    .filter(p => !linkedPeople.some(lp => lp.id === p.id))
+                                    .filter(p => !peopleSearch || p.name.toLowerCase().includes(peopleSearch.toLowerCase()))
+                                    .slice(0, 10)
+                                    .map(p => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => addPersonToDecision(d.id, p.id)}
+                                        className="w-full text-left text-xs px-2 py-1 rounded hover:bg-secondary transition-colors flex items-center gap-1.5"
+                                      >
+                                        <Plus className="h-3 w-3 text-muted-foreground" />
+                                        {p.name}
+                                      </button>
+                                    ))
+                                  }
+                                  {allPeople.filter(p => !linkedPeople.some(lp => lp.id === p.id)).filter(p => !peopleSearch || p.name.toLowerCase().includes(peopleSearch.toLowerCase())).length === 0 && (
+                                    <p className="text-[11px] text-muted-foreground px-2 py-1">No people found</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <span>{d.date}</span>
                         </div>
                       </div>

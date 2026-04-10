@@ -77,7 +77,7 @@ export function getAllDecisions(filters?: { projectId?: string; noteId?: string 
 
 // ── Write ───────────────────────────────────────────────────────────
 
-export type DecisionStatus = 'MADE' | 'ASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED' | 'REVISITED'
+export type DecisionStatus = 'MADE' | 'IN_PROGRESS' | 'TBD' | 'REJECTED' | 'ASSIGNED' | 'DONE' | 'ABANDONED' | 'REVISITED'
 
 export function addDecision(data: {
   noteId?: string

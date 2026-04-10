@@ -421,7 +421,7 @@ export default function NoteDetailPage() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: main content + ask bar */}
           <div className="flex flex-1 flex-col min-w-0">
-            <div className="flex-1 overflow-y-auto pb-24">
+            <div className="flex-1 overflow-y-auto">
               <div className="mx-auto max-w-3xl px-8 py-3">
                 {/* Title — editable */}
                 {isEditingTitle ? (

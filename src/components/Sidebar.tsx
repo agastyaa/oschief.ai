@@ -199,18 +199,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* New Note button row */}
-      <div className="flex items-center gap-1.5 px-3 pb-1" style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}>
-        <button
-          onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
-          className="flex items-center gap-2 flex-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
-          title="New Note"
-          aria-label="New Note"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span>New Note</span>
-        </button>
-      </div>
 
       {/* Scrollable nav area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">

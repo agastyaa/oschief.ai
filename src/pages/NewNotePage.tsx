@@ -1219,7 +1219,7 @@ export default function NewNotePage() {
         {/* Content area: stack on small screens so transcript doesn't squeeze layout */}
         <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
           <div className="flex flex-1 flex-col min-w-0">
-            <div className="flex-1 overflow-y-auto pb-24">
+            <div className="flex-1 overflow-y-auto">
               <div className="mx-auto max-w-3xl px-8 py-3">
                 {/* Title */}
                 {isEditingTitle ? (
@@ -1427,7 +1427,7 @@ export default function NewNotePage() {
 
           {/* Transcript: full width below notes on small screens, side panel on lg+ */}
           {transcriptVisible && (recordingState === "recording" || showRealTimeTranscript || transcriptLines.length > 0 || noTranscriptYet) && (
-            <div className="w-full lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] max-h-[45vh] lg:max-h-none animate-slide-in-right relative" style={{ width: transcriptWidth }}>
+            <div className="w-full lg:flex-shrink-0 border-t lg:border-l border-border bg-card/50 overflow-y-auto rounded-tl-[10px] max-h-[45vh] lg:max-h-none animate-slide-in-right relative" style={{ width: transcriptWidth }}>
               {/* Resize drag handle */}
               <div
                 className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 hover:bg-primary/20 active:bg-primary/30 transition-colors hidden lg:block"
