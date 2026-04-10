@@ -37,7 +37,7 @@ export function TrayMenu() {
       {/* Header */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
         <OSChiefLogo size={20} />
-        <span className="font-display text-sm">OSChief</span>
+        <span className="font-body font-semibold text-sm">OSChief</span>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setIsDark(!isDark)}
