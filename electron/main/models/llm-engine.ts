@@ -337,7 +337,14 @@ export async function summarize(
   // Restore real names in the response
   const finalResponse = anonMap ? deanonymize(response, anonMap) : response
   const parsed = parseEnhancedNotes(finalResponse)
-  const title = extractTitleFromResponse(finalResponse)
+  let title = extractTitleFromResponse(finalResponse)
+  // If title extraction fell back to generic "Meeting Notes", try deriving from the parsed overview/tldr
+  if (title === 'Meeting Notes' && parsed.tldr && parsed.tldr.length > 10) {
+    const words = parsed.tldr.split(/[;.!?]/).filter(Boolean)[0]?.trim()
+    if (words && words.length > 5 && words.length <= 60) {
+      title = words
+    }
+  }
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
 

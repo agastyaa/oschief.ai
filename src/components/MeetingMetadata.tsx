@@ -133,8 +133,17 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
                   placeholder="Name..."
                   className="h-6 w-32 rounded-full border border-border bg-background px-2.5 text-[11px] text-foreground outline-none focus:ring-1 focus:ring-ring"
                 />
-                {peopleSuggestions.length > 0 && (
+                {newPersonName.trim().length >= 2 && (
                   <div className="absolute left-0 top-full mt-1 w-48 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden py-0.5">
+                    {/* Always show "Create new" option first */}
+                    {!peopleSuggestions.some(s => s.name.toLowerCase() === newPersonName.trim().toLowerCase()) && (
+                      <button
+                        onMouseDown={(e) => { e.preventDefault(); handleAddPerson(); }}
+                        className="w-full text-left px-2.5 py-1.5 text-[11px] text-foreground hover:bg-secondary transition-colors border-b border-border"
+                      >
+                        <span className="font-medium">+ Create "{newPersonName.trim()}"</span>
+                      </button>
+                    )}
                     {peopleSuggestions.map((s) => (
                       <button
                         key={s.id}
