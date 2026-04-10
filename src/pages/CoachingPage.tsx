@@ -179,7 +179,7 @@ export default function CoachingPage() {
 
             {/* ── Header ── */}
             <div className="mb-8">
-              <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">Work Coach</h1>
+              <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Work Coach</h1>
               <p className="text-[13px] text-muted-foreground mt-1">Your CoS reviews how you run meetings — what you missed, what to change</p>
             </div>
 
@@ -187,7 +187,7 @@ export default function CoachingPage() {
             {meetings.length === 0 && (
               <div className="py-16 text-center">
                 <Brain className="h-10 w-10 text-muted-foreground/20 mx-auto mb-4" />
-                <h2 className="font-display text-[17px] font-semibold text-foreground mb-2">Your coach is ready.</h2>
+                <h2 className="font-display text-[17px] font-normal text-foreground mb-2">Your coach is ready.</h2>
                 <p className="text-[13px] text-muted-foreground max-w-sm mx-auto mb-4">
                   Record a meeting and I'll tell you what you're doing well and what to change — grounded in your transcript, not generic tips.
                 </p>

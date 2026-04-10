@@ -448,7 +448,7 @@ export default function NoteDetailPage() {
                   <h1
                     onClick={() => setIsEditingTitle(true)}
                     className={cn(
-                      "mb-2 font-display text-[22px] font-semibold cursor-text transition-colors leading-snug tracking-tight",
+                      "mb-2 font-display text-[22px] font-normal cursor-text transition-colors leading-snug tracking-tight",
                       (note.title || "").trim() ? "text-foreground hover:text-foreground/80" : "text-foreground/40 hover:text-foreground/60"
                     )}
                   >
@@ -573,7 +573,7 @@ export default function NoteDetailPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
-                      <h2 className="font-display text-base font-semibold text-foreground/70">My Notes</h2>
+                      <h2 className="font-display text-base font-normal text-foreground/70">My Notes</h2>
                     </div>
                     <RichTextEditor
                       content={note.personalNotes || ""}

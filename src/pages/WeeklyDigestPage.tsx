@@ -116,7 +116,7 @@ export default function WeeklyDigestPage() {
                 <BarChart3 className="h-4 w-4 text-accent" />
               </div>
               <div className="flex-1">
-                <h1 className="font-display text-xl font-semibold text-foreground">Weekly Summary</h1>
+                <h1 className="font-display text-xl font-normal text-foreground">Weekly Summary</h1>
                 {data && (
                   <p className="text-xs text-muted-foreground">
                     {mode === 'retrospective'

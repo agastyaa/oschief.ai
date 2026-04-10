@@ -410,7 +410,7 @@ const Index = () => {
             <div className="mb-6">
               {viewAll ? (
                 <div className="flex items-center justify-between">
-                  <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
+                  <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">
                     All Notes
                     {notes.length > 0 && <span className="text-foreground/50 font-normal ml-2 text-[18px]">{notes.length}</span>}
                   </h1>
@@ -425,7 +425,7 @@ const Index = () => {
                 </div>
               ) : (
                 <>
-                  <h1 className="font-display text-[20px] font-semibold text-foreground tracking-tight">
+                  <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">
                     Good {timeOfDay}. <span className="text-muted-foreground/60 font-normal text-[15px] ml-1">{format(now, "EEEE, MMMM d")}</span>
                   </h1>
                   {(todayEvents.length > 0 || openCommitments.length > 0 || atRisk.length > 0) && (
@@ -674,7 +674,7 @@ const Index = () => {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
                       <Calendar className="h-5 w-5" />
                     </div>
-                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Get started with OSChief</h2>
+                    <h2 className="font-display text-[15px] font-normal text-foreground mb-1">Get started with OSChief</h2>
                     <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
                       Connect your calendar so OSChief can detect meetings, prep you before calls, and track your work over time.
                     </p>
@@ -699,7 +699,7 @@ const Index = () => {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mx-auto mb-3">
                       <Mic className="h-5 w-5" />
                     </div>
-                    <h2 className="font-display text-[15px] font-semibold text-foreground mb-1">Ready when you are</h2>
+                    <h2 className="font-display text-[15px] font-normal text-foreground mb-1">Ready when you are</h2>
                     <p className="text-[12px] text-muted-foreground max-w-xs mx-auto mb-4">
                       Hit record during your next meeting. OSChief will transcribe, summarize, and connect everything to your people and projects.
                     </p>
