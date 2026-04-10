@@ -4,6 +4,14 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.14] — 2026-04-10
+
+### Fixed
+- **Mic-only diarization now works** — speaker diarization (pyannote + ECAPA-TDNN) was silently disabled for anyone who never toggled the setting. Same `null === 'true'` bug as meeting detection. Now defaults to ON, so in-room meetings with just a mic will distinguish speakers.
+- **Transcript flicker during recording** — changed auto-scroll from smooth to instant, eliminating layout reflow jitter when new lines appear.
+
+---
+
 ## [2.5.13] — 2026-04-10
 
 ### Fixed
