@@ -44,6 +44,17 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
     }
   })
 
+  autoUpdater.on('download-progress', (progress) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-download-progress', {
+        percent: Math.round(progress.percent),
+        bytesPerSecond: progress.bytesPerSecond,
+        transferred: progress.transferred,
+        total: progress.total,
+      })
+    }
+  })
+
   autoUpdater.on('update-downloaded', (info) => {
     console.log(`[auto-updater] Update downloaded: v${info.version} — prompting restart`)
     if (!mainWindow.isDestroyed()) {

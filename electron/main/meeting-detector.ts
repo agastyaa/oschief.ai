@@ -162,7 +162,8 @@ async function checkForMeetings(): Promise<void> {
     // Notify whenever meeting app transitions from absent to present (scheduled or ad-hoc). Calendar used only for title.
     const calEvent = findCurrentCalendarEvent()
     const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
-    if (matchedApp && !lastPollHadMeetingApp && !inCooldown) {
+    const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
+    if (matchedApp && !lastPollHadMeetingApp && !inCooldown && autoDetectEnabled) {
       // Require mic/audio in use to reduce false positives — meeting app running doesn't mean you're in a call
       const skipMicCheck = getSetting('meeting-detection-require-mic') === 'false'
       if (!skipMicCheck) {
@@ -184,14 +185,6 @@ async function checkForMeetings(): Promise<void> {
 
       console.log(`[MeetingDetector] Meeting detected: ${meetingTitle}`)
 
-      const autoRecord = getSetting('auto-record') !== 'false'
-      if (!autoRecord) {
-        activeMeetingApp = matchedApp
-        lastPollHadMeetingApp = true
-        isChecking = false
-        return
-      }
-
       const detectionData = {
         app: matchedApp,
         title: meetingTitle,
@@ -199,6 +192,7 @@ async function checkForMeetings(): Promise<void> {
         startTime: meetingStartTime,
       }
 
+      // Always show notification — auto-record only controls whether recording starts automatically
       showMeetingDetectedNotification(meetingTitle, matchedApp)
       mainWindow?.webContents.send('meeting:detected', detectionData)
     } else if (!matchedApp && activeMeetingApp) {
