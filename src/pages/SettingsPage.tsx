@@ -1949,7 +1949,14 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="mt-4 space-y-6">
+                  <Tabs defaultValue="setup" className="w-full">
+                    <TabsList className="w-full justify-start bg-secondary/50 rounded-lg p-0.5 mb-5">
+                      <TabsTrigger value="setup" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Setup</TabsTrigger>
+                      <TabsTrigger value="local" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Local</TabsTrigger>
+                      <TabsTrigger value="cloud" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Cloud</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="setup" className="space-y-6 mt-0">
                   {/* Default Model Selection */}
                   <div className="space-y-3">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -2040,6 +2047,9 @@ export default function SettingsPage() {
                     </Popover>
                   </div>
 
+                    </TabsContent>
+
+                    <TabsContent value="local" className="space-y-6 mt-0">
                   {/* Local Models Section */}
                   <div className="space-y-3 pt-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2302,6 +2312,9 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                    </TabsContent>
+
+                    <TabsContent value="cloud" className="space-y-6 mt-0">
                   {/* OpenRouter */}
                   <div className="space-y-3 pt-2">
                     <h3 className="text-[13px] font-medium text-foreground flex items-center gap-2">
@@ -2744,7 +2757,8 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -2752,137 +2766,151 @@ export default function SettingsPage() {
 
               {active === "connections" && (
                 <div className="space-y-5">
-                  <SectionHeader title="Connections" description="Calendar, integrations, and sync" />
-                  {isElectron && (
-                    <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
-                      <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
-                      <p className="text-[11px] text-muted-foreground -mt-1">
-                        macOS menu bar icon: show a compact agenda popover instead of only focusing the app when you click the icon (when not recording).
-                      </p>
-                      <SettingRow label="Show agenda in tray" description="Open a Notion-style agenda when clicking the OSChief menu bar icon.">
-                        <Toggle
-                          enabled={trayAgendaEnabled}
-                          onToggle={() => {
-                            const next = !trayAgendaEnabled;
-                            setTrayAgendaEnabled(next);
-                            api?.db.settings.set("tray-calendar-agenda", next ? "true" : "false").catch(console.error);
-                          }}
-                        />
-                      </SettingRow>
-                      {trayAgendaEnabled && (
-                        <>
-                          <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
-                            <div className="min-w-0">
-                              <span className="text-[13px] text-foreground">Agenda range</span>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">Which days appear in the tray popover</p>
-                            </div>
-                            <select
-                              value={trayCalendarRange}
-                              onChange={(e) => {
-                                const v = e.target.value === "today" ? "today" : "today_tomorrow";
-                                setTrayCalendarRange(v);
-                                api?.db.settings.set("tray-calendar-range", v).catch(console.error);
-                              }}
-                              className="text-[12px] rounded-md border border-border bg-background px-2 py-1.5 max-w-[11rem]"
-                            >
-                              <option value="today">Today only</option>
-                              <option value="today_tomorrow">Today + tomorrow</option>
-                            </select>
-                          </div>
-                          <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
-                            <div className="min-w-0">
-                              <span className="text-[13px] text-foreground">Clicking an event</span>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">Where to go when you select a row</p>
-                            </div>
-                            <select
-                              value={trayCalendarClick}
-                              onChange={(e) => {
-                                const v = e.target.value === "calendar" ? "calendar" : "note";
-                                setTrayCalendarClick(v);
-                                api?.db.settings.set("tray-calendar-click", v).catch(console.error);
-                              }}
-                              className="text-[12px] rounded-md border border-border bg-background px-2 py-1.5 max-w-[11rem]"
-                            >
-                              <option value="note">Open linked note / new note</option>
-                              <option value="calendar">Open OSChief calendar</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[13px] font-medium text-foreground">Calendars</h3>
-                      <button
-                        onClick={() => {
-                          setIcsDialogProvider(null);
-                          setIcsDialogOpen(true);
-                        }}
-                        className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 transition-colors"
-                      >
-                        + Add Calendar
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground -mt-1">
-                      Paste an ICS feed URL or upload a .ics file. Works with Google, Apple, Notion, or any ICS-compatible calendar.
-                    </p>
-                    {icsFeeds.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {icsFeeds.map((feed) => (
-                          <div key={feed.id} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-                                <Check className="h-3 w-3" />
-                              </span>
-                              <span className="text-[13px] text-foreground truncate">
-                                {feed.providerHint ? feed.providerHint.charAt(0).toUpperCase() + feed.providerHint.slice(1) + ' Calendar' : feed.name || 'Calendar feed'}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                removeCalendarFeed(feed.id);
-                                if (icsFeeds.length <= 1) {
-                                  setCalendarProvider(null);
-                                  try { localStorage.removeItem(CALENDAR_PROVIDER_KEY); } catch {}
-                                }
-                              }}
-                              className="rounded-md border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground/60 py-2">No calendars connected yet.</p>
-                    )}
-                  </div>
-                  <ICSDialog
-                    open={icsDialogOpen}
-                    onOpenChange={setIcsDialogOpen}
-                    provider={icsDialogProvider ?? undefined}
-                    onSuccess={(p) => {
-                      setCalendarProvider(p);
-                      localStorage.setItem(CALENDAR_PROVIDER_KEY, p);
-                      setIcsDialogProvider(null);
-                    }}
-                  />
-                </div>
-              )}
+                  <SectionHeader title="Connections" description="Calendar, integrations, sync, and developer tools" />
+                  <Tabs defaultValue="calendar" className="w-full">
+                    <TabsList className="w-full justify-start bg-secondary/50 rounded-lg p-0.5 mb-5">
+                      <TabsTrigger value="calendar" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Calendar & Tray</TabsTrigger>
+                      <TabsTrigger value="integrations" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Integrations</TabsTrigger>
+                      <TabsTrigger value="developer" className="text-[12px] rounded-md px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">Developer</TabsTrigger>
+                    </TabsList>
 
-              {active === "connections" && (
-                <div className="space-y-5 mt-6 border-t border-border pt-5">
-                  <h3 className="text-[13px] font-semibold text-foreground">Integrations</h3>
-                  <div className="space-y-2">
-                    <GoogleCalendarIntegrationRow />
-                    <AppleCalendarIntegrationRow />
-                    <GmailIntegrationRow />
-                    <SlackIntegrationRow />
-                    <TeamsIntegrationRow />
-                    <JiraIntegrationRow />
-                    <AsanaIntegrationRow />
-                  </div>
+                    <TabsContent value="calendar" className="space-y-5 mt-0">
+                      {isElectron && (
+                        <div className="rounded-[10px] border border-border bg-card/40 p-4 space-y-3">
+                          <h3 className="text-[13px] font-medium text-foreground">Menu bar & tray</h3>
+                          <p className="text-[11px] text-muted-foreground -mt-1">
+                            Show a compact agenda popover when you click the menu bar icon (when not recording).
+                          </p>
+                          <SettingRow label="Show agenda in tray" description="Open a Notion-style agenda when clicking the OSChief menu bar icon.">
+                            <Toggle
+                              enabled={trayAgendaEnabled}
+                              onToggle={() => {
+                                const next = !trayAgendaEnabled;
+                                setTrayAgendaEnabled(next);
+                                api?.db.settings.set("tray-calendar-agenda", next ? "true" : "false").catch(console.error);
+                              }}
+                            />
+                          </SettingRow>
+                          {trayAgendaEnabled && (
+                            <>
+                              <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
+                                <div className="min-w-0">
+                                  <span className="text-[13px] text-foreground">Agenda range</span>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">Which days appear in the tray popover</p>
+                                </div>
+                                <select
+                                  value={trayCalendarRange}
+                                  onChange={(e) => {
+                                    const v = e.target.value === "today" ? "today" : "today_tomorrow";
+                                    setTrayCalendarRange(v);
+                                    api?.db.settings.set("tray-calendar-range", v).catch(console.error);
+                                  }}
+                                  className="text-[12px] rounded-md border border-border bg-background px-2 py-1.5 max-w-[11rem]"
+                                >
+                                  <option value="today">Today only</option>
+                                  <option value="today_tomorrow">Today + tomorrow</option>
+                                </select>
+                              </div>
+                              <div className="flex items-center justify-between rounded-md border border-border bg-card p-3 gap-4">
+                                <div className="min-w-0">
+                                  <span className="text-[13px] text-foreground">Clicking an event</span>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">Where to go when you select a row</p>
+                                </div>
+                                <select
+                                  value={trayCalendarClick}
+                                  onChange={(e) => {
+                                    const v = e.target.value === "calendar" ? "calendar" : "note";
+                                    setTrayCalendarClick(v);
+                                    api?.db.settings.set("tray-calendar-click", v).catch(console.error);
+                                  }}
+                                  className="text-[12px] rounded-md border border-border bg-background px-2 py-1.5 max-w-[11rem]"
+                                >
+                                  <option value="note">Open linked note / new note</option>
+                                  <option value="calendar">Open OSChief calendar</option>
+                                </select>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-[13px] font-medium text-foreground">Calendars</h3>
+                          <button
+                            onClick={() => {
+                              setIcsDialogProvider(null);
+                              setIcsDialogOpen(true);
+                            }}
+                            className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 transition-colors"
+                          >
+                            + Add Calendar
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground -mt-1">
+                          Paste an ICS feed URL or upload a .ics file. Works with Google, Apple, Notion, or any ICS-compatible calendar.
+                        </p>
+                        {icsFeeds.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {icsFeeds.map((feed) => (
+                              <div key={feed.id} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                  <span className="text-[13px] text-foreground truncate">
+                                    {feed.providerHint ? feed.providerHint.charAt(0).toUpperCase() + feed.providerHint.slice(1) + ' Calendar' : feed.name || 'Calendar feed'}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    removeCalendarFeed(feed.id);
+                                    if (icsFeeds.length <= 1) {
+                                      setCalendarProvider(null);
+                                      try { localStorage.removeItem(CALENDAR_PROVIDER_KEY); } catch {}
+                                    }
+                                  }}
+                                  className="rounded-md border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground/60 py-2">No calendars connected yet.</p>
+                        )}
+                      </div>
+                      <ICSDialog
+                        open={icsDialogOpen}
+                        onOpenChange={setIcsDialogOpen}
+                        provider={icsDialogProvider ?? undefined}
+                        onSuccess={(p) => {
+                          setCalendarProvider(p);
+                          localStorage.setItem(CALENDAR_PROVIDER_KEY, p);
+                          setIcsDialogProvider(null);
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="integrations" className="space-y-5 mt-0">
+                      <div className="space-y-2">
+                        <GoogleCalendarIntegrationRow />
+                        <AppleCalendarIntegrationRow />
+                        <GmailIntegrationRow />
+                        <SlackIntegrationRow />
+                        <TeamsIntegrationRow />
+                        <JiraIntegrationRow />
+                        <AsanaIntegrationRow />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="developer" className="space-y-5 mt-0">
+                      <SyncSection api={api} />
+                      <div className="border-t border-border pt-5">
+                        <AgentApiSection api={api} />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -2900,17 +2928,7 @@ export default function SettingsPage() {
                 <PrivacySection api={api} />
               )}
 
-              {active === "connections" && (
-                <div className="mt-6 border-t border-border pt-5">
-                  <SyncSection api={api} />
-                </div>
-              )}
-
-              {active === "connections" && (
-                <div className="mt-6 border-t border-border pt-5">
-                  <AgentApiSection api={api} />
-                </div>
-              )}
+              {/* Sync and Agent API are now tabs inside the Connections section above */}
 
               {active === "about" && (
                 <div className="space-y-5">
