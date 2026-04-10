@@ -18,8 +18,8 @@ export function IntelligenceFeed({ coachingInsight, todaysPeople, staleRelations
 
   return (
     <div
-      className="rounded-[10px] border border-border bg-card p-5 transition-shadow hover:shadow-[var(--card-shadow-hover)]"
-      style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}
+      className="rounded-[10px] border border-border bg-card p-5 transition-shadow hover:shadow-[var(--card-shadow-hover)] border-l-[3px] border-l-primary"
+      style={{ boxShadow: "var(--card-shadow)" }}
     >
       <div className="flex items-center gap-2 mb-3">
         <Brain className="h-4 w-4 text-primary" />

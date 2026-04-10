@@ -19,10 +19,21 @@ import { CalendarAgendaList } from "@/components/CalendarAgendaList";
 // MemoryBanner and StatsRow removed — vanity metrics that cluttered the Today page.
 // Professional memory stats are still fetched for other uses (top contacts, etc.)
 
+const EVENT_ACCENTS = [
+  'hsl(229, 51%, 37%)',  // primary (slate navy)
+  'hsl(142, 50%, 45%)',  // green
+  'hsl(30, 55%, 64%)',   // amber
+  'hsl(4, 80%, 58%)',    // recording red
+  'hsl(229, 51%, 52%)',  // primary lighter
+  'hsl(142, 50%, 55%)',  // green lighter
+  'hsl(30, 55%, 50%)',   // amber darker
+  'hsl(225, 22%, 50%)',  // slate mid
+];
+
 function accentFromId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360} 38% 52%)`;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return EVENT_ACCENTS[Math.abs(hash) % EVENT_ACCENTS.length];
 }
 
 const Index = () => {
@@ -470,7 +481,7 @@ const Index = () => {
             {/* ── Schedule (skip first event to avoid duplication with Prep Card) ── */}
             {icsSource && upcomingEventsList.length > 1 && (
               <div className="mb-3">
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4 border-l-[3px] border-l-primary" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
@@ -530,7 +541,7 @@ const Index = () => {
                             {c.due_date && (
                               <span className={cn(
                                 "text-[11px] font-medium",
-                                isOverdue ? "text-destructive" : isDueToday ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                                isOverdue ? "text-destructive" : isDueToday ? "text-amber" : "text-muted-foreground"
                               )}>
                                 {isOverdue ? "Overdue" : isDueToday ? "Today" : new Date(c.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                               </span>
@@ -555,10 +566,10 @@ const Index = () => {
             {/* ── Needs Attention (risk commitments + stale decisions) ── */}
             {(atRisk.length > 0 || staleDecisions.length > 0) && (
               <div className="mb-3">
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4 border-l-[3px] border-l-amber" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
-                      <AlertCircle className="h-3.5 w-3.5" style={{ color: 'hsl(25 65% 45%)' }} />
+                      <AlertCircle className="h-3.5 w-3.5 text-destructive" />
                       Your CoS flagged these
                       <span className="text-[11px] font-normal">{atRisk.length + staleDecisions.length}</span>
                     </span>
@@ -570,11 +581,10 @@ const Index = () => {
                     {atRisk.map((c: any) => (
                       <div
                         key={c.id}
-                        className="rounded-[10px] border border-border p-3.5 transition-colors"
-                        style={{
-                          borderLeftWidth: '3px',
-                          borderLeftColor: c.risk_level === 'RED' ? 'hsl(25 65% 45%)' : 'hsl(30 55% 64%)',
-                        }}
+                        className={cn(
+                          "rounded-[10px] border border-border p-3.5 transition-colors border-l-[3px]",
+                          c.risk_level === 'RED' ? "border-l-destructive" : "border-l-amber"
+                        )}
                         role="alert"
                         aria-label={`${c.risk_level === 'RED' ? 'Overdue' : 'Due soon'}: ${c.text}`}
                       >
@@ -584,7 +594,7 @@ const Index = () => {
                             <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                               {c.owner && <span>{c.owner}</span>}
                               {c.due_date && (
-                                <span style={{ color: c.risk_level === 'RED' ? 'hsl(25 65% 45%)' : 'hsl(30 55% 64%)' }}>
+                                <span className={c.risk_level === 'RED' ? "text-destructive" : "text-amber"}>
                                   {c.risk_level === 'RED' ? 'Overdue' : `Due ${c.due_date}`}
                                 </span>
                               )}
@@ -654,7 +664,7 @@ const Index = () => {
             {/* ── Daily Brief (only show when AI-generated content exists) ── */}
             {latestBriefRun?.status === 'success' && latestBriefRun?.output && (
               <div className="mb-3">
-                <div className="rounded-[10px] border border-border bg-card p-4" style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}>
+                <div className="rounded-[10px] border border-border bg-card p-4 border-l-[3px] border-l-primary" style={{ boxShadow: "var(--card-shadow)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-3.5 w-3.5 text-primary" />
                     <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Daily Brief</span>
@@ -824,8 +834,8 @@ const Index = () => {
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className={cn(
               "rounded-full px-4 py-2 text-xs font-medium shadow-lg",
-              toast.type === 'success' && "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20",
-              toast.type === 'amber' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+              toast.type === 'success' && "bg-green-bg text-green border border-green/20",
+              toast.type === 'amber' && "bg-amber-bg text-amber border border-amber/20",
               toast.type === 'error' && "bg-destructive/10 text-destructive border border-destructive/20",
             )}>
               {toast.message}

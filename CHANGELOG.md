@@ -4,6 +4,16 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.12] — 2026-04-10
+
+### Added
+- **Enterprise Providers section** — optional providers (like Copart Genie) now show on Settings > AI Models > Cloud tab with connect, test connection, update API key, and disconnect buttons. API keys stored encrypted in macOS Keychain.
+
+### Fixed
+- **Note page layout** — title, metadata, and ask bar now stay pinned while scrolling content. Transcript panel scrolls independently with a pinned header. Applies to both NoteDetailPage and NewNotePage.
+
+---
+
 ## [2.5.11] — 2026-04-10
 
 ### Fixed

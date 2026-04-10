@@ -82,7 +82,7 @@ export function CommitmentsWidget() {
         </button>
       </div>
 
-      <div className="rounded-[10px] border border-border bg-card overflow-hidden" style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--amber, 30 55% 64%))' }}>
+      <div className="rounded-[10px] border border-border bg-card overflow-hidden border-l-[3px] border-l-amber">
         {commitments.map((c, i) => {
           const isOverdue = c.due_date && (() => {
             try {
@@ -103,7 +103,7 @@ export function CommitmentsWidget() {
                 onClick={() => handleToggle(c.id)}
                 className={cn(
                   "mt-0.5 flex-shrink-0 transition-colors",
-                  isOverdue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/50 hover:text-accent"
+                  isOverdue ? "text-amber" : "text-muted-foreground/50 hover:text-accent"
                 )}
                 title="Mark as done"
               >
@@ -119,7 +119,7 @@ export function CommitmentsWidget() {
                   {c.due_date && (
                     <span className={cn(
                       "text-[10px] flex items-center gap-1",
-                      isOverdue ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+                      isOverdue ? "text-amber font-medium" : "text-muted-foreground"
                     )}>
                       <Clock className="h-2.5 w-2.5" />
                       {isOverdue ? "Overdue" : c.due_date}
@@ -127,11 +127,11 @@ export function CommitmentsWidget() {
                   )}
                   {c.confidence === 'high' && (
                     <span className="flex items-center gap-0.5" title="High confidence" aria-label="High confidence extraction">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'hsl(var(--green, 142 50% 45%))' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-green" />
                     </span>
                   )}
                   {c.confidence === 'low' && (
-                    <span className="flex items-center gap-0.5 text-[10px]" style={{ color: 'hsl(var(--amber, 30 55% 64%))' }} title="Low confidence — tap to review" aria-label="Low confidence extraction — tap to review">
+                    <span className="flex items-center gap-0.5 text-[10px] text-amber" title="Low confidence — tap to review" aria-label="Low confidence extraction — tap to review">
                       <HelpCircle className="h-2.5 w-2.5" />
                       <span>Review?</span>
                     </span>
@@ -151,11 +151,11 @@ export function CommitmentsWidget() {
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                   <button
                     onClick={() => handleToggle(c.id)}
-                    className="p-1 rounded hover:bg-green-500/10 transition-colors"
+                    className="p-1 rounded hover:bg-green-bg transition-colors"
                     title="Confirm this commitment"
                     aria-label="Confirm commitment"
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-green-600" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-green" />
                   </button>
                   <button
                     onClick={() => handleDismiss(c.id)}

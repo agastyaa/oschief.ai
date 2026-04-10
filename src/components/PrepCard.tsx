@@ -102,14 +102,14 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
 
   return (
     <div
-      className="rounded-[10px] border border-border bg-card p-4 cursor-pointer card-lift"
-      style={{ boxShadow: "var(--card-shadow)", borderLeftWidth: '3px', borderLeftColor: 'hsl(var(--primary))' }}
+      className="rounded-[10px] border border-border bg-card p-4 cursor-pointer card-lift border-l-[3px] border-l-primary"
+      style={{ boxShadow: "var(--card-shadow)" }}
       onClick={() => onStartNote?.(event)}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", isHappening ? "text-amber-700 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20" : "text-primary bg-primary/10")}>
+            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", isHappening ? "text-amber bg-amber-bg" : "text-primary bg-primary/10")}>
               {isHappening ? "HAPPENING NOW" : "YOUR COS PREPARED"}
             </span>
             {timeStr && <span className="text-[12px] text-muted-foreground">{timeStr}</span>}
@@ -137,7 +137,7 @@ export function PrepCard({ event, lastMeetingNotes, openCommitments, onStartNote
             aria-label="Copy prep brief to clipboard"
           >
             {copied
-              ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+              ? <Check className="h-3.5 w-3.5 text-green" />
               : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
