@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
   BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar,
-  Search, Plus, Gavel,
+  Search, Plus, Gavel, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
@@ -99,8 +99,14 @@ export function GlobalDragRegion() {
   if (!isElectron) return null;
   return (
     <div
-      className="fixed top-0 left-0 right-0 h-10 z-40 pointer-events-auto"
+      className="fixed top-0 left-0 right-0 h-10 z-[9999]"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      onDoubleClick={() => {
+        const api = getElectronAPI();
+        if (api?.window?.toggleMaximize) {
+          api.window.toggleMaximize();
+        }
+      }}
     />
   );
 }
@@ -157,9 +163,12 @@ export function Sidebar() {
   };
 
   const { sidebarWidth, startResize } = useSidebarVisibility();
-  const { folders, createFolder } = useFolders();
+  const { folders, createFolder, deleteFolder, renameFolder } = useFolders();
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameFolderName, setRenameFolderName] = useState("");
 
   return (
     <aside className="relative flex h-screen flex-shrink-0 flex-col bg-sidebar" style={{ width: sidebarWidth }}>
@@ -222,15 +231,67 @@ export function Sidebar() {
             to="/?view=all"
             active={location.search.includes("view=all")}
           />
-          {folders.map((folder) => (
-            <NavItem
-              key={folder.id}
-              icon={FolderKanban}
-              label={folder.name}
-              to={`/?folder=${folder.id}`}
-              active={location.search.includes(`folder=${folder.id}`)}
-            />
-          ))}
+          {folders.map((folder) => {
+            const isActive = location.search.includes(`folder=${folder.id}`);
+            if (renamingFolderId === folder.id) {
+              return (
+                <div key={folder.id} className="flex items-center gap-2 px-2.5 py-1">
+                  <FolderKanban className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <input
+                    autoFocus
+                    value={renameFolderName}
+                    onChange={(e) => setRenameFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && renameFolderName.trim()) {
+                        renameFolder(folder.id, renameFolderName.trim());
+                        setRenamingFolderId(null);
+                      }
+                      if (e.key === "Escape") setRenamingFolderId(null);
+                    }}
+                    onBlur={() => {
+                      if (renameFolderName.trim() && renameFolderName !== folder.name) {
+                        renameFolder(folder.id, renameFolderName.trim());
+                      }
+                      setRenamingFolderId(null);
+                    }}
+                    className="flex-1 bg-transparent text-[13px] outline-none border-b border-muted-foreground/30"
+                  />
+                </div>
+              );
+            }
+            return (
+              <div key={folder.id} className="group/folder relative">
+                <NavItem
+                  icon={FolderKanban}
+                  label={folder.name}
+                  to={`/?folder=${folder.id}`}
+                  active={isActive}
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setFolderMenuId(folderMenuId === folder.id ? null : folder.id); }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover/folder:opacity-100 hover:bg-secondary text-muted-foreground/50 hover:text-foreground transition-all"
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+                {folderMenuId === folder.id && (
+                  <div className="absolute right-0 top-full mt-0.5 w-32 rounded-md border border-border bg-popover shadow-lg z-50 py-1">
+                    <button
+                      onClick={() => { setRenamingFolderId(folder.id); setRenameFolderName(folder.name); setFolderMenuId(null); }}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" /> Rename
+                    </button>
+                    <button
+                      onClick={() => { deleteFolder(folder.id); setFolderMenuId(null); }}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {creatingFolder ? (
             <div className="flex items-center gap-2 px-2.5 py-1">
               <FolderKanban className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -297,18 +358,9 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Bottom — Search, Calendar, Routines, Settings */}
+      {/* Bottom — Calendar, Routines, Settings */}
       <div className="flex flex-col gap-0.5 px-3 pb-2 flex-shrink-0">
         <div className="h-px bg-border mx-2 mb-1" />
-        {/* Search */}
-        <button
-          onClick={openSearch}
-          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground bg-secondary/50 hover:bg-secondary transition-colors w-full"
-        >
-          <Search className="h-3 w-3" />
-          <span>Search</span>
-          <span className="ml-auto text-[10px] text-muted-foreground/60">&#8984;K</span>
-        </button>
         <NavItem icon={Calendar} label="Calendar" to="/calendar" />
         <NavItem icon={Repeat} label="Routines" to="/routines" />
         <NavItem icon={Settings} label="Settings" to="/settings" />

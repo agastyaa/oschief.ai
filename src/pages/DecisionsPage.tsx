@@ -21,20 +21,14 @@ interface Decision {
 
 const statusStyles: Record<string, string> = {
   MADE: 'bg-muted text-muted-foreground',
-  ASSIGNED: 'bg-primary/10 text-primary',
-  IN_PROGRESS: 'bg-green-500/10 text-green-600 dark:text-green-400',
   DONE: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  ABANDONED: 'bg-muted text-muted-foreground line-through',
-  REVISITED: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  ABANDONED: 'bg-red-500/10 text-red-500 dark:text-red-400',
 }
 
 const statusLabels: Record<string, string> = {
   MADE: 'Made',
-  ASSIGNED: 'Assigned',
-  IN_PROGRESS: 'In Progress',
   DONE: 'Done',
   ABANDONED: 'Abandoned',
-  REVISITED: 'Revisited',
 }
 
 type FilterMode = "all" | "by-project" | "by-person"
@@ -57,6 +51,7 @@ export default function DecisionsPage() {
   const [editText, setEditText] = useState("")
   const [editingContextId, setEditingContextId] = useState<string | null>(null)
   const [editContext, setEditContext] = useState("")
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const refreshDecisions = () => {
     if (filter === "by-project" && selectedProjectId) {
@@ -119,6 +114,22 @@ export default function DecisionsPage() {
             <h1 className="font-display text-2xl text-foreground">Decisions</h1>
             <span className="text-xs text-muted-foreground ml-2">{decisions.length} total</span>
             <div className="flex-1" />
+            {selectedIds.size > 0 && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
+                  for (const id of selectedIds) {
+                    await api?.memory?.decisions?.delete?.(id)
+                  }
+                  setSelectedIds(new Set())
+                  refreshDecisions()
+                }}
+                className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete {selectedIds.size}
+              </button>
+            )}
             {!creating && (
               <button
                 onClick={() => setCreating(true)}
@@ -242,6 +253,16 @@ export default function DecisionsPage() {
                     {items.map(d => (
                       <div key={d.id} className="group px-4 py-3 space-y-1 relative">
                         <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(d.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds)
+                              if (e.target.checked) next.add(d.id); else next.delete(d.id)
+                              setSelectedIds(next)
+                            }}
+                            className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20 flex-shrink-0"
+                          />
                           {editingTextId === d.id ? (
                             <input
                               autoFocus
@@ -347,12 +368,10 @@ export default function DecisionsPage() {
                               {d.project_name}
                             </button>
                           )}
-                          {d.participant_names && (
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {d.participant_names}
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {d.participant_names || <span className="text-muted-foreground/40 italic">No people linked</span>}
+                          </span>
                           <span>{d.date}</span>
                         </div>
                       </div>

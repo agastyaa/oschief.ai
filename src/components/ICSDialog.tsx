@@ -5,18 +5,13 @@ import { Input } from "@/components/ui/input";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { Upload, Link2, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
-export type CalendarProviderId = "google" | "outlook" | "apple";
+export type CalendarProviderId = "google" | "apple";
 
 const PROVIDER_COPY: Record<CalendarProviderId, { title: string; description: string; urlHint: string }> = {
   google: {
     title: "Connect Google Calendar",
     description: "Upload an .ics file or paste your private ICS feed URL from Google Calendar to sync events.",
     urlHint: "Google Calendar → Settings → Calendar → Secret address in iCal format",
-  },
-  outlook: {
-    title: "Connect Outlook Calendar",
-    description: "Upload an .ics file or paste your Outlook calendar feed URL to sync events.",
-    urlHint: "Outlook: Calendar → Share → Publish calendar, or export .ics",
   },
   apple: {
     title: "Connect Apple Calendar",
@@ -27,7 +22,7 @@ const PROVIDER_COPY: Record<CalendarProviderId, { title: string; description: st
 
 const DEFAULT_COPY = {
   title: "Import Calendar",
-  description: "Upload an .ics file or paste an ICS feed URL from Google Calendar, Outlook, or Apple Calendar.",
+  description: "Upload an .ics file or paste an ICS feed URL from Google Calendar or Apple Calendar.",
   urlHint: "Find your ICS URL in Google Calendar → Settings → Calendar → Secret address in iCal format",
 };
 
@@ -107,7 +102,7 @@ export function ICSDialog({ open, onOpenChange, provider, onSuccess }: ICSDialog
               >
                 <Upload className="h-6 w-6 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Click to select an .ics file</p>
-                <p className="text-[11px] text-muted-foreground/60">Supports Google, Outlook & Apple exports</p>
+                <p className="text-[11px] text-muted-foreground/60">Supports Google & Apple exports</p>
               </div>
               <input ref={fileRef} type="file" accept=".ics,.ical,text/calendar" className="hidden" onChange={handleFile} />
             </>

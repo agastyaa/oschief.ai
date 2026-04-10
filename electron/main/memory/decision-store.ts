@@ -159,3 +159,18 @@ export function linkDecisionToPeople(decisionId: string, personIds: string[]): v
     if (personId) stmt.run(decisionId, personId)
   }
 }
+
+export function unlinkDecisionFromPerson(decisionId: string, personId: string): boolean {
+  const db = getDb()
+  const result = db.prepare('DELETE FROM decision_people WHERE decision_id = ? AND person_id = ?').run(decisionId, personId)
+  return (result as any).changes > 0
+}
+
+export function getPeopleForDecision(decisionId: string): Array<{ id: string; name: string }> {
+  const db = getDb()
+  return db.prepare(`
+    SELECT p.id, p.name FROM people p
+    JOIN decision_people dp ON dp.person_id = p.id
+    WHERE dp.decision_id = ?
+  `).all(decisionId) as any[]
+}

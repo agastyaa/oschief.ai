@@ -511,7 +511,7 @@ export default function OnboardingPage() {
                   onClick={() => navigate("/settings?section=connections")}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Or connect Outlook / ICS in Settings
+                  Or connect ICS in Settings
                 </button>
               </div>
             )}

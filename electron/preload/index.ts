@@ -235,7 +235,7 @@ const electronAPI = {
     removeCustomProvider: (id: string) => ipcRenderer.invoke('custom-provider:remove', id) as Promise<boolean>,
     testCustomProvider: (apiKey: string, baseURL: string, model?: string) => ipcRenderer.invoke('custom-provider:test', apiKey, baseURL, model) as Promise<{ ok: boolean; error?: string }>,
     fetchCustomProviderModels: (apiKey: string, baseURL: string) => ipcRenderer.invoke('custom-provider:fetch-models', apiKey, baseURL) as Promise<string[]>,
-    /** Fetch URL from main process (bypasses CORS for calendar ICS, e.g. Outlook). Returns { ok, status, body }. */
+    /** Fetch URL from main process (bypasses CORS for calendar ICS feeds). Returns { ok, status, body }. */
     fetchUrl: (url: string) =>
       ipcRenderer.invoke('fetch:url', url) as Promise<{ ok: boolean; status: number; body: string }>,
     getPlatform: () => process.platform,
@@ -393,14 +393,6 @@ const electronAPI = {
       ipcRenderer.invoke('gmail:context-for-people', accessToken, emailAddresses) as Promise<string>,
   },
 
-  microsoft: {
-    calendarAuth: (clientId: string) =>
-      ipcRenderer.invoke('microsoft:calendar-auth', clientId) as Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; email?: string; error?: string }>,
-    calendarFetch: (accessToken: string, range?: { daysPast?: number; daysAhead?: number }) =>
-      ipcRenderer.invoke('microsoft:calendar-fetch', accessToken, range) as Promise<{ ok: boolean; events: any[]; error?: string }>,
-    calendarRefresh: (clientId: string, refreshToken: string) =>
-      ipcRenderer.invoke('microsoft:calendar-refresh', clientId, refreshToken) as Promise<{ ok: boolean; accessToken?: string; expiresIn?: number; error?: string }>,
-  },
 
   apple: {
     calendarFetch: (range?: { daysPast?: number; daysAhead?: number }) =>
@@ -408,6 +400,7 @@ const electronAPI = {
     calendarCheck: () =>
       ipcRenderer.invoke('apple:calendar-check') as Promise<{ ok: boolean }>,
   },
+
 
   memory: {
     people: {
@@ -467,6 +460,9 @@ const electronAPI = {
       updateStatus: (id: string, status: string) => ipcRenderer.invoke('memory:decisions-update-status', id, status) as Promise<boolean>,
       update: (id: string, data: { text?: string; context?: string; projectId?: string | null }) => ipcRenderer.invoke('memory:decisions-update', id, data) as Promise<boolean>,
       getUnassigned: () => ipcRenderer.invoke('memory:decisions-unassigned') as Promise<any[]>,
+      linkPerson: (decisionId: string, personId: string) => ipcRenderer.invoke('memory:decisions-link-person', decisionId, personId) as Promise<boolean>,
+      unlinkPerson: (decisionId: string, personId: string) => ipcRenderer.invoke('memory:decisions-unlink-person', decisionId, personId) as Promise<boolean>,
+      getPeople: (decisionId: string) => ipcRenderer.invoke('memory:decisions-get-people', decisionId) as Promise<Array<{ id: string; name: string }>>,
     },
     extractEntities: (data: { noteId: string; summary: any; transcript: any[]; model: string; calendarAttendees?: any[]; calendarTitle?: string }) =>
       ipcRenderer.invoke('memory:extract-entities', data) as Promise<{ ok: boolean; peopleCount?: number; commitmentCount?: number; topicCount?: number; projectId?: string; decisionCount?: number; error?: string }>,
@@ -637,6 +633,8 @@ const electronAPI = {
       ipcRenderer.invoke('window:hide') as Promise<void>,
     show: () =>
       ipcRenderer.invoke('window:show') as Promise<void>,
+    toggleMaximize: () =>
+      ipcRenderer.invoke('window:toggle-maximize') as Promise<void>,
   },
 
   jira: {

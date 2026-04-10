@@ -21,11 +21,11 @@
 @layer base {
   :root {
     /* ── Executive Utilitarian — warm neutrals, slate navy primary ── */
-    --background: 220 12% 97%;
-    --background-warm: 34 18% 97%;
+    --background: 0 0% 100%;
+    --background-warm: 34 10% 99%;
     --foreground: 225 22% 10%;
 
-    --card: 228 12% 99%;
+    --card: 0 0% 100%;
     --card-foreground: 225 22% 10%;
 
     --popover: 228 12% 99%;
@@ -52,7 +52,7 @@
 
     --radius: 0.625rem; /* 10px — harmonises with macOS Tahoe Liquid Glass */
 
-    --sidebar-background: 228 14% 95%;
+    --sidebar-background: 220 10% 97%;
     --sidebar-foreground: 225 14% 30%;
     --sidebar-primary: 229 51% 37%;
     --sidebar-primary-foreground: 0 0% 100%;

@@ -353,7 +353,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
   };
 
   return (
-    <div ref={barRef} className="px-4 pb-3 pt-2 pointer-events-none relative">
+    <div ref={barRef} className="px-4 pb-8 pt-2 pointer-events-none relative">
       <div className="mx-auto max-w-2xl pointer-events-auto">
         {showChat && messages.length > 0 && (
           <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full animate-fade-in">
