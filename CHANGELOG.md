@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.5.7] — 2026-04-10
+
+### Changed
+- **Settings tabs** — Meeting, AI Models, and Connections sections now use tabs instead of long scrolling pages. Meeting splits into General / Templates / Transcription. AI Models into Setup / Local / Cloud. Connections into Calendar & Tray / Integrations / Developer.
+
+---
+
 ## [2.5.6] — 2026-04-10
 
 ### Changed
