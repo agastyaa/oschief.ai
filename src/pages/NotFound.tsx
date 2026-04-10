@@ -6,9 +6,14 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // /index.html is a routing artifact from Electron's app:// protocol — redirect instantly
+    if (location.pathname === "/index.html") {
+      navigate("/", { replace: true });
+      return;
+    }
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
     // Auto-redirect to home after a short delay — avoids stuck 404 on app launch
-    const timer = setTimeout(() => navigate("/", { replace: true }), 2000);
+    const timer = setTimeout(() => navigate("/", { replace: true }), 1500);
     return () => clearTimeout(timer);
   }, [location.pathname, navigate]);
 

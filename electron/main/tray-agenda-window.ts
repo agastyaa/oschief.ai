@@ -64,7 +64,7 @@ export function toggleTrayAgendaWindow(trayBounds: Electron.Rectangle): void {
     alwaysOnTop: true,
     skipTaskbar: true,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.cjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
