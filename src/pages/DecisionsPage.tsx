@@ -156,32 +156,6 @@ export default function DecisionsPage() {
             <Gavel className="h-4.5 w-4.5 text-muted-foreground" />
             <h1 className="font-display text-2xl text-foreground">Decisions</h1>
             <span className="text-xs text-muted-foreground ml-2">{decisions.length} total</span>
-            <div className="flex-1" />
-            {selectedIds.size > 0 && (
-              <button
-                onClick={async () => {
-                  if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
-                  for (const id of selectedIds) {
-                    await api?.memory?.decisions?.delete?.(id)
-                  }
-                  setSelectedIds(new Set())
-                  refreshDecisions()
-                }}
-                className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-              >
-                <Trash2 className="h-3 w-3" />
-                Delete {selectedIds.size}
-              </button>
-            )}
-            {!creating && (
-              <button
-                onClick={() => setCreating(true)}
-                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-              >
-                <span className="text-sm">+</span>
-                Add Decision
-              </button>
-            )}
           </div>
           <p className="text-xs text-muted-foreground mb-5">
             Every decision made across your meetings — searchable by project, person, or keyword.
@@ -270,6 +244,70 @@ export default function DecisionsPage() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+            )}
+          </div>
+
+          {/* Action bar: select all + bulk actions + add */}
+          <div className="flex items-center gap-2 mb-4">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+              <input
+                type="checkbox"
+                checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedIds(new Set(filtered.map(d => d.id)))
+                  } else {
+                    setSelectedIds(new Set())
+                  }
+                }}
+                className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20"
+              />
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+            </label>
+            <div className="flex-1" />
+            {selectedIds.size > 0 && (
+              <>
+                <select
+                  defaultValue=""
+                  onChange={async (e) => {
+                    if (!e.target.value) return
+                    for (const id of selectedIds) {
+                      await api?.memory?.decisions?.updateStatus(id, e.target.value)
+                    }
+                    refreshDecisions()
+                    e.target.value = ""
+                  }}
+                  className="text-xs rounded-md border border-border bg-background px-2 py-1.5 text-muted-foreground focus:outline-none"
+                >
+                  <option value="">Set status...</option>
+                  {Object.entries(statusLabels).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
+                    for (const id of selectedIds) {
+                      await api?.memory?.decisions?.delete?.(id)
+                    }
+                    setSelectedIds(new Set())
+                    refreshDecisions()
+                  }}
+                  className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete {selectedIds.size}
+                </button>
+              </>
+            )}
+            {!creating && selectedIds.size === 0 && (
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <Plus className="h-3 w-3" />
+                Add Decision
+              </button>
             )}
           </div>
 
