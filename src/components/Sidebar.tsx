@@ -149,7 +149,7 @@ export function Sidebar() {
       <button
         onClick={onClick || (() => to && navigate(to))}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm transition-colors w-full text-left",
+          "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] transition-colors w-full text-left",
           isItemActive
             ? "bg-secondary text-foreground font-medium"
             : "text-sidebar-foreground hover:bg-secondary/60 hover:text-foreground"

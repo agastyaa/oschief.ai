@@ -1765,7 +1765,7 @@ export default function SettingsPage() {
                   key={s.id}
                   onClick={() => setActive(s.id)}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-body-sm transition-colors text-left",
+                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[12px] transition-colors text-left",
                     active === s.id
                       ? "bg-secondary text-foreground font-medium"
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
