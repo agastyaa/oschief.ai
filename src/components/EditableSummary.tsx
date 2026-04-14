@@ -481,7 +481,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                       }
                       if (e.key === "Escape") setEditingField(null);
                     }}
-                    className="flex-1 bg-transparent border-none outline-none focus:ring-0"
+                    className="flex-1 bg-card border border-border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-ring text-foreground"
                   />
                 ) : (
                   <span
@@ -589,7 +589,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                               if (e.key === "Escape") setEditingField(null);
                             }}
                             className={cn(
-                              "w-full text-body-lg bg-transparent border border-border rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-ring text-foreground",
+                              "w-full text-body-lg bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring text-foreground",
                               item.done && "text-muted-foreground/60 line-through"
                             )}
                           />
