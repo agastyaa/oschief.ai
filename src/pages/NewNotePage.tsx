@@ -1174,7 +1174,7 @@ export default function NewNotePage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col min-w-0">
+    <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
         {captureError && (
           <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber/40 bg-amber-bg px-4 py-3 text-sm text-amber">
