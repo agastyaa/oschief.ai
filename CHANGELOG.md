@@ -4,19 +4,35 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
-## [2.7.0] — 2026-04-13
+## [2.7.0] — 2026-04-14
+
+### Added
+- **Transcript time ranges** — each transcript bubble shows its time range (e.g. 0:00 – 0:10) next to the speaker label.
+- **Editable due dates** — click the Due column on action items to set a date with native date picker.
+- **Decision unpromote** — click a promoted decision (filled check) to undo it and remove from the Decisions page.
+- **AskBar corrections** — tell OSChief "rename X to Y" in the meeting chat and it updates the summary in-place with a toast showing replacement count.
+- **Auto-stop on call leave** — when you leave a Teams/Zoom/Meet call, recording auto-stops and generates the summary instantly (no 90s wait).
+- **Vocabulary auto-learn** — people names (top 50) and project names (top 30) are automatically pulled into the Whisper prompt and LLM summary vocabulary on every recording.
 
 ### Changed
-- **Warm dark mode** — shifted entire dark palette from cool blue (hue 225) to warm charcoal (hue 30) with cream text. Reference: Dario Amodei blog aesthetic. No blue cast.
-- **Transcript text smaller** — reduced from 13px to 12px for denser display in the side panel.
-- **Room diarization faster** — system audio silence threshold reduced from 30s to 15s; diarizer retries model loading on each audio chunk if initial load fails.
+- **Warm dark mode** — shifted entire dark palette from cool blue (hue 225) to warm charcoal (hue 30) with cream text. Reference: Dario Amodei blog aesthetic.
+- **Transcript chunks split sooner** — pause threshold 45s → 10s, max sentences per group 20 → 8. No more giant text blobs.
+- **Transcript text smaller** — 13px → 12px for denser display in the side panel.
+- **Jira/Asana icons** — Jira button uses actual Jira logo (was generic checkmark), both icons bigger (h-3 → h-4).
+- **Silence watchdog** — increased from 45s to 90s, now resets on any audio energy (not just VAD speech). Prevents false auto-end when YouTube/music plays through mic.
+- **Room diarization faster** — system audio silence threshold 30s → 15s; diarizer retries model loading on each audio chunk.
 
 ### Fixed
-- **STT quality** — fixed whisper.cpp `--logprob-thold` from -0.5 to -1.0 (was letting hallucinations through), added `--no-context` flag to prevent cascading errors, set MLX `condition_on_previous_text: False`.
-- **Auto-summary on pause removed** — summary no longer auto-generates 3 seconds after pausing. Only fires on End Meeting or explicit Generate click.
-- **AskBar pinned during recording** — bottom toolbar (timer + ask input) no longer scrolls out of view.
-- **Meeting titles stuck as "Meeting notes"** — strengthened title extraction fallback to use overview field and word-boundary truncation when primary patterns fail.
-- **Create person from input** — clicking "+ Create" now always creates a new person. Was silently matching to existing people via fuzzy name matching (Levenshtein ≤ 3). Added `forceCreate` flag to bypass matching on explicit user action.
+- **STT quality** — whisper.cpp `--logprob-thold` -0.5 → -1.0, added `--no-context`, MLX `condition_on_previous_text: False`.
+- **Vocabulary to LLM** — custom vocabulary from Settings was never reaching the summary prompt (empty array). Now loaded and injected as "VOCABULARY (spell these correctly)".
+- **Auto-summary on pause removed** — summary no longer auto-generates 3s after pausing. Only on End Meeting or explicit Generate.
+- **AskBar pinned during recording** — bottom toolbar no longer scrolls out of view.
+- **Meeting titles stuck as "Meeting notes"** — backfill on launch from overview/tldr, stronger prompt with examples, overview fallback.
+- **Create person from input** — `forceCreate` bypasses Levenshtein fuzzy matching on explicit "+ Create" click.
+- **Inline editing UX** — decision and action item text inputs now have visible borders, padding, and focus ring (was invisible border-bottom only).
+- **Logo white fringe** — clipped with rounded-[6px] overflow-hidden in dark mode.
+- **Meeting detection with mic off** — now checks audio output too, so joining Teams with mic muted still detects the call.
+- **Meeting end false positives** — always-running apps (Teams, Slack, Discord) require 90s sustained silence (both mic and speaker) before declaring meeting over. Prevents false end when just muted.
 
 ---
 
