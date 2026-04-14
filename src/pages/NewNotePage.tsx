@@ -689,44 +689,8 @@ export default function NewNotePage() {
     }).catch(() => {});
   }, [api, noteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
-  useEffect(() => {
-    const clearPauseTimer = () => {
-      if (pauseAutoSummaryTimerRef.current != null) {
-        clearTimeout(pauseAutoSummaryTimerRef.current);
-        pauseAutoSummaryTimerRef.current = null;
-      }
-    };
-    clearPauseTimer();
-
-    const hasReal = !!summary && !isPlaceholderSummary(summary);
-    if (
-      recordingState !== "paused" ||
-      hasReal ||
-      isSummarizing ||
-      !autoGenerateNotes
-    ) {
-      return clearPauseTimer;
-    }
-
-    const hasContent =
-      transcriptRef.current.length > 0 || personalNotes.trim().length > 0;
-    if (!hasContent) {
-      return clearPauseTimer;
-    }
-
-    pauseAutoSummaryTimerRef.current = setTimeout(() => {
-      pauseAutoSummaryTimerRef.current = null;
-      generateNotesRef
-        .current()
-        .catch((err) => {
-          console.error("Auto summary failed:", err);
-          toast.error("Summary failed. Try again.");
-        });
-    }, 3000);
-
-    return clearPauseTimer;
-  }, [recordingState, summary, isSummarizing]);
+  // Auto-summary on pause disabled — user ends the meeting or clicks Generate explicitly.
+  // (Previously: 3s timer after pause triggered auto-summary while user was still in the meeting.)
 
   // When indicator triggered "pause and summarize", we land here with state; run generateNotes with scratch and clear state
   useEffect(() => {
@@ -988,6 +952,16 @@ export default function NewNotePage() {
     }
   }, [usingRealAudio, stopAudioCapture, generateNotes, clearSession]);
 
+  // Auto-end meeting when silence watchdog fires (45s no speech)
+  const autoStoppedHandled = useRef(false);
+  useEffect(() => {
+    if (activeSession?.autoStopped && !autoStoppedHandled.current && recordingState === "recording") {
+      autoStoppedHandled.current = true;
+      toast("Meeting ended — no speech detected for 45 seconds.");
+      handleEndMeeting();
+    }
+  }, [activeSession?.autoStopped, recordingState, handleEndMeeting]);
+
   const handleResume = useCallback(() => {
     userPausedRef.current = false;
 
@@ -1218,7 +1192,7 @@ export default function NewNotePage() {
 
         {/* Content area: stack on small screens so transcript doesn't squeeze layout */}
         <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-          <div className="flex flex-1 flex-col min-w-0">
+          <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             {/* Title + metadata — fixed at top */}
             <div className="shrink-0">
               <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
@@ -1525,7 +1499,7 @@ export default function NewNotePage() {
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
                   <div className="rounded-[10px] border border-amber/40 bg-amber-bg px-3 py-3">
-                    <p className="text-body-sm font-medium text-amber">
+                    <p className="text-xs font-medium text-amber">
                       No transcript captured yet ({Math.floor(elapsedSeconds / 60)} min)
                     </p>
                     <p className="text-[12px] text-amber mt-1 leading-relaxed">
@@ -1557,7 +1531,7 @@ export default function NewNotePage() {
                       >
                         <div
                           className={cn(
-                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-body-sm leading-relaxed",
+                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-xs leading-relaxed",
                             isMe
                               ? "bg-green-bg text-foreground rounded-br-md"
                               : "bg-muted/80 text-foreground/90 rounded-bl-md"

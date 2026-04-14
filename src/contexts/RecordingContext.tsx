@@ -148,10 +148,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       scheduleFlush();
     });
 
-    // Note: auto-paused/auto-resumed are not currently emitted (auto-pause on silence is disabled in capture.ts).
-    // Manual pause is the only path that updates isRecording.
+    // Silence watchdog: auto-stopped after 45s of no speech → end the meeting.
     const cleanupStatus = api.recording.onRecordingStatus((status) => {
-      if (status.state === 'auto-paused') {
+      if (status.state === 'auto-stopped') {
+        // Signal the active note page to end the meeting and generate summary
+        setActiveSession(prev => prev ? { ...prev, isRecording: false, autoStopped: true } : null);
+      } else if (status.state === 'auto-paused') {
         setActiveSession(prev => prev ? { ...prev, isRecording: false } : null);
       } else if (status.state === 'auto-resumed') {
         setActiveSession(prev => prev ? { ...prev, isRecording: true } : null);
