@@ -332,23 +332,17 @@ export async function startRecording(
     }, 2000)
   }
 
-  // Silence watchdog: auto-pause after 45s of no detected speech.
-  // Prevents recordings from running forever when the meeting ends.
-  // The renderer shows a "Recording paused — no speech detected" indicator.
-  // User can resume if the meeting continues.
-  const SILENCE_AUTO_PAUSE_MS = 45_000
+  // Silence watchdog: auto-end meeting after 45s of no detected speech.
+  // Instead of pausing (which confused users), this signals the renderer
+  // to fully stop the recording and generate the summary.
+  const SILENCE_AUTO_END_MS = 45_000
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
     const silenceDuration = Date.now() - lastSpeechTime
-    if (silenceDuration >= SILENCE_AUTO_PAUSE_MS) {
-      console.log(`[capture] Auto-pausing: ${Math.round(silenceDuration / 1000)}s of silence`)
-      autoPaused = true
-      isPaused = true
-      pauseStartedAt = Date.now()
-      notifyRecordingStateChanged()
-      updateTrayRecordingState(false)
-      statusCallback?.({ state: 'auto-paused' })
+    if (silenceDuration >= SILENCE_AUTO_END_MS) {
+      console.log(`[capture] Auto-ending meeting: ${Math.round(silenceDuration / 1000)}s of silence`)
+      statusCallback?.({ state: 'auto-stopped' })
     }
   }, 5000) // Check every 5s
 
@@ -430,17 +424,12 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null }
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   // Restart silence watchdog for this resume session
-  const SILENCE_AUTO_PAUSE_MS = 45_000
+  const SILENCE_AUTO_END_MS = 45_000
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
-    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_PAUSE_MS) {
-      console.log(`[capture] Auto-pausing after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
-      autoPaused = true
-      isPaused = true
-      pauseStartedAt = Date.now()
-      notifyRecordingStateChanged()
-      updateTrayRecordingState(false)
-      statusCallback?.({ state: 'auto-paused' })
+    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_END_MS) {
+      console.log(`[capture] Auto-ending after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
+      statusCallback?.({ state: 'auto-stopped' })
     }
   }, 5000)
   // Restart chunk timer with active interval
@@ -692,7 +681,11 @@ async function processBufferedAudio(): Promise<void> {
       // Speaker diarization: run pyannote segmentation on mic audio to distinguish voices.
       // Runs when mic-only mode OR when system audio hasn't produced transcripts (meeting room, no call).
       // Timeout prevents diarization from blocking the transcription pipeline.
-      const systemAudioSilent = lastSystemAudioTranscriptTime === 0 || (Date.now() - lastSystemAudioTranscriptTime > 30_000)
+      const systemAudioSilent = lastSystemAudioTranscriptTime === 0 || (Date.now() - lastSystemAudioTranscriptTime > 15_000)
+      // Retry model loading if diarizer exists but isn't ready (first load may have failed)
+      if (channel === 0 && micOnlyDiarizationEnabled && streamingDiarizer && !streamingDiarizer.isReady()) {
+        streamingDiarizer.ensureModel().catch(() => {}) // silent retry
+      }
       if (channel === 0 && micOnlyDiarizationEnabled && streamingDiarizer?.isReady() && (micOnlyMode || systemAudioSilent)) {
         try {
           const diarizePromise = streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)
