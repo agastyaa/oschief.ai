@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Users, X, Check, UserPlus,
 } from "lucide-react";
+import { toast } from "sonner";
 import { getElectronAPI } from "@/lib/electron-api";
 
 interface Person {
@@ -51,12 +52,21 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
 
   const handleAddPerson = async () => {
     if (!api?.memory || !newPersonName.trim()) return;
-    const person = await api.memory.people.upsert({ name: newPersonName.trim() });
-    await api.memory.people.linkToNote(noteId, person.id);
-    setNewPersonName("");
-    setAddingPerson(false);
-    setPeopleSuggestions([]);
-    await refresh();
+    try {
+      const person = await api.memory.people.upsert({ name: newPersonName.trim() }, { forceCreate: true });
+      if (!person?.id) {
+        toast.error("Failed to create person.");
+        return;
+      }
+      await api.memory.people.linkToNote(noteId, person.id);
+      setNewPersonName("");
+      setAddingPerson(false);
+      setPeopleSuggestions([]);
+      await refresh();
+    } catch (err) {
+      console.error("Failed to add person:", err);
+      toast.error("Failed to add person.");
+    }
   };
 
   const handleAddExistingPerson = async (person: Person) => {

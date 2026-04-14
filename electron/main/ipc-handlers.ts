@@ -1175,9 +1175,9 @@ export function registerIPCHandlers(): void {
     const { getPerson } = await import('./memory/people-store')
     return getPerson(id)
   })
-  ipcMain.handle('memory:people-upsert', async (_e, data: any) => {
+  ipcMain.handle('memory:people-upsert', async (_e, data: any, opts?: { forceCreate?: boolean }) => {
     const { upsertPerson } = await import('./memory/people-store')
-    return upsertPerson(data)
+    return upsertPerson(data, opts)
   })
   ipcMain.handle('memory:people-delete', async (_e, id: string) => {
     const { deletePerson } = await import('./memory/people-store')

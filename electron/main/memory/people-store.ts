@@ -42,37 +42,40 @@ export function getPerson(id: string): any | null {
   return getDb().prepare('SELECT * FROM people WHERE id = ?').get(id) as any ?? null
 }
 
-export function upsertPerson(data: { name: string; email?: string; company?: string; role?: string; relationship?: string; notes?: string }): any {
+export function upsertPerson(data: { name: string; email?: string; company?: string; role?: string; relationship?: string; notes?: string }, opts?: { forceCreate?: boolean }): any {
   const db = getDb()
   const now = new Date().toISOString()
 
-  // Email-first matching
-  if (data.email) {
-    const existing = db.prepare('SELECT * FROM people WHERE email = ?').get(data.email) as any
-    if (existing) {
-      const fields: string[] = []
-      const values: any[] = []
-      if (data.name) { fields.push('name = ?'); values.push(data.name) }
-      if (data.company !== undefined) { fields.push('company = ?'); values.push(data.company) }
-      if (data.role !== undefined) { fields.push('role = ?'); values.push(data.role) }
-      if (data.relationship !== undefined) { fields.push('relationship = ?'); values.push(data.relationship) }
-      fields.push('last_seen = ?'); values.push(now)
-      values.push(existing.id)
-      db.prepare(`UPDATE people SET ${fields.join(', ')} WHERE id = ?`).run(...values)
-      const updated = getPerson(existing.id)
-      if (updated) logPeopleSync('UPDATE', existing.id, updated)
-      return updated
+  // forceCreate: user explicitly clicked "+ Create", skip all matching — always insert
+  if (!opts?.forceCreate) {
+    // Email-first matching
+    if (data.email) {
+      const existing = db.prepare('SELECT * FROM people WHERE email = ?').get(data.email) as any
+      if (existing) {
+        const fields: string[] = []
+        const values: any[] = []
+        if (data.name) { fields.push('name = ?'); values.push(data.name) }
+        if (data.company !== undefined) { fields.push('company = ?'); values.push(data.company) }
+        if (data.role !== undefined) { fields.push('role = ?'); values.push(data.role) }
+        if (data.relationship !== undefined) { fields.push('relationship = ?'); values.push(data.relationship) }
+        fields.push('last_seen = ?'); values.push(now)
+        values.push(existing.id)
+        db.prepare(`UPDATE people SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+        const updated = getPerson(existing.id)
+        if (updated) logPeopleSync('UPDATE', existing.id, updated)
+        return updated
+      }
     }
-  }
 
-  // Fuzzy name matching
-  if (data.name.length > 3) {
-    const allPeople = db.prepare('SELECT * FROM people').all() as any[]
-    const nameLower = data.name.toLowerCase()
-    for (const person of allPeople) {
-      if (levenshteinDistance(nameLower, person.name.toLowerCase()) <= 3) {
-        db.prepare('UPDATE people SET last_seen = ? WHERE id = ?').run(now, person.id)
-        return getPerson(person.id)
+    // Fuzzy name matching
+    if (data.name.length > 3) {
+      const allPeople = db.prepare('SELECT * FROM people').all() as any[]
+      const nameLower = data.name.toLowerCase()
+      for (const person of allPeople) {
+        if (levenshteinDistance(nameLower, person.name.toLowerCase()) <= 3) {
+          db.prepare('UPDATE people SET last_seen = ? WHERE id = ?').run(now, person.id)
+          return getPerson(person.id)
+        }
       }
     }
   }
