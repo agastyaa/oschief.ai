@@ -293,7 +293,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                 }
                 if (e.key === "Escape") setEditingField(null);
               }}
-              className="w-full resize-none bg-transparent text-body-lg leading-snug font-medium text-foreground focus:outline-none"
+              className="w-full resize-none bg-card border border-border rounded-md px-2 py-1.5 text-body-lg leading-snug font-medium text-foreground outline-none focus:ring-2 focus:ring-ring"
               rows={2}
             />
           ) : (
@@ -329,7 +329,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                   }
                   if (e.key === "Escape") setEditingField(null);
                 }}
-                className="text-body-lg font-semibold text-foreground bg-transparent border-none outline-none focus:ring-0 w-full mb-0.5"
+                className="text-body-lg font-semibold text-foreground bg-card border border-border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-ring w-full mb-0.5"
               />
             ) : (
               <h3
@@ -364,7 +364,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                           }
                           if (e.key === "Escape") setEditingField(null);
                         }}
-                        className="flex-1 bg-transparent border-none outline-none focus:ring-0 font-medium text-foreground/90"
+                        className="flex-1 bg-card border border-border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-ring font-medium text-foreground/90"
                       />
                     ) : (
                       <span
@@ -407,7 +407,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                                 }
                                 if (e.key === "Escape") setEditingField(null);
                               }}
-                              className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-body-lg text-foreground/80"
+                              className="flex-1 bg-card border border-border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-ring text-body-lg text-foreground/80"
                             />
                           ) : (
                             <span
@@ -522,7 +522,7 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                       }
                       if (e.key === "Escape") setEditingField(null);
                     }}
-                    className="flex-1 bg-transparent border-none outline-none focus:ring-0"
+                    className="flex-1 bg-card border border-border rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-ring"
                   />
                 ) : (
                   <span

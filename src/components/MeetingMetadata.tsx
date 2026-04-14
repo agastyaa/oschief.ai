@@ -220,20 +220,20 @@ function PersonChip({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name"
-            className="h-5 w-28 bg-transparent text-[11px] font-medium text-foreground outline-none"
+            className="h-6 w-28 bg-card border border-border rounded px-1.5 text-[11px] font-medium text-foreground outline-none focus:ring-1 focus:ring-ring"
           />
           <div className="flex gap-1">
             <input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Company"
-              className="h-5 w-20 bg-transparent text-[10px] text-muted-foreground outline-none"
+              className="h-6 w-20 bg-card border border-border rounded px-1.5 text-[10px] text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             />
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Role"
-              className="h-5 w-20 bg-transparent text-[10px] text-muted-foreground outline-none"
+              className="h-6 w-20 bg-card border border-border rounded px-1.5 text-[10px] text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
