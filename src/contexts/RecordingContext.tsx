@@ -166,10 +166,19 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Meeting app closed (Teams/Zoom/etc) → auto-stop recording if active
+    const cleanupMeetingEnded = api.app?.onMeetingEnded?.(() => {
+      setActiveSession(prev => {
+        if (!prev || !prev.isRecording) return prev;
+        console.log('[RecordingContext] Meeting app closed — auto-stopping recording');
+        return { ...prev, isRecording: false, autoStopped: true };
+      });
+    });
+
     cleanupRef.current = cleanupTranscript;
 
     return () => {
-      cleanupTranscript(); cleanupCorrected?.(); cleanupStatus();
+      cleanupTranscript(); cleanupCorrected?.(); cleanupStatus(); cleanupMeetingEnded?.();
       // Flush any pending batched chunks before teardown
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current);
