@@ -203,6 +203,17 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
     setEditingField(null);
   };
 
+  const handleActionDueDateChange = (rawIndex: number, value: string) => {
+    const items = [...(localSummary.actionItems || localSummary.nextSteps || [])];
+    if (items[rawIndex]) items[rawIndex] = { ...items[rawIndex], dueDate: value || undefined };
+    const updated = localSummary.actionItems
+      ? { ...localSummary, actionItems: items as ActionItem[] }
+      : { ...localSummary, nextSteps: items };
+    setLocalSummary(updated);
+    onUpdate?.(updated);
+    setEditingField(null);
+  };
+
   const handleToggleActionDone = (rawIndex: number) => {
     const items = [...(localSummary.actionItems || localSummary.nextSteps || [])];
     items[rawIndex] = { ...items[rawIndex], done: !items[rawIndex].done };
@@ -424,7 +435,20 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
             {decisions.map((d, i) => (
               <li key={i} className="flex gap-1.5 text-body-lg font-medium text-foreground/90 leading-snug">
                 {promotedDecisions.has(i) ? (
-                  <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0 mt-[2px]" />
+                  <button
+                    title="Undo — remove from Decisions page"
+                    onClick={async () => {
+                      const api = getElectronAPI();
+                      if (!api?.memory?.decisions?.forNote || !api?.memory?.decisions?.delete || !noteId) return;
+                      const allForNote = await api.memory.decisions.forNote(noteId);
+                      const match = (allForNote || []).find((dec: any) => stripBoldMarkdown(dec.text) === stripBoldMarkdown(d));
+                      if (match) await api.memory.decisions.delete(match.id);
+                      setPromotedDecisions((prev) => { const next = new Set(prev); next.delete(i); return next; });
+                    }}
+                    className="flex-shrink-0 mt-[2px] text-accent hover:text-destructive transition-colors"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
                 ) : (
                   <button
                     title="Lock in — add to Decisions page"
@@ -656,7 +680,49 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                         )}
                       </td>
                       <td className="p-1.5 align-top text-[12px] text-muted-foreground whitespace-nowrap">
-                        {dueStr || <span className="text-muted-foreground/30">—</span>}
+                        {editingField === `action-due-${i}` ? (
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              data-action-due-input={i}
+                              autoFocus
+                              type="date"
+                              defaultValue={item.dueDate || ""}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleActionDueDateChange(rawIndex, (e.target as HTMLInputElement).value);
+                                }
+                                if (e.key === "Escape") setEditingField(null);
+                              }}
+                              className="min-w-[7rem] text-[12px] bg-transparent border border-border rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-ring text-foreground"
+                            />
+                            <button
+                              onClick={() => {
+                                const input = document.querySelector(`[data-action-due-input="${i}"]`) as HTMLInputElement;
+                                if (input) handleActionDueDateChange(rawIndex, input.value);
+                              }}
+                              className="p-0.5 rounded hover:bg-secondary text-accent"
+                              title="Save"
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => setEditingField(null)}
+                              className="p-0.5 rounded hover:bg-secondary text-muted-foreground"
+                              title="Cancel"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            onClick={() => setEditingField(`action-due-${i}`)}
+                            className="cursor-text hover:bg-secondary/30 rounded px-0.5 -mx-0.5 inline-flex items-center gap-0.5"
+                            title="Click to set due date"
+                          >
+                            {dueStr || <span className="text-muted-foreground/30">—</span>}
+                            <Pencil className="h-2.5 w-2.5 text-muted-foreground/0 group-hover/action:text-muted-foreground/50 transition-colors" />
+                          </span>
+                        )}
                       </td>
                       <td className="p-1.5 align-top">
                         <div className="flex items-center gap-0.5">
@@ -676,8 +742,8 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                                 title="Create Jira ticket"
                                 aria-label="Create Jira ticket"
                               >
-                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                  <path d="M12.01 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm-2 15l-5-5 1.41-1.41L10.01 14.17l7.59-7.59L19.01 8l-9 9z"/>
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                  <path d="M11.53 2c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35V2.84a.84.84 0 0 0-.84-.84h-9.63zm-5.39 5.39c0 2.4 1.97 4.35 4.35 4.35h1.78v1.72c0 2.4 1.94 4.34 4.34 4.34V8.24a.84.84 0 0 0-.84-.85H6.14zM.75 12.78C.75 15.18 2.72 17.13 5.1 17.13h1.78v1.71c0 2.4 1.94 4.35 4.34 4.35V13.62a.84.84 0 0 0-.84-.84H.75z"/>
                                 </svg>
                               </button>
                               <button
@@ -687,8 +753,8 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                                 title="Create Asana task"
                                 aria-label="Create Asana task"
                               >
-                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                  <circle cx="12" cy="7.5" r="2.5"/><circle cx="6" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/>
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                  <circle cx="12" cy="7.5" r="3"/><circle cx="5.5" cy="16.5" r="3"/><circle cx="18.5" cy="16.5" r="3"/>
                                 </svg>
                               </button>
                             </div>
