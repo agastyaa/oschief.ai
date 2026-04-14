@@ -36,16 +36,16 @@ OSChief is an AI Chief of Staff — a personal command center for professionals.
 ### Dark Mode
 | Token | HSL | Usage |
 |-------|-----|-------|
-| `--background` | 225 18% 8% | Page background (warm charcoal, not blue-black) |
-| `--background-warm` | 225 14% 9% | Optional warm surface variant |
-| `--foreground` | 228 12% 93% | Primary text |
-| `--card` | 225 16% 12% | Card/surface fill |
+| `--background` | 30 6% 10% | Page background (warm charcoal, editorial dark — Amodei blog ref) |
+| `--background-warm` | 30 8% 11% | Optional warm surface variant |
+| `--foreground` | 35 12% 90% | Primary text (cream, not cool white) |
+| `--card` | 30 5% 14% | Card/surface fill |
 | `--primary` | 229 45% 62% | Buttons, links (lightened for dark bg contrast) |
 | `--primary-hover` | 229 45% 55% | Button hover |
-| `--secondary` | 225 14% 17% | Secondary backgrounds |
-| `--muted` | 225 12% 19% | Disabled, placeholder backgrounds |
-| `--muted-foreground` | 228 8% 55% | Secondary text |
-| `--border` | 225 12% 19% | Borders, dividers |
+| `--secondary` | 30 5% 17% | Secondary backgrounds |
+| `--muted` | 30 4% 19% | Disabled, placeholder backgrounds |
+| `--muted-foreground` | 30 5% 55% | Secondary text |
+| `--border` | 30 4% 19% | Borders, dividers |
 
 ### Semantic
 | Token | HSL | Usage |
@@ -341,8 +341,8 @@ For content that hasn't loaded yet, use shimmer-based skeleton screens (not spin
 ## Dark Mode
 
 Full dark mode support via `.dark` class on `<html>`. Strategy:
-- Background darkens to warm charcoal (not blue-black) — hue shifts from 222→225
-- Text lightens to ~93% (not pure white)
+- Background is warm charcoal — hue 30 (warm) at 6% saturation, 10% lightness. Reference: Dario Amodei blog dark mode.
+- Text is cream/ivory at 90% lightness with warm hue 35 (not cool blue-white)
 - Borders become subtle (19% lightness vs 89% in light)
 - Primary accent shifts to lighter indigo (62% lightness) for contrast
 - Amber/green semantic colors desaturate ~5% in dark mode

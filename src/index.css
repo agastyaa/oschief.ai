@@ -95,25 +95,25 @@
   }
 
   .dark {
-    /* ── Dark: warm charcoal, not blue-black ── */
-    --background: 225 18% 8%;
-    --background-warm: 225 14% 9%;
-    --foreground: 228 12% 93%;
+    /* ── Dark: warm charcoal (Amodei blog reference) ── */
+    --background: 30 6% 10%;
+    --background-warm: 30 8% 11%;
+    --foreground: 35 12% 90%;
 
-    --card: 225 16% 12%;
-    --card-foreground: 228 12% 93%;
+    --card: 30 5% 14%;
+    --card-foreground: 35 12% 90%;
 
-    --popover: 225 16% 12%;
-    --popover-foreground: 228 12% 93%;
+    --popover: 30 5% 14%;
+    --popover-foreground: 35 12% 90%;
 
     --primary: 229 45% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 225 14% 17%;
-    --secondary-foreground: 228 12% 82%;
+    --secondary: 30 5% 17%;
+    --secondary-foreground: 35 8% 82%;
 
-    --muted: 225 12% 19%;
-    --muted-foreground: 228 8% 55%;
+    --muted: 30 4% 19%;
+    --muted-foreground: 30 5% 55%;
 
     --accent: 229 45% 62%;
     --accent-foreground: 0 0% 100%;
@@ -121,26 +121,26 @@
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 12% 19%;
-    --input: 225 12% 19%;
+    --border: 30 4% 19%;
+    --input: 30 4% 19%;
     --ring: 229 45% 62%;
 
-    --sidebar-background: 225 20% 6%;
-    --sidebar-foreground: 228 8% 55%;
+    --sidebar-background: 30 6% 8%;
+    --sidebar-foreground: 30 5% 55%;
     --sidebar-primary: 229 45% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 229 35% 50%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 225 12% 16%;
+    --sidebar-border: 30 4% 16%;
     --sidebar-ring: 229 45% 62%;
 
     /* ── Semantic tokens (dark) ── */
     --indigo: 229 45% 62%;
-    --indigo-light: 225 14% 17%;
+    --indigo-light: 30 5% 17%;
     --indigo-muted: 229 20% 42%;
-    --slate: 228 12% 93%;
-    --surface: 225 18% 8%;
-    --canvas: 225 16% 12%;
+    --slate: 35 12% 90%;
+    --surface: 30 6% 10%;
+    --canvas: 30 5% 14%;
 
     /* ── Card elevation (dark) ── */
     --card-shadow: 0 1px 3px rgba(0,0,0,0.25), 0 1px 6px rgba(0,0,0,0.15);
@@ -160,8 +160,8 @@
     --green-text: 142 40% 70%;
 
     /* ── AI shimmer (dark) ── */
-    --shimmer-from: 229 20% 14%;
-    --shimmer-to: 229 30% 20%;
+    --shimmer-from: 30 8% 14%;
+    --shimmer-to: 30 12% 20%;
   }
 }
 
