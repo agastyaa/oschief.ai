@@ -233,12 +233,12 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
         // Detect correction/rename intent in the user's message and apply to summary
         if (onCorrection && q) {
           const correctionPatterns = [
-            /(?:rename|replace|change|correct)\s+["']?(.+?)["']?\s+(?:to|with|→)\s+["']?(.+?)["']?$/i,
-            /["']?(.+?)["']?\s+should\s+be\s+["']?(.+?)["']?$/i,
+            /(?:rename|replace|change|correct|update)\s+["']?(.+?)["']?\s+(?:to|with|→)\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
+            /["']?(.+?)["']?\s+should\s+be\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
             /it'?s\s+["']?(.+?)["']?\s+not\s+["']?(.+?)["']?$/i,
           ];
           for (const pattern of correctionPatterns) {
-            const match = userText.match(pattern);
+            const match = q.match(pattern);
             if (match?.[1] && match?.[2]) {
               // "it's X not Y" → find=Y, replace=X (inverted)
               const isInverted = pattern.source.includes("not");

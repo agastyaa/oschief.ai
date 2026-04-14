@@ -574,22 +574,24 @@ export const EditableSummary = memo(function EditableSummary({ summary, onUpdate
                       <td className="p-1.5 align-top text-muted-foreground">{i + 1}.</td>
                       <td className="p-1.5 align-top min-w-0 break-words">
                         {editingField === `action-${i}` ? (
-                          <input
+                          <textarea
                             autoFocus
                             defaultValue={item.text}
+                            rows={Math.max(2, Math.ceil(item.text.length / 60))}
                             onBlur={(e) => {
                               handleActionTextChange(rawIndex, e.target.value);
                               setEditingField(null);
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleActionTextChange(rawIndex, (e.target as HTMLInputElement).value);
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleActionTextChange(rawIndex, (e.target as HTMLTextAreaElement).value);
                                 setEditingField(null);
                               }
                               if (e.key === "Escape") setEditingField(null);
                             }}
                             className={cn(
-                              "w-full text-body-lg bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring text-foreground",
+                              "w-full text-body-lg bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring text-foreground resize-none",
                               item.done && "text-muted-foreground/60 line-through"
                             )}
                           />
