@@ -20,10 +20,10 @@ export function countWords(text: string): number {
 }
 
 /** When consecutive same-speaker chunks are ≥ this many seconds apart, start a new block. */
-const PAUSE_THRESHOLD_SEC = 45;
+const PAUSE_THRESHOLD_SEC = 10;
 
 /** Maximum sentences per group before splitting into a new paragraph. */
-const MAX_SENTENCES_PER_GROUP = 20;
+const MAX_SENTENCES_PER_GROUP = 8;
 
 /** Returns true if the gap between two timestamps exceeds the threshold. */
 function hasTimePause(timeEnd: string, timeStart: string, thresholdSec: number): boolean {

@@ -1569,9 +1569,10 @@ export default function NewNotePage() {
                           )}
                         >
                           {showLabel && (
-                            <p className={cn("text-[12px] font-semibold mb-0.5 flex items-center gap-1", speakerStyle.label)}>
+                            <p className={cn("text-[11px] font-semibold mb-0.5 flex items-center gap-1", speakerStyle.label)}>
                               <span className={cn("h-1.5 w-1.5 rounded-full inline-block", speakerStyle.dot)} />
                               {displayLabel}
+                              <span className="text-[10px] font-normal text-muted-foreground/60 ml-auto">{group.timeStart}{group.timeEnd !== group.timeStart ? ` – ${group.timeEnd}` : ''}</span>
                             </p>
                           )}
                           <p>
