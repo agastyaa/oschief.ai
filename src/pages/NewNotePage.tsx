@@ -1375,6 +1375,37 @@ export default function NewNotePage() {
                 }}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 elapsed={elapsed}
+                onCorrection={(find, replace) => {
+                  if (!summary) return;
+                  let count = 0;
+                  const replaceAll = (s: string | undefined) => {
+                    if (!s) return s;
+                    const regex = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    const result = s.replace(regex, () => { count++; return replace; });
+                    return result;
+                  };
+                  const updated = { ...summary };
+                  updated.overview = replaceAll(updated.overview);
+                  updated.tldr = replaceAll(updated.tldr);
+                  if (updated.keyPoints) updated.keyPoints = updated.keyPoints.map((kp: any) => typeof kp === 'string' ? replaceAll(kp)! : kp);
+                  if (updated.actionItems) updated.actionItems = updated.actionItems.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.nextSteps) updated.nextSteps = updated.nextSteps.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.decisions) updated.decisions = updated.decisions.map((d: any) => replaceAll(d)!);
+                  if (updated.topics) updated.topics = updated.topics.map((t: any) => ({
+                    ...t,
+                    title: replaceAll(t.title)!,
+                    bullets: t.bullets?.map((b: any) => typeof b === 'string' ? replaceAll(b)! : { ...b, text: replaceAll(b.text)!, subBullets: b.subBullets?.map((sb: string) => replaceAll(sb)!) }),
+                    actionItems: t.actionItems?.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! })),
+                    decisions: t.decisions?.map((d: string) => replaceAll(d)!),
+                  }));
+                  if (count > 0) {
+                    setSummary(updated);
+                    if (noteId) updateNote(noteId, { summary: updated });
+                    toast.success(`Corrected: ${find} → ${replace} (${count} replacements)`);
+                  } else {
+                    toast("No occurrences found in summary.");
+                  }
+                }}
                 generateSummarySlot={
                   recordingState === "paused" ? (
                     <button
