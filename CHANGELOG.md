@@ -4,6 +4,22 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.7.0] — 2026-04-13
+
+### Changed
+- **Warm dark mode** — shifted entire dark palette from cool blue (hue 225) to warm charcoal (hue 30) with cream text. Reference: Dario Amodei blog aesthetic. No blue cast.
+- **Transcript text smaller** — reduced from 13px to 12px for denser display in the side panel.
+- **Room diarization faster** — system audio silence threshold reduced from 30s to 15s; diarizer retries model loading on each audio chunk if initial load fails.
+
+### Fixed
+- **STT quality** — fixed whisper.cpp `--logprob-thold` from -0.5 to -1.0 (was letting hallucinations through), added `--no-context` flag to prevent cascading errors, set MLX `condition_on_previous_text: False`.
+- **Auto-summary on pause removed** — summary no longer auto-generates 3 seconds after pausing. Only fires on End Meeting or explicit Generate click.
+- **AskBar pinned during recording** — bottom toolbar (timer + ask input) no longer scrolls out of view.
+- **Meeting titles stuck as "Meeting notes"** — strengthened title extraction fallback to use overview field and word-boundary truncation when primary patterns fail.
+- **Create person from input** — clicking "+ Create" now always creates a new person. Was silently matching to existing people via fuzzy name matching (Levenshtein ≤ 3). Added `forceCreate` flag to bypass matching on explicit user action.
+
+---
+
 ## [2.6.0] — 2026-04-10
 
 ### Added
