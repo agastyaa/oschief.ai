@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Quote, Crosshair } from "lucide-react";
-import type { ConversationInsights, ConversationKeyMoment } from "@/lib/coaching-analytics";
+import type { ConversationInsights } from "@/lib/coaching-analytics";
 import { findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";
 
 interface CoachingInsightsDisplayProps {
@@ -80,15 +80,16 @@ export function CoachingInsightsDisplay({
       </div>
 
       {/* Key Moments */}
-      {insights.keyMoments.length > 0 && showJumpToTranscript && onJumpToTranscriptLine && transcript && (
+      {insights.keyMoments.length > 0 && (
         <div className="space-y-2 pt-1">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
             <Quote className="h-3 w-3" />
-            Key moments (transcript)
+            Key moments{showJumpToTranscript ? " (transcript)" : ""}
           </p>
           <ul className="space-y-2">
             {insights.keyMoments.map((km, i) => {
-              const idx = findTranscriptLineIndexForQuote(transcript, km.quote);
+              const canJump = showJumpToTranscript && onJumpToTranscriptLine && transcript;
+              const idx = canJump ? findTranscriptLineIndexForQuote(transcript, km.quote) : undefined;
               return (
                 <li
                   key={i}
@@ -101,7 +102,7 @@ export function CoachingInsightsDisplay({
                       {km.speaker} &middot; {km.time}
                     </p>
                   </div>
-                  {idx !== undefined && (
+                  {idx !== undefined && onJumpToTranscriptLine && (
                     <button
                       type="button"
                       onClick={() => onJumpToTranscriptLine(idx)}
@@ -114,30 +115,6 @@ export function CoachingInsightsDisplay({
                 </li>
               );
             })}
-          </ul>
-        </div>
-      )}
-
-      {/* Key Moments — no jump (for CoachingPage accordion) */}
-      {insights.keyMoments.length > 0 && !showJumpToTranscript && (
-        <div className="space-y-2 pt-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-            <Quote className="h-3 w-3" />
-            Key moments
-          </p>
-          <ul className="space-y-2">
-            {insights.keyMoments.map((km, i) => (
-              <li
-                key={i}
-                className="rounded-md border border-border bg-background/80 p-2"
-              >
-                <p className="text-[11px] font-medium text-foreground">{km.title}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">&ldquo;{km.quote}&rdquo;</p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">
-                  {km.speaker} &middot; {km.time}
-                </p>
-              </li>
-            ))}
           </ul>
         </div>
       )}

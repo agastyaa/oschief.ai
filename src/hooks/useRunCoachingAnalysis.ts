@@ -30,13 +30,15 @@ export function useRunCoachingAnalysis({ updateNote }: UseRunCoachingAnalysisOpt
     setError(null);
 
     try {
+      // Parse duration once
+      const parts = (note.duration || "0:00").split(":").map(Number);
+      let durationSec = 0;
+      if (parts.length === 2) durationSec = parts[0] * 60 + parts[1];
+      if (parts.length === 3) durationSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+
       // Ensure metrics exist
       let metrics = note.coachingMetrics;
       if (!metrics || metrics.overallScore <= 0) {
-        const parts = (note.duration || "0:00").split(":").map(Number);
-        let durationSec = 0;
-        if (parts.length === 2) durationSec = parts[0] * 60 + parts[1];
-        if (parts.length === 3) durationSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
         if (durationSec <= 0) {
           setLoadingNoteId(null);
           return false;
@@ -46,10 +48,6 @@ export function useRunCoachingAnalysis({ updateNote }: UseRunCoachingAnalysisOpt
       }
 
       // Compute heuristics
-      const parts = (note.duration || "0:00").split(":").map(Number);
-      let durationSec = 0;
-      if (parts.length === 2) durationSec = parts[0] * 60 + parts[1];
-      if (parts.length === 3) durationSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
       const heuristics = durationSec > 0
         ? computeConversationHeuristics(note.transcript, durationSec, accountRoleId)
         : null;
