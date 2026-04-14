@@ -55,7 +55,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 }
 
 Rules:
-- For people: extract everyone mentioned by name. If email is available from context, include it. Infer company/role from context when clear.
+- For people: extract only people who ATTENDED or SPOKE in this meeting. Do NOT include people who were merely mentioned in conversation (e.g. "I talked to Billy yesterday" — Billy was not in this meeting). A person is a participant if they spoke directly, were greeted/addressed, or are listed as calendar attendees. If email is available from context, include it. Infer company/role from context when clear.
 - For commitments: extract any promise, action item, follow-up, or deliverable. "I'll send the report" = owner: "you". "Sarah will prepare the deck" = owner: "Sarah", assignee: "Sarah". Rate confidence: "high" = explicit promise with clear owner, "medium" = likely action item but implicit, "low" = might be an action item but ambiguous.
 - For topics: extract 2-5 high-level themes (e.g., "Q3 Budget", "Hiring Pipeline", "Product Roadmap"). Be specific, not generic.
 - For project: identify the primary project or work stream discussed. Use the most specific name (e.g., "ACME Enterprise Tier" not "project"). If no clear project, set to null.
