@@ -19,7 +19,7 @@ export function OSChiefLogo({ size = 24, className, showText = false }: OSChiefL
         alt="OSChief"
         width={size}
         height={size}
-        className="flex-shrink-0 object-contain rounded-md dark:ring-1 dark:ring-foreground/15"
+        className="flex-shrink-0 object-contain rounded-[6px] overflow-hidden dark:ring-1 dark:ring-foreground/15"
       />
       {showText && (
         <span className="font-body font-semibold text-lg text-foreground tracking-tight">OSChief</span>
