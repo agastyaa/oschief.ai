@@ -514,8 +514,8 @@ export function parseEnhancedNotes(markdown: string): ParsedNotes {
       continue
     }
 
-    // Action items (→ **Name** to ... or → [task])
-    if (/^→\s*\*\*[^*]+\*\*/.test(trimmed)) {
+    // Action items (→ **Name** to ... or → [task] — any line starting with →)
+    if (/^→\s/.test(trimmed)) {
       const parsed = parseActionItem(trimmed)
       if (parsed) {
         actionItems.push(parsed)
