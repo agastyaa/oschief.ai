@@ -40,6 +40,10 @@ const STARTING_SOON_END_MS = 50 * 1000     // until 50s before start
 
 // Poll every 5s so joining a call triggers notification quickly
 let currentPollMs = 5000
+// Consecutive polls with no audio activity for always-running apps before declaring meeting ended.
+// At 5s poll interval, 18 polls = 90s of sustained silence before ending.
+let consecutiveInactivePolls = 0
+const INACTIVE_POLLS_TO_END = 18
 
 // Cooldown: skip detection for first 60s after app launch to avoid false positives (e.g. Zoom/Teams auto-start)
 const LAUNCH_COOLDOWN_MS = 60 * 1000
@@ -139,7 +143,12 @@ async function checkForMeetings(): Promise<void> {
     if (!raw) { isChecking = false; return }
 
     const hash = simpleHash(raw)
-    if (hash === lastProcessHash && activeMeetingApp) {
+    // Skip full re-scan if process list unchanged AND we have a non-always-running active meeting.
+    // For always-running apps, we MUST check audio activity every poll even if processes are identical.
+    const activeIsAlwaysRunning = activeMeetingApp && MEETING_PROCESS_PATTERNS.some(
+      ([, name, ar]) => name === activeMeetingApp && ar
+    )
+    if (hash === lastProcessHash && activeMeetingApp && !activeIsAlwaysRunning) {
       isChecking = false
       return
     }
@@ -168,14 +177,26 @@ async function checkForMeetings(): Promise<void> {
     if (matchedApp && matchedAlwaysRunning) {
       const micActive = await checkMicActive()
       if (!micActive) {
-        // App is running but no call — treat as no meeting detected
-        // Don't set lastPollHadMeetingApp so we re-check next poll
+        // App is running but no audio activity this poll
         if (!activeMeetingApp) {
+          // Not in a meeting yet — don't start one
           isChecking = false
           return
         }
-        // If we had an active meeting and mic stopped, the call ended
-        matchedApp = null
+        // In an active meeting — require sustained inactivity before ending
+        consecutiveInactivePolls++
+        if (consecutiveInactivePolls >= INACTIVE_POLLS_TO_END) {
+          // 30s of no audio — meeting is actually over
+          console.log(`[MeetingDetector] ${INACTIVE_POLLS_TO_END} consecutive inactive polls — ending meeting`)
+          matchedApp = null
+        } else {
+          // Probably just muted — keep the meeting alive
+          isChecking = false
+          return
+        }
+      } else {
+        // Audio active — reset the counter
+        consecutiveInactivePolls = 0
       }
     }
 
@@ -196,6 +217,7 @@ async function checkForMeetings(): Promise<void> {
 
       activeMeetingApp = matchedApp
       meetingStartTime = Date.now()
+      consecutiveInactivePolls = 0
       notifiedForCurrentMeeting = true
 
       const now = Date.now()
@@ -224,6 +246,7 @@ async function checkForMeetings(): Promise<void> {
       meetingStartTime = null
       notifiedForCurrentMeeting = false
       lastPollHadMeetingApp = false
+      consecutiveInactivePolls = 0
     }
 
     lastPollHadMeetingApp = !!matchedApp
@@ -242,6 +265,23 @@ async function checkMicActive(): Promise<boolean> {
     2000
   )
   if (parseInt(ioreg.trim()) > 0) return true
+
+  // Check audio OUTPUT too — user may join a call with mic off but still receive audio.
+  // IOAudioEngineOutput running = someone is playing audio through the meeting app.
+  try {
+    const outputActive = await execAsync(
+      'ioreg -c AppleHDAEngineOutput -r -d 1 2>/dev/null | grep -c "IOAudioEngineState = 1"',
+      2000
+    )
+    if (parseInt(outputActive.trim()) > 0) {
+      // Audio output is active — check if the meeting app itself has audio handles open
+      const appAudio = await execAsync(
+        'lsof -c zoom -c Teams -c "Google Meet" -c webex -c Discord -c Slack 2>/dev/null | grep -ci "audio\\|coreaudio"',
+        2000
+      )
+      if (parseInt(appAudio.trim()) > 0) return true
+    }
+  } catch { /* non-critical */ }
 
   // Fallback: check if the known meeting app has an open audio device handle
   const lsof = await execAsync(
