@@ -110,7 +110,7 @@ NEVER HALLUCINATE
 OUTPUT FORMAT
 
 **[Meeting Title]** — [Date]
-(If "Untitled", generate 3-6 word title from the main topic.)
+IMPORTANT: ALWAYS generate a specific, descriptive title (3-8 words) from the main topic discussed. NEVER use "Meeting Notes", "This Meeting", or "Untitled". Examples: "Payment Fraud Detection Review", "Q2 Roadmap Planning", "Compliance Process Redesign".
 
 **TL;DR:** [One line.]
 

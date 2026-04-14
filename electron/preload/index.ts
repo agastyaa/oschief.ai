@@ -412,7 +412,7 @@ const electronAPI = {
     people: {
       getAll: () => ipcRenderer.invoke('memory:people-get-all'),
       get: (id: string) => ipcRenderer.invoke('memory:people-get', id),
-      upsert: (data: any) => ipcRenderer.invoke('memory:people-upsert', data),
+      upsert: (data: any, opts?: { forceCreate?: boolean }) => ipcRenderer.invoke('memory:people-upsert', data, opts),
       delete: (id: string) => ipcRenderer.invoke('memory:people-delete', id) as Promise<boolean>,
       forget: (id: string) => ipcRenderer.invoke('memory:people-forget', id) as Promise<boolean>,
       merge: (keepId: string, mergeId: string) => ipcRenderer.invoke('memory:people-merge', keepId, mergeId),
@@ -587,6 +587,8 @@ const electronAPI = {
       ipcRenderer.invoke('coaching:aggregate-insights', meetings, roleId, model) as Promise<{
         summaryHeadline: string
         themesParagraph: string
+        provocativeQuestion?: string
+        strategicChallenge?: string
         focusNext: string
         recurringTags: string[]
       } | null>,

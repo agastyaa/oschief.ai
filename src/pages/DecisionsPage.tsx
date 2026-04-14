@@ -366,7 +366,7 @@ export default function DecisionsPage() {
                                 }
                                 setEditingTextId(null)
                               }}
-                              className="text-sm w-full bg-transparent border-b border-primary focus:outline-none"
+                              className="text-sm w-full bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring text-foreground"
                             />
                           ) : (
                             <div
@@ -420,7 +420,7 @@ export default function DecisionsPage() {
                               setEditingContextId(null)
                             }}
                             placeholder="Add context..."
-                            className="text-xs text-muted-foreground italic bg-transparent border-b border-primary/40 focus:outline-none w-full"
+                            className="text-xs text-muted-foreground bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring w-full"
                           />
                         ) : d.context ? (
                           <div
@@ -483,7 +483,7 @@ export default function DecisionsPage() {
                                   value={peopleSearch}
                                   onChange={e => setPeopleSearch(e.target.value)}
                                   placeholder="Search people..."
-                                  className="w-full text-xs bg-transparent border-b border-border pb-1 focus:outline-none focus:border-primary"
+                                  className="w-full text-xs bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring text-foreground"
                                 />
                                 <div className="max-h-32 overflow-y-auto space-y-0.5">
                                   {allPeople

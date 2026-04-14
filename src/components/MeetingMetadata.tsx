@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Users, X, Check, UserPlus,
 } from "lucide-react";
+import { toast } from "sonner";
 import { getElectronAPI } from "@/lib/electron-api";
 
 interface Person {
@@ -51,12 +52,21 @@ export function MeetingMetadata({ noteId }: MeetingMetadataProps) {
 
   const handleAddPerson = async () => {
     if (!api?.memory || !newPersonName.trim()) return;
-    const person = await api.memory.people.upsert({ name: newPersonName.trim() });
-    await api.memory.people.linkToNote(noteId, person.id);
-    setNewPersonName("");
-    setAddingPerson(false);
-    setPeopleSuggestions([]);
-    await refresh();
+    try {
+      const person = await api.memory.people.upsert({ name: newPersonName.trim() }, { forceCreate: true });
+      if (!person?.id) {
+        toast.error("Failed to create person.");
+        return;
+      }
+      await api.memory.people.linkToNote(noteId, person.id);
+      setNewPersonName("");
+      setAddingPerson(false);
+      setPeopleSuggestions([]);
+      await refresh();
+    } catch (err) {
+      console.error("Failed to add person:", err);
+      toast.error("Failed to add person.");
+    }
   };
 
   const handleAddExistingPerson = async (person: Person) => {
@@ -210,20 +220,20 @@ function PersonChip({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name"
-            className="h-5 w-28 bg-transparent text-[11px] font-medium text-foreground outline-none"
+            className="h-6 w-28 bg-card border border-border rounded px-1.5 text-[11px] font-medium text-foreground outline-none focus:ring-1 focus:ring-ring"
           />
           <div className="flex gap-1">
             <input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Company"
-              className="h-5 w-20 bg-transparent text-[10px] text-muted-foreground outline-none"
+              className="h-6 w-20 bg-card border border-border rounded px-1.5 text-[10px] text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             />
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Role"
-              className="h-5 w-20 bg-transparent text-[10px] text-muted-foreground outline-none"
+              className="h-6 w-20 bg-card border border-border rounded px-1.5 text-[10px] text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>

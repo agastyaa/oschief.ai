@@ -8,7 +8,7 @@ import {
 import { routeSTT, routeLLM } from '../cloud/router'
 import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
-import { getSetting } from '../storage/database'
+import { getSetting, getDb } from '../storage/database'
 import { notifyRecordingStateChanged } from '../power-manager'
 import { updateTrayRecordingState } from '../tray'
 import { getThermalState } from '../thermal-monitor'
@@ -225,8 +225,9 @@ function buildWhisperPrompt(title: string, vocabulary: string[]): string {
   parts.push('Speakers may have Indian, British, or other non-American English accents.')
   if (title?.trim()) parts.push(`${title.trim()} meeting.`)
   if (vocabulary.length > 0) {
+    // Use exact spellings as-is so Whisper learns the tokens (e.g. "MyTicket" not "Myticket")
     const terms = vocabulary.slice(0, 35).join(', ')
-    parts.push(`Discussion about ${terms}.`)
+    parts.push(`Key terms (use exact spelling): ${terms}.`)
   }
   const raw = parts.join(' ')
   return raw.length <= WHISPER_PROMPT_MAX_CHARS ? raw : raw.slice(0, WHISPER_PROMPT_MAX_CHARS).trim()
@@ -286,8 +287,23 @@ export async function startRecording(
 
   try {
     const fromSettings = getSetting('custom-vocabulary') || ''
+    const settingsTerms = typeof fromSettings === 'string' ? fromSettings.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []
+
+    // Auto-learn: pull people names and project names into vocabulary
+    let autoTerms: string[] = []
+    try {
+      const db = getDb()
+      const people = db.prepare('SELECT name FROM people ORDER BY last_seen DESC LIMIT 50').all() as { name: string }[]
+      const projects = db.prepare('SELECT name FROM projects ORDER BY updated_at DESC LIMIT 30').all() as { name: string }[]
+      autoTerms = [
+        ...people.map(p => p.name),
+        ...projects.map(p => p.name),
+      ].filter(t => t && t.length > 2)
+    } catch { /* DB not ready */ }
+
     const terms = [
-      ...(typeof fromSettings === 'string' ? fromSettings.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []),
+      ...settingsTerms,
+      ...autoTerms,
       ...meetingContextVocabulary,
     ].filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
     sttVocabularyTerms = terms
@@ -332,23 +348,17 @@ export async function startRecording(
     }, 2000)
   }
 
-  // Silence watchdog: auto-pause after 45s of no detected speech.
-  // Prevents recordings from running forever when the meeting ends.
-  // The renderer shows a "Recording paused — no speech detected" indicator.
-  // User can resume if the meeting continues.
-  const SILENCE_AUTO_PAUSE_MS = 45_000
+  // Silence watchdog: auto-end meeting after 90s of no detected speech or audio energy.
+  // Instead of pausing (which confused users), this signals the renderer
+  // to fully stop the recording and generate the summary.
+  const SILENCE_AUTO_END_MS = 90_000
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
     const silenceDuration = Date.now() - lastSpeechTime
-    if (silenceDuration >= SILENCE_AUTO_PAUSE_MS) {
-      console.log(`[capture] Auto-pausing: ${Math.round(silenceDuration / 1000)}s of silence`)
-      autoPaused = true
-      isPaused = true
-      pauseStartedAt = Date.now()
-      notifyRecordingStateChanged()
-      updateTrayRecordingState(false)
-      statusCallback?.({ state: 'auto-paused' })
+    if (silenceDuration >= SILENCE_AUTO_END_MS) {
+      console.log(`[capture] Auto-ending meeting: ${Math.round(silenceDuration / 1000)}s of silence`)
+      statusCallback?.({ state: 'auto-stopped' })
     }
   }, 5000) // Check every 5s
 
@@ -430,17 +440,12 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null }
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   // Restart silence watchdog for this resume session
-  const SILENCE_AUTO_PAUSE_MS = 45_000
+  const SILENCE_AUTO_END_MS = 90_000
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
-    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_PAUSE_MS) {
-      console.log(`[capture] Auto-pausing after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
-      autoPaused = true
-      isPaused = true
-      pauseStartedAt = Date.now()
-      notifyRecordingStateChanged()
-      updateTrayRecordingState(false)
-      statusCallback?.({ state: 'auto-paused' })
+    if (Date.now() - lastSpeechTime >= SILENCE_AUTO_END_MS) {
+      console.log(`[capture] Auto-ending after resume: ${Math.round((Date.now() - lastSpeechTime) / 1000)}s of silence`)
+      statusCallback?.({ state: 'auto-stopped' })
     }
   }, 5000)
   // Restart chunk timer with active interval
@@ -675,8 +680,10 @@ async function processBufferedAudio(): Promise<void> {
         continue
       }
 
+      // Any audio above energy threshold keeps the silence watchdog alive
+      // (prevents auto-end when YouTube/music is playing through mic)
+      lastSpeechTime = Date.now()
       if (hasSpeech) {
-        lastSpeechTime = Date.now()
         consecutiveSilentChunks[channel as 0 | 1] = 0
         if (currentChunkIntervalMs > CHUNK_INTERVAL_ACTIVE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
@@ -692,7 +699,11 @@ async function processBufferedAudio(): Promise<void> {
       // Speaker diarization: run pyannote segmentation on mic audio to distinguish voices.
       // Runs when mic-only mode OR when system audio hasn't produced transcripts (meeting room, no call).
       // Timeout prevents diarization from blocking the transcription pipeline.
-      const systemAudioSilent = lastSystemAudioTranscriptTime === 0 || (Date.now() - lastSystemAudioTranscriptTime > 30_000)
+      const systemAudioSilent = lastSystemAudioTranscriptTime === 0 || (Date.now() - lastSystemAudioTranscriptTime > 15_000)
+      // Retry model loading if diarizer exists but isn't ready (first load may have failed)
+      if (channel === 0 && micOnlyDiarizationEnabled && streamingDiarizer && !streamingDiarizer.isReady()) {
+        streamingDiarizer.ensureModel().catch(() => {}) // silent retry
+      }
       if (channel === 0 && micOnlyDiarizationEnabled && streamingDiarizer?.isReady() && (micOnlyMode || systemAudioSilent)) {
         try {
           const diarizePromise = streamingDiarizer.identifySpeaker(merged, SAMPLE_RATE)

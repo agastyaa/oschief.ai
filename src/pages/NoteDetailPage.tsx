@@ -7,7 +7,7 @@ import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair, Mic, ArrowLeft } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, RefreshCw, Mic, ArrowLeft } from "lucide-react";
 import { MeetingMetadata } from "@/components/MeetingMetadata";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,8 @@ import { noteToMarkdown } from "@/lib/export-markdown";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { computeCoachingMetrics } from "@/lib/coaching-analytics";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { computeConversationHeuristics, findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";
+import { computeConversationHeuristics } from "@/lib/conversation-heuristics";
+import { CoachingInsightsDisplay } from "@/components/CoachingInsightsDisplay";
 import { SlackShareDialog } from "@/components/SlackShareDialog";
 import { TeamsShareDialog } from "@/components/TeamsShareDialog";
 import {
@@ -617,6 +618,35 @@ export default function NoteDetailPage() {
                   setRecordingState("paused");
                   pauseAudioCapture().catch(console.error);
                 }}
+                onCorrection={(find, replace) => {
+                  if (!note.summary) return;
+                  let count = 0;
+                  const replaceAll = (s: string | undefined) => {
+                    if (!s) return s;
+                    const regex = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    return s.replace(regex, () => { count++; return replace; });
+                  };
+                  const updated = { ...note.summary };
+                  updated.overview = replaceAll(updated.overview);
+                  (updated as any).tldr = replaceAll((updated as any).tldr);
+                  if (updated.keyPoints) updated.keyPoints = updated.keyPoints.map((kp: any) => typeof kp === 'string' ? replaceAll(kp)! : kp);
+                  if (updated.actionItems) updated.actionItems = updated.actionItems.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.nextSteps) updated.nextSteps = updated.nextSteps.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.decisions) updated.decisions = updated.decisions.map((d: any) => replaceAll(d)!);
+                  if ((updated as any).topics) (updated as any).topics = (updated as any).topics.map((t: any) => ({
+                    ...t,
+                    title: replaceAll(t.title)!,
+                    bullets: t.bullets?.map((b: any) => typeof b === 'string' ? replaceAll(b)! : { ...b, text: replaceAll(b.text)!, subBullets: b.subBullets?.map((sb: string) => replaceAll(sb)!) }),
+                    actionItems: t.actionItems?.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! })),
+                    decisions: t.decisions?.map((d: string) => replaceAll(d)!),
+                  }));
+                  if (count > 0) {
+                    updateNote(note.id, { summary: updated });
+                    toast.success(`Corrected: ${find} → ${replace} (${count} replacements)`);
+                  } else {
+                    toast("No occurrences found in summary.");
+                  }
+                }}
               />
             </div>
           </div>
@@ -766,6 +796,7 @@ function CoachingView({
   updateNote: (id: string, updates: Partial<SavedNote>) => void;
   onJumpToTranscriptLine?: (lineIndex: number) => void;
 }) {
+  const navigate = useNavigate();
   const api = getElectronAPI();
   const { selectedAIModel } = useModelSettings();
   const meetingDurationSec = useMemo(() => {
@@ -801,24 +832,19 @@ function CoachingView({
     return { ...h, suggestedHabitTags: [...new Set(tags)] };
   }, [note.transcript, meetingDurationSec, accountRoleId, metrics]);
 
-  const [roleInsights, setRoleInsights] = useState<string[]>(metrics?.roleInsights ?? []);
-  const [insightsLoading, setInsightsLoading] = useState(false);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationFailed, setConversationFailed] = useState(false);
-  const [conversationErrorDetail, setConversationErrorDetail] = useState<string | null>(null);
-  const conversationAnalysisStarted = useRef(false);
-  const [metricsExpanded, setMetricsExpanded] = useState(false);
 
   useEffect(() => {
     setConversationFailed(false);
-    setConversationErrorDetail(null);
-    conversationAnalysisStarted.current = false;
   }, [note.id]);
 
-  // Coaching analysis is NOT auto-triggered — runs only when user clicks "Analyze" on the Coaching page
-  // or "Reanalyze all meetings". This saves LLM resources. Existing insights from previous runs are shown.
   const runConversationAnalysis = useCallback(async () => {
     if (!metrics || !api?.coaching?.analyzeConversation || !note.transcript?.length || !accountRoleId) return;
+    if (!selectedAIModel) {
+      navigate('/settings?section=ai-models');
+      return;
+    }
     setConversationLoading(true);
     setConversationFailed(false);
     try {
@@ -828,24 +854,19 @@ function CoachingView({
         metrics: metricsForApi as unknown as Record<string, unknown>,
         heuristics,
         roleId: accountRoleId,
-        model: selectedAIModel || undefined,
+        model: selectedAIModel,
       });
       if (result.ok) {
         updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
-        setConversationErrorDetail(null);
       } else {
         setConversationFailed(true);
-        setConversationErrorDetail(result.message);
       }
     } catch {
       setConversationFailed(true);
-      setConversationErrorDetail("Conversation analysis failed unexpectedly.");
     } finally {
       setConversationLoading(false);
     }
-  }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, heuristics]);
-
-  // Role-only LLM coaching also disabled for auto-trigger — included in runConversationAnalysis
+  }, [metrics, api, note.id, note.transcript, updateNote, accountRoleId, heuristics, selectedAIModel, navigate]);
 
   const conv = metrics?.conversationInsights;
 
@@ -867,7 +888,7 @@ function CoachingView({
         </div>
       )}
 
-      {/* Analyze button — only shown when no insights exist */}
+      {/* Analyze button — shown when no insights exist */}
       {!conv && !conversationLoading && accountRoleId && note.transcript?.length > 0 && (
         <button
           onClick={runConversationAnalysis}
@@ -885,81 +906,29 @@ function CoachingView({
           {conversationLoading && !conv ? (
             <CoachLoadingLine message="Analyzing transcript..." />
           ) : conv ? (
-            <>
-              <div>
-                <p className="text-[16px] font-semibold text-foreground leading-snug">{conv.headline}</p>
-                <p className="text-[13.5px] text-foreground/70 leading-relaxed mt-2">{conv.narrative}</p>
-              </div>
-
-              {conv.habitTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {conv.habitTags.map((t) => (
-                    <span key={t} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {t.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                {conv.microInsights.map((m, i) => (
-                  <div key={i}>
-                    <p className="text-body-sm text-foreground leading-relaxed">{m.text}</p>
-                    {m.evidenceQuote && (
-                      <p className="mt-1 text-[12px] text-muted-foreground italic">
-                        — "{m.evidenceQuote}"{m.time ? ` [${m.time}]` : ''}
-                      </p>
-                    )}
-                    {m.framework && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{m.framework}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {conv.keyMoments.length > 0 && onJumpToTranscriptLine && (
-                <div className="space-y-2 pt-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                    <Quote className="h-3 w-3" />
-                    Key moments (transcript)
-                  </p>
-                  <ul className="space-y-2">
-                    {conv.keyMoments.map((km, i) => {
-                      const idx = findTranscriptLineIndexForQuote(note.transcript, km.quote);
-                      return (
-                        <li
-                          key={i}
-                          className="flex items-start justify-between gap-2 rounded-md border border-border bg-background/80 p-2"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-medium text-foreground">{km.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">"{km.quote}"</p>
-                            <p className="text-[9px] text-muted-foreground mt-0.5">
-                              {km.speaker} · {km.time}
-                            </p>
-                          </div>
-                          {idx !== undefined && (
-                            <button
-                              type="button"
-                              onClick={() => onJumpToTranscriptLine(idx)}
-                              className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title="Show in transcript"
-                            >
-                              <Crosshair className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </>
+            <CoachingInsightsDisplay
+              insights={conv}
+              showJumpToTranscript={!!onJumpToTranscriptLine}
+              onJumpToTranscriptLine={onJumpToTranscriptLine}
+              transcript={note.transcript}
+            />
           ) : null}
         </div>
       )}
 
+      {/* Reanalyze button — shown when insights exist, allows re-running with updated prompts */}
+      {conv && !conversationLoading && accountRoleId && (
+        <button
+          onClick={runConversationAnalysis}
+          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RefreshCw className="h-3 w-3" />
+          Reanalyze this meeting
+        </button>
+      )}
+
       {/* Heuristic coaching — shown prominently when LLM analysis hasn't run or failed */}
-      {heuristics && !conv && (
+      {heuristics && !conv && !conversationLoading && (
         <div className="rounded-[10px] border border-border bg-card px-4 py-3.5 space-y-3">
           <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">What I can see from the data</h4>
           <div className="space-y-2">
@@ -1006,80 +975,24 @@ function CoachingView({
         </div>
       )}
 
+      {/* Error state with retry */}
       {conversationFailed && !conv && !conversationLoading && accountRoleId && (
         <div className="flex items-center justify-between gap-2 rounded-[10px] border border-amber bg-amber-bg px-3 py-2">
           <p className="text-[11px] text-foreground">
-            Connect an AI model in <button onClick={() => navigate('/settings?section=ai-models')} className="text-primary hover:underline">Settings → AI Models</button> to get deeper transcript analysis — what you said vs what you should have said.
+            {selectedAIModel
+              ? "Analysis failed. Check your AI model connection and try again."
+              : <>Connect an AI model in <button onClick={() => navigate('/settings?section=ai-models')} className="text-primary hover:underline">Settings → AI Models</button> to get transcript analysis.</>
+            }
           </p>
           <button
             type="button"
             className="shrink-0 text-[11px] font-medium text-accent hover:underline"
-            onClick={async () => {
-              if (!selectedAIModel) {
-                navigate('/settings?section=ai-models');
-                return;
-              }
-              if (!api?.coaching?.analyzeConversation || !metrics || !heuristics) {
-                toast.error('Unable to analyze — missing transcript metrics. Try reopening this note.');
-                return;
-              }
-              conversationAnalysisStarted.current = true;
-              setConversationFailed(false);
-              setConversationLoading(true);
-              try {
-                const { roleInsights: _ri, conversationInsights: _ci, ...metricsForApi } = metrics;
-                const result = await api.coaching.analyzeConversation({
-                  transcript: note.transcript,
-                  metrics: metricsForApi as unknown as Record<string, unknown>,
-                  heuristics,
-                  roleId: accountRoleId,
-                  model: selectedAIModel,
-                });
-                if (result.ok) {
-                  updateNote(note.id, { coachingMetrics: { ...metrics, conversationInsights: result.data } });
-                  setConversationErrorDetail(null);
-                } else {
-                  setConversationFailed(true);
-                  setConversationErrorDetail(result.message);
-                }
-              } catch {
-                setConversationFailed(true);
-                setConversationErrorDetail("Conversation analysis failed unexpectedly.");
-              } finally {
-                setConversationLoading(false);
-              }
-            }}
+            onClick={runConversationAnalysis}
           >
             Retry
           </button>
         </div>
       )}
-
-      {/* Metrics-only coaching — fallback when transcript analysis isn't available or failed */}
-      {(roleInsights.length > 0 || insightsLoading) && !conv && !conversationLoading && (
-        <div className="rounded-[10px] border border-accent/30 bg-accent/5 p-5 space-y-2">
-          <h4 className="text-[11px] font-medium text-accent uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="h-3 w-3" /> Delivery &amp; pace (metrics)
-          </h4>
-          <p className="text-[10px] text-muted-foreground">
-            From talk-time and filler metrics. Prefer <span className="font-medium text-foreground">Meeting effectiveness</span> above when present.
-          </p>
-          {insightsLoading && roleInsights.length === 0 ? (
-            <CoachLoadingLine />
-          ) : (
-            <ul className="space-y-1.5">
-              {roleInsights.map((insight, i) => (
-                <li key={i} className="text-[12px] text-foreground leading-relaxed flex gap-2">
-                  <span className="text-accent flex-shrink-0 mt-0.5">•</span>
-                  <span>{insight}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* Speaking metrics removed — coaching is qualitative only */}
     </div>
   );
 }

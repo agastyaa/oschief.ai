@@ -1,3 +1,4 @@
+import { getSetting } from '../storage/database'
 import { getModelPath } from './manager'
 import { routeLLM } from '../cloud/router'
 import { chatApple } from '../cloud/apple-llm'
@@ -123,6 +124,14 @@ function buildChatSystemMessage(context: any): string {
 }
 
 // ─── Summarize ──────────────────────────────────────────────────────────────
+
+/** Load custom vocabulary from Settings DB for LLM prompt injection */
+function loadVocabulary(): string[] {
+  try {
+    const raw = getSetting('custom-vocabulary') || ''
+    return typeof raw === 'string' ? raw.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []
+  } catch { return [] }
+}
 
 const GENERIC_TITLES = ['this meeting', 'meeting notes', 'untitled', 'untitled meeting']
 
@@ -265,10 +274,12 @@ export async function summarize(
 
   const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
   const template = getTemplate(templateId)
+  const vocabTerms = loadVocabulary()
   const context = buildMeetingContext({
     ...(meetingTitle?.trim() ? { title: meetingTitle.trim() } : {}),
     ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
     ...(attendees?.length ? { attendees } : {}),
+    ...(vocabTerms.length > 0 ? { vocabulary: vocabTerms } : {}),
   })
   if (accountDisplayName?.trim()) {
     context.user = { ...context.user, name: accountDisplayName.trim() }
@@ -338,11 +349,19 @@ export async function summarize(
   const finalResponse = anonMap ? deanonymize(response, anonMap) : response
   const parsed = parseEnhancedNotes(finalResponse)
   let title = extractTitleFromResponse(finalResponse)
-  // If title extraction fell back to generic "Meeting Notes", try deriving from the parsed overview/tldr
-  if (title === 'Meeting Notes' && parsed.tldr && parsed.tldr.length > 10) {
-    const words = parsed.tldr.split(/[;.!?]/).filter(Boolean)[0]?.trim()
-    if (words && words.length > 5 && words.length <= 60) {
-      title = words
+  // If title extraction fell back to generic "Meeting Notes", try deriving from parsed fields
+  if (title === 'Meeting Notes') {
+    // Try overview first (usually more descriptive than TL;DR)
+    const overviewSrc = parsed.overview || parsed.tldr || ''
+    if (overviewSrc.length > 10) {
+      const firstClause = overviewSrc.split(/[;.!?,]/).filter(Boolean)[0]?.trim()
+      if (firstClause && firstClause.length > 5 && firstClause.length <= 60) {
+        title = firstClause
+      } else if (firstClause && firstClause.length > 60) {
+        // Truncate at word boundary
+        const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, '')
+        if (truncated.length > 5) title = truncated
+      }
     }
   }
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
@@ -415,10 +434,12 @@ export async function summarizeAndExtract(
 
   const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
   const template = getTemplate(templateId)
+  const vocabTerms2 = loadVocabulary()
   const context = buildMeetingContext({
     ...(meetingTitle?.trim() ? { title: meetingTitle.trim() } : {}),
     ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
     ...(attendees?.length ? { attendees } : {}),
+    ...(vocabTerms2.length > 0 ? { vocabulary: vocabTerms2 } : {}),
   })
   if (accountDisplayName?.trim()) {
     context.user = { ...context.user, name: accountDisplayName.trim() }

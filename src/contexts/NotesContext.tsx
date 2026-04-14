@@ -78,7 +78,26 @@ export function NotesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (api) {
-      api.db.notes.getAll().then((dbNotes) => setNotes(dbNotes));
+      api.db.notes.getAll().then((dbNotes) => {
+        setNotes(dbNotes);
+        // Backfill: derive titles for notes stuck as "Meeting notes" that have summary content
+        const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+        for (const note of dbNotes) {
+          if (!genericTitles.includes((note.title || "").toLowerCase().trim())) continue;
+          const src = note.summary?.overview || note.summary?.tldr || "";
+          if (src.length <= 10) continue;
+          const firstClause = src.split(/[;.!?,]/).filter(Boolean)[0]?.trim();
+          if (!firstClause || firstClause.length <= 5) continue;
+          const newTitle = firstClause.length > 50
+            ? firstClause.slice(0, 50).replace(/\s+\S*$/, "")
+            : firstClause;
+          if (newTitle && newTitle.length > 5) {
+            api.db.notes.update(note.id, { title: newTitle }).catch(() => {});
+          }
+        }
+        // Re-fetch to reflect updated titles
+        api.db.notes.getAll().then((refreshed) => setNotes(refreshed));
+      });
     }
   }, []);
 

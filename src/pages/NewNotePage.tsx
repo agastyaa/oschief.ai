@@ -689,44 +689,8 @@ export default function NewNotePage() {
     }).catch(() => {});
   }, [api, noteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-run summary 3s after explicit user pause (no click on Summary); cleared on resume / stop / real summary / unmount.
-  useEffect(() => {
-    const clearPauseTimer = () => {
-      if (pauseAutoSummaryTimerRef.current != null) {
-        clearTimeout(pauseAutoSummaryTimerRef.current);
-        pauseAutoSummaryTimerRef.current = null;
-      }
-    };
-    clearPauseTimer();
-
-    const hasReal = !!summary && !isPlaceholderSummary(summary);
-    if (
-      recordingState !== "paused" ||
-      hasReal ||
-      isSummarizing ||
-      !autoGenerateNotes
-    ) {
-      return clearPauseTimer;
-    }
-
-    const hasContent =
-      transcriptRef.current.length > 0 || personalNotes.trim().length > 0;
-    if (!hasContent) {
-      return clearPauseTimer;
-    }
-
-    pauseAutoSummaryTimerRef.current = setTimeout(() => {
-      pauseAutoSummaryTimerRef.current = null;
-      generateNotesRef
-        .current()
-        .catch((err) => {
-          console.error("Auto summary failed:", err);
-          toast.error("Summary failed. Try again.");
-        });
-    }, 3000);
-
-    return clearPauseTimer;
-  }, [recordingState, summary, isSummarizing]);
+  // Auto-summary on pause disabled — user ends the meeting or clicks Generate explicitly.
+  // (Previously: 3s timer after pause triggered auto-summary while user was still in the meeting.)
 
   // When indicator triggered "pause and summarize", we land here with state; run generateNotes with scratch and clear state
   useEffect(() => {
@@ -988,6 +952,16 @@ export default function NewNotePage() {
     }
   }, [usingRealAudio, stopAudioCapture, generateNotes, clearSession]);
 
+  // Auto-end meeting when silence watchdog fires (45s no speech)
+  const autoStoppedHandled = useRef(false);
+  useEffect(() => {
+    if (activeSession?.autoStopped && !autoStoppedHandled.current && recordingState === "recording") {
+      autoStoppedHandled.current = true;
+      toast("Meeting ended — no speech detected for 45 seconds.");
+      handleEndMeeting();
+    }
+  }, [activeSession?.autoStopped, recordingState, handleEndMeeting]);
+
   const handleResume = useCallback(() => {
     userPausedRef.current = false;
 
@@ -1200,7 +1174,7 @@ export default function NewNotePage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col min-w-0">
+    <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Capture error banner — mic / system audio not allowed or worklet failed */}
         {captureError && (
           <div className="mx-4 mt-2 flex items-start gap-3 rounded-[10px] border border-amber/40 bg-amber-bg px-4 py-3 text-sm text-amber">
@@ -1218,7 +1192,7 @@ export default function NewNotePage() {
 
         {/* Content area: stack on small screens so transcript doesn't squeeze layout */}
         <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-          <div className="flex flex-1 flex-col min-w-0">
+          <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             {/* Title + metadata — fixed at top */}
             <div className="shrink-0">
               <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
@@ -1401,6 +1375,37 @@ export default function NewNotePage() {
                 }}
                 onToggleTranscript={() => setTranscriptVisible(!transcriptVisible)}
                 elapsed={elapsed}
+                onCorrection={(find, replace) => {
+                  if (!summary) return;
+                  let count = 0;
+                  const replaceAll = (s: string | undefined) => {
+                    if (!s) return s;
+                    const regex = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    const result = s.replace(regex, () => { count++; return replace; });
+                    return result;
+                  };
+                  const updated = { ...summary };
+                  updated.overview = replaceAll(updated.overview);
+                  updated.tldr = replaceAll(updated.tldr);
+                  if (updated.keyPoints) updated.keyPoints = updated.keyPoints.map((kp: any) => typeof kp === 'string' ? replaceAll(kp)! : kp);
+                  if (updated.actionItems) updated.actionItems = updated.actionItems.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.nextSteps) updated.nextSteps = updated.nextSteps.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! }));
+                  if (updated.decisions) updated.decisions = updated.decisions.map((d: any) => replaceAll(d)!);
+                  if (updated.topics) updated.topics = updated.topics.map((t: any) => ({
+                    ...t,
+                    title: replaceAll(t.title)!,
+                    bullets: t.bullets?.map((b: any) => typeof b === 'string' ? replaceAll(b)! : { ...b, text: replaceAll(b.text)!, subBullets: b.subBullets?.map((sb: string) => replaceAll(sb)!) }),
+                    actionItems: t.actionItems?.map((ai: any) => ({ ...ai, text: replaceAll(ai.text)!, assignee: replaceAll(ai.assignee)! })),
+                    decisions: t.decisions?.map((d: string) => replaceAll(d)!),
+                  }));
+                  if (count > 0) {
+                    setSummary(updated);
+                    if (noteId) updateNote(noteId, { summary: updated });
+                    toast.success(`Corrected: ${find} → ${replace} (${count} replacements)`);
+                  } else {
+                    toast("No occurrences found in summary.");
+                  }
+                }}
                 generateSummarySlot={
                   recordingState === "paused" ? (
                     <button
@@ -1525,7 +1530,7 @@ export default function NewNotePage() {
               <div className="p-2.5 space-y-3">
                 {!transcriptSearch && noTranscriptYet && (
                   <div className="rounded-[10px] border border-amber/40 bg-amber-bg px-3 py-3">
-                    <p className="text-body-sm font-medium text-amber">
+                    <p className="text-xs font-medium text-amber">
                       No transcript captured yet ({Math.floor(elapsedSeconds / 60)} min)
                     </p>
                     <p className="text-[12px] text-amber mt-1 leading-relaxed">
@@ -1557,16 +1562,17 @@ export default function NewNotePage() {
                       >
                         <div
                           className={cn(
-                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-body-sm leading-relaxed",
+                            "max-w-[95%] rounded-2xl px-3 py-1.5 text-xs leading-relaxed",
                             isMe
                               ? "bg-green-bg text-foreground rounded-br-md"
                               : "bg-muted/80 text-foreground/90 rounded-bl-md"
                           )}
                         >
                           {showLabel && (
-                            <p className={cn("text-[12px] font-semibold mb-0.5 flex items-center gap-1", speakerStyle.label)}>
+                            <p className={cn("text-[11px] font-semibold mb-0.5 flex items-center gap-1", speakerStyle.label)}>
                               <span className={cn("h-1.5 w-1.5 rounded-full inline-block", speakerStyle.dot)} />
                               {displayLabel}
+                              <span className="text-[10px] font-normal text-muted-foreground/60 ml-auto">{group.timeStart}{group.timeEnd !== group.timeStart ? ` – ${group.timeEnd}` : ''}</span>
                             </p>
                           )}
                           <p>

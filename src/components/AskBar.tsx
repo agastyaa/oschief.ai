@@ -115,9 +115,11 @@ interface AskBarProps {
   mentionHintLoading?: boolean;
   onDismissMentionHint?: () => void;
   onTriggerMentionLLM?: () => Promise<void>;
+  /** Called when user asks to rename/correct a term — applies find-and-replace to summary */
+  onCorrection?: (find: string, replace: string) => void;
 }
 
-export const AskBar = memo(function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM }: AskBarProps) {
+export const AskBar = memo(function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM, onCorrection }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
@@ -226,6 +228,28 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
             ...prev,
             { role: "assistant", text: response },
           ]);
+        }
+
+        // Detect correction/rename intent in the user's message and apply to summary
+        if (onCorrection && q) {
+          const correctionPatterns = [
+            /(?:rename|replace|change|correct|update)\s+["']?(.+?)["']?\s+(?:to|with|→)\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
+            /["']?(.+?)["']?\s+should\s+be\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
+            /it'?s\s+["']?(.+?)["']?\s+not\s+["']?(.+?)["']?$/i,
+          ];
+          for (const pattern of correctionPatterns) {
+            const match = q.match(pattern);
+            if (match?.[1] && match?.[2]) {
+              // "it's X not Y" → find=Y, replace=X (inverted)
+              const isInverted = pattern.source.includes("not");
+              const find = isInverted ? match[2].trim() : match[1].trim();
+              const replace = isInverted ? match[1].trim() : match[2].trim();
+              if (find && replace && find !== replace) {
+                onCorrection(find, replace);
+              }
+              break;
+            }
+          }
         }
       } catch (err: any) {
         setMessages((prev) => [

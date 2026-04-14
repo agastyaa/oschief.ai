@@ -359,7 +359,7 @@ const CommitmentsPage = () => {
                                     if (e.key === "Escape") setEditingId(null)
                                   }}
                                   onBlur={handleSaveEdit}
-                                  className="w-full text-sm text-foreground bg-transparent border-b border-primary focus:outline-none py-0.5"
+                                  className="w-full text-sm text-foreground bg-card border border-border rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-ring"
                                 />
                               ) : (
                                 <p

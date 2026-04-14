@@ -4,9 +4,12 @@ import { useNotes } from "@/contexts/NotesContext";
 import { getElectronAPI } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
 import {
-  Brain, ArrowRight, RefreshCw, ChevronDown, Check,
+  Brain, ArrowRight, RefreshCw, ChevronDown, ChevronRight, Check, Sparkles,
 } from "lucide-react";
 import type { CoachingMetrics } from "@/lib/coaching-analytics";
+import { CoachingInsightsDisplay } from "@/components/CoachingInsightsDisplay";
+import { useRunCoachingAnalysis } from "@/hooks/useRunCoachingAnalysis";
+import { CoachLoadingLine } from "@/components/SummarySkeleton";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -36,6 +39,10 @@ export default function CoachingPage() {
   const navigate = useNavigate();
   const { notes, updateNote } = useNotes();
   const api = getElectronAPI();
+  const { analyze, loadingNoteId, accountRoleId } = useRunCoachingAnalysis({ updateNote });
+
+  // Selected meeting in accordion
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
   // All notes with transcripts (including excluded ones) — for manage list
   const allCoachableNotes = useMemo(() => {
@@ -43,14 +50,6 @@ export default function CoachingPage() {
       .filter(n => n.transcript?.length > 0)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [notes]);
-
-  const accountRoleId = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("syag-account");
-      if (raw) return JSON.parse(raw)?.roleId as string | undefined;
-    } catch { /* ignore */ }
-    return undefined;
-  }, []);
 
   const meetings: MeetingData[] = useMemo(() => {
     return notes
@@ -85,7 +84,7 @@ export default function CoachingPage() {
 
   // Cross-meeting aggregation
   const [crossMeeting, setCrossMeeting] = useState<{
-    summaryHeadline: string; themesParagraph: string; improvementArc?: string; blindSpot?: string; bestMoment?: string; focusNext: string; recurringTags: string[];
+    summaryHeadline: string; themesParagraph: string; improvementArc?: string; blindSpot?: string; bestMoment?: string; provocativeQuestion?: string; strategicChallenge?: string; focusNext: string; recurringTags: string[];
   } | null>(null);
   const [crossLoading, setCrossLoading] = useState(false);
 
@@ -148,7 +147,7 @@ export default function CoachingPage() {
     if (meetings.length > 0) {
       return {
         headline: "Generate your first coaching analysis",
-        body: "Open any meeting below and click the Coaching tab. I\u2019ll analyze what you said, what you committed to, and how it aligns with your role.",
+        body: "Select any meeting below and click Analyze. I\u2019ll assess what you said, what you committed to, and how it aligns with your role.",
         type: "metrics",
       };
     }
@@ -177,14 +176,40 @@ export default function CoachingPage() {
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-6 font-body page-enter">
 
-            {/* ── Header ── */}
-            <div className="mb-8">
-              <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Executive Coach</h1>
-              <p className="text-body-sm text-muted-foreground mt-1">Your AI Chief of Staff analyzes how you lead. Strategic gaps, decision quality, authority, leverage. Not meeting tips. Leadership intelligence.</p>
+            {/* ── Header with action buttons ── */}
+            <div className="flex items-start justify-between gap-4 mb-8">
+              <div>
+                <h1 className="font-display text-[20px] font-normal text-foreground tracking-tight">Executive Coach</h1>
+                <p className="text-body-sm text-muted-foreground mt-1">Your AI Chief of Staff analyzes how you lead. Strategic gaps, decision quality, authority, leverage. Not meeting tips. Leadership intelligence.</p>
+              </div>
+              {meetings.length > 0 && (
+                <div className="flex items-center gap-2 shrink-0 pt-1">
+                  {crossMeeting && (
+                    <button
+                      onClick={() => void runAggregateInsights()}
+                      disabled={crossLoading}
+                      className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={cn("h-3 w-3", crossLoading && "animate-spin")} />
+                      Refresh
+                    </button>
+                  )}
+                  <button
+                    onClick={() => void runBatchCoaching()}
+                    disabled={batchRunning}
+                    className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("h-3 w-3", batchRunning && "animate-spin")} />
+                    {batchRunning
+                      ? `${batchProgress?.current ?? 0}/${batchProgress?.total ?? '...'}`
+                      : "Reanalyze all"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* ── Empty state: no meetings ── */}
-            {meetings.length === 0 && (
+            {meetings.length === 0 && allCoachableNotes.length === 0 && (
               <div className="py-16 text-center">
                 <Brain className="h-10 w-10 text-muted-foreground/20 mx-auto mb-4" />
                 <h2 className="font-display text-[17px] font-normal text-foreground mb-2">Your coach is ready.</h2>
@@ -198,7 +223,7 @@ export default function CoachingPage() {
             )}
 
             {/* ── Role not set warning ── */}
-            {meetings.length > 0 && !accountRoleId && (
+            {(meetings.length > 0 || allCoachableNotes.length > 0) && !accountRoleId && (
               <div className="rounded-[10px] border bg-card p-4 mb-6 border-l-[3px] border-l-amber">
                 <p className="text-body-sm text-foreground">Set your role in Settings so I can give you role-specific coaching.</p>
                 <button onClick={() => navigate("/settings?section=account")} className="text-[12px] font-medium text-primary hover:underline mt-1">
@@ -227,36 +252,26 @@ export default function CoachingPage() {
                   </div>
                 )}
 
+                {/* Provocative Question — cross-meeting */}
+                {crossMeeting?.provocativeQuestion && (
+                  <div className="mt-4 rounded-[10px] border border-primary/20 bg-primary/5 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-primary font-medium mb-1.5">Question to sit with</p>
+                    <p className="text-[14px] text-foreground leading-relaxed font-display">{crossMeeting.provocativeQuestion}</p>
+                  </div>
+                )}
+
+                {/* Strategic Challenge — cross-meeting */}
+                {crossMeeting?.strategicChallenge && (
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Strategic challenge</p>
+                    <p className="text-[13.5px] text-foreground leading-relaxed">{crossMeeting.strategicChallenge}</p>
+                  </div>
+                )}
+
                 {/* Improvement arc */}
                 {crossMeeting?.improvementArc && (
                   <p className="mt-3 text-[12px] text-muted-foreground">{crossMeeting.improvementArc}</p>
                 )}
-
-                {coachMsg.type === "cross" && (
-                  <button
-                    onClick={() => void runAggregateInsights()}
-                    disabled={crossLoading}
-                    className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <RefreshCw className={cn("h-3 w-3", crossLoading && "animate-spin")} />
-                    {crossLoading ? "Refreshing..." : "Refresh coaching"}
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* ── No insights yet (but has meetings + role) ── */}
-            {meetings.length > 0 && accountRoleId && !latestInsights && coachMsg.type === "metrics" && (
-              <div className="mb-4">
-                <p className="text-[12px] text-muted-foreground mb-2">Open any meeting's Coaching tab to generate deeper analysis:</p>
-                <div className="space-y-1">
-                  {[...meetings].reverse().slice(0, 3).map(m => (
-                    <button key={m.id} onClick={() => navigate(`/note/${m.id}`)}
-                      className="flex items-center gap-2 text-[12px] text-primary hover:underline">
-                      <ArrowRight className="h-3 w-3" /> {m.title} ({m.date})
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -270,7 +285,7 @@ export default function CoachingPage() {
                       <p className="text-[13.5px] text-foreground leading-relaxed">{mi.text}</p>
                       {mi.evidenceQuote && (
                         <p className="mt-1 text-[12px] text-muted-foreground italic leading-relaxed">
-                          — "{mi.evidenceQuote}"
+                          — &ldquo;{mi.evidenceQuote}&rdquo;
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-1">
@@ -292,7 +307,7 @@ export default function CoachingPage() {
 
             {/* ── Your Patterns (habit tags) ── */}
             {habitTagCounts.length > 0 && (
-              <div className="mb-4">
+              <div className="mb-6">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">YOUR PATTERNS</p>
                 <div className="flex flex-wrap gap-2">
                   {habitTagCounts.map(([tag, count]) => (
@@ -300,6 +315,130 @@ export default function CoachingPage() {
                       {formatTag(tag)} <span className="opacity-60">({count}/{notesWithInsights.length})</span>
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Meetings — accordion with per-meeting coaching ── */}
+            {allCoachableNotes.length > 0 && (
+              <div className="mb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">MEETINGS</p>
+                <div className="rounded-[10px] border border-border bg-card overflow-hidden">
+                  <div className="divide-y divide-border/50">
+                    {allCoachableNotes.map(n => {
+                      const excluded = !!n.micOnly;
+                      const hasInsights = !!n.coachingMetrics?.conversationInsights?.headline;
+                      const isSelected = selectedMeetingId === n.id;
+                      const isAnalyzing = loadingNoteId === n.id;
+                      const conv = n.coachingMetrics?.conversationInsights;
+
+                      return (
+                        <div key={n.id} className={cn(excluded && "opacity-50")}>
+                          {/* Meeting row */}
+                          <button
+                            onClick={() => setSelectedMeetingId(isSelected ? null : n.id)}
+                            className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-secondary/30 transition-colors group"
+                          >
+                            <ChevronRight className={cn(
+                              "h-3 w-3 text-muted-foreground transition-transform shrink-0",
+                              isSelected && "rotate-90"
+                            )} />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-body-sm text-foreground truncate block">{n.title || "Untitled"}</span>
+                              <span className="text-[10px] text-muted-foreground">{n.date}{n.timeRange ? ` · ${n.timeRange}` : ''}</span>
+                            </div>
+                            {excluded ? (
+                              <span className="text-[10px] text-muted-foreground shrink-0">excluded</span>
+                            ) : hasInsights ? (
+                              <span className="rounded-full bg-green-bg text-green border border-green px-2 py-0.5 text-[10px] font-medium shrink-0">Analyzed</span>
+                            ) : (
+                              <span className="rounded-full bg-secondary text-muted-foreground px-2 py-0.5 text-[10px] font-medium shrink-0">Not analyzed</span>
+                            )}
+                            {/* Per-meeting action button */}
+                            {!excluded && accountRoleId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void analyze(n);
+                                }}
+                                disabled={isAnalyzing}
+                                className={cn(
+                                  "shrink-0 flex items-center gap-1 rounded-[4px] border px-2 py-1 text-[11px] font-medium transition-all",
+                                  hasInsights
+                                    ? "border-transparent text-muted-foreground opacity-0 group-hover:opacity-100 hover:border-border hover:bg-secondary/50"
+                                    : "border-primary/30 text-primary hover:bg-primary/5",
+                                  isAnalyzing && "opacity-100"
+                                )}
+                                title={hasInsights ? "Reanalyze" : "Analyze"}
+                              >
+                                {isAnalyzing ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : hasInsights ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3" />
+                                    <span className="hidden group-hover:inline">Reanalyze</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="h-3 w-3" />
+                                    Analyze
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </button>
+
+                          {/* Expanded coaching content */}
+                          {isSelected && (
+                            <div className="px-4 pb-4 pt-1 border-t border-border/30 animate-in fade-in slide-in-from-top-1 duration-200">
+                              {isAnalyzing && !conv && (
+                                <CoachLoadingLine message={`Analyzing ${n.title || "meeting"}...`} />
+                              )}
+                              {conv && (
+                                <CoachingInsightsDisplay
+                                  insights={conv}
+                                  compact
+                                />
+                              )}
+                              {!conv && !isAnalyzing && excluded && (
+                                <p className="text-[12px] text-muted-foreground py-2">
+                                  This meeting is excluded from coaching. Include it in Manage Meetings below to analyze.
+                                </p>
+                              )}
+                              {!conv && !isAnalyzing && !excluded && !accountRoleId && (
+                                <div className="py-3">
+                                  <p className="text-[12px] text-muted-foreground">Set your role in Settings to analyze this meeting.</p>
+                                  <button onClick={() => navigate("/settings?section=account")} className="text-[12px] font-medium text-primary hover:underline mt-1">
+                                    Go to Settings →
+                                  </button>
+                                </div>
+                              )}
+                              {!conv && !isAnalyzing && !excluded && accountRoleId && (
+                                <div className="py-3 text-center">
+                                  <button
+                                    onClick={() => void analyze(n)}
+                                    className="rounded-[10px] border border-border bg-card p-4 w-full hover:bg-secondary/50 transition-colors"
+                                  >
+                                    <Sparkles className="h-5 w-5 text-primary mx-auto mb-2" />
+                                    <p className="text-body-sm font-medium text-foreground">Analyze this meeting</p>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">Find what you missed — grounded in your transcript and role playbook</p>
+                                  </button>
+                                </div>
+                              )}
+                              {/* Link to full meeting */}
+                              <button
+                                onClick={() => navigate(`/note/${n.id}`)}
+                                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary transition-colors mt-3"
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                                Open full meeting
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -386,22 +525,6 @@ export default function CoachingPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* ── Reanalyze (subtle, bottom) ── */}
-            {meetings.length > 0 && (
-              <div className="pt-4 border-t border-border">
-                <button
-                  onClick={() => void runBatchCoaching()}
-                  disabled={batchRunning}
-                  className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={cn("h-3 w-3", batchRunning && "animate-spin")} />
-                  {batchRunning
-                    ? `Analyzing ${batchProgress?.current ?? 0}/${batchProgress?.total ?? '...'} — ${batchProgress?.noteTitle ?? ''}`
-                    : "Reanalyze all meetings"}
-                </button>
               </div>
             )}
 
