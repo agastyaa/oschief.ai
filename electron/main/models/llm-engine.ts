@@ -338,11 +338,19 @@ export async function summarize(
   const finalResponse = anonMap ? deanonymize(response, anonMap) : response
   const parsed = parseEnhancedNotes(finalResponse)
   let title = extractTitleFromResponse(finalResponse)
-  // If title extraction fell back to generic "Meeting Notes", try deriving from the parsed overview/tldr
-  if (title === 'Meeting Notes' && parsed.tldr && parsed.tldr.length > 10) {
-    const words = parsed.tldr.split(/[;.!?]/).filter(Boolean)[0]?.trim()
-    if (words && words.length > 5 && words.length <= 60) {
-      title = words
+  // If title extraction fell back to generic "Meeting Notes", try deriving from parsed fields
+  if (title === 'Meeting Notes') {
+    // Try overview first (usually more descriptive than TL;DR)
+    const overviewSrc = parsed.overview || parsed.tldr || ''
+    if (overviewSrc.length > 10) {
+      const firstClause = overviewSrc.split(/[;.!?,]/).filter(Boolean)[0]?.trim()
+      if (firstClause && firstClause.length > 5 && firstClause.length <= 60) {
+        title = firstClause
+      } else if (firstClause && firstClause.length > 60) {
+        // Truncate at word boundary
+        const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, '')
+        if (truncated.length > 5) title = truncated
+      }
     }
   }
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
