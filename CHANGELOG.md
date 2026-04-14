@@ -4,6 +4,29 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.8.0] — 2026-04-14
+
+### Added
+- **Inline coaching per meeting** — select any meeting on the Coaching page and see its coaching feedback expanded inline. No more navigating away to a separate tab. Status pills show which meetings are analyzed.
+- **Provocative question** — coaching now surfaces one question designed to challenge your strategic thinking at the career level, not just meeting mechanics. Displayed in an accent card with display typography.
+- **Strategic challenge** — each coaching analysis includes a specific challenge about what you should be doing differently at the company/career level.
+- **Reanalyze per meeting** — hover any analyzed meeting on the Coaching page or click "Reanalyze this meeting" in the detail view to re-run analysis with the latest prompts.
+- **AskBar corrections on past meetings** — "rename X to Y" now works on NoteDetailPage (previously only worked during live recording on NewNotePage).
+
+### Changed
+- **Coaching prompts elevated** — system prompt rewritten to push beyond meeting observation toward genuinely thought-provoking, career-level strategic coaching. Anti-generic instruction: insights must be traceable to something specific you said or didn't say.
+- **Cross-meeting aggregation upgraded** — now includes provocative question and strategic challenge fields across meeting patterns.
+- **Reanalyze All button moved to header** — always visible without scrolling. Old buried bottom button removed.
+- **CoachingView refactored** — shared `CoachingInsightsDisplay` component and `useRunCoachingAnalysis` hook eliminate duplication between CoachingPage and NoteDetailPage.
+
+### Fixed
+- **AskBar scrolled off-screen during recording** — NewNotePage root div was missing `overflow-hidden`, causing the AskBar to be pushed below the viewport as transcript grew.
+- **CoachingView navigate bug** — `navigate` was referencing parent component scope, would crash when error path triggered. Now uses its own `useNavigate()`.
+- **CoachingView retry handler duplicated** — 35-line inline retry handler replaced with single `runConversationAnalysis` call.
+- **Dead state in CoachingView** — removed unused `roleInsights`, `insightsLoading`, `metricsExpanded` state and the never-populated "Delivery & pace" section.
+
+---
+
 ## [2.7.0] — 2026-04-14
 
 ### Added
