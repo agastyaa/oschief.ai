@@ -348,10 +348,10 @@ export async function startRecording(
     }, 2000)
   }
 
-  // Silence watchdog: auto-end meeting after 45s of no detected speech.
+  // Silence watchdog: auto-end meeting after 90s of no detected speech or audio energy.
   // Instead of pausing (which confused users), this signals the renderer
   // to fully stop the recording and generate the summary.
-  const SILENCE_AUTO_END_MS = 45_000
+  const SILENCE_AUTO_END_MS = 90_000
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
@@ -440,7 +440,7 @@ export function resumeRecording(options?: { sttModel?: string }): void {
   if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null }
   if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null }
   // Restart silence watchdog for this resume session
-  const SILENCE_AUTO_END_MS = 45_000
+  const SILENCE_AUTO_END_MS = 90_000
   silenceTimer = setInterval(() => {
     if (!isRecording || isPaused || autoPaused) return
     if (Date.now() - lastSpeechTime >= SILENCE_AUTO_END_MS) {
@@ -680,8 +680,10 @@ async function processBufferedAudio(): Promise<void> {
         continue
       }
 
+      // Any audio above energy threshold keeps the silence watchdog alive
+      // (prevents auto-end when YouTube/music is playing through mic)
+      lastSpeechTime = Date.now()
       if (hasSpeech) {
-        lastSpeechTime = Date.now()
         consecutiveSilentChunks[channel as 0 | 1] = 0
         if (currentChunkIntervalMs > CHUNK_INTERVAL_ACTIVE_MS) {
           currentChunkIntervalMs = CHUNK_INTERVAL_ACTIVE_MS
