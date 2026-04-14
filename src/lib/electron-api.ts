@@ -381,6 +381,8 @@ type ElectronAPI = {
     ) => Promise<{
       summaryHeadline: string
       themesParagraph: string
+      provocativeQuestion?: string
+      strategicChallenge?: string
       focusNext: string
       recurringTags: string[]
     } | null>

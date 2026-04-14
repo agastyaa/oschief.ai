@@ -7,7 +7,7 @@ import { NotesViewToggle } from "@/components/NotesViewToggle";
 import { useNotes, type SavedNote } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
 import { useModelSettings } from "@/contexts/ModelSettingsContext";
-import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Quote, Crosshair, Mic, ArrowLeft } from "lucide-react";
+import { Share2, MoreHorizontal, FileText, Hash, Calendar, Clock, EyeOff, Eye, Search, X, Check, ChevronDown, ChevronRight, Loader2, Copy, Download, FileDown, BarChart3, BookOpen, MessageSquare, Sparkles, Mic, ArrowLeft } from "lucide-react";
 import { MeetingMetadata } from "@/components/MeetingMetadata";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,8 @@ import { noteToMarkdown } from "@/lib/export-markdown";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { computeCoachingMetrics } from "@/lib/coaching-analytics";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { computeConversationHeuristics, findTranscriptLineIndexForQuote } from "@/lib/conversation-heuristics";
+import { computeConversationHeuristics } from "@/lib/conversation-heuristics";
+import { CoachingInsightsDisplay } from "@/components/CoachingInsightsDisplay";
 import { SlackShareDialog } from "@/components/SlackShareDialog";
 import { TeamsShareDialog } from "@/components/TeamsShareDialog";
 import {
@@ -885,75 +886,12 @@ function CoachingView({
           {conversationLoading && !conv ? (
             <CoachLoadingLine message="Analyzing transcript..." />
           ) : conv ? (
-            <>
-              <div>
-                <p className="text-[16px] font-semibold text-foreground leading-snug">{conv.headline}</p>
-                <p className="text-[13.5px] text-foreground/70 leading-relaxed mt-2">{conv.narrative}</p>
-              </div>
-
-              {conv.habitTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {conv.habitTags.map((t) => (
-                    <span key={t} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {t.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                {conv.microInsights.map((m, i) => (
-                  <div key={i}>
-                    <p className="text-body-sm text-foreground leading-relaxed">{m.text}</p>
-                    {m.evidenceQuote && (
-                      <p className="mt-1 text-[12px] text-muted-foreground italic">
-                        — "{m.evidenceQuote}"{m.time ? ` [${m.time}]` : ''}
-                      </p>
-                    )}
-                    {m.framework && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{m.framework}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {conv.keyMoments.length > 0 && onJumpToTranscriptLine && (
-                <div className="space-y-2 pt-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                    <Quote className="h-3 w-3" />
-                    Key moments (transcript)
-                  </p>
-                  <ul className="space-y-2">
-                    {conv.keyMoments.map((km, i) => {
-                      const idx = findTranscriptLineIndexForQuote(note.transcript, km.quote);
-                      return (
-                        <li
-                          key={i}
-                          className="flex items-start justify-between gap-2 rounded-md border border-border bg-background/80 p-2"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-medium text-foreground">{km.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">"{km.quote}"</p>
-                            <p className="text-[9px] text-muted-foreground mt-0.5">
-                              {km.speaker} · {km.time}
-                            </p>
-                          </div>
-                          {idx !== undefined && (
-                            <button
-                              type="button"
-                              onClick={() => onJumpToTranscriptLine(idx)}
-                              className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title="Show in transcript"
-                            >
-                              <Crosshair className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </>
+            <CoachingInsightsDisplay
+              insights={conv}
+              showJumpToTranscript={!!onJumpToTranscriptLine}
+              onJumpToTranscriptLine={onJumpToTranscriptLine}
+              transcript={note.transcript}
+            />
           ) : null}
         </div>
       )}

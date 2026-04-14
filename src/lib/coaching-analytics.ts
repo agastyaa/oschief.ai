@@ -42,6 +42,8 @@ export interface ConversationInsights {
   keyMoments: ConversationKeyMoment[]
   generatedAt: string
   model?: string
+  provocativeQuestion?: string
+  strategicChallenge?: string
 }
 
 export interface CoachingMetrics {

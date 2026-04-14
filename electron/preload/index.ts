@@ -587,6 +587,8 @@ const electronAPI = {
       ipcRenderer.invoke('coaching:aggregate-insights', meetings, roleId, model) as Promise<{
         summaryHeadline: string
         themesParagraph: string
+        provocativeQuestion?: string
+        strategicChallenge?: string
         focusNext: string
         recurringTags: string[]
       } | null>,
