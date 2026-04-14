@@ -1,3 +1,4 @@
+import { getSetting } from '../storage/database'
 import { getModelPath } from './manager'
 import { routeLLM } from '../cloud/router'
 import { chatApple } from '../cloud/apple-llm'
@@ -123,6 +124,14 @@ function buildChatSystemMessage(context: any): string {
 }
 
 // ─── Summarize ──────────────────────────────────────────────────────────────
+
+/** Load custom vocabulary from Settings DB for LLM prompt injection */
+function loadVocabulary(): string[] {
+  try {
+    const raw = getSetting('custom-vocabulary') || ''
+    return typeof raw === 'string' ? raw.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []
+  } catch { return [] }
+}
 
 const GENERIC_TITLES = ['this meeting', 'meeting notes', 'untitled', 'untitled meeting']
 
@@ -265,10 +274,12 @@ export async function summarize(
 
   const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
   const template = getTemplate(templateId)
+  const vocabTerms = loadVocabulary()
   const context = buildMeetingContext({
     ...(meetingTitle?.trim() ? { title: meetingTitle.trim() } : {}),
     ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
     ...(attendees?.length ? { attendees } : {}),
+    ...(vocabTerms.length > 0 ? { vocabulary: vocabTerms } : {}),
   })
   if (accountDisplayName?.trim()) {
     context.user = { ...context.user, name: accountDisplayName.trim() }
@@ -423,10 +434,12 @@ export async function summarizeAndExtract(
 
   const templateId = meetingTemplateId || detectMeetingTypeFromContent(transcriptText, personalNotes)
   const template = getTemplate(templateId)
+  const vocabTerms2 = loadVocabulary()
   const context = buildMeetingContext({
     ...(meetingTitle?.trim() ? { title: meetingTitle.trim() } : {}),
     ...(meetingDuration != null && meetingDuration !== '' ? { duration: meetingDuration } : {}),
     ...(attendees?.length ? { attendees } : {}),
+    ...(vocabTerms2.length > 0 ? { vocabulary: vocabTerms2 } : {}),
   })
   if (accountDisplayName?.trim()) {
     context.user = { ...context.user, name: accountDisplayName.trim() }

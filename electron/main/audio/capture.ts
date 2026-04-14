@@ -8,7 +8,7 @@ import {
 import { routeSTT, routeLLM } from '../cloud/router'
 import { sttSystemDarwin } from './stt-system-darwin'
 import { runVAD, ensureVADModel } from './vad'
-import { getSetting } from '../storage/database'
+import { getSetting, getDb } from '../storage/database'
 import { notifyRecordingStateChanged } from '../power-manager'
 import { updateTrayRecordingState } from '../tray'
 import { getThermalState } from '../thermal-monitor'
@@ -225,8 +225,9 @@ function buildWhisperPrompt(title: string, vocabulary: string[]): string {
   parts.push('Speakers may have Indian, British, or other non-American English accents.')
   if (title?.trim()) parts.push(`${title.trim()} meeting.`)
   if (vocabulary.length > 0) {
+    // Use exact spellings as-is so Whisper learns the tokens (e.g. "MyTicket" not "Myticket")
     const terms = vocabulary.slice(0, 35).join(', ')
-    parts.push(`Discussion about ${terms}.`)
+    parts.push(`Key terms (use exact spelling): ${terms}.`)
   }
   const raw = parts.join(' ')
   return raw.length <= WHISPER_PROMPT_MAX_CHARS ? raw : raw.slice(0, WHISPER_PROMPT_MAX_CHARS).trim()
@@ -286,8 +287,23 @@ export async function startRecording(
 
   try {
     const fromSettings = getSetting('custom-vocabulary') || ''
+    const settingsTerms = typeof fromSettings === 'string' ? fromSettings.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []
+
+    // Auto-learn: pull people names and project names into vocabulary
+    let autoTerms: string[] = []
+    try {
+      const db = getDb()
+      const people = db.prepare('SELECT name FROM people ORDER BY last_seen DESC LIMIT 50').all() as { name: string }[]
+      const projects = db.prepare('SELECT name FROM projects ORDER BY updated_at DESC LIMIT 30').all() as { name: string }[]
+      autoTerms = [
+        ...people.map(p => p.name),
+        ...projects.map(p => p.name),
+      ].filter(t => t && t.length > 2)
+    } catch { /* DB not ready */ }
+
     const terms = [
-      ...(typeof fromSettings === 'string' ? fromSettings.split(/[,\n]+/).map(t => t.trim()).filter(Boolean) : []),
+      ...settingsTerms,
+      ...autoTerms,
       ...meetingContextVocabulary,
     ].filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
     sttVocabularyTerms = terms
