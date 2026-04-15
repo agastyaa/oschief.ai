@@ -4,6 +4,22 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.9.0] — 2026-04-15
+
+### Added
+- **STT auto-fallback** — if the Qwen3-ASR engine fails 3 times consecutively during a recording, automatically switches to MLX Whisper so you never lose transcript. Shows "Backup STT" indicator.
+- **STT health indicator** — amber dot in the transcript header shows when the speech engine is restarting or has fallen back to backup. Polls every 10s during recording.
+- **Weekly Digest in sidebar** — the weekly intelligence digest now has its own nav item under Explore, so you don't have to hunt for it.
+
+### Changed
+- **STT never killed during recording** — the 5-minute idle timeout that was killing the speech engine mid-meeting is now disabled while recording is active. Fixes user-reported "qwen stopped on its own."
+- **Sidebar simplified** — removed Ask OSChief (AskBar is on every page) and Routines (low usage). Calendar moved from bottom bar to Explore section. Cleaner navigation with 3 sections instead of 4.
+
+### Fixed
+- **STT failure counter resets per session** — starting a new recording clears the failure counter, so a previous session's crashes don't carry over.
+
+---
+
 ## [2.8.0] — 2026-04-14
 
 ### Added
