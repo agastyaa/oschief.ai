@@ -20,12 +20,16 @@ export async function chatOllama(
         model: modelName,
         messages,
         stream: true,
-        keep_alive: '5m', // Auto-unload model from GPU/RAM after 5 min idle to reduce thermal load
+        keep_alive: '30m', // Keep model loaded 30 min (was 5m — too aggressive, caused cold loads)
       }),
+      signal: AbortSignal.timeout(180_000), // 3 min total timeout (model loading can take 60s+)
     })
   } catch (err: any) {
     if (err?.code === 'ECONNREFUSED' || err?.cause?.code === 'ECONNREFUSED') {
       throw new Error('Cannot reach Ollama at localhost:11434. Start it with `ollama serve` or open the Ollama app.')
+    }
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new Error(`Ollama timed out loading model "${modelName}". The model may be too large for your system, or Ollama is overloaded. Try a smaller model or restart Ollama.`)
     }
     throw new Error(`Ollama connection failed: ${err?.message ?? err}`)
   }

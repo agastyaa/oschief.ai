@@ -21,49 +21,49 @@ type SummarySkeletonProps = {
 /** Loading placeholder while LLM generates meeting summary (shimmer skeleton). */
 export function SummarySkeleton({ message = "Generating summary…", className }: SummarySkeletonProps) {
   return (
-    <div className={cn("space-y-8 py-4", className)}>
+    <div className={cn("space-y-4 py-3", className)}>
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <ShimmerBar className="h-3.5 w-3.5 shrink-0 rounded-sm" />
-          <ShimmerBar className="h-4 w-36" />
+        <div className="flex items-center gap-2 mb-2">
+          <ShimmerBar className="h-3 w-3 shrink-0 rounded-sm" />
+          <ShimmerBar className="h-3.5 w-36" />
         </div>
-        <div className="space-y-2 pl-6">
-          <ShimmerBar className="h-4 w-full" />
-          <ShimmerBar className="h-4 w-4/5" />
-          <ShimmerBar className="h-4 w-3/5" />
+        <div className="space-y-1.5 pl-5">
+          <ShimmerBar className="h-3.5 w-full" />
+          <ShimmerBar className="h-3.5 w-4/5" />
+          <ShimmerBar className="h-3.5 w-3/5" />
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <ShimmerBar className="h-3.5 w-3.5 shrink-0 rounded-sm" />
-          <ShimmerBar className="h-4 w-24" />
+        <div className="flex items-center gap-2 mb-2">
+          <ShimmerBar className="h-3 w-3 shrink-0 rounded-sm" />
+          <ShimmerBar className="h-3.5 w-24" />
         </div>
-        <div className="space-y-2.5 pl-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              <ShimmerBar className="h-1.5 w-1.5 shrink-0 rounded-full" />
-              <ShimmerBar className="h-4" style={{ width: `${70 - i * 10}%` }} />
+        <div className="space-y-1.5 pl-5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-2">
+              <ShimmerBar className="h-1 w-1 shrink-0 rounded-full" />
+              <ShimmerBar className="h-3.5" style={{ width: `${70 - i * 12}%` }} />
             </div>
           ))}
         </div>
       </div>
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <ShimmerBar className="h-3.5 w-3.5 shrink-0 rounded-sm" />
-          <ShimmerBar className="h-4 w-28" />
+        <div className="flex items-center gap-2 mb-2">
+          <ShimmerBar className="h-3 w-3 shrink-0 rounded-sm" />
+          <ShimmerBar className="h-3.5 w-28" />
         </div>
-        <div className="space-y-2.5 pl-6">
+        <div className="space-y-1.5 pl-5">
           {[1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              <ShimmerBar className="h-4 w-4 shrink-0 rounded-full" />
-              <ShimmerBar className="h-4" style={{ width: `${55 - i * 10}%` }} />
+            <div key={i} className="flex items-center gap-2">
+              <ShimmerBar className="h-3.5 w-3.5 shrink-0 rounded-full" />
+              <ShimmerBar className="h-3.5" style={{ width: `${55 - i * 12}%` }} />
             </div>
           ))}
         </div>
       </div>
       <p
         className={cn(
-          "text-xs text-center bg-gradient-to-r from-muted-foreground/50 via-foreground/70 to-muted-foreground/50 bg-[length:200%_100%] bg-clip-text text-transparent animate-shimmer"
+          "text-[11px] text-center bg-gradient-to-r from-muted-foreground/50 via-foreground/70 to-muted-foreground/50 bg-[length:200%_100%] bg-clip-text text-transparent animate-shimmer"
         )}
       >
         {message}
