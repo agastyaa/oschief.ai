@@ -707,7 +707,30 @@ export async function processWithLocalSTT(
     return processWithMLXWhisper8Bit(wavBuffer, customVocabulary, stereoChannel)
   }
   if (modelId === 'qwen3-asr-0.6b') {
-    return processWithQwen3ASR(wavBuffer, customVocabulary, stereoChannel)
+    // Auto-fallback: if Qwen has failed 3+ times consecutively, use Whisper instead
+    if (sttFallbackActive) {
+      console.log('[STT] Fallback active — routing to Whisper instead of Qwen')
+      return processWithMLXWhisper(wavBuffer, customVocabulary, stereoChannel)
+    }
+    try {
+      const result = await processWithQwen3ASR(wavBuffer, customVocabulary, stereoChannel)
+      // Success — reset failure counter
+      if (sttConsecutiveFailures > 0) {
+        console.log(`[STT] Qwen3-ASR recovered after ${sttConsecutiveFailures} failures`)
+        sttConsecutiveFailures = 0
+      }
+      return result
+    } catch (err) {
+      sttConsecutiveFailures++
+      console.warn(`[STT] Qwen3-ASR failure #${sttConsecutiveFailures}: ${(err as Error).message}`)
+      if (sttConsecutiveFailures >= STT_MAX_CONSECUTIVE_FAILURES) {
+        sttFallbackActive = true
+        console.warn(`[STT] ${STT_MAX_CONSECUTIVE_FAILURES} consecutive failures — falling back to Whisper for this session`)
+        // Try Whisper for this chunk
+        return processWithMLXWhisper(wavBuffer, customVocabulary, stereoChannel)
+      }
+      throw err
+    }
   }
   if (modelId === 'parakeet-tdt-0.6b') {
     return processWithParakeet(wavBuffer)
@@ -1814,9 +1837,41 @@ let qwen3IdleTimer: ReturnType<typeof setTimeout> | null = null
 let qwen3Transcribing = false
 let qwen3Buffer = ''
 const qwen3PendingResolvers: Array<{ resolve: (r: STTResult) => void; reject: (err: Error) => void }> = []
-const QWEN3_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle
+const QWEN3_IDLE_TIMEOUT_MS = 300000 // Kill worker after 5 min idle (disabled during active recording)
 const QWEN3_STARTUP_READY_TIMEOUT_MS = 30000 // 30s to get "ready" after spawn
 const QWEN3_HINT = ' Ensure Python 3 and mlx-qwen3-asr are installed (pip3 install mlx-qwen3-asr). First run may take several minutes to download the model.'
+
+// ─── STT Health Monitor ──────────────────────────────────────────────────────
+// Tracks consecutive failures for auto-fallback and exposes health status to renderer.
+
+let sttConsecutiveFailures = 0
+let sttFallbackActive = false
+const STT_MAX_CONSECUTIVE_FAILURES = 3
+const STT_FALLBACK_MODEL = 'mlx-whisper-large-v3-turbo'
+
+export type STTHealthStatus = 'healthy' | 'restarting' | 'fallback'
+
+export function getSTTHealthStatus(): STTHealthStatus {
+  if (sttFallbackActive) return 'fallback'
+  if (sttConsecutiveFailures > 0) return 'restarting'
+  return 'healthy'
+}
+
+export function resetSTTFallback(): void {
+  sttConsecutiveFailures = 0
+  sttFallbackActive = false
+}
+
+/** Whether to suppress idle timeout (true when recording is active). */
+let sttRecordingActive = false
+
+export function setSTTRecordingActive(active: boolean): void {
+  sttRecordingActive = active
+  if (active) {
+    // During recording, cancel any pending idle kill
+    if (qwen3IdleTimer) { clearTimeout(qwen3IdleTimer); qwen3IdleTimer = null }
+  }
+}
 
 const QWEN3_WORKER_SCRIPT = `
 import json, sys, os
@@ -1991,13 +2046,19 @@ function ensureQwen3ASRWorker(): Promise<void> {
 
 function resetQwen3IdleTimer(): void {
   if (qwen3IdleTimer) clearTimeout(qwen3IdleTimer)
+  // Never kill the worker during active recording
+  if (sttRecordingActive) return
   qwen3IdleTimer = setTimeout(() => {
+    if (sttRecordingActive) {
+      console.log('[Qwen3-ASR] Idle timer fired but recording active — skipping kill')
+      return
+    }
     if (qwen3Transcribing) {
       console.log('[Qwen3-ASR] Idle timer fired but transcription in progress — skipping kill')
       resetQwen3IdleTimer()
       return
     }
-    console.log('[Qwen3-ASR] Killing idle worker after 5 min')
+    console.log('[Qwen3-ASR] Killing idle worker after 5 min (no active recording)')
     killQwen3ASRWorker()
   }, QWEN3_IDLE_TIMEOUT_MS)
 }

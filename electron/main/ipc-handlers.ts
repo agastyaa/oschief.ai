@@ -372,6 +372,10 @@ export function registerIPCHandlers(): void {
   ipcMain.handle('recording:start', async (_e, options: any) => {
     const sender = _e.sender
     updateTrayRecordingState(true)
+    // Tell STT engine recording is active (prevents idle timeout kills)
+    const { setSTTRecordingActive, resetSTTFallback } = await import('./models/stt-engine')
+    setSTTRecordingActive(true)
+    resetSTTFallback() // Reset fallback state for new recording session
     return startRecording(
       options,
       (chunk) => { sender.send('recording:transcript-chunk', chunk) },
@@ -379,8 +383,17 @@ export function registerIPCHandlers(): void {
       (corrected) => { sender.send('recording:transcript-corrected', corrected) }
     )
   })
-  ipcMain.handle('recording:stop', async () => { updateTrayRecordingState(false); return stopRecording() })
+  ipcMain.handle('recording:stop', async () => {
+    updateTrayRecordingState(false)
+    const { setSTTRecordingActive } = await import('./models/stt-engine')
+    setSTTRecordingActive(false)
+    return stopRecording()
+  })
   ipcMain.handle('recording:set-mic-only-mode', (_e, micOnly: boolean) => { setMicOnlyMode(micOnly); return true })
+  ipcMain.handle('recording:stt-health', async () => {
+    const { getSTTHealthStatus } = await import('./models/stt-engine')
+    return getSTTHealthStatus()
+  })
   ipcMain.handle('recording:pause', () => { pauseRecording(); updateTrayRecordingState(false); return true })
   ipcMain.handle('recording:resume', (_e, options?: { sttModel?: string }) => { resumeRecording(options); updateTrayRecordingState(true); return true })
   ipcMain.handle('recording:audio-chunk', async (_e, pcmData: any, channel?: number) => {
