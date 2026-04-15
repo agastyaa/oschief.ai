@@ -7,16 +7,21 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 ## [2.9.0] — 2026-04-15
 
 ### Added
-- **STT auto-fallback** — if the Qwen3-ASR engine fails 3 times consecutively during a recording, automatically switches to MLX Whisper so you never lose transcript. Shows "Backup STT" indicator.
-- **STT health indicator** — amber dot in the transcript header shows when the speech engine is restarting or has fallen back to backup. Polls every 10s during recording.
-- **Weekly Digest in sidebar** — the weekly intelligence digest now has its own nav item under Explore, so you don't have to hunt for it.
+- **STT auto-fallback** — if the speech engine fails 3 times during a recording, automatically switches to MLX Whisper so you never lose transcript.
+- **STT health indicator** — amber dot in the transcript header when the speech engine is restarting or running on backup.
+- **Acoustic echo cancellation** — when on speaker (not headphones), the mic no longer picks up what the other person says through the speakers. Uses speexdsp to subtract speaker echo before transcription. Install with `pip3 install speexdsp`.
+- **Weekly Digest in sidebar** — now has its own nav item under Explore.
 
 ### Changed
-- **STT never killed during recording** — the 5-minute idle timeout that was killing the speech engine mid-meeting is now disabled while recording is active. Fixes user-reported "qwen stopped on its own."
-- **Sidebar simplified** — removed Ask OSChief (AskBar is on every page) and Routines (low usage). Calendar moved from bottom bar to Explore section. Cleaner navigation with 3 sections instead of 4.
+- **STT never killed during recording** — idle timeout disabled while recording is active. Fixes "qwen stopped on its own."
+- **Ollama model stays loaded 30 minutes** — was 5 minutes, causing slow cold loads every time you generated a summary. Also adds a 3-minute timeout so the UI shows an error instead of hanging.
+- **Sidebar cleaned up** — removed Routines (low usage). Calendar and Ask OSChief moved to Explore section. Sidebar header wraps gracefully when narrow.
+- **Summary skeleton tighter** — loading placeholder is denser with less whitespace.
 
 ### Fixed
-- **STT failure counter resets per session** — starting a new recording clears the failure counter, so a previous session's crashes don't carry over.
+- **Meeting detection for Teams/Discord/Slack** — was checking generic system audio, so background music kept meetings "alive" forever. Now checks if the specific app has audio handles open.
+- **Meeting titles falling back to "Meeting Notes"** — added two more fallbacks: first topic title from summary, then calendar event title.
+- **Privacy indicator stayed amber for local models** — Ollama and MLX models now correctly show green "Local" indicator.
 
 ---
 
