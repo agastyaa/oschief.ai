@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  FileText, Settings, Home, PanelLeftClose, PanelLeft, ArrowLeft,
+  FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
   BarChart3, CheckCircle2, Contact, FolderKanban, Calendar, BookOpen,
   Search, Plus, Gavel, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
@@ -341,6 +341,7 @@ export function Sidebar() {
         {/* EXPLORE */}
         <nav className="flex flex-col gap-0.5 px-3 mt-1">
           <SectionLabel label="Explore" />
+          <NavItem icon={Sparkles} label="Ask OSChief" to="/ask" />
           <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
           <NavItem icon={Calendar} label="Calendar" to="/calendar" />
           <NavItem icon={BookOpen} label="Weekly Digest" to="/digest" />
