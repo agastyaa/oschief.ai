@@ -791,6 +791,18 @@ export function parsedToMeetingSummary(
   /** Used to clear assignees that mean the note-taker (Me/You/user name). */
   userDisplayName?: string,
 ): MeetingSummary {
+  // Auto-recover title from parsed content if still generic
+  if (title === 'Meeting Notes') {
+    const src = parsed.tldr || ''
+    if (src.length > 10) {
+      const firstClause = src.split(/[;.!?,]/).filter(Boolean)[0]?.trim()
+      if (firstClause && firstClause.length > 5 && firstClause.length <= 60) title = firstClause
+    }
+    if (title === 'Meeting Notes' && parsed.topics.length > 0) {
+      const t = parsed.topics[0].title.trim()
+      if (t.length > 3 && t.length <= 60) title = t
+    }
+  }
   const norm = (a: string) => normalizeActionAssignee(a, userDisplayName)
   const actionItems = parsed.actionItems.map(a => ({
     text: a.text,
