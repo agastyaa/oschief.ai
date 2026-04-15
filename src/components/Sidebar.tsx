@@ -185,9 +185,9 @@ export function Sidebar() {
         />
       )}
 
-      {/* Workspace Header — Logo + Status */}
+      {/* Workspace Header — Logo + Status (wraps when sidebar is narrow) */}
       <div
-        className={cn("flex items-center justify-between pb-2 px-4", isElectron ? "pt-11" : "pt-4")}
+        className={cn("flex flex-wrap items-center justify-between gap-1 pb-2 px-4", isElectron ? "pt-11" : "pt-4")}
         style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
       >
         <div className="flex items-center gap-2">
