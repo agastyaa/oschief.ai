@@ -110,7 +110,15 @@ NEVER HALLUCINATE
 OUTPUT FORMAT
 
 **[Meeting Title]** — [Date]
-IMPORTANT: ALWAYS generate a specific, descriptive title (3-8 words) from the main topic discussed. NEVER use "Meeting Notes", "This Meeting", or "Untitled". Examples: "Payment Fraud Detection Review", "Q2 Roadmap Planning", "Compliance Process Redesign".
+CRITICAL TITLE RULES — treat every rule as hard:
+- 3-6 words. Not 7+, not a sentence. Title, not summary.
+- Noun-phrase or action-phrase, NOT a full sentence. Write like a news headline.
+- Do NOT start with "Team", "Meeting", "Discussion", "Call", "Session" — these are filler.
+- Do NOT restate the TL;DR. Title = subject, TL;DR = outcome.
+- Capitalize each major word (Title Case).
+- GOOD: "Payment Fraud Detection Review", "Q2 Roadmap Planning", "Compliance Process Redesign", "Mi-Ticket QR Flow", "2027 Roadmap Friction Areas"
+- BAD: "Team aligned on top 5 friction areas for 2027 roadmap" (sentence, too long, starts with "Team")
+- BAD: "Meeting Notes", "This Meeting", "Untitled", "Discussion of X" (filler words)
 
 **TL;DR:** [One line.]
 
@@ -791,16 +799,36 @@ export function parsedToMeetingSummary(
   /** Used to clear assignees that mean the note-taker (Me/You/user name). */
   userDisplayName?: string,
 ): MeetingSummary {
+  // Reject sentence-like titles passed in (e.g., LLM put a full TL;DR in the **Title** slot)
+  const looksLikeSentence = (t: string): boolean => {
+    const x = t.trim()
+    if (x.length > 55) return true
+    const words = x.split(/\s+/).length
+    if (words > 7) return true
+    const lower = x.toLowerCase()
+    if (/^(team|meeting|discussion|call|session|we |the |this |that |our |it )/i.test(lower)) return true
+    if (/[.?!]$/.test(x)) return true
+    return false
+  }
+  if (title !== 'Meeting Notes' && looksLikeSentence(title)) {
+    title = 'Meeting Notes' // trigger fallback chain below
+  }
+
   // Auto-recover title from parsed content if still generic
   if (title === 'Meeting Notes') {
     const deriveTitleFrom = (text: string): string | null => {
       if (!text || text.length < 5) return null
-      const firstClause = text.split(/[;.!?,\n]/).filter(Boolean)[0]?.trim()
+      // Try to extract a noun-phrase-y chunk (before 'aligned on', 'discussed', 'reviewed', etc.)
+      const cleaned = text.replace(/\b(aligned on|discussed|reviewed|talked about|covered)\s+/gi, '').trim()
+      const firstClause = cleaned.split(/[;.!?,\n]/).filter(Boolean)[0]?.trim()
       if (!firstClause) return null
-      if (firstClause.length >= 5 && firstClause.length <= 60) return firstClause
-      if (firstClause.length > 60) {
-        const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, '').trim()
-        if (truncated.length >= 5) return truncated
+      // Take first 4-6 words max
+      const words = firstClause.split(/\s+/).slice(0, 6).join(' ')
+      if (words.length < 5) return null
+      if (words.length <= 55 && !looksLikeSentence(words)) return words
+      if (words.length > 55) {
+        const truncated = words.slice(0, 50).replace(/\s+\S*$/, '').trim()
+        if (truncated.length >= 5 && !looksLikeSentence(truncated)) return truncated
       }
       return null
     }
