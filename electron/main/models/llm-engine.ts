@@ -364,6 +364,17 @@ export async function summarize(
       }
     }
   }
+  // Still generic? Try first topic title (most specific signal available)
+  if (title === 'Meeting Notes' && parsed.topics.length > 0) {
+    const firstTopic = parsed.topics[0].title.trim()
+    if (firstTopic.length > 3 && firstTopic.length <= 60) {
+      title = firstTopic
+    }
+  }
+  // Still generic? Try calendar event title if provided
+  if (title === 'Meeting Notes' && ctx.title && ctx.title !== 'Untitled' && ctx.title !== 'New note') {
+    title = ctx.title
+  }
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
 

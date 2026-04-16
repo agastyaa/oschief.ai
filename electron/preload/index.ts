@@ -111,6 +111,7 @@ const electronAPI = {
     pause: () => ipcRenderer.invoke('recording:pause'),
     resume: (options?: { sttModel?: string }) => ipcRenderer.invoke('recording:resume', options),
     setMicOnlyMode: (micOnly: boolean) => ipcRenderer.invoke('recording:set-mic-only-mode', micOnly),
+    getSTTHealth: () => ipcRenderer.invoke('recording:stt-health') as Promise<'healthy' | 'restarting' | 'fallback'>,
     sendAudioChunk: (pcmData: Float32Array, channel?: number) =>
       ipcRenderer.invoke('recording:audio-chunk', pcmData, channel ?? 0),
     onTranscriptChunk: (callback: (chunk: TranscriptChunk) => void) => {

@@ -263,6 +263,8 @@ export async function startRecording(
   recentEmittedTexts.length = 0
   audioBuffers[0].length = 0
   audioBuffers[1].length = 0
+  // Start echo cancellation worker (non-blocking — falls back gracefully if speexdsp not installed)
+  import('./echo-cancel').then(({ startAECWorker }) => startAECWorker()).catch(() => {})
   chunkRetryCount[0] = 0
   chunkRetryCount[1] = 0
   totalPausedMs = 0
@@ -377,6 +379,8 @@ export async function stopRecording(): Promise<{ duration: number } | null> {
   isPaused = false
   autoPaused = false
   notifyRecordingStateChanged()
+  // Stop echo cancellation worker
+  import('./echo-cancel').then(({ stopAECWorker }) => stopAECWorker()).catch(() => {})
 
   if (chunkTimer) {
     clearInterval(chunkTimer)
@@ -713,6 +717,27 @@ async function processBufferedAudio(): Promise<void> {
         } catch (err: any) {
           console.warn('[capture] Diarization failed, using "You":', err?.message || err)
         }
+      }
+
+      // Echo cancellation: clean mic audio using system audio as reference (speaker mode)
+      if (channel === 0 && !micOnlyMode) {
+        try {
+          const { cancelEcho, isAECAvailable } = await import('./echo-cancel')
+          if (isAECAvailable()) {
+            // Get recent system audio as reference signal
+            const refChunks = audioBuffers[1].slice(-Math.ceil(speechAudio.length / (SAMPLE_RATE * 0.5)))
+            if (refChunks.length > 0) {
+              const refTotal = refChunks.reduce((s, c) => s + c.length, 0)
+              const refAudio = new Float32Array(refTotal)
+              let off = 0
+              for (const c of refChunks) { refAudio.set(c, off); off += c.length }
+              const cleaned = await cancelEcho(speechAudio, refAudio)
+              if (cleaned.length > 0) {
+                speechAudio = cleaned
+              }
+            }
+          }
+        } catch { /* AEC not available, passthrough */ }
       }
 
       const wavBuffer = pcmToWav(speechAudio, SAMPLE_RATE)

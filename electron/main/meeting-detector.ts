@@ -175,8 +175,10 @@ async function checkForMeetings(): Promise<void> {
     // For always-running apps (Teams, Discord, Slack), require audio activity to distinguish
     // "app installed" from "in a call". Without this, detection fires on app launch and never again.
     if (matchedApp && matchedAlwaysRunning) {
-      const micActive = await checkMicActive()
-      if (!micActive) {
+      // For always-running apps, check if THAT SPECIFIC APP has audio handles open,
+      // not generic system audio (music/YouTube would keep the meeting alive forever)
+      const appAudioActive = await checkAppAudioActive(matchedApp)
+      if (!appAudioActive) {
         // App is running but no audio activity this poll
         if (!activeMeetingApp) {
           // Not in a meeting yet — don't start one
@@ -293,6 +295,38 @@ async function checkMicActive(): Promise<boolean> {
   // Last resort: generic audio device check
   const generic = await execAsync('lsof +D /dev/ 2>/dev/null | grep -ci audio', 1000)
   return parseInt(generic.trim()) > 0
+}
+
+/**
+ * Check if a specific meeting app has active audio handles.
+ * Unlike checkMicActive() which checks generic system audio,
+ * this only returns true if the NAMED APP is using audio.
+ * Prevents false positives from background music/YouTube keeping
+ * always-running apps (Teams, Discord, Slack) in "meeting" state.
+ */
+async function checkAppAudioActive(appName: string): Promise<boolean> {
+  // Map app display names to lsof process patterns
+  const processPatterns: Record<string, string> = {
+    'Microsoft Teams': 'Teams',
+    'Discord': 'Discord',
+    'Slack Huddle': 'Slack',
+  }
+  const pattern = processPatterns[appName]
+  if (!pattern) {
+    // Unknown app — fall back to generic mic check
+    return checkMicActive()
+  }
+
+  try {
+    // Check if the specific app has open audio device handles
+    const result = await execAsync(
+      `lsof -c "${pattern}" 2>/dev/null | grep -ci "audio\\|coreaudio"`,
+      2000
+    )
+    return parseInt(result.trim()) > 0
+  } catch {
+    return false
+  }
 }
 
 export function getActiveMeeting(): { app: string; startTime: number } | null {

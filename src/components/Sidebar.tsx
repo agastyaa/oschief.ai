@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   FileText, Settings, Sparkles, Home, PanelLeftClose, PanelLeft, ArrowLeft,
-  BarChart3, CheckCircle2, Contact, FolderKanban, Repeat, Calendar,
+  BarChart3, CheckCircle2, Contact, FolderKanban, Calendar, BookOpen,
   Search, Plus, Gavel, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
 import { OSChiefLogo } from "@/components/OSChiefLogo";
@@ -185,9 +185,9 @@ export function Sidebar() {
         />
       )}
 
-      {/* Workspace Header — Logo + Status */}
+      {/* Workspace Header — Logo + Status (wraps when sidebar is narrow) */}
       <div
-        className={cn("flex items-center justify-between pb-2 px-4", isElectron ? "pt-11" : "pt-4")}
+        className={cn("flex flex-wrap items-center justify-between gap-1 pb-2 px-4", isElectron ? "pt-11" : "pt-4")}
         style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
       >
         <div className="flex items-center gap-2">
@@ -338,19 +338,19 @@ export function Sidebar() {
           <NavItem icon={Gavel} label="Decisions" to="/decisions" />
         </nav>
 
-        {/* INTELLIGENCE */}
+        {/* EXPLORE */}
         <nav className="flex flex-col gap-0.5 px-3 mt-1">
-          <SectionLabel label="Intelligence" />
+          <SectionLabel label="Explore" />
           <NavItem icon={Sparkles} label="Ask OSChief" to="/ask" />
           <NavItem icon={BarChart3} label="Coaching" to="/coaching" />
+          <NavItem icon={Calendar} label="Calendar" to="/calendar" />
+          <NavItem icon={BookOpen} label="Weekly Digest" to="/digest" />
         </nav>
       </div>
 
-      {/* Bottom — Calendar, Routines, Settings */}
+      {/* Bottom — Settings only */}
       <div className="flex flex-col gap-0.5 px-3 pb-2 flex-shrink-0">
         <div className="h-px bg-border mx-2 mb-1" />
-        <NavItem icon={Calendar} label="Calendar" to="/calendar" />
-        <NavItem icon={Repeat} label="Routines" to="/routines" />
         <NavItem icon={Settings} label="Settings" to="/settings" />
       </div>
 

@@ -110,6 +110,7 @@ type ElectronAPI = {
     pause: () => Promise<boolean>
     resume: (options?: { sttModel?: string }) => Promise<boolean>
     sendAudioChunk: (pcmData: Float32Array, channel?: number) => Promise<boolean>
+    getSTTHealth?: () => Promise<'healthy' | 'restarting' | 'fallback'>
     onTranscriptChunk: (callback: (chunk: TranscriptChunk) => void) => () => void
     onRecordingStatus: (callback: (status: { state: string; error?: string }) => void) => () => void
     onCorrectedTranscript?: (callback: (chunk: TranscriptChunk & { originalText: string }) => void) => () => void

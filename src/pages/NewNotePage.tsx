@@ -166,6 +166,17 @@ export default function NewNotePage() {
     return "recording";
   });
   const [transcriptVisible, setTranscriptVisible] = useState(isElectron);
+  const [sttHealth, setSTTHealth] = useState<'healthy' | 'restarting' | 'fallback'>('healthy');
+  // Poll STT health every 10s during recording
+  useEffect(() => {
+    if (recordingState !== 'recording') return;
+    const api = getElectronAPI();
+    if (!api?.recording?.getSTTHealth) return;
+    const poll = setInterval(() => {
+      api.recording.getSTTHealth().then(setSTTHealth).catch(() => {});
+    }, 10000);
+    return () => clearInterval(poll);
+  }, [recordingState]);
   const { width: transcriptWidth, startResize: startTranscriptResize } = useResizablePanel({ storageKey: "syag_transcript_width" });
   const [personalNotes, setPersonalNotes] = useState("");
   const [visibleLines, setVisibleLines] = useState(2);
@@ -1463,8 +1474,17 @@ export default function NewNotePage() {
                             <Pause className="h-2.5 w-2.5" />
                           </span>
                         )}
-                        {false && activeSTTLabel && (
-                          <span className="text-[10px] text-muted-foreground/60">{activeSTTLabel}</span>
+                        {recordingState === "recording" && sttHealth && sttHealth !== 'healthy' && (
+                          <span className={cn(
+                            "flex items-center gap-1 text-[10px]",
+                            sttHealth === 'fallback' ? "text-amber" : "text-muted-foreground"
+                          )}>
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              sttHealth === 'fallback' ? "bg-amber" : "bg-amber animate-pulse"
+                            )} />
+                            {sttHealth === 'fallback' ? "Backup STT" : "Restarting..."}
+                          </span>
                         )}
                       </>
                     )}
