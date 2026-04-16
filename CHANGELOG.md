@@ -4,6 +4,17 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.9.1] — 2026-04-16
+
+### Added
+- **Auto-derived meeting titles during recording** — after 2 minutes of speech, the title auto-fills from the transcript so you see a meaningful name immediately, not "Meeting notes." Post-summary, the final title replaces it if still generic. User edits always win.
+
+### Fixed
+- **Window dragging from the top bar** — the title bar area is fully draggable again. Previous release inadvertently made the whole header region non-draggable; now only the interactive buttons (sidebar toggle, actions, privacy/sync indicators) opt out of drag.
+- **Meeting titles stuck as "Meeting notes"** — title extraction now tries 6 fallbacks in order: LLM response → TL;DR → first topic → first bullet → first action item → first decision → date-based title. Also backfills existing meetings on app launch that have content but generic titles.
+
+---
+
 ## [2.9.0] — 2026-04-15
 
 ### Added

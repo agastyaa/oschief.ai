@@ -22,6 +22,7 @@ import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { toast } from "sonner";
 import type { SummaryData } from "@/components/EditableSummary";
 import { groupTranscriptBySpeaker, getSpeakerColor, getSpeakerDisplayLabel } from "@/lib/transcript-utils";
+import { deriveTitleFromTranscript, isGenericTitle as isGenericTitleFn } from "@/lib/title-derivation";
 import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppVisibility } from "@/hooks/useAppVisibility";
@@ -506,6 +507,27 @@ export default function NewNotePage() {
   useEffect(() => { transcriptRef.current = transcriptLines; }, [transcriptLines]);
   useEffect(() => { meetingTemplateRef.current = meetingTemplate; }, [meetingTemplate]);
 
+  // Auto-derive working title from transcript after ~2 min of recording.
+  // Never overwrites a user-edited title. Post-summary, the final title will replace
+  // this working title if the current one is still generic.
+  useEffect(() => {
+    if (recordingState !== "recording") return;
+    if (userHasEditedTitleRef.current) return;
+    if (elapsedSeconds < 120) return; // Wait 2 min for enough content
+    if (!isGenericTitleFn(title)) return; // User or prior derivation set a real title
+    if (transcriptLines.length < 3) return; // Need substantive content
+
+    const derived = deriveTitleFromTranscript(transcriptLines);
+    if (derived && derived !== title) {
+      setTitle(derived);
+      if (noteId) {
+        updateNote(noteId, { title: derived });
+      }
+    }
+    // Re-run every time elapsedSeconds crosses a 60s boundary during recording
+  }, [recordingState, Math.floor(elapsedSeconds / 60), transcriptLines.length, title, noteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
   // Check if KB folder is configured on mount
   useEffect(() => {
     api?.db.settings.get("kb-folder-path").then((p) => { kbHasFolder.current = !!p; });
@@ -672,10 +694,12 @@ export default function NewNotePage() {
       return;
     }
 
-    const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
-    const isGenericTitle = (t: string) => genericTitles.includes((t || "").toLowerCase());
     setSummary(readySummary);
-    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitle(readySummary.title)) {
+    // Post-summary, upgrade the title if:
+    // 1. User hasn't manually edited it, AND
+    // 2. Summary produced a non-generic title, AND
+    // 3. Current title is still generic (including auto-derived working titles and date-based fallbacks)
+    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitleFn(readySummary.title)) {
       setTitle(readySummary.title);
       updateNote(noteId, { title: readySummary.title });
     }
