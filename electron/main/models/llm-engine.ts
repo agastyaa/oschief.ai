@@ -135,6 +135,64 @@ function loadVocabulary(): string[] {
 
 const GENERIC_TITLES = ['this meeting', 'meeting notes', 'untitled', 'untitled meeting']
 
+/** Filler words that signal a sentence, not a title. A title starting with these is bad. */
+const FILLER_PREFIXES = ['team', 'meeting', 'discussion', 'call', 'session', 'the', 'a ', 'an ', 'we ', 'this ', 'that ', 'it ', 'our ']
+
+/**
+ * Returns true if the text looks like a sentence rather than a punchy title.
+ * Sentence signals: too long, too many words, starts with filler, ends with period.
+ */
+function isSentenceLike(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return true
+  if (trimmed.length > 60) return true
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount > 7) return true
+  const lower = trimmed.toLowerCase()
+  for (const prefix of FILLER_PREFIXES) {
+    if (lower.startsWith(prefix)) return true
+  }
+  // Ends with period, question, exclamation — that's a sentence
+  if (/[.?!]$/.test(trimmed)) return true
+  return false
+}
+
+/**
+ * Generate a proper title via a dedicated LLM call when extraction yields nothing or
+ * produces a sentence-like title. Keeps it short (3-6 words, Title Case).
+ */
+async function generateTitleFromContent(
+  tldr: string,
+  topics: Array<{ title: string }>,
+  model: string,
+): Promise<string | null> {
+  // Assemble source content — prioritize topic titles since they're already short
+  const topicTitles = topics.slice(0, 3).map((t) => t.title).filter(Boolean).join(', ')
+  const source = tldr ? `Summary: ${tldr}` : topicTitles ? `Topics: ${topicTitles}` : ''
+  if (!source) return null
+
+  const prompt = `Write a 3-6 word meeting title for this content. Title Case. Noun-phrase only, no sentences, no filler words like "Team", "Meeting", "Discussion". Think news headline, not sentence.
+
+${source}
+
+Output ONLY the title, nothing else. No quotes, no period, no explanation.`
+
+  try {
+    const response = await routeLLM(
+      [{ role: 'user', content: prompt }],
+      model,
+    )
+    const cleaned = response.trim().replace(/^["'`]+|["'`]+$/g, '').replace(/\.$/, '').trim()
+    if (!cleaned || cleaned.length < 3 || cleaned.length > 60) return null
+    if (GENERIC_TITLES.includes(cleaned.toLowerCase())) return null
+    if (isSentenceLike(cleaned)) return null
+    return cleaned
+  } catch (err) {
+    console.warn('[LLM] Title regeneration failed:', err)
+    return null
+  }
+}
+
 /** Granola-style: extract meeting title from LLM response. Template format: **Title** — Date */
 function extractTitleFromResponse(response: string): string {
   const trimmed = response.trim()
@@ -349,32 +407,36 @@ export async function summarize(
   const finalResponse = anonMap ? deanonymize(response, anonMap) : response
   const parsed = parseEnhancedNotes(finalResponse)
   let title = extractTitleFromResponse(finalResponse)
-  // If title extraction fell back to generic "Meeting Notes", try deriving from parsed fields
+
+  // Reject sentence-like titles (LLM sometimes produces full sentences instead of titles)
+  // e.g. "Team aligned on top 5 friction areas for 2027 roadmap" — that's a TL;DR, not a title
+  if (title !== 'Meeting Notes' && isSentenceLike(title)) {
+    console.log(`[LLM] Rejecting sentence-like title: "${title}"`)
+    title = 'Meeting Notes'
+  }
+
+  // If title is generic or rejected, try LLM-generated title (one cheap call)
   if (title === 'Meeting Notes') {
-    // Try overview first (usually more descriptive than TL;DR)
-    const overviewSrc = parsed.overview || parsed.tldr || ''
-    if (overviewSrc.length > 10) {
-      const firstClause = overviewSrc.split(/[;.!?,]/).filter(Boolean)[0]?.trim()
-      if (firstClause && firstClause.length > 5 && firstClause.length <= 60) {
-        title = firstClause
-      } else if (firstClause && firstClause.length > 60) {
-        // Truncate at word boundary
-        const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, '')
-        if (truncated.length > 5) title = truncated
-      }
+    const regenerated = await generateTitleFromContent(parsed.tldr || parsed.overview || '', parsed.topics, model)
+    if (regenerated) {
+      console.log(`[LLM] Regenerated title: "${regenerated}"`)
+      title = regenerated
     }
   }
+
   // Still generic? Try first topic title (most specific signal available)
   if (title === 'Meeting Notes' && parsed.topics.length > 0) {
     const firstTopic = parsed.topics[0].title.trim()
-    if (firstTopic.length > 3 && firstTopic.length <= 60) {
+    if (firstTopic.length > 3 && firstTopic.length <= 60 && !isSentenceLike(firstTopic)) {
       title = firstTopic
     }
   }
+
   // Still generic? Try calendar event title if provided
   if (title === 'Meeting Notes' && ctx.title && ctx.title !== 'Untitled' && ctx.title !== 'New note') {
     title = ctx.title
   }
+
   return parsedToMeetingSummary(parsed, title, template.id, assigneeNormName)
 }
 

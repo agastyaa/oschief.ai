@@ -4,6 +4,13 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.9.2] — 2026-04-16
+
+### Fixed
+- **Titles are titles now, not sentences** — v2.9.1 was producing titles like "Team aligned on top 5 friction areas for 2027 roadmap" (that's a sentence, not a title). Now: 3-6 words, noun-phrase, no filler prefixes like "Team", "Meeting", "Discussion". Sentence-like titles get rejected and a fresh title is generated via a dedicated LLM call. Strengthened the prompt with explicit title rules and examples.
+
+---
+
 ## [2.9.1] — 2026-04-16
 
 ### Added
