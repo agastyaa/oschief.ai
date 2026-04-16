@@ -80,23 +80,65 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     if (api) {
       api.db.notes.getAll().then((dbNotes) => {
         setNotes(dbNotes);
-        // Backfill: derive titles for notes stuck as "Meeting notes" that have summary content
-        const genericTitles = ["meeting notes", "this meeting", "untitled", "untitled meeting"];
+        // Backfill: derive titles for notes stuck with generic titles.
+        // Tries summary.overview → summary.tldr → first summary keyPoint → transcript.
+        // Runs on app launch for existing notes that shipped before the title fix.
+        const isGeneric = (t: string) => {
+          const n = (t || "").toLowerCase().trim();
+          if (!n) return true;
+          if (["meeting notes", "this meeting", "untitled", "untitled meeting", "new note"].includes(n)) return true;
+          // Auto-generated date-based titles like "Meeting — Apr 15, 10:30 AM"
+          if (/^meeting\s*[—-]\s*\w{3}\s+\d{1,2}/i.test(n)) return true;
+          return false;
+        };
+
+        const deriveFromText = (text: string): string | null => {
+          if (!text || text.length < 10) return null;
+          const firstClause = text.split(/[;.!?,\n]/).filter((c) => c.trim().length > 0)[0]?.trim();
+          if (!firstClause || firstClause.length < 5) return null;
+          if (firstClause.length <= 60) return firstClause;
+          const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, "").trim();
+          return truncated.length >= 5 ? truncated : null;
+        };
+
+        const updates: Array<{ id: string; title: string }> = [];
         for (const note of dbNotes) {
-          if (!genericTitles.includes((note.title || "").toLowerCase().trim())) continue;
-          const src = note.summary?.overview || note.summary?.tldr || "";
-          if (src.length <= 10) continue;
-          const firstClause = src.split(/[;.!?,]/).filter(Boolean)[0]?.trim();
-          if (!firstClause || firstClause.length <= 5) continue;
-          const newTitle = firstClause.length > 50
-            ? firstClause.slice(0, 50).replace(/\s+\S*$/, "")
-            : firstClause;
-          if (newTitle && newTitle.length > 5) {
-            api.db.notes.update(note.id, { title: newTitle }).catch(() => {});
+          if (!isGeneric(note.title || "")) continue;
+
+          // Try multiple sources in order
+          let derived: string | null = null;
+
+          // 1. Summary overview / tldr
+          derived = deriveFromText(note.summary?.overview || note.summary?.tldr || "");
+
+          // 2. First summary keyPoint
+          if (!derived && note.summary?.keyPoints?.length) {
+            const kp = note.summary.keyPoints[0];
+            derived = deriveFromText(typeof kp === "string" ? kp : "");
           }
+
+          // 3. First summary action item
+          if (!derived && note.summary?.actionItems?.length) {
+            derived = deriveFromText(note.summary.actionItems[0]?.text || "");
+          }
+
+          // 4. First transcript line (last resort)
+          if (!derived && note.transcript && note.transcript.length > 0) {
+            const transcriptText = note.transcript.slice(0, 5).map((t: any) => t.text).join(" ");
+            derived = deriveFromText(transcriptText);
+          }
+
+          if (derived) updates.push({ id: note.id, title: derived });
         }
-        // Re-fetch to reflect updated titles
-        api.db.notes.getAll().then((refreshed) => setNotes(refreshed));
+
+        if (updates.length > 0) {
+          console.log(`[NotesContext] Backfilling ${updates.length} meeting titles`);
+          Promise.all(
+            updates.map((u) => api.db.notes.update(u.id, { title: u.title }).catch(() => {})),
+          ).then(() => {
+            api.db.notes.getAll().then((refreshed) => setNotes(refreshed));
+          });
+        }
       });
     }
   }, []);

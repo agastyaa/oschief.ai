@@ -793,14 +793,54 @@ export function parsedToMeetingSummary(
 ): MeetingSummary {
   // Auto-recover title from parsed content if still generic
   if (title === 'Meeting Notes') {
-    const src = parsed.tldr || ''
-    if (src.length > 10) {
-      const firstClause = src.split(/[;.!?,]/).filter(Boolean)[0]?.trim()
-      if (firstClause && firstClause.length > 5 && firstClause.length <= 60) title = firstClause
+    const deriveTitleFrom = (text: string): string | null => {
+      if (!text || text.length < 5) return null
+      const firstClause = text.split(/[;.!?,\n]/).filter(Boolean)[0]?.trim()
+      if (!firstClause) return null
+      if (firstClause.length >= 5 && firstClause.length <= 60) return firstClause
+      if (firstClause.length > 60) {
+        const truncated = firstClause.slice(0, 50).replace(/\s+\S*$/, '').trim()
+        if (truncated.length >= 5) return truncated
+      }
+      return null
     }
+
+    // 1. Try TL;DR
+    const fromTldr = deriveTitleFrom(parsed.tldr || '')
+    if (fromTldr) title = fromTldr
+
+    // 2. Try first topic title
     if (title === 'Meeting Notes' && parsed.topics.length > 0) {
       const t = parsed.topics[0].title.trim()
       if (t.length > 3 && t.length <= 60) title = t
+    }
+
+    // 3. Try first topic's first bullet
+    if (title === 'Meeting Notes' && parsed.topics.length > 0 && parsed.topics[0].bullets.length > 0) {
+      const bullet = parsed.topics[0].bullets[0]
+      const bulletText = typeof bullet === 'string' ? bullet : bullet.text
+      const fromBullet = deriveTitleFrom(bulletText)
+      if (fromBullet) title = fromBullet
+    }
+
+    // 4. Try first action item text (usually very specific)
+    if (title === 'Meeting Notes' && parsed.actionItems.length > 0) {
+      const fromAction = deriveTitleFrom(parsed.actionItems[0].text)
+      if (fromAction) title = fromAction
+    }
+
+    // 5. Try first decision
+    if (title === 'Meeting Notes' && parsed.decisions.length > 0) {
+      const fromDecision = deriveTitleFrom(parsed.decisions[0])
+      if (fromDecision) title = fromDecision
+    }
+
+    // 6. Last resort: use date-based title instead of "Meeting Notes"
+    if (title === 'Meeting Notes') {
+      const now = new Date()
+      const dateStr = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      const timeStr = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      title = `Meeting — ${dateStr}, ${timeStr}`
     }
   }
   const norm = (a: string) => normalizeActionAssignee(a, userDisplayName)

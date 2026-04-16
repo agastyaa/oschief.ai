@@ -185,15 +185,19 @@ export function Sidebar() {
         />
       )}
 
-      {/* Workspace Header — Logo + Status (wraps when sidebar is narrow) */}
+      {/* Workspace Header — Logo + Status
+          Container stays draggable; only interactive indicators opt out of drag.
+          This preserves window drag on the top bar when the sidebar is visible. */}
       <div
         className={cn("flex flex-wrap items-center justify-between gap-1 pb-2 px-4", isElectron ? "pt-11" : "pt-4")}
-        style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
       >
         <div className="flex items-center gap-2">
           <OSChiefLogo size={24} showText />
         </div>
-        <div className="flex items-center gap-1">
+        <div
+          className="flex items-center gap-1"
+          style={isElectron ? { WebkitAppRegion: 'no-drag' } as React.CSSProperties : undefined}
+        >
           <PrivacyIndicator />
           <SyncStatusIndicator />
         </div>
