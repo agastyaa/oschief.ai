@@ -148,17 +148,24 @@ function rebuildMenu(): void {
     })
     template.push({ type: 'separator' })
     template.push({
-      label: 'Open Meeting',
+      label: 'Stop & Save Meeting',
+      accelerator: 'CommandOrControl+Shift+S',
       click: () => {
-        mainWindow?.show()
-        mainWindow?.focus()
-        mainWindow?.webContents.send('tray:navigate-to-meeting')
+        mainWindow?.webContents.send('tray:stop-recording')
       }
     })
     template.push({
       label: 'Pause Recording',
       click: () => {
         mainWindow?.webContents.send('tray:pause-recording')
+      }
+    })
+    template.push({
+      label: 'Open Meeting',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.focus()
+        mainWindow?.webContents.send('tray:navigate-to-meeting')
       }
     })
   } else if (isRecording) {
@@ -168,6 +175,13 @@ function rebuildMenu(): void {
     })
     template.push({ type: 'separator' })
     template.push({
+      label: 'Stop & Save Meeting',
+      accelerator: 'CommandOrControl+Shift+S',
+      click: () => {
+        mainWindow?.webContents.send('tray:stop-recording')
+      }
+    })
+    template.push({
       label: 'Open Recording',
       click: () => {
         mainWindow?.show()
@@ -176,8 +190,17 @@ function rebuildMenu(): void {
       }
     })
   } else {
+    // Quick-start from tray — don't steal focus, just begin recording in
+    // the background. User can open the window later to see transcript.
     template.push({
-      label: 'New Note',
+      label: 'Start Meeting',
+      accelerator: 'CommandOrControl+Shift+R',
+      click: () => {
+        mainWindow?.webContents.send('tray:start-recording')
+      }
+    })
+    template.push({
+      label: 'New Note (open window)',
       click: () => {
         mainWindow?.show()
         mainWindow?.focus()
