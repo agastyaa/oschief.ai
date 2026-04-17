@@ -1,5 +1,5 @@
 import { ipcMain, systemPreferences, desktopCapturer, app, safeStorage, BrowserWindow } from 'electron'
-import { getSyncStatus, isICloudAvailable, enableSync, disableSync, forceSyncNow } from './storage/icloud-sync'
+import { registerSyncHandlers } from './ipc/sync'
 import { getMainWindow, setContentProtection } from './windows'
 import { updateTrayRecordingState, updateTrayMeetingInfo, rebuildTrayContextMenu } from './tray'
 import { setCalendarEvents } from './meeting-detector'
@@ -2105,24 +2105,8 @@ export function registerIPCHandlers(): void {
     }
   })
 
-  // --- iCloud Sync ---
-  ipcMain.handle('sync:get-status', () => {
-    return getSyncStatus()
-  })
-  ipcMain.handle('sync:is-icloud-available', () => {
-    return isICloudAvailable()
-  })
-  ipcMain.handle('sync:enable', async () => {
-    return enableSync()
-  })
-  ipcMain.handle('sync:disable', () => {
-    disableSync()
-    return true
-  })
-  ipcMain.handle('sync:force-sync', async () => {
-    await forceSyncNow()
-    return true
-  })
+  // --- iCloud Sync --- (decomposed into ipc/sync.ts as of v2.10)
+  registerSyncHandlers()
 
   // --- App ---
   ipcMain.handle('app:get-version', () => app.getVersion())
