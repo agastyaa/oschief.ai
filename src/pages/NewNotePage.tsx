@@ -1161,25 +1161,32 @@ export default function NewNotePage() {
         </button>
       )}
 
-      {showFolderPicker && (
+      {showFolderPicker && (() => {
+        const folderList = folders ?? [];
+        const hasFolders = folderList.length > 0;
+        return (
         <div className="absolute top-full left-0 mt-1 w-52 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
-          <div className="px-3 py-2 border-b border-border">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
-          </div>
-          <div className="max-h-40 overflow-y-auto py-1">
-            {(folders ?? []).map((f) => (
-              <button
-                key={f.id}
-                onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}
-                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
-              >
-                <FolderOpen className="h-3 w-3 text-accent" />
-                {f.name}
-                {selectedFolderId === f.id && <Check className="h-3 w-3 ml-auto text-accent" />}
-              </button>
-            ))}
-          </div>
-          <div className="px-3 py-2 border-t border-border">
+          {hasFolders && (
+            <div className="px-3 py-2 border-b border-border">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Move to folder</span>
+            </div>
+          )}
+          {hasFolders && (
+            <div className="max-h-40 overflow-y-auto py-1">
+              {folderList.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { setSelectedFolderId(f.id); setShowFolderPicker(false); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                >
+                  <FolderOpen className="h-3 w-3 text-accent" />
+                  {f.name}
+                  {selectedFolderId === f.id && <Check className="h-3 w-3 ml-auto text-accent" />}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className={cn("px-3 py-2", hasFolders && "border-t border-border")}>
             {creatingFolder ? (
               <div className="flex items-center gap-1">
                 <input
@@ -1204,7 +1211,8 @@ export default function NewNotePage() {
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
     </>
   );
 
