@@ -272,7 +272,7 @@ export default function NoteDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+        <div className="flex items-center justify-between px-4 -mt-2 pb-0 relative z-10">
           <div />
           <div className="flex items-center gap-1.5">
             <DropdownMenu>
@@ -467,7 +467,22 @@ export default function NoteDetailPage() {
                   <span className="text-border">·</span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {note.timeRange ?? note.duration}
+                    {(() => {
+                      // Prefer stored timeRange, but if it's a zero-span
+                      // (e.g. "11:45 AM – 11:45 AM"), fall back to duration
+                      // derived from the last transcript timestamp so the
+                      // user sees an accurate meeting length.
+                      const tr = note.timeRange;
+                      const isZeroSpan =
+                        typeof tr === "string" &&
+                        /^([^–]+)–\s*\1$/.test(tr.trim());
+                      if (tr && !isZeroSpan) return tr;
+                      const last = note.transcript?.[note.transcript.length - 1];
+                      if (last?.time) {
+                        return `${note.time ?? ""} · ${last.time} elapsed`.trim().replace(/^·\s*/, "");
+                      }
+                      return note.duration && note.duration !== "0:00" ? note.duration : "—";
+                    })()}
                   </span>
                   {(note.summary || note.transcript?.length) && (
                     <>
@@ -801,10 +816,22 @@ function CoachingView({
   const { selectedAIModel } = useModelSettings();
   const meetingDurationSec = useMemo(() => {
     const parts = (note.duration || "0:00").split(":").map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    let fromDuration = 0;
+    if (parts.length === 2) fromDuration = parts[0] * 60 + parts[1];
+    else if (parts.length === 3) fromDuration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (fromDuration > 0) return fromDuration;
+
+    // Fallback: derive from the last transcript line's timestamp. Some notes
+    // land with duration "0:00" (e.g., zero-length calendar event with audio
+    // backfilled into the transcript). The coaching tab previously reported
+    // "no transcript data" in this case even when transcript.length > 0.
+    const last = note.transcript?.[note.transcript.length - 1];
+    if (!last?.time) return 0;
+    const tParts = String(last.time).split(":").map(Number);
+    if (tParts.length === 2 && tParts.every((n) => Number.isFinite(n))) return tParts[0] * 60 + tParts[1];
+    if (tParts.length === 3 && tParts.every((n) => Number.isFinite(n))) return tParts[0] * 3600 + tParts[1] * 60 + tParts[2];
     return 0;
-  }, [note.duration]);
+  }, [note.duration, note.transcript]);
 
   const accountRoleId = useMemo(() => {
     try {
