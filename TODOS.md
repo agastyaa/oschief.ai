@@ -76,6 +76,30 @@ Transform Syag from a meeting recorder into an AI executive assistant that remem
 **Effort:** XL (auth, sharing, permissions, sync)
 **Depends on:** Everything above
 
+### Preload/renderer bundle audit for Zod (v3.1 prep)
+**What:** Audit electron-vite config, preload tsconfig, and renderer bundle to confirm Zod can be imported from `src/types/ipc.ts` across main/preload/renderer without bloating the renderer bundle or breaking Electron's context isolation.
+**Why:** v3.1 will add Zod schemas shared across all three processes. If the bundler tree-shakes wrong or duplicates Zod, the renderer bundle grows and context isolation may break subtly. Outside voice specifically flagged this as the kind of issue that kills refactor plans mid-sprint.
+**Effort:** S (~2 hours)
+**Context:** `electron/preload/index.ts` is 669 lines. Current imports use `@/` alias. Zod is already in `dependencies` (`^3.25.76`) but only used in renderer today. Investigate whether shared types should live in `electron/shared/` or similar and how each tsconfig includes them.
+**Depends on:** Nothing (can do anytime before v3.1 starts)
+**Source:** /plan-eng-review outside voice, 2026-04-16
+
+### Flip IPC_VALIDATION_MODE to enforce (v3.1.x)
+**What:** After v3.1 ships with Zod IPC validation in `log` mode, wait 2 weeks of production telemetry. If validation-violation log rate is near zero, flip the default in `electron/main/ipc/util.ts` from `log` to `enforce`.
+**Why:** Log mode means the types lie — `parseOrFail` returns `input as T` on failure. Enforce mode is the actual payoff of the Zod work. Without an explicit forcing TODO, this step tends to get forgotten and the type safety stays aspirational forever.
+**Effort:** XS (one-line default change + changelog note)
+**Gate:** ≥2 weeks in production with <1% validation-violation log rate across any channel.
+**Depends on:** v3.1 ships with Zod IPC validation
+**Source:** /plan-eng-review outside voice, 2026-04-16
+
+### Dependency audit (70 runtime deps)
+**What:** Audit the 70 runtime deps in `package.json`. Remove unused, flag heavy ones (recharts, docx, all radix-* packages) for lazy-load or code-split. Report: usage map + size delta.
+**Why:** DMG is ~150MB+ signed. Cold start and download time both suffer. Security surface area matters for on-device app.
+**Effort:** M (1-2 days)
+**Context:** Several radix packages may be unused. docx + recharts are heavy and only used in specific flows. electron-updater, onnxruntime-node, better-sqlite3 are legitimately large but essential.
+**Depends on:** Nothing
+**Source:** /plan-ceo-review deferred from v3.0, re-filed 2026-04-16
+
 ---
 
 ## Completed ✓
