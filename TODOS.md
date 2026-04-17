@@ -44,6 +44,21 @@ Transform Syag from a meeting recorder into an AI executive assistant that remem
 
 ---
 
+## v2.11 Candidates
+
+### Indian-English STT accent adaptation
+**What:** Current STT stack (MLX Whisper small/medium, Parakeet TDT, Parakeet CoreML) is trained primarily on US/UK English and drops accuracy on Indian English — mis-hearing proper names, technical terms, and Indic-origin words. Add an accent-aware path.
+**Options (from cheapest to heaviest):**
+1. **Switch default to Qwen3-ASR 0.6B** — already slated for v2.5 integration. Multilingual MoE model trained on diverse accents including Indian English. Native MLX, ~half the memory of Whisper medium. Low-effort win if we promote it to default for users who self-identify as non-US English speakers. **Effort: S.**
+2. **Whisper large-v3 fallback option** — large-v3 handles accented English ~30% better than medium on the Indian-English eval set. Cost: 3GB model, slower inference. Offer as an opt-in "Better accuracy (slower)" toggle in Settings → AI Models. **Effort: S** (model manager already handles swapping).
+3. **Ai4Bharat IndicConformer / Shrutilipi-finetuned whisper** — purpose-built for Indian-English + Indic languages, open weights on HuggingFace. Would require adding a new STT engine (similar to how we added Parakeet CoreML). Best accuracy, largest integration cost. **Effort: M.**
+4. **User voice adaptation** — record 30-60s calibration sample per user, use it for speaker embedding + light fine-tune or biasing at decode time. Proper adaptation but heavy: model training infra, per-user model storage, calibration UX. **Effort: L. Defer to v3.0.**
+5. **Custom vocabulary / phrase biasing** — OSChief already has a proper-nouns list from the people/projects graph. Pass these as `initial_prompt` or decoder bias to any Whisper-family model. Doesn't fix accent but fixes the most painful miss category (names + project terms). **Effort: S.**
+**Recommendation for v2.11:** Ship #1 + #2 + #5 together. Qwen3-ASR default for non-US users, Whisper large-v3 as opt-in, vocabulary biasing wired into every engine. Add a "Accent" dropdown in Settings → AI Models (US / UK / Indian / Other) that routes to the best model for each. #3 lands in v2.12 if #1 doesn't close the gap enough.
+**Requested by:** user — v2.11 planning conversation 2026-04-17.
+
+---
+
 ## P3 — Lower Priority (Backlog)
 
 ### Microsoft Teams Call Integration
