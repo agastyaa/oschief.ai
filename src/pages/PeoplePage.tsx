@@ -262,6 +262,8 @@ const PeoplePage = () => {
   const [personEmails, setPersonEmails] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
 
   const api = getElectronAPI()
@@ -383,7 +385,7 @@ const PeoplePage = () => {
           </div>
 
           {/* Search */}
-          <div className="relative mb-6">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={search}
@@ -392,6 +394,67 @@ const PeoplePage = () => {
               className="w-full rounded-[10px] border border-border bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>
+
+          {/* Multi-select toolbar — appears only when people are selected */}
+          {selectedIds.size > 0 && (
+            <div className="sticky top-0 z-20 -mx-2 mb-3 flex items-center gap-2 rounded-md border border-border bg-card/95 backdrop-blur px-3 py-2 shadow-sm animate-route-enter">
+              <span className="text-xs font-medium text-foreground">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={() => {
+                  if (selectedIds.size === filtered.length) {
+                    setSelectedIds(new Set())
+                  } else {
+                    setSelectedIds(new Set(filtered.map(p => p.id)))
+                  }
+                }}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {selectedIds.size === filtered.length ? "Deselect all" : `Select all ${filtered.length}`}
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={async () => {
+                  if (!api?.memory?.people?.delete) return
+                  if (bulkDeleting) return
+                  const names = filtered.filter(p => selectedIds.has(p.id)).slice(0, 5).map(p => p.name).join(", ")
+                  const suffix = selectedIds.size > 5 ? `, and ${selectedIds.size - 5} more` : ""
+                  if (!confirm(`Delete ${selectedIds.size} ${selectedIds.size === 1 ? "person" : "people"}?\n\n${names}${suffix}`)) return
+                  setBulkDeleting(true)
+                  try {
+                    const ids = Array.from(selectedIds)
+                    for (const id of ids) {
+                      await api.memory.people.delete(id)
+                    }
+                    setPeople(prev => prev.filter(p => !selectedIds.has(p.id)))
+                    if (selectedPerson && selectedIds.has(selectedPerson.id)) {
+                      setSelectedPerson(null)
+                    }
+                    toast.success(`Deleted ${ids.length} ${ids.length === 1 ? "person" : "people"}`)
+                    setSelectedIds(new Set())
+                  } catch (err) {
+                    console.error("Bulk delete failed:", err)
+                    toast.error("Some deletions failed. Refresh and try again.")
+                  } finally {
+                    setBulkDeleting(false)
+                  }
+                }}
+                disabled={bulkDeleting}
+                className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                {bulkDeleting ? "Deleting..." : `Delete ${selectedIds.size}`}
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Clear selection"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-16">
@@ -409,16 +472,43 @@ const PeoplePage = () => {
             <div className="flex gap-6">
               {/* People list */}
               <div className={cn("space-y-1", selectedPerson ? "w-1/2" : "w-full")}>
-                {filtered.map((person) => (
-                  <button
+                {filtered.map((person) => {
+                  const isChecked = selectedIds.has(person.id)
+                  return (
+                  <div
                     key={person.id}
-                    onClick={() => handleSelectPerson(person)}
                     className={cn(
-                      "w-full flex items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors",
+                      "group relative w-full flex items-center gap-2 rounded-lg transition-colors",
                       selectedPerson?.id === person.id
                         ? "bg-accent/10 border border-accent/20"
-                        : "hover:bg-card border border-transparent hover:border-border"
+                        : "hover:bg-card border border-transparent hover:border-border",
+                      isChecked && "bg-primary/5 border-primary/30",
                     )}
+                  >
+                  <label
+                    className={cn(
+                      "flex-shrink-0 pl-3 py-3 cursor-pointer transition-opacity",
+                      selectedIds.size > 0 || isChecked
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100",
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        const next = new Set(selectedIds)
+                        if (e.target.checked) next.add(person.id)
+                        else next.delete(person.id)
+                        setSelectedIds(next)
+                      }}
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20"
+                    />
+                  </label>
+                  <button
+                    onClick={() => handleSelectPerson(person)}
+                    className="flex-1 min-w-0 flex items-center gap-3 px-2 py-3 text-left"
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent font-medium text-sm flex-shrink-0">
                       {person.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
@@ -453,7 +543,9 @@ const PeoplePage = () => {
                       )}
                     </div>
                   </button>
-                ))}
+                  </div>
+                  )
+                })}
                 {filtered.length === 0 && search && (
                   <div className="text-center py-8">
                     <p className="text-sm text-muted-foreground">No people matching "{search}"</p>
