@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate } from "react-router-dom"
-import { Gavel, Search, FolderKanban, FileText, Users, Trash2, X, Plus } from "lucide-react"
+import { Gavel, Search, FolderKanban, FileText, Users, Trash2, X, Plus, Mic } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -326,8 +326,15 @@ export default function DecisionsPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Gavel className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No decisions recorded yet.</p>
-              <p className="text-xs mt-1">Decisions are extracted automatically from your meeting summaries.</p>
+              <p className="text-sm text-foreground font-medium">No decisions recorded yet</p>
+              <p className="text-xs mt-1 mb-4">Decisions are extracted automatically from your meeting summaries.</p>
+              <button
+                onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Mic className="h-3 w-3" />
+                Record a meeting
+              </button>
             </div>
           ) : (
             <div className="space-y-6">

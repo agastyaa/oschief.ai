@@ -351,7 +351,14 @@ const Index = () => {
               <div className="text-center py-16">
                 <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No notes in this folder yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Record a note and add it to this folder</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">Record a note and add it to this folder</p>
+                <button
+                  onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Mic className="h-3 w-3" />
+                  Start Recording
+                </button>
               </div>
             ) : (
               <div className="space-y-0.5">

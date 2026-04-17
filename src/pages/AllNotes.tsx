@@ -304,14 +304,12 @@ export default function AllNotes() {
           <p className="text-sm text-muted-foreground">
             {search ? `No notes match "${search}"` : "No notes match the current filters"}
           </p>
-          {(activeFilters.size > 0 || activeFolder) && (
-            <button
-              onClick={() => { setActiveFilters(new Set()); setActiveFolder(null); setSearch(""); }}
-              className="mt-3 text-xs text-primary hover:underline"
-            >
-              Clear all filters
-            </button>
-          )}
+          <button
+            onClick={() => { setActiveFilters(new Set()); setActiveFolder(null); setSearch(""); }}
+            className="mt-3 text-xs text-primary hover:underline"
+          >
+            Clear all filters
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
