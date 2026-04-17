@@ -1874,18 +1874,40 @@ export function setSTTRecordingActive(active: boolean): void {
 }
 
 const QWEN3_WORKER_SCRIPT = `
-import json, sys, os
+import json, sys, os, inspect
 
 from mlx_qwen3_asr import transcribe as qwen3_transcribe
 
-sys.stdout.write('{"status":"ready"}\\n')
+# Detect whether the installed mlx_qwen3_asr.transcribe accepts a
+# language kwarg. Older versions only take (audio_path); newer ones
+# accept language='en' to lock output to English. Qwen3-ASR is
+# multilingual by default and will hallucinate Chinese/other scripts
+# on short English clips — locking to English fixes that.
+try:
+    _sig = inspect.signature(qwen3_transcribe)
+    _SUPPORTS_LANG = "language" in _sig.parameters or any(
+        p.kind == inspect.Parameter.VAR_KEYWORD for p in _sig.parameters.values()
+    )
+except Exception:
+    _SUPPORTS_LANG = False
+
+sys.stdout.write(json.dumps({"status": "ready", "supports_language": _SUPPORTS_LANG}) + "\\n")
 sys.stdout.flush()
 
 for line in sys.stdin:
     try:
         req = json.loads(line.strip())
         audio_path = req.get("audio_path", "")
-        result = qwen3_transcribe(audio_path)
+        language = req.get("language") or "en"
+        if _SUPPORTS_LANG:
+            try:
+                result = qwen3_transcribe(audio_path, language=language)
+            except TypeError:
+                # Kwarg present in signature but not actually accepted
+                # (e.g., wrapped callable) — fall back to positional call.
+                result = qwen3_transcribe(audio_path)
+        else:
+            result = qwen3_transcribe(audio_path)
         # Extract text from TranscriptionResult object or dict
         if isinstance(result, dict):
             text = result.get("text", "")
@@ -2249,7 +2271,10 @@ async function processWithQwen3ASR(wavBuffer: Buffer, customVocabulary?: string,
   try {
     writeFileSync(tmpFile, wavBuffer)
 
-    const request = JSON.stringify({ audio_path: tmpFile }) + '\n'
+    // Lock output to English. Qwen3-ASR is multilingual by default and
+    // will occasionally emit Chinese/other scripts on short English clips
+    // (observed: "你啊，gorgeous" for a clearly English utterance).
+    const request = JSON.stringify({ audio_path: tmpFile, language: 'en' }) + '\n'
 
     const result = await new Promise<STTResult>((resolve, reject) => {
       if (!qwen3Worker || !qwen3Worker.stdin) {
@@ -2275,6 +2300,29 @@ async function processWithQwen3ASR(wavBuffer: Buffer, customVocabulary?: string,
       qwen3PendingResolvers.push(pending)
       qwen3Worker.stdin.write(request)
     })
+
+    // Safety net: strip any remaining CJK / non-Latin scripts from the
+    // output. Even with language=en, older mlx_qwen3_asr versions may
+    // ignore the kwarg. This keeps the transcript English-only.
+    if (result?.text && /[\u3000-\u9fff\uac00-\ud7af\u0590-\u05ff\u0600-\u06ff]/.test(result.text)) {
+      const originalLen = result.text.length
+      const cleaned = result.text
+        // Remove CJK (Chinese, Japanese, Korean), Hebrew, Arabic blocks.
+        .replace(/[\u3000-\u9fff\uac00-\ud7af\u0590-\u05ff\u0600-\u06ff]+/g, '')
+        // Collapse whitespace + stray punctuation left behind.
+        .replace(/\s*[，。、；：！？]\s*/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      if (cleaned.length < originalLen * 0.3) {
+        // Too much of the output was non-English — drop the chunk to avoid
+        // polluting transcript with gibberish. Renderer treats empty text
+        // as a silence gap.
+        console.warn(`[Qwen3-ASR] Discarded chunk with ${originalLen - cleaned.length} non-English chars (kept <30%).`)
+        return { ...result, text: '' }
+      }
+      console.log(`[Qwen3-ASR] Stripped ${originalLen - cleaned.length} non-English chars from output.`)
+      return { ...result, text: cleaned }
+    }
 
     return result
   } catch (err) {
