@@ -12,12 +12,11 @@ describe('Slash prompt items', () => {
 
   it('has output format prompts', () => {
     const outputItems = SLASH_PROMPT_ITEMS.filter(item => item.group === 'output')
-    expect(outputItems.length).toBe(3)
+    expect(outputItems.length).toBe(2)
 
     const labels = outputItems.map(item => item.label)
     expect(labels).toContain('Exec one-pager')
     expect(labels).toContain('Ticket breakdown')
-    expect(labels).toContain('PRD update')
   })
 
   it('every item has required fields', () => {
@@ -52,10 +51,5 @@ describe('Slash prompt items', () => {
     expect(tickets!.prompt).toContain('Priority')
   })
 
-  it('PRD update prompt asks for requirement changes', () => {
-    const prd = SLASH_PROMPT_ITEMS.find(item => item.label === 'PRD update')
-    expect(prd).toBeDefined()
-    expect(prd!.prompt).toContain('New requirements')
-    expect(prd!.prompt).toContain('Changed requirements')
-  })
+  // 'PRD update' was removed from output group; test deleted 2026-04-16 (v2.10)
 })
