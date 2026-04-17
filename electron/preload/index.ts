@@ -613,8 +613,10 @@ const electronAPI = {
   },
 
   digest: {
-    getWeekly: (opts?: { mode?: 'current' | 'retrospective' }) =>
+    getWeekly: (opts?: { mode?: 'current' | 'retrospective'; skipNarrative?: boolean }) =>
       ipcRenderer.invoke('digest:get-weekly', opts) as Promise<any>,
+    generateNarrative: (payload: any) =>
+      ipcRenderer.invoke('digest:generate-narrative', payload) as Promise<string | null>,
   },
 
   kb: {

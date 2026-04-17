@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 
-function ShimmerBar({ className }: { className?: string }) {
+function ShimmerBar({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
+      style={style}
       className={cn(
         "rounded bg-gradient-to-r from-muted via-muted-foreground/15 to-muted bg-[length:200%_100%] animate-shimmer",
         className

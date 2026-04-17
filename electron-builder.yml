@@ -23,7 +23,12 @@ asarUnpack:
   - "node_modules/node-llama-cpp/**"
 mac:
   category: public.app-category.productivity
-  notarize: false
+  # Notarization requires APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+  # env vars at build time. Set these as GitHub Actions secrets. Local builds
+  # will attempt notarization too — pass those env vars or temporarily flip
+  # this to false for local-only dev DMGs.
+  notarize:
+    teamId: "4TF93K384V"
   extendInfo:
     NSSpeechRecognitionUsageDescription: "Syag uses speech recognition to transcribe your meetings when you choose Apple Speech. Audio is processed on your device or by Apple's service."
   extraResources:

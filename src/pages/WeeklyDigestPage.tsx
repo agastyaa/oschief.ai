@@ -65,17 +65,47 @@ export default function WeeklyDigestPage() {
 
   const [data, setData] = useState<DigestData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [mode, setMode] = useState<'current' | 'retrospective' | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const loadDigest = (requestedMode?: 'current' | 'retrospective') => {
+    if (!api?.digest?.getWeekly) return;
     setLoading(true);
-    api?.digest?.getWeekly?.(requestedMode ? { mode: requestedMode } : undefined)
+    setNarrativeLoading(true);
+    // Stage 1: fetch everything except the AI narrative (instant-ish).
+    api.digest.getWeekly({ ...(requestedMode ? { mode: requestedMode } : {}), skipNarrative: true })
       .then((d: any) => {
         setData(d);
         if (!mode) setMode(d.mode);
+        setLoading(false);
+        // Stage 2: generate the narrative asynchronously. UI renders data now.
+        if (api?.digest && (api.digest as any).generateNarrative) {
+          (api.digest as any).generateNarrative({
+            mode: d.mode,
+            weekRange: d.weekRange,
+            meetingCount: d.meetingCount,
+            totalDurationMin: d.totalDurationMin,
+            decisions: d.decisions,
+            commitments: d.commitments,
+            people: d.people,
+            projects: d.projects,
+            mailActivity: d.mailActivity,
+            upcoming: d.upcoming,
+          })
+            .then((narrative: string | null) => {
+              setData((prev) => prev ? { ...prev, narrative } : prev);
+            })
+            .catch(() => { /* surfaced in main log */ })
+            .finally(() => setNarrativeLoading(false));
+        } else {
+          setNarrativeLoading(false);
+        }
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        setLoading(false);
+        setNarrativeLoading(false);
+      });
   };
 
   useEffect(() => { loadDigest() }, [api]);
@@ -191,11 +221,18 @@ export default function WeeklyDigestPage() {
                 </div>
 
                 {/* ── AI Narrative Summary ── */}
-                {data.narrative && (
+                {narrativeLoading && !data.narrative ? (
+                  <div className="rounded-[10px] border border-border bg-card p-4 mb-5 space-y-2">
+                    <div className="h-3.5 w-full rounded bg-gradient-to-r from-muted via-muted-foreground/15 to-muted bg-[length:200%_100%] animate-shimmer" />
+                    <div className="h-3.5 w-11/12 rounded bg-gradient-to-r from-muted via-muted-foreground/15 to-muted bg-[length:200%_100%] animate-shimmer" />
+                    <div className="h-3.5 w-4/5 rounded bg-gradient-to-r from-muted via-muted-foreground/15 to-muted bg-[length:200%_100%] animate-shimmer" />
+                    <p className="text-[11px] text-muted-foreground mt-2">Writing your executive brief…</p>
+                  </div>
+                ) : data.narrative ? (
                   <div className="rounded-[10px] border border-border bg-card p-4 mb-5">
                     <p className="text-body-sm leading-relaxed text-foreground">{data.narrative}</p>
                   </div>
-                )}
+                ) : null}
 
                 {/* ── Forward-Looking: Coming Up (current mode only) ── */}
                 {mode === 'current' && data.upcoming && (upcomingByDate.length > 0 || data.upcoming.commitmentsDue.length > 0) && (

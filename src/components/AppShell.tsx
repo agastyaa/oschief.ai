@@ -43,13 +43,21 @@ function AppShellInner() {
       )}
 
       {/* Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-background">
         <ContentHeader />
         <div className={cn(
-          "flex-1 overflow-y-auto relative flex flex-col",
+          "flex-1 overflow-y-auto relative flex flex-col bg-background",
           !config.fullWidth && "max-w-none"
         )}>
-          <Outlet />
+
+          {/* Key on pathname so route changes crossfade instead of hard-cut.
+              motion-reduce disables the animation for users who opt out. */}
+          <div
+            key={location.pathname}
+            className="flex-1 flex flex-col animate-route-enter motion-reduce:animate-none"
+          >
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>

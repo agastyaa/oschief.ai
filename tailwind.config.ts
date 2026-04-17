@@ -101,6 +101,12 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        /** Route-level crossfade — opacity only, no vertical motion. Keep short
+         *  so nav feels instant but doesn't hard-cut. */
+        "route-enter": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
         "slide-in": {
           from: { opacity: "0", transform: "translateX(-12px)" },
           to: { opacity: "1", transform: "translateX(0)" },
@@ -124,6 +130,7 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out",
+        "route-enter": "route-enter 180ms ease-out",
         "slide-in": "slide-in 0.3s ease-out",
         "slide-in-right": "slide-in-right 0.32s ease-out both",
         shimmer: "shimmer 1.8s ease-in-out infinite",

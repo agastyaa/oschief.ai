@@ -61,7 +61,9 @@ describe('linkPerson IPC handler', () => {
   it('should insert into project_people table, not note_people', async () => {
     const fs = await import('fs')
     const path = await import('path')
-    const filePath = path.resolve(__dirname, '../../electron/main/ipc-handlers.ts')
+    // v2.10: handler moved from ipc-handlers.ts to ipc/memory.ts as part of
+    // the IPC decomposition. Check the new home.
+    const filePath = path.resolve(__dirname, '../../electron/main/ipc/memory.ts')
     const source = fs.readFileSync(filePath, 'utf-8')
 
     // Find the handler block
@@ -159,13 +161,15 @@ describe('Meeting unlink button visibility', () => {
 // 7. Error handling exists on async handlers
 // ============================================================
 describe('Error handling on ProjectDetailPage handlers', () => {
+  // v2.10: error messages rewritten for friendliness ("Couldn't" instead of "Failed to").
+  // Tests assert presence of recovery-oriented error copy.
   it('Add Action Item handler has error catch', async () => {
     const fs = await import('fs')
     const path = await import('path')
     const filePath = path.resolve(__dirname, '../pages/ProjectDetailPage.tsx')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    expect(source).toContain('Failed to add action item')
+    expect(source).toContain("Couldn't add action item")
   })
 
   it('Add Decision handler has error catch', async () => {
@@ -174,7 +178,7 @@ describe('Error handling on ProjectDetailPage handlers', () => {
     const filePath = path.resolve(__dirname, '../pages/ProjectDetailPage.tsx')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    expect(source).toContain('Failed to add decision')
+    expect(source).toContain("Couldn't add decision")
   })
 
   it('Unlink meeting handler has error catch', async () => {
@@ -183,7 +187,7 @@ describe('Error handling on ProjectDetailPage handlers', () => {
     const filePath = path.resolve(__dirname, '../pages/ProjectDetailPage.tsx')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    expect(source).toContain('Failed to unlink meeting')
+    expect(source).toContain("Couldn't unlink meeting")
   })
 
   it('Delete decision handler has error catch', async () => {
@@ -192,7 +196,7 @@ describe('Error handling on ProjectDetailPage handlers', () => {
     const filePath = path.resolve(__dirname, '../pages/ProjectDetailPage.tsx')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    expect(source).toContain('Failed to delete decision')
+    expect(source).toContain("Couldn't delete decision")
   })
 
   it('Delete action item handler has error catch', async () => {
@@ -201,7 +205,7 @@ describe('Error handling on ProjectDetailPage handlers', () => {
     const filePath = path.resolve(__dirname, '../pages/ProjectDetailPage.tsx')
     const source = fs.readFileSync(filePath, 'utf-8')
 
-    expect(source).toContain('Failed to delete action item')
+    expect(source).toContain("Couldn't delete action item")
   })
 })
 

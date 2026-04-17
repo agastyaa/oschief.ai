@@ -58,7 +58,7 @@ if (initialPrefs.appearance === "system") {
 function TrayNavigationHandler() {
   const api = getElectronAPI();
   const navigate = useNavigate();
-  const { activeSession, pauseAudioCapture } = useRecording();
+  const { activeSession, pauseAudioCapture, stopAudioCapture } = useRecording();
 
   useEffect(() => {
     if (!api) return;
@@ -75,6 +75,16 @@ function TrayNavigationHandler() {
 
     const cleanupPause = api.app.onTrayPauseRecording?.(() => {
       pauseAudioCapture();
+    });
+
+    const cleanupStop = api.app.onTrayStopRecording?.(() => {
+      // Stop from tray: stops capture, then navigates to the note so the
+      // user lands on the saved recording when they open the window.
+      void stopAudioCapture().then(() => {
+        if (activeSession?.noteId) {
+          navigate(`/new-note?session=${activeSession.noteId}`);
+        }
+      });
     });
 
     const cleanupAgendaNav = api.app.onTrayAgendaNavigate?.((data) => {
@@ -97,10 +107,11 @@ function TrayNavigationHandler() {
       cleanupNav?.();
       cleanupStartRecording?.();
       cleanupPause?.();
+      cleanupStop?.();
       cleanupAgendaNav?.();
       cleanupAgendaOpen?.();
     };
-  }, [api, activeSession?.noteId, navigate, pauseAudioCapture]);
+  }, [api, activeSession?.noteId, navigate, pauseAudioCapture, stopAudioCapture]);
 
   return null;
 }

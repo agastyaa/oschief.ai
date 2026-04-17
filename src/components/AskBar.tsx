@@ -117,15 +117,79 @@ interface AskBarProps {
   onTriggerMentionLLM?: () => Promise<void>;
   /** Called when user asks to rename/correct a term — applies find-and-replace to summary */
   onCorrection?: (find: string, replace: string) => void;
+  /** Unique scope identifier for chat persistence. Meeting context should
+   *  pass the noteId so each meeting has its own chat history; home/app
+   *  context defaults to 'home'. Chats persist 30 min via sessionStorage. */
+  scopeId?: string;
 }
 
-export const AskBar = memo(function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM, onCorrection }: AskBarProps) {
+// Chat persistence — 30min TTL, scoped by context + scopeId so each meeting
+// has its own history and doesn't contaminate other meetings or the home ask.
+const CHAT_TTL_MS = 30 * 60 * 1000;
+const CHAT_STORAGE_PREFIX = "syag_askbar_chat_v1:";
+
+type PersistedChat = { ts: number; messages: { role: "user" | "assistant"; text: string; displayText?: string }[] };
+
+function chatStorageKey(context: string, scopeId?: string): string {
+  return `${CHAT_STORAGE_PREFIX}${context}:${scopeId || "_"}`;
+}
+
+function loadPersistedChat(context: string, scopeId?: string): PersistedChat["messages"] {
+  try {
+    const raw = sessionStorage.getItem(chatStorageKey(context, scopeId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as PersistedChat;
+    if (!parsed?.ts || Date.now() - parsed.ts > CHAT_TTL_MS) {
+      sessionStorage.removeItem(chatStorageKey(context, scopeId));
+      return [];
+    }
+    return parsed.messages || [];
+  } catch {
+    return [];
+  }
+}
+
+function savePersistedChat(context: string, scopeId: string | undefined, messages: PersistedChat["messages"]): void {
+  try {
+    if (messages.length === 0) {
+      sessionStorage.removeItem(chatStorageKey(context, scopeId));
+      return;
+    }
+    sessionStorage.setItem(
+      chatStorageKey(context, scopeId),
+      JSON.stringify({ ts: Date.now(), messages } satisfies PersistedChat),
+    );
+  } catch { /* quota / privacy mode — non-fatal */ }
+}
+
+export const AskBar = memo(function AskBar({ context = "home", meetingTitle, noteContext, meetingGraphContext, coachingMetrics, leftSlot, generateSummarySlot, onResumeRecording, onPauseRecording, onToggleTranscript, transcriptVisible, hideTranscriptToggle, recordingState, elapsed, mentionContextHint, mentionHintLoading, onDismissMentionHint, onTriggerMentionLLM, onCorrection, scopeId }: AskBarProps) {
   const { getActiveAIModelLabel, selectedAIModel } = useModelSettings();
   const api = getElectronAPI();
 
   const [input, setInput] = useState("");
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; displayText?: string }[]>([]);
+  // Hydrate from sessionStorage so chat persists per-scope for 30 min.
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; displayText?: string }[]>(
+    () => loadPersistedChat(context, scopeId),
+  );
+
+  // If there are hydrated messages, open the chat panel so the user sees
+  // their history without having to click.
+  useEffect(() => {
+    if (messages.length > 0 && !showChat) setShowChat(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist on every change (debounced implicitly by React batching).
+  useEffect(() => {
+    savePersistedChat(context, scopeId, messages);
+  }, [context, scopeId, messages]);
+
+  // Reload history when the scope changes (e.g., navigating between notes).
+  // Without this, navigating from note A to note B would keep A's chat.
+  useEffect(() => {
+    setMessages(loadPersistedChat(context, scopeId));
+  }, [context, scopeId]);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [slashHighlightIndex, setSlashHighlightIndex] = useState(0);
@@ -152,8 +216,9 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
     const handleClickOutside = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
         setIsActive(false);
-        if (!showChat) {
-          setMessages([]);
+        // Only clear the input draft, not the chat history. History persists
+        // 30min via sessionStorage so navigating away and back keeps context.
+        if (!showChat && messages.length === 0) {
           setInput("");
         }
       }
@@ -318,7 +383,7 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
   };
 
   return (
-    <div ref={barRef} className="px-4 pb-8 pt-2 pointer-events-none relative">
+    <div ref={barRef} className="px-4 pb-4 pt-2 pointer-events-none relative">
       <div className="mx-auto max-w-2xl pointer-events-auto">
         {showChat && messages.length > 0 && (
           <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full animate-fade-in">
@@ -351,14 +416,14 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
                   <div key={i} className={cn("flex animate-fade-in", msg.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[90%] text-body-sm leading-relaxed shadow-sm",
+                        "max-w-[90%] leading-relaxed shadow-sm",
                         msg.role === "user"
-                          ? "rounded-2xl bg-accent text-accent-foreground px-3.5 py-2.5"
-                          : "rounded-2xl border border-border/50 bg-card/90 px-3.5 py-3 text-foreground"
+                          ? "rounded-2xl bg-accent text-accent-foreground px-3 py-2 text-[13px]"
+                          : "rounded-2xl border border-border/50 bg-card/90 px-3.5 py-3 text-foreground text-body-sm"
                       )}
                     >
                       {msg.role === "user" ? (
-                        <span className="font-medium">{msg.displayText || msg.text}</span>
+                        <span>{msg.displayText || msg.text}</span>
                       ) : (
                         <ChatMessageContent text={msg.text} className="text-body-sm" />
                       )}

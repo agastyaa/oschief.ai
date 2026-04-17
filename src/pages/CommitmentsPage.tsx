@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
 import { toast } from "sonner"
@@ -36,6 +36,7 @@ const CommitmentsPage = () => {
   const navigate = useNavigate()
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [filter, setFilter] = useState<FilterStatus>("open")
+  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState("")
   const [newTodoDueDate, setNewTodoDueDate] = useState("")
@@ -143,13 +144,23 @@ const CommitmentsPage = () => {
   const totalOpen = commitments.filter(c => c.status === "open" || c.status === "overdue").length
 
   const filteredCommitments = useMemo(() => {
-    if (filter === "all") return commitments
-    if (filter === "my") {
-      return commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
+    let result: Commitment[]
+    if (filter === "all") result = commitments
+    else if (filter === "my") {
+      result = commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
     }
-    if (filter === "upcoming") return commitments.filter(isUpcoming)
-    return commitments.filter((c) => c.status === filter)
-  }, [commitments, filter, isMyCommitment])
+    else if (filter === "upcoming") result = commitments.filter(isUpcoming)
+    else result = commitments.filter((c) => c.status === filter)
+
+    const q = search.trim().toLowerCase()
+    if (!q) return result
+    return result.filter((c) =>
+      c.text.toLowerCase().includes(q) ||
+      (c.assignee_name?.toLowerCase().includes(q) ?? false) ||
+      (c.note_title?.toLowerCase().includes(q) ?? false) ||
+      (c.owner?.toLowerCase().includes(q) ?? false)
+    )
+  }, [commitments, filter, isMyCommitment, search])
 
   const handleAddTodo = useCallback(async () => {
     const text = newTodoText.trim()
@@ -261,34 +272,95 @@ const CommitmentsPage = () => {
               </div>
             </div>
 
-            {/* Filter tabs */}
-            <div className="flex items-center gap-1 mb-6 border-b border-border">
-              {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => (
+            {/* Filters row: compact status segment + mine toggle + inline search */}
+            <div className="flex items-center gap-3 mb-6">
+              {/* Status segmented control (3 primary states) */}
+              <div className="inline-flex items-center rounded-full border border-border bg-card p-0.5 shrink-0">
+                {(["open", "completed", "all"] as const).map((f) => {
+                  const label = f === "all" ? "All" : f === "open" ? "Open" : "Done"
+                  const count = f === "open" ? counts.open : f === "completed" ? counts.completed : 0
+                  const active = filter === f || (filter === "overdue" && f === "open") || (filter === "upcoming" && f === "open")
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {label}
+                      {count > 0 && f !== "all" && (
+                        <span className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
+                        )}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Mine toggle (separate, distinct affordance) */}
+              <button
+                onClick={() => setFilter(filter === "my" ? "open" : "my")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
+                  filter === "my"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                Mine only
+                {counts.my > 0 && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                    filter === "my" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
+                  )}>
+                    {counts.my}
+                  </span>
+                )}
+              </button>
+
+              {/* Overdue quick-filter (only when > 0, subtle) */}
+              {counts.overdue > 0 && (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                  onClick={() => setFilter(filter === "overdue" ? "open" : "overdue")}
                   className={cn(
-                    "px-3 py-2.5 text-body-sm font-medium transition-colors border-b-2 -mb-px",
-                    filter === f
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
+                    filter === "overdue"
+                      ? "border-amber bg-amber-bg text-amber"
+                      : "border-amber/30 bg-amber-bg/40 text-amber/80 hover:bg-amber-bg"
                   )}
                 >
-                  {f === "all" ? "All" : f === "my" ? "My" : f === "upcoming" ? "Upcoming" : STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label}
-                  {f !== "all" && f === "open" && counts.open > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.open}</span>
-                  )}
-                  {f === "overdue" && counts.overdue > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.overdue}</span>
-                  )}
-                  {f === "my" && counts.my > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.my}</span>
-                  )}
-                  {f === "upcoming" && counts.upcoming > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.upcoming}</span>
-                  )}
+                  <AlertTriangle className="h-3 w-3" />
+                  {counts.overdue} overdue
                 </button>
-              ))}
+              )}
+
+              {/* Search: inline, right-aligned */}
+              <div className="relative flex-1 max-w-xs ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full rounded-full border border-border bg-card pl-9 pr-8 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {loading ? (
@@ -456,11 +528,11 @@ const CommitmentsPage = () => {
                                 ) : (
                                   <button
                                     onClick={() => setEditingDueDateId(c.id)}
-                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-1"
                                     title="Set due date"
                                   >
                                     <Clock className="h-2.5 w-2.5" />
-                                    Due
+                                    Add due date
                                   </button>
                                 )}
                                 {/* Jira key */}

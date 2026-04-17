@@ -272,7 +272,7 @@ export default function NoteDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+        <div className="flex items-center justify-between px-4 -mt-2 pb-0 relative z-10">
           <div />
           <div className="flex items-center gap-1.5">
             <DropdownMenu>
@@ -421,8 +421,10 @@ export default function NoteDetailPage() {
         </div>
         {/* Content area with side panel */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: main content + ask bar */}
-          <div className="flex flex-1 flex-col min-w-0">
+          {/* Left: main content + ask bar (relative so the floating AskBar
+              can absolute-position itself against this column, respecting
+              sidebar width and transcript side panel). */}
+          <div className="relative flex flex-1 flex-col min-w-0">
             {/* Title + metadata — fixed at top, not scrollable */}
             <div className="shrink-0">
               <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
@@ -467,7 +469,22 @@ export default function NoteDetailPage() {
                   <span className="text-border">·</span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {note.timeRange ?? note.duration}
+                    {(() => {
+                      // Prefer stored timeRange, but if it's a zero-span
+                      // (e.g. "11:45 AM – 11:45 AM"), fall back to duration
+                      // derived from the last transcript timestamp so the
+                      // user sees an accurate meeting length.
+                      const tr = note.timeRange;
+                      const isZeroSpan =
+                        typeof tr === "string" &&
+                        /^([^–]+)–\s*\1$/.test(tr.trim());
+                      if (tr && !isZeroSpan) return tr;
+                      const last = note.transcript?.[note.transcript.length - 1];
+                      if (last?.time) {
+                        return `${note.time ?? ""} · ${last.time} elapsed`.trim().replace(/^·\s*/, "");
+                      }
+                      return note.duration && note.duration !== "0:00" ? note.duration : "—";
+                    })()}
                   </span>
                   {(note.summary || note.transcript?.length) && (
                     <>
@@ -526,8 +543,9 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Scrollable content — summary/notes */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Scrollable content — summary/notes. pb-32 reserves room so
+                the last line isn't hidden under the floating AskBar. */}
+            <div className="flex-1 overflow-y-auto pb-32">
               <div className="mx-auto max-w-3xl px-8">
                 <div className="border-t border-border/50 my-4" />
 
@@ -596,10 +614,17 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Ask bar — pinned to bottom */}
-            <div className="relative shrink-0">
+            {/* Ask bar — position:fixed to the viewport so it floats above
+                scrolling content and stays put regardless of page scroll.
+                AskBar applies mx-auto max-w-2xl internally; with left-0
+                right-0 it centers inside the main area (sidebar is outside
+                its bounding box, so the pill sits correctly in the content
+                region). pointer-events:none on the outer wrapper so the
+                transparent margins around the pill don't eat clicks. */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
               <AskBar
                 context="meeting"
+                scopeId={id}
                 meetingTitle={note.title}
                 hideTranscriptToggle={!!note.summary}
                 noteContext={[
@@ -801,10 +826,22 @@ function CoachingView({
   const { selectedAIModel } = useModelSettings();
   const meetingDurationSec = useMemo(() => {
     const parts = (note.duration || "0:00").split(":").map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    let fromDuration = 0;
+    if (parts.length === 2) fromDuration = parts[0] * 60 + parts[1];
+    else if (parts.length === 3) fromDuration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (fromDuration > 0) return fromDuration;
+
+    // Fallback: derive from the last transcript line's timestamp. Some notes
+    // land with duration "0:00" (e.g., zero-length calendar event with audio
+    // backfilled into the transcript). The coaching tab previously reported
+    // "no transcript data" in this case even when transcript.length > 0.
+    const last = note.transcript?.[note.transcript.length - 1];
+    if (!last?.time) return 0;
+    const tParts = String(last.time).split(":").map(Number);
+    if (tParts.length === 2 && tParts.every((n) => Number.isFinite(n))) return tParts[0] * 60 + tParts[1];
+    if (tParts.length === 3 && tParts.every((n) => Number.isFinite(n))) return tParts[0] * 3600 + tParts[1] * 60 + tParts[2];
     return 0;
-  }, [note.duration]);
+  }, [note.duration, note.transcript]);
 
   const accountRoleId = useMemo(() => {
     try {

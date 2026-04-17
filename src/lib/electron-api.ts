@@ -38,7 +38,14 @@ export type MemoryStats = {
 }
 
 type ElectronAPI = {
+  // v2.10: some IPC surfaces have outpaced this type declaration (window,
+  // intelligence, mail, apple, pipelineQualityStats on db, openExternal on
+  // app, installMLXLLM on models, etc.). The index signature below accepts
+  // those at any depth until the type is brought back in sync with
+  // electron/main/ipc/* in v2.11 with typed handlers.
+  [key: string]: any
   db: {
+    [key: string]: any
     notes: {
       getAll: () => Promise<any[]>
       get: (id: string) => Promise<any | null>
@@ -391,7 +398,8 @@ type ElectronAPI = {
     onAnalyzeProgress: (callback: (data: { current: number; total: number; noteTitle?: string }) => void) => () => void
   }
   digest?: {
-    getWeekly: () => Promise<any>
+    getWeekly: (opts?: { mode?: 'current' | 'retrospective'; skipNarrative?: boolean }) => Promise<any>
+    generateNarrative?: (payload: any) => Promise<string | null>
   }
   kb?: {
     pickFolder: () => Promise<{ ok: boolean; path?: string; added?: number; updated?: number; removed?: number; total?: number; error?: string }>
