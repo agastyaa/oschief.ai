@@ -1,10 +1,11 @@
-import { app, BrowserWindow, protocol, globalShortcut } from 'electron'
+import { app, BrowserWindow, protocol, globalShortcut, dialog } from 'electron'
 import { join, normalize, extname } from 'path'
 import { readFileSync, existsSync } from 'fs'
 import { createMainWindow, getMainWindow } from './windows'
 import { setupTray } from './tray'
 import { registerIPCHandlers } from './ipc-handlers'
 import { initDatabase, getSetting } from './storage/database'
+import { ICloudSyncedDBPath } from './errors'
 import { startSync, stopSync } from './storage/icloud-sync'
 import { ensureModelsDir } from './models/manager'
 import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
@@ -64,6 +65,28 @@ app.whenReady().then(async () => {
   try {
     initDatabase()
   } catch (err) {
+    // R1a: iCloud-synced userData path detected — refuse to launch, offer quit.
+    // (Auto-migration is deferred to v2.11.1; v2.11.0 surfaces the problem clearly.)
+    if (err instanceof ICloudSyncedDBPath) {
+      const reason = (err as any).meta?.reason === 'mobile-documents'
+        ? 'iCloud Drive (~/Library/Mobile Documents)'
+        : 'an iCloud-managed folder (fileprovider xattr detected)'
+      dialog.showMessageBoxSync({
+        type: 'error',
+        title: 'OSChief cannot launch safely',
+        message: 'Your OSChief data folder is in ' + reason + '.',
+        detail:
+          'SQLite WAL mode can silently corrupt databases in iCloud-synced folders. ' +
+          'OSChief refuses to launch until the data is on a local-only path.\n\n' +
+          'Fix: open System Settings → Apple ID → iCloud → iCloud Drive → Apps using ' +
+          'iCloud Drive and disable "Desktop & Documents Folders," OR move ' +
+          '~/Library/Application Support/OSChief to a non-iCloud location, then relaunch.',
+        buttons: ['Quit'],
+        defaultId: 0,
+      })
+      app.quit()
+      return
+    }
     console.error('Failed to initialize database:', err)
   }
 
