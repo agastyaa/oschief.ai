@@ -185,7 +185,7 @@ function rebuildMenu(): void {
     })
     template.push({ type: 'separator' })
     template.push({
-      label: 'Stop & Save Meeting',
+      label: 'End Meeting',
       accelerator: 'CommandOrControl+Shift+S',
       click: () => {
         mainWindow?.webContents.send('tray:stop-recording')
@@ -206,16 +206,26 @@ function rebuildMenu(): void {
       }
     })
   } else if (isRecording) {
+    // Recording without a resolved meeting title yet (tray quick-start or
+    // pre-calendar-match). Show a live elapsed timer in the header so it
+    // still reads as useful state, not just a spinner.
+    const headerElapsed = recordingStartTime ? `  ${formatElapsed(recordingStartTime)} elapsed` : ''
     template.push({
-      label: '● Recording...',
+      label: `● Recording${headerElapsed}`,
       enabled: false,
     })
     template.push({ type: 'separator' })
     template.push({
-      label: 'Stop & Save Meeting',
+      label: 'End Meeting',
       accelerator: 'CommandOrControl+Shift+S',
       click: () => {
         mainWindow?.webContents.send('tray:stop-recording')
+      }
+    })
+    template.push({
+      label: 'Pause Recording',
+      click: () => {
+        mainWindow?.webContents.send('tray:pause-recording')
       }
     })
     template.push({
