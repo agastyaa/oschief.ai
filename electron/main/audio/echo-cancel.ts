@@ -22,6 +22,7 @@
  */
 
 import { spawn, type ChildProcess } from 'child_process'
+import { emitEvent } from '../observability'
 
 let aecWorker: ChildProcess | null = null
 let aecReady = false
@@ -31,6 +32,16 @@ const aecPendingResolvers: Array<{
   reject: (err: Error) => void
 }> = []
 let aecBuffer = ''
+
+// R2 — lightweight restart-storm protection for the AEC worker.
+// Full WorkerSupervisor adoption is a v2.11.1 follow-up (WorkerHandle
+// interface needs to expose stdin/stdout to replace the JSON-over-pipe
+// protocol). For now: fixed-minute bucket + silent restart matches the
+// plan's "auto-restart silently; mic quality degrades but capture continues"
+// requirement.
+const aecRestartTimestamps: number[] = []
+const AEC_RESTART_THRESHOLD = 3
+let aecStopRequested = false
 
 const AEC_WORKER_SCRIPT = `
 import sys, json, struct, base64, array
@@ -164,12 +175,61 @@ export async function startAECWorker(): Promise<boolean> {
       if (s) console.warn('[AEC] stderr:', s)
     })
 
-    aecWorker.on('exit', () => {
+    aecWorker.on('exit', (code, signal) => {
+      const wasReady = aecReady
       aecWorker = null
       aecReady = false
-      // Reject all pending
       for (const p of aecPendingResolvers.splice(0)) {
         p.resolve(new Float32Array(0))
+      }
+      // R2 — react to unexpected exits with observability + silent auto-restart.
+      // Only fires when we were healthy before (wasReady) and stop() wasn't
+      // called. AEC has the silent-restart policy: users never see this.
+      if (wasReady && !aecStopRequested && aecAvailable !== false) {
+        emitEvent({
+          type: 'worker.crashed',
+          worker_kind: 'aec',
+          exit_code: code,
+          signal: signal ?? null,
+        })
+        aecRestartTimestamps.push(Date.now())
+        const recent = aecRestartTimestamps.filter((t) => t > Date.now() - 60_000)
+        aecRestartTimestamps.length = 0
+        aecRestartTimestamps.push(...recent)
+        if (recent.length > AEC_RESTART_THRESHOLD) {
+          emitEvent({
+            type: 'worker.restart_storm',
+            worker_kind: 'aec',
+            cooldown_applied: true,
+          })
+          // 30s cooldown then one retry.
+          setTimeout(() => {
+            aecRestartTimestamps.length = 0
+            if (!aecStopRequested) {
+              startAECWorker()
+                .then((ok) =>
+                  emitEvent({
+                    type: 'worker.restarted',
+                    worker_kind: 'aec',
+                    success: ok,
+                    restart_count_last_minute: 0,
+                  }),
+                )
+                .catch(() => {})
+            }
+          }, 30_000)
+        } else {
+          startAECWorker()
+            .then((ok) =>
+              emitEvent({
+                type: 'worker.restarted',
+                worker_kind: 'aec',
+                success: ok,
+                restart_count_last_minute: recent.length,
+              }),
+            )
+            .catch(() => {})
+        }
       }
     })
 
@@ -193,6 +253,7 @@ export async function startAECWorker(): Promise<boolean> {
 }
 
 export function stopAECWorker(): void {
+  aecStopRequested = true
   if (aecWorker) {
     try { aecWorker.kill() } catch {}
     aecWorker = null
@@ -202,6 +263,9 @@ export function stopAECWorker(): void {
       p.resolve(new Float32Array(0))
     }
   }
+  // Reset so future startAECWorker() call (new recording) can restart.
+  setTimeout(() => { aecStopRequested = false }, 100)
+  aecRestartTimestamps.length = 0
 }
 
 /**

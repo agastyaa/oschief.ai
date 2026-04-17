@@ -64,6 +64,11 @@ app.whenReady().then(async () => {
 
   try {
     initDatabase()
+    // R3 — boot the offline queue singleton + periodic flusher.
+    // Cloud callers opt into it via queueOrCall() from cloud/offline-service.
+    const { getDb } = await import('./storage/database')
+    const { initOfflineService } = await import('./cloud/offline-service')
+    initOfflineService(getDb())
   } catch (err) {
     // R1a: iCloud-synced userData path detected — refuse to launch, offer quit.
     // (Auto-migration is deferred to v2.11.1; v2.11.0 surfaces the problem clearly.)
@@ -100,13 +105,12 @@ app.whenReady().then(async () => {
   Promise.all([
     import('./models/model-resolver'),
     import('./cloud/ollama'),
-  ]).then(([{ resolveSelectedAIModel }, { prewarmOllama }]) => {
+    import('./observability'),
+  ]).then(([{ resolveSelectedAIModel }, { prewarmOllama }, { emitEvent }]) => {
     const resolved = resolveSelectedAIModel()
     if (resolved.startsWith('ollama:')) {
       const modelTag = resolved.slice('ollama:'.length)
-      prewarmOllama(modelTag).then((ok) => {
-        console.log(`[ollama] prewarm ${modelTag}: ${ok ? 'ok' : 'skipped/failed'}`)
-      }).catch(() => {})
+      prewarmOllama(modelTag, { onEvent: emitEvent }).catch(() => {})
     }
   }).catch(() => {})
   registerIPCHandlers()
