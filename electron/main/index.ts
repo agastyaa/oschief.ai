@@ -95,6 +95,20 @@ app.whenReady().then(async () => {
   import('./models/stt-engine').then(({ cleanStaleTempFiles }) => cleanStaleTempFiles()).catch(() => {})
   // Pre-load VAD model in background so first recording starts instantly (no 500ms delay)
   import('./audio/vad').then(({ ensureVADModel }) => ensureVADModel()).catch(() => {})
+  // R6 — pre-warm the user's default Ollama model so first coaching/summary call
+  // doesn't pay the cold-load tax (5-15s on 8B+ models). Silent on failure.
+  Promise.all([
+    import('./models/model-resolver'),
+    import('./cloud/ollama'),
+  ]).then(([{ resolveSelectedAIModel }, { prewarmOllama }]) => {
+    const resolved = resolveSelectedAIModel()
+    if (resolved.startsWith('ollama:')) {
+      const modelTag = resolved.slice('ollama:'.length)
+      prewarmOllama(modelTag).then((ok) => {
+        console.log(`[ollama] prewarm ${modelTag}: ${ok ? 'ok' : 'skipped/failed'}`)
+      }).catch(() => {})
+    }
+  }).catch(() => {})
   registerIPCHandlers()
   loadOptionalProviders()
   loadCustomProviders()

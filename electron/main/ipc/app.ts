@@ -1,8 +1,9 @@
-import { ipcMain, systemPreferences, app } from 'electron'
+import { ipcMain, app } from 'electron'
 import { getOptionalProviders } from '../cloud/router'
 import { checkAppleFoundationAvailable } from '../cloud/apple-llm'
 import { netFetch } from '../cloud/net-request'
 import { getSetting, setSetting } from '../storage/database'
+import { checkPermission, requestPermission, openRecoveryPane } from '../permissions'
 
 /**
  * App lifecycle / setup / permissions / agent API / URL fetch / optional providers.
@@ -29,23 +30,23 @@ export function registerAppHandlers(): void {
   // Optional providers
   ipcMain.handle('app:get-optional-providers', () => getOptionalProviders())
 
-  // Permissions
-  ipcMain.handle('permissions:check-mic', () => {
-    if (process.platform === 'darwin') return systemPreferences.getMediaAccessStatus('microphone')
-    return 'granted'
-  })
+  // Permissions — routed through the central permissions module (R5).
+  // Legacy channels keep their exact return shapes for backwards compat.
+  ipcMain.handle('permissions:check-mic', () => checkPermission('microphone'))
   ipcMain.handle('permissions:request-mic', async () => {
-    if (process.platform === 'darwin') return systemPreferences.askForMediaAccess('microphone')
-    return true
+    const result = await requestPermission('microphone')
+    return result === 'granted'
   })
-  ipcMain.handle('permissions:check-screen', () => {
-    if (process.platform === 'darwin') return systemPreferences.getMediaAccessStatus('screen')
-    return 'granted'
+  ipcMain.handle('permissions:check-screen', () => checkPermission('screen'))
+  ipcMain.handle('permissions:request-screen', async () => {
+    // macOS has no programmatic screen-recording prompt — opens System
+    // Settings so the user can grant manually.
+    return requestPermission('screen')
   })
-  ipcMain.handle('permissions:request-screen', () => {
-    if (process.platform === 'darwin') return systemPreferences.getMediaAccessStatus('screen')
-    return 'granted'
-  })
+  // R5 — generic handlers any future feature can use
+  ipcMain.handle('permissions:check', (_e, kind) => checkPermission(kind))
+  ipcMain.handle('permissions:request', async (_e, kind) => requestPermission(kind))
+  ipcMain.handle('permissions:open-pane', async (_e, kind) => openRecoveryPane(kind))
 
   // URL fetch
   ipcMain.handle('fetch:url', async (_e, url: string) => {
