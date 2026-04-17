@@ -5,6 +5,16 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 import { setQuittingForUpdate } from './windows'
+import { setPendingUpdate } from './tray'
+
+// Tracks whether a recording is active so the update flow doesn't kill a
+// live meeting. Set from the same tray state flag via updateTrayRecordingState
+// (renderer-driven). Auto-updater.ts can't import tray's private state, so
+// we piggyback on a local flag updated by a small setter.
+let isRecordingActive = false
+export function setAutoUpdaterRecordingFlag(recording: boolean): void {
+  isRecordingActive = recording
+}
 
 /** Read GH_TOKEN from shell profile (~/.zshrc, ~/.zprofile, ~/.bashrc) since macOS GUI apps don't inherit shell env vars. */
 function readTokenFromShellProfile(): string | null {
@@ -56,11 +66,33 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log(`[auto-updater] Update downloaded: v${info.version} — prompting restart`)
+    console.log(`[auto-updater] Update downloaded: v${info.version} — surfacing`)
+
+    // Tell the tray so it shows "Restart & install vX.Y.Z" at the top of
+    // its menu. This is the persistent, always-reachable entry point — it
+    // stays there until the user restarts. If a recording is active, the
+    // tray shows a disabled banner instead.
+    setPendingUpdate(info.version)
+
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-downloaded', info.version)
     }
-    // Prompt user to restart and install
+
+    // Skip the restart dialog during an active recording — no popup that
+    // could interrupt a meeting. The tray banner still shows the pending
+    // update; user can restart from there when they're done.
+    if (isRecordingActive) {
+      console.log('[auto-updater] Recording active — deferring restart prompt until meeting ends')
+      return
+    }
+
+    // Also skip if the main window isn't visible (user is using the tray
+    // workflow). Dialog would pop in the background and confuse. Tray
+    // banner + the in-app banner cover that case.
+    if (!mainWindow.isVisible()) {
+      return
+    }
+
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Ready',
