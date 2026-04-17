@@ -614,15 +614,13 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Ask bar — floats at the bottom of the viewport, always
-                visible regardless of scroll or which tab (summary / coaching
-                / notes) is active. Positioned absolute inside the left
-                column so it respects sidebar width, with bg-background/95
-                + backdrop blur + top shadow so scrolled content reads
-                clearly underneath. Scrollable area above gets bottom
-                padding so its last items aren't hidden under the bar. */}
-            <div className="absolute bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/40 shadow-[0_-4px_16px_-8px_rgba(0,0,0,0.08)] pointer-events-none">
-              <div className="pointer-events-auto">
+            {/* Ask bar — floats as a centered pill near the bottom of the
+                viewport. AskBar already applies mx-auto max-w-2xl on its
+                inner container, so we just need absolute bottom positioning
+                + pointer-events:none so clicks around the pill pass through
+                to content underneath. No full-width background chrome — the
+                bar reads as a floating control, not a pinned footer. */}
+            <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
               <AskBar
                 context="meeting"
                 meetingTitle={note.title}
@@ -673,7 +671,6 @@ export default function NoteDetailPage() {
                   }
                 }}
               />
-              </div>
             </div>
           </div>
 
