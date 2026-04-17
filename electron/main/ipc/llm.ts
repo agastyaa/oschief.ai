@@ -134,7 +134,7 @@ export function registerLLMHandlers(): void {
     }
   })
 
-  ipcMain.handle('digest:get-weekly', async (_e, opts?: { mode?: 'current' | 'retrospective' }) => {
+  ipcMain.handle('digest:get-weekly', async (_e, opts?: { mode?: 'current' | 'retrospective'; skipNarrative?: boolean }) => {
     const db = (await import('../storage/database')).getDb()
     const now = new Date()
     const dayOfWeek = now.getDay()
@@ -278,41 +278,43 @@ export function registerLLMHandlers(): void {
     }
 
     let narrative: string | null = null
-    try {
-      const { routeLLM } = await import('../cloud/router')
-      const { resolveSelectedAIModel } = await import('../models/model-resolver')
-      const model = resolveSelectedAIModel() || 'openai:gpt-4o-mini'
+    if (!opts?.skipNarrative) {
+      try {
+        const { routeLLM } = await import('../cloud/router')
+        const { resolveSelectedAIModel } = await import('../models/model-resolver')
+        const model = resolveSelectedAIModel() || 'openai:gpt-4o-mini'
 
-      const dataPoints: string[] = []
-      dataPoints.push(`Week: ${retroFrom} to ${retroTo}`)
-      dataPoints.push(`Meetings: ${meetings.length} (${totalDurationMin} min total)`)
-      dataPoints.push(`Decisions: ${decisions.length}${decisions.length > 0 ? ' — ' + decisions.slice(0, 3).map((d: any) => d.text.slice(0, 60)).join('; ') : ''}`)
-      dataPoints.push(`Commitments: ${commitmentsCreated?.cnt || 0} created, ${commitmentsCompleted?.cnt || 0} completed, ${commitmentsOverdue?.cnt || 0} overdue`)
-      if (overdueItems.length > 0) dataPoints.push(`Overdue: ${overdueItems.map((c: any) => `${c.assigneeName || c.owner}: ${c.text.slice(0, 40)}`).join('; ')}`)
-      if (people.length > 0) dataPoints.push(`Key people: ${people.slice(0, 5).map((p: any) => p.name).join(', ')}`)
-      if (activeProjects.length > 0) dataPoints.push(`Active projects: ${activeProjects.map((p: any) => p.name).join(', ')}`)
-      if (mailActivity?.threadCount) dataPoints.push(`Email: ${mailActivity.threadCount} threads`)
+        const dataPoints: string[] = []
+        dataPoints.push(`Week: ${retroFrom} to ${retroTo}`)
+        dataPoints.push(`Meetings: ${meetings.length} (${totalDurationMin} min total)`)
+        dataPoints.push(`Decisions: ${decisions.length}${decisions.length > 0 ? ' — ' + decisions.slice(0, 3).map((d: any) => d.text.slice(0, 60)).join('; ') : ''}`)
+        dataPoints.push(`Commitments: ${commitmentsCreated?.cnt || 0} created, ${commitmentsCompleted?.cnt || 0} completed, ${commitmentsOverdue?.cnt || 0} overdue`)
+        if (overdueItems.length > 0) dataPoints.push(`Overdue: ${overdueItems.map((c: any) => `${c.assigneeName || c.owner}: ${c.text.slice(0, 40)}`).join('; ')}`)
+        if (people.length > 0) dataPoints.push(`Key people: ${people.slice(0, 5).map((p: any) => p.name).join(', ')}`)
+        if (activeProjects.length > 0) dataPoints.push(`Active projects: ${activeProjects.map((p: any) => p.name).join(', ')}`)
+        if (mailActivity?.threadCount) dataPoints.push(`Email: ${mailActivity.threadCount} threads`)
 
-      if (mode === 'current' && upcoming) {
-        if (upcoming.meetings.length > 0) dataPoints.push(`Upcoming this week: ${upcoming.meetings.length} meetings`)
-        if (upcoming.commitmentsDue.length > 0) dataPoints.push(`Due this week: ${upcoming.commitmentsDue.length} commitments`)
+        if (mode === 'current' && upcoming) {
+          if (upcoming.meetings.length > 0) dataPoints.push(`Upcoming this week: ${upcoming.meetings.length} meetings`)
+          if (upcoming.commitmentsDue.length > 0) dataPoints.push(`Due this week: ${upcoming.commitmentsDue.length} commitments`)
+        }
+
+        if (meetings.length > 0 || decisions.length > 0 || (commitmentsCreated?.cnt || 0) > 0) {
+          const prompt = mode === 'current'
+            ? 'Write a 3-4 sentence executive brief. First summarize last week (what happened, key decisions, any overdue items needing attention). Then preview this week (upcoming meetings, deadlines). Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+            : 'Write a 3-4 sentence executive summary of this week. Highlight the most important decisions, any overdue items needing attention, and who the user spent the most time with. Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+
+          narrative = await routeLLM(
+            [
+              { role: 'system', content: 'You are OSChief, a concise executive assistant. Write brief, specific summaries. No fluff, no filler.' },
+              { role: 'user', content: `${prompt}\n\nData:\n${dataPoints.join('\n')}` },
+            ],
+            model,
+          )
+        }
+      } catch (err) {
+        console.error('[digest] AI summary failed:', err)
       }
-
-      if (meetings.length > 0 || decisions.length > 0 || (commitmentsCreated?.cnt || 0) > 0) {
-        const prompt = mode === 'current'
-          ? 'Write a 3-4 sentence executive brief. First summarize last week (what happened, key decisions, any overdue items needing attention). Then preview this week (upcoming meetings, deadlines). Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
-          : 'Write a 3-4 sentence executive summary of this week. Highlight the most important decisions, any overdue items needing attention, and who the user spent the most time with. Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
-
-        narrative = await routeLLM(
-          [
-            { role: 'system', content: 'You are OSChief, a concise executive assistant. Write brief, specific summaries. No fluff, no filler.' },
-            { role: 'user', content: `${prompt}\n\nData:\n${dataPoints.join('\n')}` },
-          ],
-          model,
-        )
-      }
-    } catch (err) {
-      console.error('[digest] AI summary failed:', err)
     }
 
     return {
@@ -335,6 +337,64 @@ export function registerLLMHandlers(): void {
       coachingScores,
       mailActivity,
       upcoming,
+    }
+  })
+
+  // Standalone narrative generator — takes the already-computed data points
+  // from digest:get-weekly and returns only the LLM text. Used so the UI can
+  // render data instantly and fill in the narrative asynchronously.
+  ipcMain.handle('digest:generate-narrative', async (_e, payload: {
+    mode: 'current' | 'retrospective'
+    weekRange: { from: string; to: string }
+    meetingCount: number
+    totalDurationMin: number
+    decisions: Array<{ text: string }>
+    commitments: { created: number; completed: number; overdue: number; overdueItems: Array<{ text: string; owner: string; assigneeName?: string }> }
+    people: Array<{ name: string }>
+    projects: Array<{ name: string }>
+    mailActivity?: { threadCount: number } | null
+    upcoming?: { meetings: any[]; commitmentsDue: any[] } | null
+  }): Promise<string | null> => {
+    try {
+      const { routeLLM } = await import('../cloud/router')
+      const { resolveSelectedAIModel } = await import('../models/model-resolver')
+      const model = resolveSelectedAIModel() || 'openai:gpt-4o-mini'
+
+      const dataPoints: string[] = []
+      dataPoints.push(`Week: ${payload.weekRange.from} to ${payload.weekRange.to}`)
+      dataPoints.push(`Meetings: ${payload.meetingCount} (${payload.totalDurationMin} min total)`)
+      dataPoints.push(`Decisions: ${payload.decisions.length}${payload.decisions.length > 0 ? ' — ' + payload.decisions.slice(0, 3).map((d) => d.text.slice(0, 60)).join('; ') : ''}`)
+      dataPoints.push(`Commitments: ${payload.commitments.created} created, ${payload.commitments.completed} completed, ${payload.commitments.overdue} overdue`)
+      if (payload.commitments.overdueItems.length > 0) {
+        dataPoints.push(`Overdue: ${payload.commitments.overdueItems.map((c) => `${c.assigneeName || c.owner}: ${c.text.slice(0, 40)}`).join('; ')}`)
+      }
+      if (payload.people.length > 0) dataPoints.push(`Key people: ${payload.people.slice(0, 5).map((p) => p.name).join(', ')}`)
+      if (payload.projects.length > 0) dataPoints.push(`Active projects: ${payload.projects.map((p) => p.name).join(', ')}`)
+      if (payload.mailActivity?.threadCount) dataPoints.push(`Email: ${payload.mailActivity.threadCount} threads`)
+
+      if (payload.mode === 'current' && payload.upcoming) {
+        if (payload.upcoming.meetings.length > 0) dataPoints.push(`Upcoming this week: ${payload.upcoming.meetings.length} meetings`)
+        if (payload.upcoming.commitmentsDue.length > 0) dataPoints.push(`Due this week: ${payload.upcoming.commitmentsDue.length} commitments`)
+      }
+
+      if (payload.meetingCount === 0 && payload.decisions.length === 0 && payload.commitments.created === 0) {
+        return null
+      }
+
+      const prompt = payload.mode === 'current'
+        ? 'Write a 3-4 sentence executive brief. First summarize last week (what happened, key decisions, any overdue items needing attention). Then preview this week (upcoming meetings, deadlines). Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+        : 'Write a 3-4 sentence executive summary of this week. Highlight the most important decisions, any overdue items needing attention, and who the user spent the most time with. Be specific with names and numbers. No headers or bullet points — just a crisp paragraph.'
+
+      return await routeLLM(
+        [
+          { role: 'system', content: 'You are OSChief, a concise executive assistant. Write brief, specific summaries. No fluff, no filler.' },
+          { role: 'user', content: `${prompt}\n\nData:\n${dataPoints.join('\n')}` },
+        ],
+        model,
+      )
+    } catch (err) {
+      console.error('[digest] Narrative generation failed:', err)
+      return null
     }
   })
 }

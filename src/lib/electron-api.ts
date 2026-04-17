@@ -398,7 +398,8 @@ type ElectronAPI = {
     onAnalyzeProgress: (callback: (data: { current: number; total: number; noteTitle?: string }) => void) => () => void
   }
   digest?: {
-    getWeekly: () => Promise<any>
+    getWeekly: (opts?: { mode?: 'current' | 'retrospective'; skipNarrative?: boolean }) => Promise<any>
+    generateNarrative?: (payload: any) => Promise<string | null>
   }
   kb?: {
     pickFolder: () => Promise<{ ok: boolean; path?: string; added?: number; updated?: number; removed?: number; total?: number; error?: string }>
