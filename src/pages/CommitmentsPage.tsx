@@ -36,6 +36,7 @@ const CommitmentsPage = () => {
   const navigate = useNavigate()
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [filter, setFilter] = useState<FilterStatus>("open")
+  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState("")
   const [newTodoDueDate, setNewTodoDueDate] = useState("")
@@ -143,13 +144,23 @@ const CommitmentsPage = () => {
   const totalOpen = commitments.filter(c => c.status === "open" || c.status === "overdue").length
 
   const filteredCommitments = useMemo(() => {
-    if (filter === "all") return commitments
-    if (filter === "my") {
-      return commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
+    let result: Commitment[]
+    if (filter === "all") result = commitments
+    else if (filter === "my") {
+      result = commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
     }
-    if (filter === "upcoming") return commitments.filter(isUpcoming)
-    return commitments.filter((c) => c.status === filter)
-  }, [commitments, filter, isMyCommitment])
+    else if (filter === "upcoming") result = commitments.filter(isUpcoming)
+    else result = commitments.filter((c) => c.status === filter)
+
+    const q = search.trim().toLowerCase()
+    if (!q) return result
+    return result.filter((c) =>
+      c.text.toLowerCase().includes(q) ||
+      (c.assignee_name?.toLowerCase().includes(q) ?? false) ||
+      (c.note_title?.toLowerCase().includes(q) ?? false) ||
+      (c.owner?.toLowerCase().includes(q) ?? false)
+    )
+  }, [commitments, filter, isMyCommitment, search])
 
   const handleAddTodo = useCallback(async () => {
     const text = newTodoText.trim()
@@ -261,34 +272,65 @@ const CommitmentsPage = () => {
               </div>
             </div>
 
-            {/* Filter tabs */}
-            <div className="flex items-center gap-1 mb-6 border-b border-border">
-              {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={cn(
-                    "px-3 py-2.5 text-body-sm font-medium transition-colors border-b-2 -mb-px",
-                    filter === f
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {f === "all" ? "All" : f === "my" ? "My" : f === "upcoming" ? "Upcoming" : STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label}
-                  {f !== "all" && f === "open" && counts.open > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.open}</span>
-                  )}
-                  {f === "overdue" && counts.overdue > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.overdue}</span>
-                  )}
-                  {f === "my" && counts.my > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.my}</span>
-                  )}
-                  {f === "upcoming" && counts.upcoming > 0 && (
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">{counts.upcoming}</span>
-                  )}
-                </button>
-              ))}
+            {/* Filters row: chip-style filters + search */}
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => {
+                  const label =
+                    f === "all" ? "All" :
+                    f === "my" ? "My" :
+                    f === "upcoming" ? "Upcoming" :
+                    STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label
+                  const count =
+                    f === "open" ? counts.open :
+                    f === "overdue" ? counts.overdue :
+                    f === "my" ? counts.my :
+                    f === "upcoming" ? counts.upcoming :
+                    f === "completed" ? counts.completed :
+                    0
+                  const active = filter === f
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      )}
+                    >
+                      {label}
+                      {count > 0 && f !== "all" && (
+                        <span className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by text, assignee, note..."
+                  className="w-full rounded-full border border-border bg-card pl-9 pr-8 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {loading ? (
