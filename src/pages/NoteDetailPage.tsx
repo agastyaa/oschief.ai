@@ -421,8 +421,10 @@ export default function NoteDetailPage() {
         </div>
         {/* Content area with side panel */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: main content + ask bar */}
-          <div className="flex flex-1 flex-col min-w-0">
+          {/* Left: main content + ask bar (relative so the floating AskBar
+              can absolute-position itself against this column, respecting
+              sidebar width and transcript side panel). */}
+          <div className="relative flex flex-1 flex-col min-w-0">
             {/* Title + metadata — fixed at top, not scrollable */}
             <div className="shrink-0">
               <div className="mx-auto max-w-3xl px-8 py-3 pb-0">
@@ -541,8 +543,9 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Scrollable content — summary/notes */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Scrollable content — summary/notes. pb-32 reserves room so
+                the last line isn't hidden under the floating AskBar. */}
+            <div className="flex-1 overflow-y-auto pb-32">
               <div className="mx-auto max-w-3xl px-8">
                 <div className="border-t border-border/50 my-4" />
 
@@ -611,8 +614,15 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Ask bar — pinned to bottom */}
-            <div className="relative shrink-0">
+            {/* Ask bar — floats at the bottom of the viewport, always
+                visible regardless of scroll or which tab (summary / coaching
+                / notes) is active. Positioned absolute inside the left
+                column so it respects sidebar width, with bg-background/95
+                + backdrop blur + top shadow so scrolled content reads
+                clearly underneath. Scrollable area above gets bottom
+                padding so its last items aren't hidden under the bar. */}
+            <div className="absolute bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/40 shadow-[0_-4px_16px_-8px_rgba(0,0,0,0.08)] pointer-events-none">
+              <div className="pointer-events-auto">
               <AskBar
                 context="meeting"
                 meetingTitle={note.title}
@@ -663,6 +673,7 @@ export default function NoteDetailPage() {
                   }
                 }}
               />
+              </div>
             </div>
           </div>
 
