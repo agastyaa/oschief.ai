@@ -397,25 +397,119 @@ export default function ProjectsPage() {
                 Unassigned Decisions
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Decisions not linked to any project.
+                Decisions not linked to any project. Pick a project to link, or delete.
               </p>
               <div className="rounded-[10px] border border-border bg-card divide-y divide-border">
                 {unassignedDecisions.map((d: any) => (
-                  <div key={d.id} className="flex items-center gap-2 px-4 py-2.5">
-                    <span className="text-sm flex-1 truncate">{d.text}</span>
-                    <span className={cn(
-                      "text-[11px] rounded-full px-2 py-0.5 shrink-0",
-                      decisionStatusStyles[d.status || 'MADE']
-                    )}>
-                      {decisionStatusLabels[d.status || 'MADE']}
-                    </span>
-                    {d.date && <span className="text-[11px] text-muted-foreground shrink-0">{d.date}</span>}
-                  </div>
+                  <UnassignedDecisionRow
+                    key={d.id}
+                    decision={d}
+                    projects={projects}
+                    onAssign={async (projectId) => {
+                      if (!api?.memory?.decisions?.update) return
+                      const ok = await api.memory.decisions.update(d.id, { projectId })
+                      if (ok) {
+                        setUnassignedDecisions((prev) => prev.filter((x) => x.id !== d.id))
+                        const target = projects.find((p) => p.id === projectId)
+                        toast.success(`Linked to ${target?.name ?? "project"}`)
+                        loadProjects()
+                      } else {
+                        toast.error("Failed to link decision")
+                      }
+                    }}
+                    onDelete={async () => {
+                      if (!api?.memory?.decisions?.delete) return
+                      if (!confirm(`Delete this decision? "${d.text.slice(0, 60)}..."`)) return
+                      const ok = await api.memory.decisions.delete(d.id)
+                      if (ok) {
+                        setUnassignedDecisions((prev) => prev.filter((x) => x.id !== d.id))
+                        toast.success("Decision deleted")
+                      } else {
+                        toast.error("Failed to delete decision")
+                      }
+                    }}
+                  />
                 ))}
               </div>
             </div>
           )}
         </div>
+  )
+}
+
+function UnassignedDecisionRow({
+  decision,
+  projects,
+  onAssign,
+  onDelete,
+}: {
+  decision: any
+  projects: Project[]
+  onAssign: (projectId: string) => void | Promise<void>
+  onDelete: () => void | Promise<void>
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const activeProjects = projects.filter((p) => p.status === "active" || p.status === "suggested")
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 relative">
+      <span className="text-sm flex-1 truncate" title={decision.text}>{decision.text}</span>
+      <span className={cn(
+        "text-[11px] rounded-full px-2 py-0.5 shrink-0",
+        decisionStatusStyles[decision.status || 'MADE']
+      )}>
+        {decisionStatusLabels[decision.status || 'MADE']}
+      </span>
+      {decision.date && <span className="text-[11px] text-muted-foreground shrink-0">{decision.date}</span>}
+
+      <div className="relative shrink-0">
+        <button
+          onClick={() => setPickerOpen((v) => !v)}
+          className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title="Link to a project"
+        >
+          <Plus className="h-3 w-3" />
+          Link
+          <ChevronDown className="h-3 w-3" />
+        </button>
+        {pickerOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+            <div className="absolute right-0 top-full mt-1 w-56 rounded-[10px] border border-border bg-popover shadow-lg z-50 overflow-hidden">
+              {activeProjects.length === 0 ? (
+                <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                  No projects yet. Create one first.
+                </div>
+              ) : (
+                <div className="max-h-56 overflow-y-auto py-1">
+                  {activeProjects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setPickerOpen(false)
+                        void onAssign(p.id)
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary transition-colors text-left"
+                    >
+                      <FolderKanban className="h-3 w-3 text-accent shrink-0" />
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <button
+        onClick={() => void onDelete()}
+        className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        title="Delete decision"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
+    </div>
   )
 }
 

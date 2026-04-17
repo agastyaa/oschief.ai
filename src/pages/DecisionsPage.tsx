@@ -219,7 +219,7 @@ export default function DecisionsPage() {
             </div>
           )}
 
-          {/* Filters */}
+          {/* Filters + primary action (right-aligned) */}
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -245,72 +245,77 @@ export default function DecisionsPage() {
                 ))}
               </select>
             )}
-          </div>
-
-          {/* Action bar: select all + bulk actions + add */}
-          <div className="flex items-center gap-2 mb-4">
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
-              <input
-                type="checkbox"
-                checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedIds(new Set(filtered.map(d => d.id)))
-                  } else {
-                    setSelectedIds(new Set())
-                  }
-                }}
-                className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/20"
-              />
-              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
-            </label>
-            <div className="flex-1" />
-            {selectedIds.size > 0 && (
-              <>
-                <select
-                  defaultValue=""
-                  onChange={async (e) => {
-                    if (!e.target.value) return
-                    for (const id of selectedIds) {
-                      await api?.memory?.decisions?.updateStatus(id, e.target.value)
-                    }
-                    refreshDecisions()
-                    e.target.value = ""
-                  }}
-                  aria-label="Set status for selected decisions"
-                  className="text-xs rounded-md border border-border bg-background px-2 py-1.5 text-muted-foreground focus:outline-none"
-                >
-                  <option value="">Set status...</option>
-                  {Object.entries(statusLabels).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={async () => {
-                    if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
-                    for (const id of selectedIds) {
-                      await api?.memory?.decisions?.delete?.(id)
-                    }
-                    setSelectedIds(new Set())
-                    refreshDecisions()
-                  }}
-                  className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete {selectedIds.size}
-                </button>
-              </>
-            )}
-            {!creating && selectedIds.size === 0 && (
+            {!creating && (
               <button
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
               >
                 <Plus className="h-3 w-3" />
                 Add Decision
               </button>
             )}
           </div>
+
+          {/* Selection toolbar — appears only when items are selected */}
+          {selectedIds.size > 0 && (
+            <div className="sticky top-0 z-20 -mx-2 mb-3 flex items-center gap-2 rounded-md border border-border bg-card/95 backdrop-blur px-3 py-2 shadow-sm animate-route-enter">
+              <span className="text-xs font-medium text-foreground">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={() => {
+                  if (selectedIds.size === filtered.length) {
+                    setSelectedIds(new Set())
+                  } else {
+                    setSelectedIds(new Set(filtered.map(d => d.id)))
+                  }
+                }}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {selectedIds.size === filtered.length ? "Deselect all" : `Select all ${filtered.length}`}
+              </button>
+              <div className="flex-1" />
+              <select
+                defaultValue=""
+                onChange={async (e) => {
+                  if (!e.target.value) return
+                  for (const id of selectedIds) {
+                    await api?.memory?.decisions?.updateStatus(id, e.target.value)
+                  }
+                  refreshDecisions()
+                  e.target.value = ""
+                }}
+                aria-label="Set status for selected decisions"
+                className="text-xs rounded-md border border-border bg-background px-2 py-1.5 text-muted-foreground focus:outline-none"
+              >
+                <option value="">Set status…</option>
+                {Object.entries(statusLabels).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!confirm(`Delete ${selectedIds.size} decision${selectedIds.size > 1 ? 's' : ''}?`)) return
+                  for (const id of selectedIds) {
+                    await api?.memory?.decisions?.delete?.(id)
+                  }
+                  setSelectedIds(new Set())
+                  refreshDecisions()
+                }}
+                className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete {selectedIds.size}
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Clear selection"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Timeline */}
           {loading ? (
