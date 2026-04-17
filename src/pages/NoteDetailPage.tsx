@@ -614,15 +614,17 @@ export default function NoteDetailPage() {
               </div>
             </div>
 
-            {/* Ask bar — floats as a centered pill near the bottom of the
-                viewport. AskBar already applies mx-auto max-w-2xl on its
-                inner container, so we just need absolute bottom positioning
-                + pointer-events:none so clicks around the pill pass through
-                to content underneath. No full-width background chrome — the
-                bar reads as a floating control, not a pinned footer. */}
-            <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
+            {/* Ask bar — position:fixed to the viewport so it floats above
+                scrolling content and stays put regardless of page scroll.
+                AskBar applies mx-auto max-w-2xl internally; with left-0
+                right-0 it centers inside the main area (sidebar is outside
+                its bounding box, so the pill sits correctly in the content
+                region). pointer-events:none on the outer wrapper so the
+                transparent margins around the pill don't eat clicks. */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
               <AskBar
                 context="meeting"
+                scopeId={id}
                 meetingTitle={note.title}
                 hideTranscriptToggle={!!note.summary}
                 noteContext={[

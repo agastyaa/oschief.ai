@@ -1395,9 +1395,10 @@ export default function NewNotePage() {
               </div>
             </div>
 
-            <div className="relative shrink-0 space-y-2">
+            <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none space-y-2">
               <AskBar
                 context="meeting"
+                scopeId={noteId}
                 meetingTitle={title || "New note"}
                 noteContext={askBarNoteContext}
                 meetingGraphContext={meetingGraphContextText}
