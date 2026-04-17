@@ -61,7 +61,9 @@ describe('linkPerson IPC handler', () => {
   it('should insert into project_people table, not note_people', async () => {
     const fs = await import('fs')
     const path = await import('path')
-    const filePath = path.resolve(__dirname, '../../electron/main/ipc-handlers.ts')
+    // v2.10: handler moved from ipc-handlers.ts to ipc/memory.ts as part of
+    // the IPC decomposition. Check the new home.
+    const filePath = path.resolve(__dirname, '../../electron/main/ipc/memory.ts')
     const source = fs.readFileSync(filePath, 'utf-8')
 
     // Find the handler block
