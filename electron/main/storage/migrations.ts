@@ -325,6 +325,38 @@ const MIGRATIONS: { version: number; up: string[] }[] = [
       `ALTER TABLE notes ADD COLUMN mic_only INTEGER DEFAULT 0`,
     ]
   },
+  {
+    version: 18,
+    up: [
+      // v2.11 R3 — offline queue + DLQ for cloud LLM/STT calls.
+      // When offline or transient-failed, requests park here and flush on
+      // reconnect. After MAX_ATTEMPTS the item moves to the DLQ so the
+      // main queue keeps flushing (availability > strict order).
+      `CREATE TABLE IF NOT EXISTS offline_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        payload_bytes INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        next_attempt_at INTEGER NOT NULL DEFAULT 0
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_offline_queue_order ON offline_queue(next_attempt_at, id)`,
+      `CREATE TABLE IF NOT EXISTS offline_queue_dlq (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_id INTEGER NOT NULL,
+        channel TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        payload_bytes INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        moved_at INTEGER NOT NULL,
+        attempts INTEGER NOT NULL,
+        final_error TEXT
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_offline_queue_dlq_moved ON offline_queue_dlq(moved_at DESC)`,
+    ]
+  },
 ]
 
 export function runMigrations(db: Database.Database): void {
