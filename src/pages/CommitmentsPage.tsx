@@ -272,39 +272,30 @@ const CommitmentsPage = () => {
               </div>
             </div>
 
-            {/* Filters row: chip-style filters + search */}
-            <div className="flex items-center gap-2 mb-6 flex-wrap">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {(["my", "open", "upcoming", "completed", "overdue", "all"] as const).map((f) => {
-                  const label =
-                    f === "all" ? "All" :
-                    f === "my" ? "My" :
-                    f === "upcoming" ? "Upcoming" :
-                    STATUS_CONFIG[f as keyof typeof STATUS_CONFIG].label
-                  const count =
-                    f === "open" ? counts.open :
-                    f === "overdue" ? counts.overdue :
-                    f === "my" ? counts.my :
-                    f === "upcoming" ? counts.upcoming :
-                    f === "completed" ? counts.completed :
-                    0
-                  const active = filter === f
+            {/* Filters row: compact status segment + mine toggle + inline search */}
+            <div className="flex items-center gap-3 mb-6">
+              {/* Status segmented control (3 primary states) */}
+              <div className="inline-flex items-center rounded-full border border-border bg-card p-0.5 shrink-0">
+                {(["open", "completed", "all"] as const).map((f) => {
+                  const label = f === "all" ? "All" : f === "open" ? "Open" : "Done"
+                  const count = f === "open" ? counts.open : f === "completed" ? counts.completed : 0
+                  const active = filter === f || (filter === "overdue" && f === "open") || (filter === "upcoming" && f === "open")
                   return (
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                         active
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       {label}
                       {count > 0 && f !== "all" && (
                         <span className={cn(
                           "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
                         )}>
                           {count}
                         </span>
@@ -313,12 +304,51 @@ const CommitmentsPage = () => {
                   )
                 })}
               </div>
-              <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
+
+              {/* Mine toggle (separate, distinct affordance) */}
+              <button
+                onClick={() => setFilter(filter === "my" ? "open" : "my")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
+                  filter === "my"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                Mine only
+                {counts.my > 0 && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                    filter === "my" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
+                  )}>
+                    {counts.my}
+                  </span>
+                )}
+              </button>
+
+              {/* Overdue quick-filter (only when > 0, subtle) */}
+              {counts.overdue > 0 && (
+                <button
+                  onClick={() => setFilter(filter === "overdue" ? "open" : "overdue")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
+                    filter === "overdue"
+                      ? "border-amber bg-amber-bg text-amber"
+                      : "border-amber/30 bg-amber-bg/40 text-amber/80 hover:bg-amber-bg"
+                  )}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  {counts.overdue} overdue
+                </button>
+              )}
+
+              {/* Search: inline, right-aligned */}
+              <div className="relative flex-1 max-w-xs ml-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by text, assignee, note..."
+                  placeholder="Search..."
                   className="w-full rounded-full border border-border bg-card pl-9 pr-8 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
                 {search && (
@@ -498,11 +528,11 @@ const CommitmentsPage = () => {
                                 ) : (
                                   <button
                                     onClick={() => setEditingDueDateId(c.id)}
-                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-1"
                                     title="Set due date"
                                   >
                                     <Clock className="h-2.5 w-2.5" />
-                                    Due
+                                    Add due date
                                   </button>
                                 )}
                                 {/* Jira key */}
