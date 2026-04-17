@@ -4,6 +4,38 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.10.0] — 2026-04-16
+
+**Theme: Stabilize.** Internal foundation release — no user-visible behavior changes. Sets up the characterization tests, logging primitive, and IPC decomposition pattern that v2.11 and v3.0 build on.
+
+### Added
+- **Characterization test suite** (+49 tests, 317 → 366 green). Locks pre-refactor behavior on three critical modules so future refactors can't drift silently:
+  - `electron/main/storage/migrate-store.test.ts` (6 tests) — migration runner traversal, ordering, idempotency, fallback-on-failure (duplicate-column path), and version-gap integrity. Ship gate for DB schema changes.
+  - `src/lib/title-derivation.test.ts` (19 tests) — all 5 fallback layers (generic detection, text clause extraction, transcript opening, date stub, calendar overlap).
+  - `src/lib/coaching-analytics.test.ts` (13 tests) — speaking time (word-level + chunk-estimate), filler detection, scoring bands (pacing 130-160 WPM, listening 40-60%, conciseness), overall-score weighting invariant.
+- **Structured logger** (`electron/main/util/logger.ts`) — `createLogger(module)` with `.debug/.info/.warn/.error` + `.child(sub)` namespacing. `LOG_LEVEL` env var, pretty output in dev, single-line JSON in prod. Drop-in replacement for ad-hoc `console.*`. 5 tests green.
+- **IPC decomposition foundation**:
+  - `electron/main/ipc/util.ts` — `withIPC()` wrapper: async handler registration with standardized error logging + re-throw, replacing the scattered try/catch pattern. `ok()`/`err()` envelope helpers for v2.11 Zod work. 6 tests green.
+  - `electron/main/ipc/sync.ts` — first representative domain (5 iCloud channels) extracted out of the 2241-line `ipc-handlers.ts` as a proof of pattern.
+  - `docs/channel-to-domain.md` — full audit mapping all 225 unique IPC channels (226 raw calls, 1 duplicate) across 39 prefix groups into the 15 target domain files. Source-of-truth for the remaining migration.
+- **`any`-budget CI guard** (`.github/workflows/any-budget.yml`) — counts `any` usage on every PR, warns (non-blocking) when above `.any-budget`. Ratchet flip to blocking happens after v2.11 Zod work lands.
+
+### Changed
+- `ipc-handlers.ts` sync block replaced by `registerSyncHandlers()` call (~20 LOC reduction).
+- `.any-budget` updated from 838 → 849 to reflect honest post-tests baseline.
+- Vitest now runs two projects (renderer jsdom + main node), enabling colocated tests under `electron/**/*.test.ts`.
+
+### Deferred (scope adjustment from original v2.10 plan)
+- **Full IPC decomposition** (220 remaining channels across 14 domains) — mechanical follow-up, targeted for v2.10.x or v2.11 alongside Zod boundary validation. Foundation + audit doc are landed; each domain is now an independent, low-risk move.
+- **SettingsPage.tsx decomposition** (3778 → 7 section files) — deferred to v2.10.x or v2.11. Independent of IPC work.
+- **Bulk `console.*` → logger migration in hot paths** — the primitive is in place; call-site migration happens alongside domain moves.
+- **30% `any` reduction target** — originally paired with the structural decomp; re-baselines with v2.11.
+
+### Migration notes
+- No user-visible changes. Existing installs upgrade cleanly — the migration ship-gate test (`migrate-store.test.ts`) covers the idempotent re-launch path.
+
+---
+
 ## [2.9.2] — 2026-04-16
 
 ### Fixed

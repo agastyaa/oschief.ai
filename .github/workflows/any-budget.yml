@@ -1,0 +1,33 @@
+name: any-budget
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'v2.*', 'v3.*']
+
+jobs:
+  any-budget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count `any` usage
+        id: count
+        run: |
+          set -euo pipefail
+          COUNT=$(grep -rE "(:\s*any\b|<any>|any\[\]|as\s+any\b)" src electron --include="*.ts" --include="*.tsx" 2>/dev/null | wc -l | tr -d ' ')
+          BUDGET=$(cat .any-budget | tr -d ' \n')
+          echo "count=$COUNT"
+          echo "budget=$BUDGET"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "budget=$BUDGET" >> "$GITHUB_OUTPUT"
+      - name: Report
+        run: |
+          COUNT=${{ steps.count.outputs.count }}
+          BUDGET=${{ steps.count.outputs.budget }}
+          if [ "$COUNT" -gt "$BUDGET" ]; then
+            echo "::warning::any count $COUNT exceeds budget $BUDGET — please prefer a named type over 'any'"
+          else
+            echo "::notice::any count $COUNT within budget $BUDGET"
+          fi
+          # Warning-only for v2.10 (not a blocker). Flip to 'exit 1' once the
+          # v2.11 Zod work + full IPC decomp land.
