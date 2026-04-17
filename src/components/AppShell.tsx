@@ -5,6 +5,7 @@ import { ContentHeaderProvider, useContentHeaderConfig } from "@/contexts/Conten
 import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { GlobalRecordingBanner } from "@/components/GlobalRecordingBanner";
 import { MeetingDetectionHandler } from "@/components/MeetingDetectionHandler";
+import { TranscriptRecoveryModal } from "@/components/TranscriptRecoveryModal";
 import { TrayAgendaSync } from "@/components/TrayAgendaSync";
 import { isElectron } from "@/lib/electron-api";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ function AppShellInner() {
       {!isOnRecordingPage && <GlobalRecordingBanner />}
       <MeetingDetectionHandler />
       {isElectron && <TrayAgendaSync />}
+      {/* R1.2 — recovers transcripts from crashed recordings with >5s loss */}
+      {isElectron && <TranscriptRecoveryModal />}
 
       {/* Sidebar */}
       {sidebarOpen ? (
