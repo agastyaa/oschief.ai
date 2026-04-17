@@ -6,30 +6,35 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ## [2.10.0] — 2026-04-16
 
-**Theme: Stabilize.** Internal foundation release — no user-visible behavior changes. Sets up the characterization tests, logging primitive, and IPC decomposition pattern that v2.11 and v3.0 build on.
+**Theme: Stabilize.** Internal foundation release — no user-visible behavior changes. Ships the full IPC decomposition, characterization tests, structured logger, and SettingsPage primitive extraction that v2.11 and v3.0 build on.
 
 ### Added
-- **Characterization test suite** (+49 tests, 317 → 366 green). Locks pre-refactor behavior on three critical modules so future refactors can't drift silently:
+- **Characterization test suite** (+49 tests, 317 → 366 green). Locks pre-refactor behavior on critical modules so future refactors can't drift silently:
   - `electron/main/storage/migrate-store.test.ts` (6 tests) — migration runner traversal, ordering, idempotency, fallback-on-failure (duplicate-column path), and version-gap integrity. Ship gate for DB schema changes.
   - `src/lib/title-derivation.test.ts` (19 tests) — all 5 fallback layers (generic detection, text clause extraction, transcript opening, date stub, calendar overlap).
   - `src/lib/coaching-analytics.test.ts` (13 tests) — speaking time (word-level + chunk-estimate), filler detection, scoring bands (pacing 130-160 WPM, listening 40-60%, conciseness), overall-score weighting invariant.
-- **Structured logger** (`electron/main/util/logger.ts`) — `createLogger(module)` with `.debug/.info/.warn/.error` + `.child(sub)` namespacing. `LOG_LEVEL` env var, pretty output in dev, single-line JSON in prod. Drop-in replacement for ad-hoc `console.*`. 5 tests green.
-- **IPC decomposition foundation**:
-  - `electron/main/ipc/util.ts` — `withIPC()` wrapper: async handler registration with standardized error logging + re-throw, replacing the scattered try/catch pattern. `ok()`/`err()` envelope helpers for v2.11 Zod work. 6 tests green.
-  - `electron/main/ipc/sync.ts` — first representative domain (5 iCloud channels) extracted out of the 2241-line `ipc-handlers.ts` as a proof of pattern.
-  - `docs/channel-to-domain.md` — full audit mapping all 225 unique IPC channels (226 raw calls, 1 duplicate) across 39 prefix groups into the 15 target domain files. Source-of-truth for the remaining migration.
+  - `electron/main/util/logger.test.ts` (5 tests) — logger level routing, module tagging, child namespacing.
+  - `electron/main/ipc/util.test.ts` (6 tests) — withIPC handler registration, error re-throw, arg passthrough, envelope helpers.
+- **Structured logger** (`electron/main/util/logger.ts`) — `createLogger(module)` with `.debug/.info/.warn/.error` + `.child(sub)` namespacing. `LOG_LEVEL` env var, pretty output in dev, single-line JSON in prod. Drop-in replacement for ad-hoc `console.*`.
+- **Full IPC decomposition**: `ipc-handlers.ts` went from **2241 → 41 lines** (thin registrar). All 225 unique channels redistributed across 15 domain files under `electron/main/ipc/`:
+  - `app.ts` (20), `calendar.ts` (8), `coaching.ts` (4), `data.ts` (14), `export.ts` (3), `integrations.ts` (18), `intelligence.ts` (23), `llm.ts` (7), `memory.ts` (54), `models.ts` (36), `stt.ts` (16), `sync.ts` (5), `vault.ts` (6), `window.ts` (11), `util.ts` (withIPC wrapper)
+  - `keychain-state.ts` — shared encrypted-keychain helper extracted from the monolith so each domain file can access it without circular deps
+  - Zero channel renames. Zero duplicates (the baseline had 1 duplicate `ipcMain.handle` call — the decomp cleaned it up).
+  - `docs/channel-to-domain.md` — full audit mapping all 225 channels to their new homes. Source-of-truth; verify command included.
+- **SettingsPage shared primitives** (`src/components/settings/shared/`):
+  - `primitives.tsx` — Toggle, SettingRow, SectionHeader extracted from the 3778-line SettingsPage.tsx and imported back in.
+  - `prefs.ts` — loadPreferences, savePreferences, applyAppearance, loadAccount, ROLE_OPTIONS, formatBytes, CALENDAR_PROVIDER_KEY helpers. Available for the section-level extractions in v2.10.x.
 - **`any`-budget CI guard** (`.github/workflows/any-budget.yml`) — counts `any` usage on every PR, warns (non-blocking) when above `.any-budget`. Ratchet flip to blocking happens after v2.11 Zod work lands.
 
 ### Changed
-- `ipc-handlers.ts` sync block replaced by `registerSyncHandlers()` call (~20 LOC reduction).
 - `.any-budget` updated from 838 → 849 to reflect honest post-tests baseline.
 - Vitest now runs two projects (renderer jsdom + main node), enabling colocated tests under `electron/**/*.test.ts`.
+- `src/test/project-detail-fixes.test.ts` updated to read `ipc/memory.ts` for handler source inspection (moved from `ipc-handlers.ts`).
 
-### Deferred (scope adjustment from original v2.10 plan)
-- **Full IPC decomposition** (220 remaining channels across 14 domains) — mechanical follow-up, targeted for v2.10.x or v2.11 alongside Zod boundary validation. Foundation + audit doc are landed; each domain is now an independent, low-risk move.
-- **SettingsPage.tsx decomposition** (3778 → 7 section files) — deferred to v2.10.x or v2.11. Independent of IPC work.
-- **Bulk `console.*` → logger migration in hot paths** — the primitive is in place; call-site migration happens alongside domain moves.
-- **30% `any` reduction target** — originally paired with the structural decomp; re-baselines with v2.11.
+### Deferred to v2.10.x (scope adjustment from original v2.10 plan)
+- **SettingsPage section-by-section migration** — shared primitives + prefs helpers are extracted and wired back in; the 8 standalone section components (SyncSection, AgentApiSection, PrivacySection, VaultSection, KnowledgeBaseSection, AudioTestPanel, AccountSection, TemplatesSection) and 7 IntegrationRow components remain inline in SettingsPage.tsx. Each extraction is mechanical and can ship as incremental v2.10.x patches. SettingsPage.tsx is currently ~3730 lines (down from 3778); target ≤400 lines with the full extraction.
+- **Bulk `console.*` → logger migration in hot paths** — the primitive is in place; call-site migration happens alongside code touches.
+- **30% `any` reduction target** — originally paired with the structural decomp; the mechanical move didn't reduce `any` count meaningfully. Re-baselines with v2.11's Zod + typed-handler work.
 
 ### Migration notes
 - No user-visible changes. Existing installs upgrade cleanly — the migration ship-gate test (`migrate-store.test.ts`) covers the idempotent re-launch path.
