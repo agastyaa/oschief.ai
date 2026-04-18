@@ -3,7 +3,7 @@ import {
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
   Volume2, Save, Sliders, Monitor, Sun, Moon, FileText, ChevronDown, ChevronUp,
   Search, Info, MicOff, MonitorSpeaker, CheckCircle2, XCircle, Loader2,
-  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock
+  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock, Keyboard
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ import { KnowledgeBaseSection } from "@/components/settings/sections/KnowledgeBa
 import { AudioTestPanel } from "@/components/settings/sections/AudioTestPanel";
 import { AccountSection } from "@/components/settings/sections/AccountSection";
 import { TemplatesSection } from "@/components/settings/sections/TemplatesSection";
+import { KeyboardShortcutsSection } from "@/components/settings/KeyboardShortcutsSection";
 import { BUILTIN_TEMPLATES } from "@/data/templates";
 import {
   JiraIntegrationRow,
@@ -75,6 +76,7 @@ const sections = [
   { icon: Globe, label: "Connections", id: "connections" },
   { icon: HardDrive, label: "Data", id: "data" },
   { icon: Shield, label: "Privacy & Data", id: "privacy" },
+  { icon: Keyboard, label: "Keyboard", id: "keyboard" },
   { icon: Info, label: "About", id: "about" },
 ];
 
@@ -1751,6 +1753,10 @@ export default function SettingsPage() {
 
               {active === "privacy" && (
                 <PrivacySection api={api} />
+              )}
+
+              {active === "keyboard" && (
+                <KeyboardShortcutsSection />
               )}
 
               {/* Sync and Agent API are now tabs inside the Connections section above */}

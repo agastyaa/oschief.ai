@@ -40,7 +40,10 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const TrayAgendaPage = lazy(() => import("./pages/TrayAgendaPage"));
 import { TrayMenu } from "@/components/TrayMenu";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SearchCommandProvider } from "@/components/SearchCommand";
+import { SearchCommandProvider, useSearchCommand } from "@/components/SearchCommand";
+import { ShortcutProvider } from "@/lib/keyboard/ShortcutContext";
+import { KeyboardHelp } from "@/lib/keyboard/KeyboardHelp";
+import { GlobalShortcutBinder } from "@/components/GlobalShortcutBinder";
 
 const queryClient = new QueryClient();
 
@@ -182,7 +185,11 @@ const App = () => (
           <HashRouter>
             <SidebarVisibilityProvider>
               <SearchCommandProvider>
-                <AppContent />
+                <ShortcutProvider>
+                  <GlobalShortcutBinder />
+                  <KeyboardHelp />
+                  <AppContent />
+                </ShortcutProvider>
               </SearchCommandProvider>
             </SidebarVisibilityProvider>
           </HashRouter>
@@ -190,7 +197,11 @@ const App = () => (
           <BrowserRouter>
             <SidebarVisibilityProvider>
               <SearchCommandProvider>
-                <AppContent />
+                <ShortcutProvider>
+                  <GlobalShortcutBinder />
+                  <KeyboardHelp />
+                  <AppContent />
+                </ShortcutProvider>
               </SearchCommandProvider>
             </SidebarVisibilityProvider>
           </BrowserRouter>
