@@ -7,7 +7,9 @@ import { showMeetingDetectedNotification, showMeetingStartingSoonNotification, u
 // alwaysRunning = true means the app keeps background processes even when not in a call,
 // so we MUST verify audio/mic activity before triggering a notification.
 const MEETING_PROCESS_PATTERNS: Array<[RegExp, string, boolean]> = [
-  [/zoom\.us|CptHost|^Zoom$/i, 'Zoom', false],
+  // Zoom: classic `zoom.us`, CptHost (call engine), new `Zoom Workplace`
+  [/zoom\.us|CptHost|Zoom Workplace|^Zoom$/i, 'Zoom', false],
+  // Teams: new MSTeams binary (2024+) + legacy "Microsoft Teams" + bundle id
   [/MSTeams|Microsoft Teams|com\.microsoft\.teams|^Teams$/i, 'Microsoft Teams', true],
   [/Google Meet|^Meet$/i, 'Google Meet', false],
   [/webex|webexmta/i, 'Webex', false],
@@ -45,8 +47,11 @@ let currentPollMs = 5000
 let consecutiveInactivePolls = 0
 const INACTIVE_POLLS_TO_END = 18
 
-// Cooldown: skip detection for first 60s after app launch to avoid false positives (e.g. Zoom/Teams auto-start)
-const LAUNCH_COOLDOWN_MS = 60 * 1000
+// Cooldown: skip detection for first 20s after app launch so pre-existing
+// Teams/Zoom processes don't trigger a "just joined" nudge the moment
+// OSChief boots. Was 60s — too long; users who join a call right after
+// opening the app would miss the notification.
+const LAUNCH_COOLDOWN_MS = 20 * 1000
 let appLaunchTime = Date.now()
 
 function execAsync(cmd: string, timeoutMs = 3000): Promise<string> {
@@ -181,7 +186,13 @@ async function checkForMeetings(): Promise<void> {
       if (!appAudioActive) {
         // App is running but no audio activity this poll
         if (!activeMeetingApp) {
-          // Not in a meeting yet — don't start one
+          // Not in a meeting yet — don't start one. Log once per silent
+          // period so if detection "isn't working" we can tell it saw the
+          // app but thought the user wasn't in a call.
+          if (!lastPollHadMeetingApp) {
+            console.log(`[MeetingDetector] ${matchedApp} running but no audio — not in a call yet`)
+          }
+          lastPollHadMeetingApp = !!matchedApp
           isChecking = false
           return
         }
@@ -227,7 +238,7 @@ async function checkForMeetings(): Promise<void> {
       const useCalendarTitle = calEvent && now >= calEvent.start - 2 * 60 * 1000 && now <= calEvent.end + 5 * 60 * 1000
       const meetingTitle = useCalendarTitle && calEvent ? calEvent.title : `${matchedApp} Meeting`
 
-      console.log(`[MeetingDetector] Meeting detected: ${meetingTitle}`)
+      console.log(`[MeetingDetector] Meeting detected: ${meetingTitle} (app=${matchedApp}, calendarMatch=${useCalendarTitle})`)
 
       const detectionData = {
         app: matchedApp,
@@ -305,27 +316,40 @@ async function checkMicActive(): Promise<boolean> {
  * always-running apps (Teams, Discord, Slack) in "meeting" state.
  */
 async function checkAppAudioActive(appName: string): Promise<boolean> {
-  // Map app display names to lsof process patterns
-  const processPatterns: Record<string, string> = {
-    'Microsoft Teams': 'Teams',
-    'Discord': 'Discord',
-    'Slack Huddle': 'Slack',
+  // Map app display names to the set of process-name prefixes lsof should
+  // match. Microsoft shipped a new "MSTeams" client in 2024 alongside the
+  // legacy "Microsoft Teams" binary — we check both. Missing this was
+  // silencing detection for every new-Teams user.
+  const processPatterns: Record<string, string[]> = {
+    'Microsoft Teams': ['MSTeams', 'Teams'],
+    'Discord': ['Discord'],
+    'Slack Huddle': ['Slack'],
   }
-  const pattern = processPatterns[appName]
-  if (!pattern) {
-    // Unknown app — fall back to generic mic check
+  const patterns = processPatterns[appName]
+  if (!patterns || patterns.length === 0) {
     return checkMicActive()
   }
 
   try {
-    // Check if the specific app has open audio device handles
+    // lsof supports multiple -c flags which OR together.
+    const flags = patterns.map((p) => `-c "${p}"`).join(' ')
     const result = await execAsync(
-      `lsof -c "${pattern}" 2>/dev/null | grep -ci "audio\\|coreaudio"`,
-      2000
+      `lsof ${flags} 2>/dev/null | grep -ci "audio\\|coreaudio"`,
+      2500,
     )
-    return parseInt(result.trim()) > 0
+    const hits = parseInt(result.trim()) || 0
+    if (hits > 0) return true
+
+    // Fallback: process matches but lsof didn't find audio handles (lsof
+    // can time out on machines with lots of open FDs). Trust the mic
+    // indicator instead — if the orange dot is on, the user is in a call.
+    const micOn = await checkMicActive()
+    if (micOn) {
+      console.log(`[MeetingDetector] ${appName} audio check fell back to mic-active (lsof missed or timed out)`)
+    }
+    return micOn
   } catch {
-    return false
+    return checkMicActive()
   }
 }
 
