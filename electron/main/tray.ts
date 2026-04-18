@@ -423,6 +423,24 @@ async function checkForUpdatesFromTray(): Promise<void> {
 export function showMeetingDetectedNotification(meetingTitle: string, appName: string): void {
   if (!Notification.isSupported()) return
 
+  // v2.11 — respect the "Notify me when meetings start" toggle. Setting
+  // doubles as the kill switch for both calendar-triggered AND
+  // app-detection-triggered "meeting started" notifications, so flipping
+  // it off silences all of them consistently.
+  try {
+    const { getSetting } = require('./storage/database') as typeof import('./storage/database')
+    const raw = getSetting('meeting-start-notify')
+    if (raw === 'false' || raw === '0') return
+  } catch { /* DB not ready — default to firing */ }
+
+  // Dedup: if the calendar-start scheduler just pinged for the same
+  // meeting (within 2 min), don't double-notify.
+  try {
+    const rem = require('./notifications/meeting-reminder') as typeof import('./notifications/meeting-reminder')
+    if (rem.wasRecentlyNotified()) return
+    rem.markNotified()
+  } catch { /* missing module — skip dedup */ }
+
   const openAndStart = () => {
     mainWindow?.show()
     mainWindow?.focus()

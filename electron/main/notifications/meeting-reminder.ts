@@ -167,6 +167,22 @@ export function setRecordingStateProbe(probe: () => boolean): void {
   isRecordingNowProbe = probe
 }
 
+// Dedup shared between the calendar-start nudge and the app-detection
+// nudge (meeting-detector → tray.showMeetingDetectedNotification). If one
+// fires, suppress the other for this window so the user doesn't get two
+// pings for "Teams call at 2pm" (calendar says 2:00, detector sees Teams
+// open at 2:00:02).
+const RECENT_NOTIFY_WINDOW_MS = 2 * 60 * 1000
+let lastNotifyAt = 0
+
+export function wasRecentlyNotified(): boolean {
+  return Date.now() - lastNotifyAt < RECENT_NOTIFY_WINDOW_MS
+}
+
+export function markNotified(): void {
+  lastNotifyAt = Date.now()
+}
+
 async function fireStartNudge(event: any, eventKey: string): Promise<void> {
   startNotifiedEventIds.add(eventKey)
 
@@ -181,6 +197,10 @@ async function fireStartNudge(event: any, eventKey: string): Promise<void> {
 
   // If the user is already recording, don't interrupt.
   if (isRecordingNowProbe?.()) return
+  // Suppress when another "meeting started" notification just fired (e.g.,
+  // Teams detector pinged us 10 seconds ago for the same meeting).
+  if (wasRecentlyNotified()) return
+  markNotified()
 
   const attendees = event.attendees || []
   const attendeeNames = attendees.map((a: any) => a.name || a.email).filter(Boolean)

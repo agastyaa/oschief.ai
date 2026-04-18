@@ -591,10 +591,10 @@ export default function SettingsPage() {
 
                     <TabsContent value="transcription" className="space-y-5 mt-0">
                       <div className="space-y-2">
-                        <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
+                        <SettingRow label="Detect meeting apps" description="Watch for Teams, Zoom, or Google Meet processes so OSChief knows a call is in flight (required for auto-record + the app-detected notification).">
                           <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
                         </SettingRow>
-                        <SettingRow label="Notify me when meetings start" description="Native macOS notification at the scheduled start time of a calendar event — click to record.">
+                        <SettingRow label="Notify me when meetings start" description="Native macOS notification the moment a meeting begins — from a calendar event OR when a Teams/Zoom/Meet call starts. Click Start Recording to take notes.">
                           <Toggle enabled={toggles.meetingStartNotify} onToggle={() => toggle("meetingStartNotify")} />
                         </SettingRow>
                         <SettingRow label="Remind me about long recordings" description="Gentle ping every hour so you notice if a recording has been running since the meeting ended.">
