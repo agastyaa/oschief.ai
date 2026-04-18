@@ -93,6 +93,8 @@ const TOGGLE_DB_KEYS: Record<string, string> = {
   meetingDetectionRequireMic: 'meeting-detection-require-mic',
   audioNoiseSuppression: 'audio-noise-suppression',
   useDiarization: 'use-diarization',
+  meetingStartNotify: 'meeting-start-notify',
+  longRecordingReminder: 'long-recording-reminder',
 };
 
 const DEFAULT_TOGGLES: Record<string, boolean> = {
@@ -107,6 +109,8 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   meetingDetectionRequireMic: false,
   audioNoiseSuppression: true,
   useDiarization: true,
+  meetingStartNotify: true,
+  longRecordingReminder: true,
 };
 
 // Toggle, SettingRow, SectionHeader extracted to
@@ -589,6 +593,12 @@ export default function SettingsPage() {
                       <div className="space-y-2">
                         <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
                           <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
+                        </SettingRow>
+                        <SettingRow label="Notify me when meetings start" description="Native macOS notification at the scheduled start time of a calendar event — click to record.">
+                          <Toggle enabled={toggles.meetingStartNotify} onToggle={() => toggle("meetingStartNotify")} />
+                        </SettingRow>
+                        <SettingRow label="Remind me about long recordings" description="Gentle ping every hour so you notice if a recording has been running since the meeting ended.">
+                          <Toggle enabled={toggles.longRecordingReminder} onToggle={() => toggle("longRecordingReminder")} />
                         </SettingRow>
                         {isElectron && (
                           <>

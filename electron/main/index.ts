@@ -133,8 +133,15 @@ app.whenReady().then(async () => {
     console.log('[commitments] Overdue marking + risk scoring active (startup + 15min interval, via scheduler)')
   }).catch(() => {})
 
-  // Smart meeting reminders — 5 min before each meeting
-  import('./notifications/meeting-reminder').then(({ startMeetingReminders }) => {
+  // Smart meeting reminders — 5 min before each meeting + v2.11 at-start nudge.
+  // The at-start nudge skips when the user is already recording, so install
+  // the recording-state probe first.
+  Promise.all([
+    import('./notifications/meeting-reminder'),
+    import('./notifications/recording-watch'),
+  ]).then(([{ startMeetingReminders, setRecordingStateProbe }, { startRecordingWatch, isRecordingActive }]) => {
+    startRecordingWatch()
+    setRecordingStateProbe(isRecordingActive)
     startMeetingReminders()
   }).catch(() => {})
 

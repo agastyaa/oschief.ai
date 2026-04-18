@@ -423,17 +423,24 @@ async function checkForUpdatesFromTray(): Promise<void> {
 export function showMeetingDetectedNotification(meetingTitle: string, appName: string): void {
   if (!Notification.isSupported()) return
 
-  const notification = new Notification({
-    title: 'Meeting Detected',
-    body: `${meetingTitle} on ${appName} — Click to start taking notes`,
-    silent: false,
-  })
-
-  notification.on('click', () => {
+  const openAndStart = () => {
     mainWindow?.show()
     mainWindow?.focus()
     mainWindow?.webContents.send('tray:start-recording')
+  }
+
+  const notification = new Notification({
+    title: `${meetingTitle} just started`,
+    body: `On ${appName} — take notes?`,
+    silent: false,
+    urgency: 'normal',
+    actions: [{ type: 'button', text: 'Start Recording' }],
+    closeButtonText: 'Dismiss',
+    timeoutType: 'default',
   })
+
+  notification.on('click', openAndStart)
+  notification.on('action', (_e, _idx) => openAndStart())
 
   notification.show()
 }

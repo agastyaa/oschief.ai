@@ -23,8 +23,14 @@ import { Notification, BrowserWindow, ipcMain } from 'electron'
 // ── State ───────────────────────────────────────────────────────────
 
 const REMIND_BEFORE_MS = 10 * 60 * 1000 // 10 minutes before start (buffer for LLM prep brief generation)
+// v2.11 — at-start nudge. Fires up to 1 minute after scheduled start so the
+// user who's late joining still gets the prompt, but not so late that a long
+// meeting already in progress re-notifies.
+const START_GRACE_MS = 60 * 1000
 const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const startTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const notifiedEventIds = new Set<string>()
+const startNotifiedEventIds = new Set<string>()
 
 // ── Public API ──────────────────────────────────────────────────────
 
@@ -42,11 +48,10 @@ export function startMeetingReminders(): void {
 }
 
 export function stopMeetingReminders(): void {
-  // Cancel all pending timers
-  for (const timer of scheduledTimers.values()) {
-    clearTimeout(timer)
-  }
+  for (const timer of scheduledTimers.values()) clearTimeout(timer)
+  for (const timer of startTimers.values()) clearTimeout(timer)
   scheduledTimers.clear()
+  startTimers.clear()
   ipcMain.removeAllListeners('calendar:events-updated')
 }
 
@@ -91,6 +96,28 @@ function scheduleReminders(events: any[]): void {
       }, delay)
       scheduledTimers.set(eventKey, timer)
     }
+
+    // v2.11 — schedule the at-start "take notes?" nudge too. Separate timer
+    // so the two notifications are independent (user may dismiss one and
+    // still want the other).
+    if (!startNotifiedEventIds.has(eventKey) && !startTimers.has(eventKey)) {
+      const startDelay = startTime - now
+      const eventEnd = event.end ? new Date(event.end).getTime() : startTime + 30 * 60 * 1000
+      const alreadyOver = now > eventEnd
+      const tooEarly = startDelay > 24 * 60 * 60 * 1000
+      const tooLate = startDelay < -START_GRACE_MS
+      if (!alreadyOver && !tooEarly && !tooLate) {
+        if (startDelay <= 0) {
+          void fireStartNudge(event, eventKey)
+        } else {
+          const timer = setTimeout(() => {
+            startTimers.delete(eventKey)
+            void fireStartNudge(event, eventKey)
+          }, startDelay)
+          startTimers.set(eventKey, timer)
+        }
+      }
+    }
   }
 
   // Cancel timers for events that were removed from the calendar
@@ -100,12 +127,93 @@ function scheduleReminders(events: any[]): void {
       scheduledTimers.delete(key)
     }
   }
+  for (const [key, timer] of startTimers.entries()) {
+    if (!activeEventKeys.has(key)) {
+      clearTimeout(timer)
+      startTimers.delete(key)
+    }
+  }
 
-  // Clean up old notified IDs (keep set from growing unbounded)
+  // Clean up old notified IDs (keep sets from growing unbounded)
   if (notifiedEventIds.size > 200) {
     const arr = [...notifiedEventIds]
     arr.slice(0, 100).forEach(id => notifiedEventIds.delete(id))
   }
+  if (startNotifiedEventIds.size > 200) {
+    const arr = [...startNotifiedEventIds]
+    arr.slice(0, 100).forEach(id => startNotifiedEventIds.delete(id))
+  }
+}
+
+// ── At-start "take notes?" nudge (v2.11) ────────────────────────────
+//
+// Fires at the scheduled start time of a calendar event, even when no
+// meeting app is running (catches in-person meetings, phone calls, or
+// apps too slow to open). Skipped when:
+//   - user is already recording (would be noise)
+//   - setting is off
+//   - meeting-detector already fired its own notification for this app
+//
+// Click-through starts a fresh recording with the event title pre-filled.
+
+let isRecordingNowProbe: (() => boolean) | null = null
+
+/**
+ * The main process doesn't own recording state directly — the renderer does.
+ * Callers install a probe at app init so this module can ask "are we
+ * recording?" before nudging. If no probe is installed, we assume not.
+ */
+export function setRecordingStateProbe(probe: () => boolean): void {
+  isRecordingNowProbe = probe
+}
+
+async function fireStartNudge(event: any, eventKey: string): Promise<void> {
+  startNotifiedEventIds.add(eventKey)
+
+  // Respect the setting (default on)
+  try {
+    const { getSetting } = await import('../storage/database')
+    const raw = getSetting('meeting-start-notify')
+    if (raw === 'false' || raw === '0') return
+  } catch {
+    // DB not ready — default to firing; better a nudge than silence.
+  }
+
+  // If the user is already recording, don't interrupt.
+  if (isRecordingNowProbe?.()) return
+
+  const attendees = event.attendees || []
+  const attendeeNames = attendees.map((a: any) => a.name || a.email).filter(Boolean)
+  const body = attendeeNames.length > 0
+    ? `With ${attendeeNames.slice(0, 3).join(', ')}${attendeeNames.length > 3 ? ` +${attendeeNames.length - 3}` : ''} · Click to record`
+    : 'Click to start taking notes'
+
+  const openRecording = () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return
+    win.show()
+    win.focus()
+    const hash = `#/new-note?startFresh=1&eventTitle=${encodeURIComponent(event.title || '')}${event.id ? `&eventId=${encodeURIComponent(event.id)}` : ''}`
+    win.webContents.executeJavaScript(`window.location.hash = '${hash}'; void 0`).catch(() => {})
+  }
+
+  const notification = new Notification({
+    title: `${event.title} just started`,
+    body,
+    silent: false,
+    urgency: 'normal',
+    // macOS native action buttons (10.14+). Falls back to click handler on
+    // other platforms.
+    actions: [{ type: 'button', text: 'Start Recording' }],
+    closeButtonText: 'Dismiss',
+    timeoutType: 'default',
+  })
+
+  notification.on('click', openRecording)
+  notification.on('action', (_e, _idx) => openRecording())
+
+  notification.show()
+  console.log(`[meeting-reminder] Start nudge: "${event.title}"`)
 }
 
 // ── Notification ────────────────────────────────────────────────────

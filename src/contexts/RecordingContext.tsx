@@ -84,6 +84,26 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const api = getElectronAPI();
 
+  // v2.11 — pipe recording state to the main process so notifiers (at-start
+  // meeting nudge, long-recording watchdog) can ask "is the user recording?"
+  // synchronously without reaching back into the renderer.
+  useEffect(() => {
+    const ipc = (window as any).electronAPI?.raw?.send ?? (window as any).require?.('electron').ipcRenderer?.send
+    const send = (window as any).electronAPI?.app?.sendRecordingState
+    const payload = activeSession?.isRecording
+      ? { active: true, noteId: activeSession.noteId, startedAt: activeSession.startTime }
+      : { active: false }
+    try {
+      if (typeof send === 'function') {
+        send(payload)
+      } else if (typeof ipc === 'function') {
+        ipc('recording:state', payload)
+      }
+    } catch {
+      // Non-Electron environments — no-op
+    }
+  }, [activeSession?.isRecording, activeSession?.noteId, activeSession?.startTime])
+
   // --- Batched transcript updates: accumulate chunks in a ref, flush every 300ms ---
   const pendingChunksRef = useRef<TranscriptLine[]>([]);
   const pendingCorrectionsRef = useRef<Array<{ time: string; speaker: string; text: string; originalText: string }>>([]);

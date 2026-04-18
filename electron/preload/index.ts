@@ -243,6 +243,10 @@ const electronAPI = {
     getPlatform: () => process.platform,
     isAppleFoundationAvailable: () => ipcRenderer.invoke('app:apple-foundation-available') as Promise<boolean>,
     setLoginItem: (enabled: boolean) => ipcRenderer.invoke('app:set-login-item', enabled),
+    /** v2.11 — pipe recording state to main so notifiers can probe without IPC. */
+    sendRecordingState: (payload: { active: boolean; noteId?: string | null; startedAt?: number }) => {
+      ipcRenderer.send('recording:state', payload)
+    },
     onTrayStartRecording: (callback: () => void) => {
       ipcRenderer.on('tray:start-recording', callback)
       return () => ipcRenderer.removeListener('tray:start-recording', callback)
