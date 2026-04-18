@@ -186,13 +186,12 @@ async function checkForMeetings(): Promise<void> {
       if (!appAudioActive) {
         // App is running but no audio activity this poll
         if (!activeMeetingApp) {
-          // Not in a meeting yet — don't start one. Log once per silent
-          // period so if detection "isn't working" we can tell it saw the
-          // app but thought the user wasn't in a call.
-          if (!lastPollHadMeetingApp) {
-            console.log(`[MeetingDetector] ${matchedApp} running but no audio — not in a call yet`)
-          }
-          lastPollHadMeetingApp = !!matchedApp
+          // Not in a meeting yet — don't start one. Return WITHOUT touching
+          // lastPollHadMeetingApp: that flag tracks "was a MEETING in flight
+          // last poll?" not "was the app running?". Setting it here would
+          // break the transition from idle-app → in-call (the gate at the
+          // main detection block requires lastPollHadMeetingApp to be false
+          // to fire the notification). This was the alpha.4 regression.
           isChecking = false
           return
         }
