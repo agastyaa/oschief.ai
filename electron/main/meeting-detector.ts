@@ -6,16 +6,26 @@ import { showMeetingDetectedNotification, showMeetingStartingSoonNotification, u
 // Known meeting app process substrings -> [display name, alwaysRunning]
 // alwaysRunning = true means the app keeps background processes even when not in a call,
 // so we MUST verify audio/mic activity before triggering a notification.
+// alwaysRunning was a flag used to require an audio-activity check before
+// notifying — because Teams/Discord/Slack keep background processes even
+// when not in a call. v2.11 drops that gate: on Apple Silicon the
+// IOAudioEngine class we relied on doesn't exist in ioreg, so the gate
+// can NEVER pass on modern Macs. That silenced every Teams notification.
+// Without the gate, users who leave Teams open forever get one nudge the
+// first time the detector sees Teams (reasonable — that's what they want).
 const MEETING_PROCESS_PATTERNS: Array<[RegExp, string, boolean]> = [
   // Zoom: classic `zoom.us`, CptHost (call engine), new `Zoom Workplace`
   [/zoom\.us|CptHost|Zoom Workplace|^Zoom$/i, 'Zoom', false],
   // Teams: new MSTeams binary (2024+) + legacy "Microsoft Teams" + bundle id
-  [/MSTeams|Microsoft Teams|com\.microsoft\.teams|^Teams$/i, 'Microsoft Teams', true],
+  [/MSTeams|Microsoft Teams|com\.microsoft\.teams|^Teams$/i, 'Microsoft Teams', false],
   [/Google Meet|^Meet$/i, 'Google Meet', false],
   [/webex|webexmta/i, 'Webex', false],
   [/FaceTime/i, 'FaceTime', false],
   [/GoTo Meeting|GoToMeeting/i, 'GoTo Meeting', false],
   [/BlueJeans/i, 'BlueJeans', false],
+  // Discord and Slack DO keep background processes — leave them gated
+  // behind mic-check since notifications on every Discord/Slack launch
+  // would be noisy.
   [/Discord/i, 'Discord', true],
   [/Slack Helper|Slack$/i, 'Slack Huddle', true],
 ]
@@ -33,6 +43,12 @@ let notifiedForCurrentMeeting = false
 let lastPollHadMeetingApp = false
 let lastProcessHash = ''
 let isChecking = false
+// v2.11 alpha.7 — "notify once per session per app". Replaces the
+// edge-triggered transition detection that missed the "Teams already
+// running when OSChief launches" case. An entry is added when we fire a
+// notification for an app; cleared when the app process disappears (user
+// quit Teams entirely — next launch is a new session).
+const notifiedApps = new Set<string>()
 export type CalendarEventForMain = { id: string; title: string; start: number; end: number; joinLink?: string; attendees?: Array<{ email: string; name?: string }> }
 let calendarEvents: CalendarEventForMain[] = []
 let startingSoonInterval: ReturnType<typeof setInterval> | null = null
@@ -192,6 +208,7 @@ async function checkForMeetings(): Promise<void> {
           // break the transition from idle-app → in-call (the gate at the
           // main detection block requires lastPollHadMeetingApp to be false
           // to fire the notification). This was the alpha.4 regression.
+          console.log(`[MeetingDetector] ${matchedApp} running but mic check = false — waiting for audio (Discord/Slack only; Teams/Zoom/Meet bypass this gate)`)
           isChecking = false
           return
         }
@@ -212,11 +229,21 @@ async function checkForMeetings(): Promise<void> {
       }
     }
 
-    // Notify whenever meeting app transitions from absent to present (scheduled or ad-hoc). Calendar used only for title.
+    // Notify once per app per session. Fires when:
+    //   - a meeting app process is visible
+    //   - we're past the launch cooldown (20s — so Teams already running
+    //     when OSChief launches still gets a nudge, just delayed)
+    //   - the app hasn't been notified yet in this session
+    //   - auto-detect is on
+    // Session = since OSChief launch. Quitting a meeting app clears its
+    // entry from notifiedApps so re-launching triggers a new nudge.
     const calEvent = findCurrentCalendarEvent()
     const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
     const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
-    if (matchedApp && !lastPollHadMeetingApp && !inCooldown && autoDetectEnabled) {
+    if (matchedApp && inCooldown && !notifiedApps.has(matchedApp)) {
+      console.log(`[MeetingDetector] ${matchedApp} present — waiting ${Math.max(0, Math.round((LAUNCH_COOLDOWN_MS - (Date.now() - appLaunchTime)) / 1000))}s for launch cooldown`)
+    }
+    if (matchedApp && !notifiedApps.has(matchedApp) && !inCooldown && autoDetectEnabled) {
       // For non-always-running apps, optionally require mic check (user setting)
       const requireMic = getSetting('meeting-detection-require-mic') === 'true'
       if (requireMic && !matchedAlwaysRunning) {
@@ -231,6 +258,7 @@ async function checkForMeetings(): Promise<void> {
       meetingStartTime = Date.now()
       consecutiveInactivePolls = 0
       notifiedForCurrentMeeting = true
+      notifiedApps.add(matchedApp)
 
       const now = Date.now()
       // Use calendar event title when we're in a confident window (2 min before start to 5 min after end); else e.g. "Microsoft Teams Meeting"
@@ -254,6 +282,9 @@ async function checkForMeetings(): Promise<void> {
       console.log(`[MeetingDetector] Meeting ended: ${activeMeetingApp}`)
       mainWindow?.webContents.send('meeting:ended', { app: activeMeetingApp })
       updateTrayMeetingInfo(null)
+      // Quitting the meeting app clears its entry — next launch is a
+      // fresh session and will re-notify.
+      notifiedApps.delete(activeMeetingApp)
       activeMeetingApp = null
       meetingStartTime = null
       notifiedForCurrentMeeting = false
@@ -270,16 +301,40 @@ async function checkForMeetings(): Promise<void> {
 }
 
 async function checkMicActive(): Promise<boolean> {
-  // Primary: check macOS microphone-in-use indicator (the orange dot)
-  // When any app uses the mic, IOKit reports the audio engine as running
-  const ioreg = await execAsync(
-    'ioreg -c AppleHDAEngineInput -r -d 1 2>/dev/null | grep -c "IOAudioEngineState = 1"',
-    2000
+  // The IOAudioEngine family covers every audio path on macOS, but the
+  // CONCRETE class depends on the hardware:
+  //   - AppleHDAEngineInput / Output  — Intel Macs, built-in audio
+  //   - AppleUSBAudioEngine            — USB microphones
+  //   - IOAudioEngine (generic parent) — Apple Silicon + Bluetooth/AirPods
+  //     where the derived class varies with the driver (Virtual, DriverKit)
+  // Only checking AppleHDAEngineInput missed Apple Silicon + Bluetooth
+  // users entirely. Broaden to the parent class so every audio engine
+  // subclass reports through it — works across Intel, Apple Silicon, USB,
+  // Bluetooth, and external DACs.
+  const engineState = await execAsync(
+    'ioreg -rc IOAudioEngine 2>/dev/null | grep -c "IOAudioEngineState = 1"',
+    2000,
   )
-  if (parseInt(ioreg.trim()) > 0) return true
+  const engineHits = parseInt(engineState.trim()) || 0
+  if (engineHits > 0) {
+    console.log(`[MeetingDetector] checkMicActive: IOAudioEngine state=1 hits=${engineHits}`)
+    return true
+  }
+
+  // Legacy per-class checks — kept as a fallback in case IOAudioEngine
+  // isn't exposed on some driver stack variants.
+  try {
+    const intel = await execAsync(
+      'ioreg -c AppleHDAEngineInput -r -d 1 2>/dev/null | grep -c "IOAudioEngineState = 1"',
+      2000,
+    )
+    if (parseInt(intel.trim()) > 0) {
+      console.log('[MeetingDetector] checkMicActive: AppleHDAEngineInput state=1')
+      return true
+    }
+  } catch { /* fall through */ }
 
   // Check audio OUTPUT too — user may join a call with mic off but still receive audio.
-  // IOAudioEngineOutput running = someone is playing audio through the meeting app.
   try {
     const outputActive = await execAsync(
       'ioreg -c AppleHDAEngineOutput -r -d 1 2>/dev/null | grep -c "IOAudioEngineState = 1"',
@@ -288,10 +343,13 @@ async function checkMicActive(): Promise<boolean> {
     if (parseInt(outputActive.trim()) > 0) {
       // Audio output is active — check if the meeting app itself has audio handles open
       const appAudio = await execAsync(
-        'lsof -c zoom -c Teams -c "Google Meet" -c webex -c Discord -c Slack 2>/dev/null | grep -ci "audio\\|coreaudio"',
+        'lsof -c zoom -c Teams -c MSTeams -c "Google Meet" -c webex -c Discord -c Slack 2>/dev/null | grep -ci "audio\\|coreaudio"',
         2000
       )
-      if (parseInt(appAudio.trim()) > 0) return true
+      if (parseInt(appAudio.trim()) > 0) {
+        console.log('[MeetingDetector] checkMicActive: output+app-audio path matched')
+        return true
+      }
     }
   } catch { /* non-critical */ }
 
