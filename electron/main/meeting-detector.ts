@@ -43,12 +43,26 @@ let notifiedForCurrentMeeting = false
 let lastPollHadMeetingApp = false
 let lastProcessHash = ''
 let isChecking = false
-// v2.11 alpha.7 — "notify once per session per app". Replaces the
-// edge-triggered transition detection that missed the "Teams already
-// running when OSChief launches" case. An entry is added when we fire a
-// notification for an app; cleared when the app process disappears (user
-// quit Teams entirely — next launch is a new session).
+// v2.11 alpha.8 — fire on the first signal that the user is actually
+// IN a call. Two complementary triggers:
+//
+//   1. Fresh process transition. A meeting app that wasn't visible last
+//      poll is now visible → user just launched it → probably about to
+//      join a call.
+//   2. Process tree growth. When an already-running meeting app spawns
+//      extra helpers (audio encoder, video encoder, meeting-stage
+//      renderer), the process count jumps by >=3. This catches the
+//      "Teams was open, user joined a call" case without the audio gate
+//      (broken on Apple Silicon) or Screen Recording + window-title
+//      matching (v2.11.1 work).
+//
+// preExistingApps: apps visible during the launch cooldown. We only use
+//   their process count as a baseline — we don't silently suppress them.
+// notifiedApps: once per app per session. Cleared when the app quits.
+const preExistingApps = new Set<string>()
 const notifiedApps = new Set<string>()
+const appProcessCount = new Map<string, number>()
+const PROCESS_GROWTH_THRESHOLD = 3
 export type CalendarEventForMain = { id: string; title: string; start: number; end: number; joinLink?: string; attendees?: Array<{ email: string; name?: string }> }
 let calendarEvents: CalendarEventForMain[] = []
 let startingSoonInterval: ReturnType<typeof setInterval> | null = null
@@ -177,20 +191,45 @@ async function checkForMeetings(): Promise<void> {
 
     const processes = raw.split('\n')
 
-    // Tier 2: match known meeting apps
+    // Tier 2: match known meeting apps. Count total matching processes
+    // per app so we can spot process-tree growth (the "call just started"
+    // signal for apps that were already running).
     let matchedApp: string | null = null
     let matchedAlwaysRunning = false
+    const countsThisPoll = new Map<string, number>()
     for (const line of processes) {
       const basename = line.trim().split('/').pop() || ''
       if (!basename) continue
       for (const [pattern, appName, alwaysRunning] of MEETING_PROCESS_PATTERNS) {
         if (pattern.test(basename)) {
-          matchedApp = appName
-          matchedAlwaysRunning = alwaysRunning
+          countsThisPoll.set(appName, (countsThisPoll.get(appName) || 0) + 1)
+          if (!matchedApp) {
+            matchedApp = appName
+            matchedAlwaysRunning = alwaysRunning
+          }
           break
         }
       }
-      if (matchedApp) break
+    }
+
+    // Growth detection: for each app we've seen, compare current count
+    // against the stored baseline. If it jumped by >= threshold, the
+    // user just started a call inside an already-open app.
+    let growthApp: string | null = null
+    for (const [appName, count] of countsThisPoll) {
+      const prev = appProcessCount.get(appName) ?? 0
+      if (prev > 0 && count - prev >= PROCESS_GROWTH_THRESHOLD) {
+        growthApp = appName
+        console.log(`[MeetingDetector] ${appName} process count jumped ${prev} → ${count} (call likely started)`)
+        // Un-notify so the app can re-nudge on this new call
+        notifiedApps.delete(appName)
+        preExistingApps.delete(appName)
+      }
+      appProcessCount.set(appName, count)
+    }
+    // Clear counts for apps that disappeared entirely.
+    for (const [appName] of [...appProcessCount]) {
+      if (!countsThisPoll.has(appName)) appProcessCount.delete(appName)
     }
 
     // For always-running apps (Teams, Discord, Slack), require audio activity to distinguish
@@ -229,21 +268,27 @@ async function checkForMeetings(): Promise<void> {
       }
     }
 
-    // Notify once per app per session. Fires when:
-    //   - a meeting app process is visible
-    //   - we're past the launch cooldown (20s — so Teams already running
-    //     when OSChief launches still gets a nudge, just delayed)
-    //   - the app hasn't been notified yet in this session
-    //   - auto-detect is on
-    // Session = since OSChief launch. Quitting a meeting app clears its
-    // entry from notifiedApps so re-launching triggers a new nudge.
+    // Notify when either:
+    //   a) a meeting app appeared fresh and wasn't here at launch, OR
+    //   b) an already-running meeting app just spawned ≥3 new helpers
+    //      (growth signal — call just started inside an open app).
     const calEvent = findCurrentCalendarEvent()
     const inCooldown = Date.now() - appLaunchTime < LAUNCH_COOLDOWN_MS
     const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
-    if (matchedApp && inCooldown && !notifiedApps.has(matchedApp)) {
-      console.log(`[MeetingDetector] ${matchedApp} present — waiting ${Math.max(0, Math.round((LAUNCH_COOLDOWN_MS - (Date.now() - appLaunchTime)) / 1000))}s for launch cooldown`)
+    if (matchedApp && inCooldown) {
+      // During cooldown: record baseline. preExistingApps suppresses the
+      // "fresh transition" path for this app, but growth detection still
+      // re-arms it if the user joins a call later.
+      preExistingApps.add(matchedApp)
     }
-    if (matchedApp && !notifiedApps.has(matchedApp) && !inCooldown && autoDetectEnabled) {
+    if (matchedApp && preExistingApps.has(matchedApp) && !notifiedApps.has(matchedApp) && !growthApp) {
+      console.log(`[MeetingDetector] ${matchedApp} was already running at launch — suppressing fresh-launch nudge (will still fire if process tree grows ≥${PROCESS_GROWTH_THRESHOLD})`)
+      // Mark as notified so we don't spam this log every 5s, but keep
+      // the process count tracker active so growth can still re-arm us.
+      notifiedApps.add(matchedApp)
+    }
+    const shouldNotify = matchedApp && !notifiedApps.has(matchedApp) && !inCooldown && autoDetectEnabled && (!preExistingApps.has(matchedApp) || growthApp === matchedApp)
+    if (shouldNotify) {
       // For non-always-running apps, optionally require mic check (user setting)
       const requireMic = getSetting('meeting-detection-require-mic') === 'true'
       if (requireMic && !matchedAlwaysRunning) {
