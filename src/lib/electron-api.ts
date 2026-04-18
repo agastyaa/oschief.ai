@@ -163,6 +163,7 @@ type ElectronAPI = {
     isAppleFoundationAvailable?: () => Promise<boolean>
     setLoginItem?: (enabled: boolean) => Promise<boolean>
     sendRecordingState?: (payload: { active: boolean; noteId?: string | null; startedAt?: number }) => void
+    testNotification?: () => Promise<{ ok: boolean; supported: boolean; reason?: string }>
     onTrayStartRecording: (callback: () => void) => () => void
     onTrayStopRecording?: (callback: () => void) => () => void
     onTrayNavigateToMeeting?: (callback: () => void) => () => void

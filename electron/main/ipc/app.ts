@@ -48,6 +48,30 @@ export function registerAppHandlers(): void {
   ipcMain.handle('permissions:request', async (_e, kind) => requestPermission(kind))
   ipcMain.handle('permissions:open-pane', async (_e, kind) => openRecoveryPane(kind))
 
+  // v2.11 — fire a diagnostic notification so users can verify that macOS
+  // is actually willing to show notifications for OSChief. Common failure:
+  // unsigned alpha builds don't always get the native permission prompt,
+  // so notifications silently go nowhere. This button proves the pipe.
+  ipcMain.handle('app:test-notification', async () => {
+    const { Notification } = await import('electron')
+    const supported = Notification.isSupported()
+    if (!supported) return { ok: false, supported: false, reason: 'Notification API not supported on this platform' }
+    try {
+      const n = new Notification({
+        title: 'OSChief test notification',
+        body: 'If you see this, notifications work. The meeting nudge uses the same pipe.',
+        silent: false,
+        urgency: 'normal',
+        actions: [{ type: 'button', text: 'Confirm' }],
+        closeButtonText: 'Dismiss',
+      })
+      n.show()
+      return { ok: true, supported: true }
+    } catch (err: any) {
+      return { ok: false, supported: true, reason: err?.message || 'Notification.show() threw' }
+    }
+  })
+
   // URL fetch
   ipcMain.handle('fetch:url', async (_e, url: string) => {
     try {

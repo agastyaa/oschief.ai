@@ -247,6 +247,7 @@ const electronAPI = {
     sendRecordingState: (payload: { active: boolean; noteId?: string | null; startedAt?: number }) => {
       ipcRenderer.send('recording:state', payload)
     },
+    testNotification: () => ipcRenderer.invoke('app:test-notification') as Promise<{ ok: boolean; supported: boolean; reason?: string }>,
     onTrayStartRecording: (callback: () => void) => {
       ipcRenderer.on('tray:start-recording', callback)
       return () => ipcRenderer.removeListener('tray:start-recording', callback)

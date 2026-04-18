@@ -316,41 +316,22 @@ async function checkMicActive(): Promise<boolean> {
  * always-running apps (Teams, Discord, Slack) in "meeting" state.
  */
 async function checkAppAudioActive(appName: string): Promise<boolean> {
-  // Map app display names to the set of process-name prefixes lsof should
-  // match. Microsoft shipped a new "MSTeams" client in 2024 alongside the
-  // legacy "Microsoft Teams" binary — we check both. Missing this was
-  // silencing detection for every new-Teams user.
-  const processPatterns: Record<string, string[]> = {
-    'Microsoft Teams': ['MSTeams', 'Teams'],
-    'Discord': ['Discord'],
-    'Slack Huddle': ['Slack'],
-  }
-  const patterns = processPatterns[appName]
-  if (!patterns || patterns.length === 0) {
-    return checkMicActive()
-  }
-
-  try {
-    // lsof supports multiple -c flags which OR together.
-    const flags = patterns.map((p) => `-c "${p}"`).join(' ')
-    const result = await execAsync(
-      `lsof ${flags} 2>/dev/null | grep -ci "audio\\|coreaudio"`,
-      2500,
-    )
-    const hits = parseInt(result.trim()) || 0
-    if (hits > 0) return true
-
-    // Fallback: process matches but lsof didn't find audio handles (lsof
-    // can time out on machines with lots of open FDs). Trust the mic
-    // indicator instead — if the orange dot is on, the user is in a call.
-    const micOn = await checkMicActive()
-    if (micOn) {
-      console.log(`[MeetingDetector] ${appName} audio check fell back to mic-active (lsof missed or timed out)`)
-    }
-    return micOn
-  } catch {
-    return checkMicActive()
-  }
+  // For always-running apps (Teams, Discord, Slack), we need a signal that
+  // the user is actually IN a call — not just that the app is idling in the
+  // background. The historical approach was lsof on the app's process name
+  // to see if it had audio device handles open. Three problems:
+  //   1. App sandbox + TCC can block lsof from seeing other processes'
+  //      open files on modern macOS, returning empty output silently.
+  //   2. Teams' 2024 client (MSTeams) opens audio through XPC helpers,
+  //      which don't show up under lsof -c Teams at all.
+  //   3. lsof can take 2-3s on busy machines, blocking the poll.
+  //
+  // Simpler and more reliable: if the app's process is running AND the mic
+  // is active at the OS level, the user is in a call. The mic check reads
+  // the hardware-level audio engine state via ioreg, which isn't subject
+  // to sandbox filtering. Music/YouTube don't use the mic so the "music
+  // would keep the meeting alive forever" concern doesn't apply.
+  return checkMicActive()
 }
 
 export function getActiveMeeting(): { app: string; startTime: number } | null {

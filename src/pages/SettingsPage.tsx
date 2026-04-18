@@ -601,6 +601,38 @@ export default function SettingsPage() {
                           <Toggle enabled={toggles.longRecordingReminder} onToggle={() => toggle("longRecordingReminder")} />
                         </SettingRow>
                         {isElectron && (
+                          <div className="rounded-md border border-border bg-card p-3 flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-body-sm font-medium text-foreground">Test notification</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Send a sample macOS notification to confirm the system is allowing them. If nothing appears,
+                                open <strong>System Settings → Notifications → OSChief</strong> and make sure alerts are enabled.
+                              </p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                const result = await api?.app?.testNotification?.();
+                                if (!result) {
+                                  toast.error("Couldn't reach the notification pipe.");
+                                  return;
+                                }
+                                if (!result.supported) {
+                                  toast.error(result.reason || "Notifications aren't supported on this platform.");
+                                  return;
+                                }
+                                if (result.ok) {
+                                  toast.success("Test notification fired. If you don't see it in 2s, check System Settings → Notifications → OSChief.");
+                                } else {
+                                  toast.error(result.reason || "Notification.show() didn't report success.");
+                                }
+                              }}
+                              className="rounded-md border border-border bg-background px-3 py-1.5 text-[12px] font-medium hover:bg-secondary transition-colors shrink-0"
+                            >
+                              Send test
+                            </button>
+                          </div>
+                        )}
+                        {isElectron && (
                           <>
                             <div className="rounded-md border border-border bg-card p-3 space-y-2">
                               <div>

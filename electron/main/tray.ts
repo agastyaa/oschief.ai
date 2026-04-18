@@ -421,7 +421,10 @@ async function checkForUpdatesFromTray(): Promise<void> {
 }
 
 export function showMeetingDetectedNotification(meetingTitle: string, appName: string): void {
-  if (!Notification.isSupported()) return
+  if (!Notification.isSupported()) {
+    console.log('[tray] showMeetingDetectedNotification skipped: Notification.isSupported() = false')
+    return
+  }
 
   // v2.11 — respect the "Notify me when meetings start" toggle. Setting
   // doubles as the kill switch for both calendar-triggered AND
@@ -430,16 +433,24 @@ export function showMeetingDetectedNotification(meetingTitle: string, appName: s
   try {
     const { getSetting } = require('./storage/database') as typeof import('./storage/database')
     const raw = getSetting('meeting-start-notify')
-    if (raw === 'false' || raw === '0') return
+    if (raw === 'false' || raw === '0') {
+      console.log('[tray] showMeetingDetectedNotification skipped: meeting-start-notify setting is off')
+      return
+    }
   } catch { /* DB not ready — default to firing */ }
 
   // Dedup: if the calendar-start scheduler just pinged for the same
   // meeting (within 2 min), don't double-notify.
   try {
     const rem = require('./notifications/meeting-reminder') as typeof import('./notifications/meeting-reminder')
-    if (rem.wasRecentlyNotified()) return
+    if (rem.wasRecentlyNotified()) {
+      console.log('[tray] showMeetingDetectedNotification skipped: dedup (another notification fired within 2 min)')
+      return
+    }
     rem.markNotified()
   } catch { /* missing module — skip dedup */ }
+
+  console.log(`[tray] showMeetingDetectedNotification firing: ${meetingTitle} (${appName})`)
 
   const openAndStart = () => {
     mainWindow?.show()
