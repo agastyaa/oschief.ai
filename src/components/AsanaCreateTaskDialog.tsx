@@ -88,7 +88,25 @@ export function AsanaCreateTaskDialog({
   if (!open) return null;
 
   const handleCreate = async () => {
-    if (!config || !api?.asana || !taskName.trim()) return;
+    // Don't silent-return on missing prerequisites — surface the reason so
+    // the "button does nothing when I click it" failure mode goes away.
+    if (!taskName.trim()) {
+      setError("Task name is required.");
+      return;
+    }
+    if (!api?.asana) {
+      setError("Asana integration isn't available. Restart the app and try again.");
+      return;
+    }
+    if (!config) {
+      setError("Asana configuration failed to load. Go to Settings → Connections → Asana and reconnect.");
+      return;
+    }
+    if (!config.workspaceGid) {
+      setError("No Asana workspace is configured. Open Settings → Connections → Asana and pick a workspace.");
+      return;
+    }
+
     setCreating(true);
     setError("");
 
@@ -98,7 +116,7 @@ export function AsanaCreateTaskDialog({
         notes: taskNotes,
         due_on: taskDueDate || undefined,
         projects: selectedProject ? [selectedProject] : undefined,
-        workspace: config.workspaceGid!,
+        workspace: config.workspaceGid,
       });
 
       if (!result.ok) {
@@ -122,8 +140,8 @@ export function AsanaCreateTaskDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="w-full max-w-md rounded-[10px] border border-border bg-card p-6 shadow-xl my-auto max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[15px] font-semibold text-foreground">Create Asana Task</h2>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
@@ -195,10 +213,16 @@ export function AsanaCreateTaskDialog({
               <textarea
                 value={taskNotes}
                 onChange={(e) => setTaskNotes(e.target.value)}
-                rows={3}
-                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                rows={5}
+                className="w-full rounded-[10px] border border-border bg-background px-3 py-2 text-body-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y"
               />
             </div>
+
+            {config?.workspaceGid && projects.length === 0 && !loading && (
+              <div className="rounded-[10px] border border-amber/30 bg-amber-bg/40 px-3 py-2 text-[12px] text-amber">
+                No Asana projects found in your workspace. The task will still be created at the workspace level — you can move it into a project from Asana after.
+              </div>
+            )}
 
             {error && (
               <div className="rounded-[10px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
