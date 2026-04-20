@@ -3,7 +3,7 @@ import { isElectron, getElectronAPI } from "@/lib/electron-api"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   FolderKanban, ArrowLeft, FileText, Users, Gavel, CheckSquare,
-  Calendar, ChevronDown, Archive, Trash2, Unlink, Pencil
+  Calendar, ChevronDown, Archive, Trash2, Unlink, Pencil, Mic
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -410,8 +410,15 @@ export default function ProjectDetailPage() {
               {!timeline?.meetings.length && !timeline?.decisions.length && !timeline?.commitments.length && (
                 <div className="text-center py-16 text-muted-foreground">
                   <FolderKanban className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No meetings linked yet.</p>
-                  <p className="text-xs mt-1">Record a meeting to start populating this project.</p>
+                  <p className="text-sm text-foreground font-medium">No meetings linked yet</p>
+                  <p className="text-xs mt-1 mb-4">Record a meeting to start populating this project.</p>
+                  <button
+                    onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Mic className="h-3 w-3" />
+                    Record a meeting
+                  </button>
                 </div>
               )}
             </div>

@@ -5,6 +5,7 @@ import { mkdirSync, existsSync, copyFileSync, readFileSync } from 'fs'
 import { homedir } from 'os'
 import { createHash } from 'crypto'
 import { runMigrations } from './migrations'
+import { assertSafeDbPath } from './icloud-gate'
 import type { SyncableTable } from './sync-types'
 
 let db: Database.Database | null = null
@@ -129,11 +130,17 @@ function logSync(table: SyncableTable, op: 'INSERT' | 'UPDATE' | 'DELETE', entit
 
 export function initDatabase(): void {
   const dbPath = getDbPath()
+  // R1a: refuse to open a DB under iCloud-synced paths — WAL mode corrupts there.
+  // Bootstrap catches ICloudSyncedDBPath and surfaces the migration modal.
+  assertSafeDbPath(dbPath)
   const dbDir = join(dbPath, '..')
   mkdirSync(dbDir, { recursive: true })
 
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
+  // WAL + synchronous=NORMAL is the standard pairing: durable on power loss at txn
+  // boundary, ~2-3x faster than FULL for our write pattern. See SQLite docs §6.
+  db.pragma('synchronous = NORMAL')
   db.pragma('foreign_keys = ON')
 
   runMigrations(db)

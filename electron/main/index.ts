@@ -1,10 +1,11 @@
-import { app, BrowserWindow, protocol, globalShortcut } from 'electron'
+import { app, BrowserWindow, protocol, globalShortcut, dialog } from 'electron'
 import { join, normalize, extname } from 'path'
 import { readFileSync, existsSync } from 'fs'
 import { createMainWindow, getMainWindow } from './windows'
 import { setupTray } from './tray'
 import { registerIPCHandlers } from './ipc-handlers'
 import { initDatabase, getSetting } from './storage/database'
+import { ICloudSyncedDBPath } from './errors'
 import { startSync, stopSync } from './storage/icloud-sync'
 import { ensureModelsDir } from './models/manager'
 import { startMeetingDetection, stopMeetingDetection } from './meeting-detector'
@@ -63,7 +64,34 @@ app.whenReady().then(async () => {
 
   try {
     initDatabase()
+    // R3 — boot the offline queue singleton + periodic flusher.
+    // Cloud callers opt into it via queueOrCall() from cloud/offline-service.
+    const { getDb } = await import('./storage/database')
+    const { initOfflineService } = await import('./cloud/offline-service')
+    initOfflineService(getDb())
   } catch (err) {
+    // R1a: iCloud-synced userData path detected — refuse to launch, offer quit.
+    // (Auto-migration is deferred to v2.11.1; v2.11.0 surfaces the problem clearly.)
+    if (err instanceof ICloudSyncedDBPath) {
+      const reason = (err as any).meta?.reason === 'mobile-documents'
+        ? 'iCloud Drive (~/Library/Mobile Documents)'
+        : 'an iCloud-managed folder (fileprovider xattr detected)'
+      dialog.showMessageBoxSync({
+        type: 'error',
+        title: 'OSChief cannot launch safely',
+        message: 'Your OSChief data folder is in ' + reason + '.',
+        detail:
+          'SQLite WAL mode can silently corrupt databases in iCloud-synced folders. ' +
+          'OSChief refuses to launch until the data is on a local-only path.\n\n' +
+          'Fix: open System Settings → Apple ID → iCloud → iCloud Drive → Apps using ' +
+          'iCloud Drive and disable "Desktop & Documents Folders," OR move ' +
+          '~/Library/Application Support/OSChief to a non-iCloud location, then relaunch.',
+        buttons: ['Quit'],
+        defaultId: 0,
+      })
+      app.quit()
+      return
+    }
     console.error('Failed to initialize database:', err)
   }
 
@@ -72,6 +100,19 @@ app.whenReady().then(async () => {
   import('./models/stt-engine').then(({ cleanStaleTempFiles }) => cleanStaleTempFiles()).catch(() => {})
   // Pre-load VAD model in background so first recording starts instantly (no 500ms delay)
   import('./audio/vad').then(({ ensureVADModel }) => ensureVADModel()).catch(() => {})
+  // R6 — pre-warm the user's default Ollama model so first coaching/summary call
+  // doesn't pay the cold-load tax (5-15s on 8B+ models). Silent on failure.
+  Promise.all([
+    import('./models/model-resolver'),
+    import('./cloud/ollama'),
+    import('./observability'),
+  ]).then(([{ resolveSelectedAIModel }, { prewarmOllama }, { emitEvent }]) => {
+    const resolved = resolveSelectedAIModel()
+    if (resolved.startsWith('ollama:')) {
+      const modelTag = resolved.slice('ollama:'.length)
+      prewarmOllama(modelTag, { onEvent: emitEvent }).catch(() => {})
+    }
+  }).catch(() => {})
   registerIPCHandlers()
   loadOptionalProviders()
   loadCustomProviders()
@@ -92,8 +133,15 @@ app.whenReady().then(async () => {
     console.log('[commitments] Overdue marking + risk scoring active (startup + 15min interval, via scheduler)')
   }).catch(() => {})
 
-  // Smart meeting reminders — 5 min before each meeting
-  import('./notifications/meeting-reminder').then(({ startMeetingReminders }) => {
+  // Smart meeting reminders — 5 min before each meeting + v2.11 at-start nudge.
+  // The at-start nudge skips when the user is already recording, so install
+  // the recording-state probe first.
+  Promise.all([
+    import('./notifications/meeting-reminder'),
+    import('./notifications/recording-watch'),
+  ]).then(([{ startMeetingReminders, setRecordingStateProbe }, { startRecordingWatch, isRecordingActive }]) => {
+    startRecordingWatch()
+    setRecordingStateProbe(isRecordingActive)
     startMeetingReminders()
   }).catch(() => {})
 

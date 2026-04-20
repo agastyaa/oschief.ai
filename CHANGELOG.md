@@ -4,6 +4,63 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.11.0] — 2026-04-20
+
+**Theme: Solid.** Reliability + polish release. Force-quit mid-recording no longer loses transcripts. Teams/Zoom/Meet calls (including Google Meet in a browser) surface native macOS notifications the moment they start. Commitments filter decoupled mine-vs-others from open-vs-done so you actually find what's actionable. Ask-OSChief chat survives app restarts, and natural-language edits to the summary work across far more phrasings.
+
+### Added
+- **"Meeting just started" notifications** — native macOS banner with a **Start Recording** action button, fired from three independent triggers so at least one always catches the moment:
+  1. Calendar event start time (catches in-person meetings, phone calls, slow-to-open apps)
+  2. Teams/Zoom native app process appears, or already-open app's process tree grows by ≥3 helpers (catches a call joined inside an already-running app)
+  3. On-screen window title matches "Meeting | Microsoft Teams", "Zoom Meeting", "Meet – [title]", "meet.google.com/..." (catches Google Meet in any browser, Zoom/Teams web clients). Uses the Screen Recording permission OSChief already needs for system-audio capture.
+- **Long-recording reminder** — gentle, silent macOS notification at 1h / 2h / 3h / 4h / 5h with **Open Meeting** / **Stop Recording** actions. Catches forgotten recordings so 90-minute meetings don't silently become 9-hour files.
+- **Transcript recovery modal** — if OSChief was force-quit mid-recording and more than 5 seconds of transcript would be lost, on next launch you see a dialog with meeting title, chunk count, and the projected loss window. Under 5s of loss stays silent.
+- **Diagnostic "Send test notification" button** in Settings → Meeting → Transcription. If the test doesn't appear, macOS is silently blocking notifications for this app and you know to fix it in System Settings before blaming detection.
+- **Keyboard shortcuts, first pass** — `?` opens a searchable overlay showing every shortcut grouped by scope (Recording / Notes List / Note Detail / Coaching / Settings / Global). Settings → Keyboard lets you rebind any shortcut via capture widget, with conflict detection and "Reset to default" per row. IME-aware: shortcuts don't fire while the OS composer is active.
+- **STT worker health indicator** — the live-meeting pill's dot reflects transcription state: red pulse (healthy), amber pulse (restarting), steady amber (fallback engine). Hover tooltip explains the state.
+- **Ollama prewarm on app launch** — your default local LLM loads into RAM while you're still opening calendar, so the first coaching/summary call doesn't pay the 5-15s cold-load tax.
+- **Natural-language due-date parser** for commitment extraction — covers "ASAP", "tomorrow", "EOD", "EOW", "by Friday", "next Monday", "in 3 days", "in 2 weeks", MM/DD, YYYY-MM-DD, "March 20, 2027". 44 fixture tests lock the behavior.
+- **Wave 1 reliability foundations** (internal but load-bearing):
+  - Named error taxonomy (`WorkerCrashed`, `OfflineQueueFull`, `PermissionDenied`, `ICloudSyncedDBPath`, and 7 more) built via a `defineError()` factory so every error has a stable `.name` for discriminated-union matching.
+  - iCloud safety gate — refuses to launch if the OSChief data folder is in iCloud Drive (WAL mode silently corrupts databases there). Dialog explains exactly where to move it.
+  - `synchronous=NORMAL` pragma on the SQLite connection — WAL best-practice, ~2-3x faster writes than the default FULL, still durable at transaction boundary.
+  - Retry module with exponential backoff + jitter, 401/403 short-circuit (never retry auth failures), max-retries cap.
+  - Offline queue + DLQ (migration v18) — cloud LLM/STT calls that hit a network error enqueue locally, flush when connectivity returns, move to a DLQ after 5 failed attempts. 1000-item / 50MB cap with FIFO eviction + user-visible toast. 24h TTL.
+  - WorkerSupervisor with fixed-minute restart-storm bucket (>3 restarts/min triggers a 30s cooldown + "Worker unstable, retrying in 30s" user banner).
+  - Transcript autosave tightened from 60s → 1s flush interval. Atomic writes (tmp + rename) so torn reads are impossible during crash.
+  - Central permissions module — every macOS permission (microphone, screen, calendar, contacts, speech-recognition, accessibility) flows through `checkPermission`, `requestPermission`, `openRecoveryPane`. Correct `x-apple.systempreferences:` deep-link per kind.
+  - Observability bus — every reliability module emits structured events (worker.crashed, offline.queued, retry.attempted, permission.denied, ollama.prewarm, ...) through one central sink. Stream 5 can plug a PostHog subscriber without changing producers.
+  - AEC worker auto-restarts silently after unexpected exits, with the same fixed-minute storm policy as the full WorkerSupervisor.
+
+### Changed
+- **Commitments filter redesigned.** Scope (Mine / Others) split from status (Open / Overdue / Done) — they used to be smashed into one `FilterStatus` enum which made "overdue" lose scope and "mine" silently mean "open + overdue". Now: pill toggles scope, dropdown multi-selects status, defaults to Mine + (Open + Overdue) — i.e., what's actionable right now. At least one status must stay checked so you never stare at a mystery-empty list.
+- **Ask-OSChief bar** — moved from 2xl (672px) → lg (512px) for a tighter hierarchy, and chat history persists across app restarts with a 30-day TTL (was sessionStorage + 30min, which meant your chat evaporated the moment you closed the app). Each meeting's chat is scoped by note id so meeting A's thread never leaks into B.
+- **"Edit this text in the summary" via the ask bar** — broadened the natural-language correction parser. Was narrow (`/replace X with Y$/`) and stopped at `$`, so "can you change X to Y in the summary?" slipped through. Now handles `rename|replace|change|correct|update|fix|edit|swap|substitute|alter`, arrows (`→` `-->` `->`), quoted forms ("X" → "Y"), "X should be Y", "it's Y not X", and tolerates trailing context ("in the summary", "everywhere", "please", "?"). 27 fixture tests locked.
+- **Meeting detector simplified for Apple Silicon.** Dropped the `lsof`-based audio-activity gate — the `IOAudioEngine` class it grepped for doesn't exist on M-series Macs, so the gate was permanently closed and Teams nudges never fired for ~every user. Replaced with process-tree growth detection (≥3 new helpers = call started) + window-title matching as primary signals.
+- **Speaker diarization calibrated.** `SIMILARITY_THRESHOLD` raised from 0.65 → 0.72 (the ECAPA-TDNN EER operating point — 0.65 was inside the different-speaker distribution so every voice matched the first centroid, turning everyone into "Speaker 1"). `CENTROID_ALPHA` halved 0.30 → 0.15 so centroids don't drift into each other over long sessions.
+- **Launch cooldown** cut from 60s → 20s so if you open OSChief and immediately join a call, detection isn't suppressed.
+- **Empty states with CTAs** — AllNotes, CommitmentsPage (per-filter), DecisionsPage, ProjectDetailPage, Index folder-empty all got warm copy + a "Record a meeting" / "Start Recording" button instead of the previous terse "No items" placeholder. "Clear all filters" on AllNotes is always visible instead of conditional.
+- **Hover-visibility hygiene** — CommitmentsPage "Project" button no longer requires hover to reveal; primary metadata is always visible with a softer opacity instead.
+- **Optimistic UI on commitment completion** — toggling a commitment checkbox flips instantly and reconciles with the server in the background. Previous blocking behavior made a sub-50ms DB write feel like a 400ms round trip.
+
+### Fixed
+- **Ask OSChief** — width regression from an earlier polish pass (over-narrowed) and chat history vanishing between sessions, both addressed above under Changed.
+- **"Meeting just started" nudge firing before the user joined a call** — alpha.7 introduced a flag mutation in the "Teams running but idle" code path that left `lastPollHadMeetingApp=true` during idle, which closed the edge-triggered detection gate permanently. The regression masked every subsequent fix until it was reverted in alpha.6.
+- **macOS notification permission failure mode** — previously the lack of a notification was ambiguous (detection off? permission denied? code bug?). The Settings test-notification button splits the failure cleanly.
+
+### Testing
+- 594 tests green (renderer + main process combined), typecheck clean.
+- Every Wave 1 reliability module ships with a dedicated test file: `errors.test.ts`, `icloud-gate.test.ts`, `retry.test.ts`, `offline-queue.test.ts`, `offline-service.test.ts`, `permissions.test.ts`, `observability.test.ts`, `worker-supervisor.test.ts`, `transcript-autosave.test.ts`, `recording-watch.test.ts`, `meeting-windows.test.ts`, `natural-date.test.ts`.
+- Keyboard binding parser + registry: 36 tests. Ask-bar correction parser: 27 tests.
+
+### Known gaps
+- WorkerSupervisor class is landed but not yet wired into every spawn site. AEC has its own inline restart policy; STT/LLM still use their existing supervise paths. Full adoption requires extending `WorkerHandle` to expose stdin/stdout so the class can own the JSON-over-pipe protocol — deferred to v2.11.1.
+- Offline-queue flusher is booted and `queueOrCall()` is available, but individual cloud-provider wrappers still need to opt in. Streaming calls (with onChunk) won't use the queue because a replayed call has no caller to stream back to.
+- Keyboard shortcut wiring covers the infrastructure + registry + settings UI + ? overlay, but not every primary action is bound yet. See the 10-task benchmark in the plan for the ship-complete target.
+- Google Meet detection requires Screen Recording permission granted. Without it, process-tree growth still catches native apps; the Meet-in-browser path needs the permission.
+
+---
+
 ## [2.10.0] — 2026-04-16
 
 **Theme: Stabilize.** Internal foundation release — no user-visible behavior changes. Ships the full IPC decomposition, characterization tests, structured logger, and SettingsPage primitive extraction that v2.11 and v3.0 build on.

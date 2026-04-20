@@ -3,7 +3,7 @@ import {
   ChevronRight, Check, ExternalLink, Plus, Trash2, RefreshCw, HardDrive, Cloud,
   Volume2, Save, Sliders, Monitor, Sun, Moon, FileText, ChevronDown, ChevronUp,
   Search, Info, MicOff, MonitorSpeaker, CheckCircle2, XCircle, Loader2,
-  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock
+  FolderOpen, BookOpen, Shield, Terminal, Copy, Eye, EyeOff, Clock, Keyboard
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ import { KnowledgeBaseSection } from "@/components/settings/sections/KnowledgeBa
 import { AudioTestPanel } from "@/components/settings/sections/AudioTestPanel";
 import { AccountSection } from "@/components/settings/sections/AccountSection";
 import { TemplatesSection } from "@/components/settings/sections/TemplatesSection";
+import { KeyboardShortcutsSection } from "@/components/settings/KeyboardShortcutsSection";
 import { BUILTIN_TEMPLATES } from "@/data/templates";
 import {
   JiraIntegrationRow,
@@ -75,6 +76,7 @@ const sections = [
   { icon: Globe, label: "Connections", id: "connections" },
   { icon: HardDrive, label: "Data", id: "data" },
   { icon: Shield, label: "Privacy & Data", id: "privacy" },
+  { icon: Keyboard, label: "Keyboard", id: "keyboard" },
   { icon: Info, label: "About", id: "about" },
 ];
 
@@ -91,6 +93,8 @@ const TOGGLE_DB_KEYS: Record<string, string> = {
   meetingDetectionRequireMic: 'meeting-detection-require-mic',
   audioNoiseSuppression: 'audio-noise-suppression',
   useDiarization: 'use-diarization',
+  meetingStartNotify: 'meeting-start-notify',
+  longRecordingReminder: 'long-recording-reminder',
 };
 
 const DEFAULT_TOGGLES: Record<string, boolean> = {
@@ -105,6 +109,8 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   meetingDetectionRequireMic: false,
   audioNoiseSuppression: true,
   useDiarization: true,
+  meetingStartNotify: true,
+  longRecordingReminder: true,
 };
 
 // Toggle, SettingRow, SectionHeader extracted to
@@ -585,9 +591,47 @@ export default function SettingsPage() {
 
                     <TabsContent value="transcription" className="space-y-5 mt-0">
                       <div className="space-y-2">
-                        <SettingRow label="Detect meetings automatically" description="Show a notification when you join Teams, Zoom, or Google Meet (requires mic to be active)">
+                        <SettingRow label="Detect meeting apps" description="Watch for Teams, Zoom, or Google Meet processes so OSChief knows a call is in flight (required for auto-record + the app-detected notification).">
                           <Toggle enabled={toggles.meetingAutoDetect} onToggle={() => toggle("meetingAutoDetect")} />
                         </SettingRow>
+                        <SettingRow label="Notify me when meetings start" description="Native macOS notification the moment a meeting begins — from a calendar event, a Teams/Zoom native app, OR a Google Meet / Zoom / Teams call running in your browser. Click Start Recording to take notes.">
+                          <Toggle enabled={toggles.meetingStartNotify} onToggle={() => toggle("meetingStartNotify")} />
+                        </SettingRow>
+                        <SettingRow label="Remind me about long recordings" description="Gentle ping every hour so you notice if a recording has been running since the meeting ended.">
+                          <Toggle enabled={toggles.longRecordingReminder} onToggle={() => toggle("longRecordingReminder")} />
+                        </SettingRow>
+                        {isElectron && (
+                          <div className="rounded-md border border-border bg-card p-3 flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-body-sm font-medium text-foreground">Test notification</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Send a sample macOS notification to confirm the system is allowing them. If nothing appears,
+                                open <strong>System Settings → Notifications → OSChief</strong> and make sure alerts are enabled.
+                              </p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                const result = await api?.app?.testNotification?.();
+                                if (!result) {
+                                  toast.error("Couldn't reach the notification pipe.");
+                                  return;
+                                }
+                                if (!result.supported) {
+                                  toast.error(result.reason || "Notifications aren't supported on this platform.");
+                                  return;
+                                }
+                                if (result.ok) {
+                                  toast.success("Test notification fired. If you don't see it in 2s, check System Settings → Notifications → OSChief.");
+                                } else {
+                                  toast.error(result.reason || "Notification.show() didn't report success.");
+                                }
+                              }}
+                              className="rounded-md border border-border bg-background px-3 py-1.5 text-[12px] font-medium hover:bg-secondary transition-colors shrink-0"
+                            >
+                              Send test
+                            </button>
+                          </div>
+                        )}
                         {isElectron && (
                           <>
                             <div className="rounded-md border border-border bg-card p-3 space-y-2">
@@ -1751,6 +1795,10 @@ export default function SettingsPage() {
 
               {active === "privacy" && (
                 <PrivacySection api={api} />
+              )}
+
+              {active === "keyboard" && (
+                <KeyboardShortcutsSection />
               )}
 
               {/* Sync and Agent API are now tabs inside the Connections section above */}

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { getElectronAPI } from "@/lib/electron-api"
 import { loadAccountFromStorage, normalizeForNameCompare } from "@/lib/account-context"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X, Search } from "lucide-react"
+import { CheckCircle2, Circle, Clock, AlertTriangle, FileText, XCircle, Trash2, UserPlus, FolderKanban, X, Search, Mic } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, isPast, parseISO, isValid } from "date-fns"
 import { toast } from "sonner"
@@ -23,7 +23,13 @@ interface Commitment {
   note_date?: string
 }
 
-type FilterStatus = "all" | "open" | "completed" | "overdue" | "my" | "upcoming"
+type Scope = "mine" | "others"
+type StatusKey = "open" | "completed" | "overdue"
+
+const STATUS_ORDER: StatusKey[] = ["open", "overdue", "completed"]
+const STATUS_LABEL: Record<StatusKey, string> = { open: "Open", overdue: "Overdue", completed: "Done" }
+// Default: the two actionable states. Done is opt-in for review mode.
+const DEFAULT_STATUS: ReadonlySet<StatusKey> = new Set(["open", "overdue"])
 
 const STATUS_CONFIG = {
   open: { label: "Open", icon: Circle, color: "text-primary", bg: "bg-primary/10" },
@@ -35,7 +41,12 @@ const STATUS_CONFIG = {
 const CommitmentsPage = () => {
   const navigate = useNavigate()
   const [commitments, setCommitments] = useState<Commitment[]>([])
-  const [filter, setFilter] = useState<FilterStatus>("open")
+  // Scope and status are orthogonal: "mine vs others" is WHO owns it,
+  // status is WHAT state it's in. Defaults land on what's actionable
+  // right now — mine, open + overdue.
+  const [scope, setScope] = useState<Scope>("mine")
+  const [statusSet, setStatusSet] = useState<Set<StatusKey>>(() => new Set(DEFAULT_STATUS))
+  const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState("")
@@ -84,11 +95,24 @@ const CommitmentsPage = () => {
   const handleToggleStatus = useCallback(async (commitment: Commitment) => {
     if (!api?.memory) return
     const newStatus = commitment.status === "completed" ? "open" : "completed"
+    // P7 — optimistic update: flip the checkbox immediately, revert if the API
+    // call fails. The DB write takes ~10-50ms; users perceive anything over
+    // 100ms as lag, so blocking the UI on it makes every toggle feel sticky.
+    setCommitments((prev) =>
+      prev.map((c) => (c.id === commitment.id ? { ...c, status: newStatus } : c)),
+    )
     try {
       await api.memory.commitments.updateStatus(commitment.id, newStatus)
+      // Reconcile with server state in background (picks up overdue flag
+      // recalcs, etc.) without blocking the paint.
       loadCommitments()
     } catch (err) {
       console.error("Failed to update commitment:", err)
+      // Revert
+      setCommitments((prev) =>
+        prev.map((c) => (c.id === commitment.id ? { ...c, status: commitment.status } : c)),
+      )
+      toast.error("Couldn't update this commitment. Try again.")
     }
   }, [api, loadCommitments])
 
@@ -133,25 +157,27 @@ const CommitmentsPage = () => {
   const isUpcoming = (c: Commitment) =>
     (c.status === "open" || c.status === "overdue") && c.due_date && c.due_date <= sevenDaysFromNow
 
-  const counts = {
-    open: commitments.filter(c => c.status === "open").length,
-    completed: commitments.filter(c => c.status === "completed").length,
-    overdue: commitments.filter(c => c.status === "overdue").length,
-    my: commitments.filter(c => isMyCommitment(c) && (c.status === "open" || c.status === "overdue")).length,
-    upcoming: commitments.filter(isUpcoming).length,
-  }
+  // Scope-aware counts. Every count reflects the currently-selected scope
+  // (mine/others) so the status dropdown shows numbers the user can trust.
+  const scopedCommitments = useMemo(
+    () => commitments.filter((c) => (scope === "mine" ? isMyCommitment(c) : !isMyCommitment(c))),
+    [commitments, scope, isMyCommitment],
+  )
+
+  const counts = useMemo(() => ({
+    open: scopedCommitments.filter((c) => c.status === "open").length,
+    completed: scopedCommitments.filter((c) => c.status === "completed").length,
+    overdue: scopedCommitments.filter((c) => c.status === "overdue").length,
+    mine: commitments.filter((c) => isMyCommitment(c)).length,
+    others: commitments.filter((c) => !isMyCommitment(c)).length,
+  }), [scopedCommitments, commitments, isMyCommitment])
 
   const totalOpen = commitments.filter(c => c.status === "open" || c.status === "overdue").length
 
   const filteredCommitments = useMemo(() => {
-    let result: Commitment[]
-    if (filter === "all") result = commitments
-    else if (filter === "my") {
-      result = commitments.filter((c) => isMyCommitment(c) && (c.status === "open" || c.status === "overdue"))
-    }
-    else if (filter === "upcoming") result = commitments.filter(isUpcoming)
-    else result = commitments.filter((c) => c.status === filter)
-
+    const result = scopedCommitments.filter((c) =>
+      statusSet.has(c.status as StatusKey),
+    )
     const q = search.trim().toLowerCase()
     if (!q) return result
     return result.filter((c) =>
@@ -160,7 +186,42 @@ const CommitmentsPage = () => {
       (c.note_title?.toLowerCase().includes(q) ?? false) ||
       (c.owner?.toLowerCase().includes(q) ?? false)
     )
-  }, [commitments, filter, isMyCommitment, search])
+  }, [scopedCommitments, statusSet, search])
+
+  const toggleStatus = useCallback((key: StatusKey) => {
+    setStatusSet((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        // Guard against an empty set — at least one status must stay on or
+        // the user sees nothing and can't tell why.
+        if (next.size === 1) return prev
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }, [])
+
+  const resetStatus = useCallback(() => setStatusSet(new Set(DEFAULT_STATUS)), [])
+
+  // Close dropdown on outside click / escape
+  useEffect(() => {
+    if (!filterOpen) return
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-filter-root]')) setFilterOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFilterOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [filterOpen])
 
   const handleAddTodo = useCallback(async () => {
     const text = newTodoText.trim()
@@ -272,30 +333,34 @@ const CommitmentsPage = () => {
               </div>
             </div>
 
-            {/* Filters row: compact status segment + mine toggle + inline search */}
+            {/* Filters row:
+                1) Mine ↔ Others scope pill (segmented, single-select)
+                2) Status filter button with dropdown (multi-select, defaults
+                   to Open + Overdue — what's actionable right now)
+                3) Inline search, right-aligned */}
             <div className="flex items-center gap-3 mb-6">
-              {/* Status segmented control (3 primary states) */}
+              {/* Scope pill */}
               <div className="inline-flex items-center rounded-full border border-border bg-card p-0.5 shrink-0">
-                {(["open", "completed", "all"] as const).map((f) => {
-                  const label = f === "all" ? "All" : f === "open" ? "Open" : "Done"
-                  const count = f === "open" ? counts.open : f === "completed" ? counts.completed : 0
-                  const active = filter === f || (filter === "overdue" && f === "open") || (filter === "upcoming" && f === "open")
+                {(["mine", "others"] as const).map((s) => {
+                  const active = scope === s
+                  const count = s === "mine" ? counts.mine : counts.others
                   return (
                     <button
-                      key={f}
-                      onClick={() => setFilter(f)}
+                      key={s}
+                      onClick={() => setScope(s)}
                       className={cn(
                         "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                         active
                           ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
                       )}
+                      aria-pressed={active}
                     >
-                      {label}
-                      {count > 0 && f !== "all" && (
+                      {s === "mine" ? "Mine" : "Others"}
+                      {count > 0 && (
                         <span className={cn(
                           "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
+                          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80",
                         )}>
                           {count}
                         </span>
@@ -305,42 +370,79 @@ const CommitmentsPage = () => {
                 })}
               </div>
 
-              {/* Mine toggle (separate, distinct affordance) */}
-              <button
-                onClick={() => setFilter(filter === "my" ? "open" : "my")}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
-                  filter === "my"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
-                )}
-              >
-                Mine only
-                {counts.my > 0 && (
-                  <span className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                    filter === "my" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground/80"
-                  )}>
-                    {counts.my}
-                  </span>
-                )}
-              </button>
-
-              {/* Overdue quick-filter (only when > 0, subtle) */}
-              {counts.overdue > 0 && (
+              {/* Status filter button + dropdown */}
+              <div className="relative shrink-0" data-filter-root>
                 <button
-                  onClick={() => setFilter(filter === "overdue" ? "open" : "overdue")}
+                  onClick={() => setFilterOpen((v) => !v)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors shrink-0",
-                    filter === "overdue"
-                      ? "border-amber bg-amber-bg text-amber"
-                      : "border-amber/30 bg-amber-bg/40 text-amber/80 hover:bg-amber-bg"
+                    "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    statusSet.size < 3 && !(statusSet.size === DEFAULT_STATUS.size && [...DEFAULT_STATUS].every((k) => statusSet.has(k)))
+                      ? "border-primary/40 bg-primary/5 text-primary"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary",
                   )}
+                  aria-haspopup="menu"
+                  aria-expanded={filterOpen}
                 >
-                  <AlertTriangle className="h-3 w-3" />
-                  {counts.overdue} overdue
+                  <span>
+                    {statusSet.size === 3
+                      ? "All statuses"
+                      : STATUS_ORDER.filter((k) => statusSet.has(k)).map((k) => STATUS_LABEL[k]).join(" · ")}
+                  </span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+                    {filteredCommitments.length}
+                  </span>
+                  <svg className={cn("h-3 w-3 transition-transform", filterOpen && "rotate-180")} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 5l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-              )}
+                {filterOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full z-40 mt-1 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
+                  >
+                    <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Show status</div>
+                    {STATUS_ORDER.map((key) => {
+                      const checked = statusSet.has(key)
+                      const count = counts[key]
+                      const Icon = key === "overdue" ? AlertTriangle : key === "completed" ? CheckCircle2 : Circle
+                      const iconClass =
+                        key === "overdue" ? "text-amber" : key === "completed" ? "text-green" : "text-primary"
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => toggleStatus(key)}
+                          className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors text-left"
+                          role="menuitemcheckbox"
+                          aria-checked={checked}
+                        >
+                          <span className={cn(
+                            "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                            checked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background",
+                          )}>
+                            {checked && (
+                              <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 6l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </span>
+                          <Icon className={cn("h-3 w-3 shrink-0", iconClass)} />
+                          <span className="flex-1">{STATUS_LABEL[key]}</span>
+                          <span className="tabular-nums text-[10px] text-muted-foreground">{count}</span>
+                        </button>
+                      )
+                    })}
+                    <div className="border-t border-border">
+                      <button
+                        onClick={resetStatus}
+                        className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                      >
+                        Reset to default
+                        <span className="text-[10px] opacity-70">Open · Overdue</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Search: inline, right-aligned */}
               <div className="relative flex-1 max-w-xs ml-auto">
@@ -368,19 +470,48 @@ const CommitmentsPage = () => {
                 <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             ) : filteredCommitments.length === 0 ? (
-              <div className="text-center py-16">
-                <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-foreground font-medium mb-1">
-                  {filter === "my" ? "No my to-dos" :
-                   filter === "open" ? "No open commitments" :
-                   filter === "completed" ? "No completed commitments" :
-                   filter === "overdue" ? "Nothing overdue" :
-                   "No commitments yet"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Commitments are automatically extracted from your meeting summaries.
-                </p>
-              </div>
+              (() => {
+                // Messaging depends on what filter combo produced zero: if the user
+                // narrowed to only "completed", encourage completing; if they narrowed
+                // to open/overdue on their own work and it's empty, they're all caught up.
+                const onlyCompleted = statusSet.size === 1 && statusSet.has("completed")
+                const defaultStatus = statusSet.size === DEFAULT_STATUS.size && [...DEFAULT_STATUS].every((k) => statusSet.has(k))
+                const headline = onlyCompleted
+                  ? "No completed commitments yet"
+                  : scope === "mine" && defaultStatus
+                    ? "All clear — nothing on your plate"
+                    : scope === "others" && defaultStatus
+                      ? "Nothing open for others"
+                      : "Nothing matches these filters"
+                const sub = onlyCompleted
+                  ? "Complete a commitment and it'll show up here."
+                  : commitments.length === 0
+                    ? "Commitments are automatically extracted from your meeting summaries."
+                    : "Adjust the status filter or switch scope to see more."
+                return (
+                  <div className="text-center py-16">
+                    <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-foreground font-medium mb-1">{headline}</p>
+                    <p className="text-xs text-muted-foreground mb-4">{sub}</p>
+                    {commitments.length === 0 ? (
+                      <button
+                        onClick={() => navigate("/new-note?startFresh=1", { state: { startFresh: true } })}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        <Mic className="h-3 w-3" />
+                        Record a meeting
+                      </button>
+                    ) : !defaultStatus ? (
+                      <button
+                        onClick={resetStatus}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Reset filters
+                      </button>
+                    ) : null}
+                  </div>
+                )
+              })()
             ) : (
               <div className="space-y-6">
                 {sortedKeys.map((dateKey) => (
@@ -570,7 +701,7 @@ const CommitmentsPage = () => {
                                 ) : (
                                   <button
                                     onClick={() => setEditingProjectId(c.id)}
-                                    className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-1"
                                     title="Assign to project"
                                   >
                                     <FolderKanban className="h-2.5 w-2.5" />

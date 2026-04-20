@@ -100,6 +100,46 @@ export async function chatOllama(
 }
 
 /** Check if Ollama is running and reachable. */
+/**
+ * R6 — pre-warm Ollama on app launch.
+ *
+ * Fires a tiny /api/generate with keep_alive=30m so the user's default model
+ * is resident in RAM before the first real summary/coaching call. Without
+ * this the first coaching run pays the cold-load tax (often 5-15s on 8B+
+ * models) right when the user is waiting for the meeting summary.
+ *
+ * Silent on any failure — Ollama may not be running, may not have the model,
+ * may be on a different host. This is an optimization, not a correctness
+ * requirement. Emits an observability event via onEvent if provided.
+ */
+export async function prewarmOllama(
+  modelName: string,
+  opts: { onEvent?: (e: { type: 'ollama.prewarm'; model: string; ok: boolean; duration_ms: number }) => void } = {},
+): Promise<boolean> {
+  const start = Date.now()
+  try {
+    const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelName,
+        // Empty prompt with keep_alive loads the model without generating tokens.
+        // Ollama treats this as "just load and keep resident."
+        prompt: '',
+        keep_alive: '30m',
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(60_000), // model load can take ~30s on cold disk
+    })
+    const ok = res.ok
+    opts.onEvent?.({ type: 'ollama.prewarm', model: modelName, ok, duration_ms: Date.now() - start })
+    return ok
+  } catch {
+    opts.onEvent?.({ type: 'ollama.prewarm', model: modelName, ok: false, duration_ms: Date.now() - start })
+    return false
+  }
+}
+
 export async function ollamaHealthCheck(): Promise<boolean> {
   try {
     const res = await fetch(`${OLLAMA_BASE}/api/tags`, { signal: AbortSignal.timeout(3000) })

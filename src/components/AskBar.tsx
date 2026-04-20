@@ -123,10 +123,16 @@ interface AskBarProps {
   scopeId?: string;
 }
 
-// Chat persistence — 30min TTL, scoped by context + scopeId so each meeting
-// has its own history and doesn't contaminate other meetings or the home ask.
-const CHAT_TTL_MS = 30 * 60 * 1000;
-const CHAT_STORAGE_PREFIX = "syag_askbar_chat_v1:";
+// Chat persistence — scoped by context + scopeId so each meeting has its
+// own history and doesn't contaminate other meetings or the home ask.
+// Uses localStorage (survives app restart) with a 30-day TTL — meetings
+// stay relevant for roughly a sprint. Previously sessionStorage + 30 min,
+// which meant "reopen the app and your chat about this meeting is gone."
+// If you genuinely want a fresh chat, use the Close button in the chat
+// panel header (handleCloseChat clears messages).
+const CHAT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const CHAT_STORAGE_PREFIX = "syag_askbar_chat_v2:";
+const CHAT_STORAGE_PREFIX_OLD = "syag_askbar_chat_v1:";
 
 type PersistedChat = { ts: number; messages: { role: "user" | "assistant"; text: string; displayText?: string }[] };
 
@@ -136,11 +142,21 @@ function chatStorageKey(context: string, scopeId?: string): string {
 
 function loadPersistedChat(context: string, scopeId?: string): PersistedChat["messages"] {
   try {
-    const raw = sessionStorage.getItem(chatStorageKey(context, scopeId));
+    // One-time migration: read from v1 sessionStorage if v2 localStorage is empty
+    // so users don't lose their in-progress chat when they upgrade.
+    const key = chatStorageKey(context, scopeId);
+    let raw = localStorage.getItem(key);
+    if (!raw) {
+      const legacy = sessionStorage.getItem(`${CHAT_STORAGE_PREFIX_OLD}${context}:${scopeId || "_"}`);
+      if (legacy) {
+        raw = legacy;
+        localStorage.setItem(key, legacy); // migrate
+      }
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw) as PersistedChat;
     if (!parsed?.ts || Date.now() - parsed.ts > CHAT_TTL_MS) {
-      sessionStorage.removeItem(chatStorageKey(context, scopeId));
+      localStorage.removeItem(key);
       return [];
     }
     return parsed.messages || [];
@@ -151,12 +167,13 @@ function loadPersistedChat(context: string, scopeId?: string): PersistedChat["me
 
 function savePersistedChat(context: string, scopeId: string | undefined, messages: PersistedChat["messages"]): void {
   try {
+    const key = chatStorageKey(context, scopeId);
     if (messages.length === 0) {
-      sessionStorage.removeItem(chatStorageKey(context, scopeId));
+      localStorage.removeItem(key);
       return;
     }
-    sessionStorage.setItem(
-      chatStorageKey(context, scopeId),
+    localStorage.setItem(
+      key,
       JSON.stringify({ ts: Date.now(), messages } satisfies PersistedChat),
     );
   } catch { /* quota / privacy mode — non-fatal */ }
@@ -295,21 +312,30 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
           ]);
         }
 
-        // Detect correction/rename intent in the user's message and apply to summary
+        // Detect correction/rename intent in the user's message and apply to summary.
+        // Patterns are NOT anchored with $ so trailing context like "in the summary?",
+        // "everywhere", "please", or question marks doesn't break the match. Covers:
+        //   replace/change/rename/correct/update/fix/edit/swap X to/with/→ Y
+        //   X should be Y       (opinionated pronouncement)
+        //   it's Y not X        (correction; find=X, replace=Y — inverted)
+        //   X → Y               (arrow shorthand, supports "-->" and "->" too)
+        //   spelling is Y (when the thread context already names X) — skipped,
+        //     too ambiguous to disambiguate without multi-turn tracking
         if (onCorrection && q) {
-          const correctionPatterns = [
-            /(?:rename|replace|change|correct|update)\s+["']?(.+?)["']?\s+(?:to|with|→)\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
-            /["']?(.+?)["']?\s+should\s+be\s+["']?(.+?)["']?(?:\s+(?:across|in|everywhere|throughout).*)?$/i,
-            /it'?s\s+["']?(.+?)["']?\s+not\s+["']?(.+?)["']?$/i,
+          const correctionPatterns: Array<{ rx: RegExp; inverted?: boolean }> = [
+            { rx: /(?:rename|replace|change|correct|update|fix|edit|swap|substitute|alter)\s+["'`]?(.+?)["'`]?\s+(?:to|with|into|→|-->|->)\s+["'`]?(.+?)["'`]?(?:\s+(?:across|in|everywhere|throughout|please|thanks|thx).*|[.?!]*)?$/i },
+            { rx: /["'`]?([^"'`]+?)["'`]?\s+should\s+(?:be|read|say)\s+["'`]?([^"'`]+?)["'`]?(?:\s+(?:across|in|everywhere|throughout|please).*|[.?!]*)?$/i },
+            { rx: /it'?s\s+["'`]?([^"'`]+?)["'`]?\s+not\s+["'`]?([^"'`]+?)["'`]?[.?!]*$/i, inverted: true },
+            { rx: /["'`]([^"'`]+)["'`]\s*(?:→|-->|->)\s*["'`]([^"'`]+)["'`]/i }, // quoted arrow form
           ];
-          for (const pattern of correctionPatterns) {
-            const match = q.match(pattern);
+          for (const { rx, inverted } of correctionPatterns) {
+            const match = q.match(rx);
             if (match?.[1] && match?.[2]) {
-              // "it's X not Y" → find=Y, replace=X (inverted)
-              const isInverted = pattern.source.includes("not");
-              const find = isInverted ? match[2].trim() : match[1].trim();
-              const replace = isInverted ? match[1].trim() : match[2].trim();
-              if (find && replace && find !== replace) {
+              const find = inverted ? match[2].trim() : match[1].trim();
+              const replace = inverted ? match[1].trim() : match[2].trim();
+              // Guard against accidentally-matched junk (empty after trim, same strings,
+              // whole-sentence captures from greedy matches on short inputs).
+              if (find && replace && find !== replace && find.length < 200 && replace.length < 200) {
                 onCorrection(find, replace);
               }
               break;
@@ -384,9 +410,9 @@ export const AskBar = memo(function AskBar({ context = "home", meetingTitle, not
 
   return (
     <div ref={barRef} className="px-4 pb-4 pt-2 pointer-events-none relative">
-      <div className="mx-auto max-w-2xl pointer-events-auto">
+      <div className="mx-auto max-w-lg pointer-events-auto">
         {showChat && messages.length > 0 && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-2xl w-full animate-fade-in">
+          <div className="absolute bottom-full left-4 right-4 mb-2 mx-auto max-w-lg w-full animate-fade-in">
             <div className={askSyagPanelShell}>
               <div className={cn("flex items-center justify-between px-4 py-2.5", askSyagPanelHeader)}>
                 <div className="flex items-center gap-2.5 min-w-0">

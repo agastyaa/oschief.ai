@@ -421,19 +421,55 @@ async function checkForUpdatesFromTray(): Promise<void> {
 }
 
 export function showMeetingDetectedNotification(meetingTitle: string, appName: string): void {
-  if (!Notification.isSupported()) return
+  if (!Notification.isSupported()) {
+    console.log('[tray] showMeetingDetectedNotification skipped: Notification.isSupported() = false')
+    return
+  }
 
-  const notification = new Notification({
-    title: 'Meeting Detected',
-    body: `${meetingTitle} on ${appName} — Click to start taking notes`,
-    silent: false,
-  })
+  // v2.11 — respect the "Notify me when meetings start" toggle. Setting
+  // doubles as the kill switch for both calendar-triggered AND
+  // app-detection-triggered "meeting started" notifications, so flipping
+  // it off silences all of them consistently.
+  try {
+    const { getSetting } = require('./storage/database') as typeof import('./storage/database')
+    const raw = getSetting('meeting-start-notify')
+    if (raw === 'false' || raw === '0') {
+      console.log('[tray] showMeetingDetectedNotification skipped: meeting-start-notify setting is off')
+      return
+    }
+  } catch { /* DB not ready — default to firing */ }
 
-  notification.on('click', () => {
+  // Dedup: if the calendar-start scheduler just pinged for the same
+  // meeting (within 2 min), don't double-notify.
+  try {
+    const rem = require('./notifications/meeting-reminder') as typeof import('./notifications/meeting-reminder')
+    if (rem.wasRecentlyNotified()) {
+      console.log('[tray] showMeetingDetectedNotification skipped: dedup (another notification fired within 2 min)')
+      return
+    }
+    rem.markNotified()
+  } catch { /* missing module — skip dedup */ }
+
+  console.log(`[tray] showMeetingDetectedNotification firing: ${meetingTitle} (${appName})`)
+
+  const openAndStart = () => {
     mainWindow?.show()
     mainWindow?.focus()
     mainWindow?.webContents.send('tray:start-recording')
+  }
+
+  const notification = new Notification({
+    title: `${meetingTitle} just started`,
+    body: `On ${appName} — take notes?`,
+    silent: false,
+    urgency: 'normal',
+    actions: [{ type: 'button', text: 'Start Recording' }],
+    closeButtonText: 'Dismiss',
+    timeoutType: 'default',
   })
+
+  notification.on('click', openAndStart)
+  notification.on('action', (_e, _idx) => openAndStart())
 
   notification.show()
 }

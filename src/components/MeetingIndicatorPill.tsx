@@ -35,6 +35,12 @@ export type MeetingIndicatorPillProps = {
   onPillClick: () => void;
   /** If set, shows a dismiss control. */
   onDismiss?: () => void;
+  /**
+   * R7 — STT worker health. "healthy" pulses red (normal); "restarting" pulses
+   * amber; "fallback" is a steady amber (we're on the backup engine, user
+   * should know transcription quality may differ).
+   */
+  sttHealth?: "healthy" | "restarting" | "fallback" | "unknown";
 };
 
 /** Meeting status pill used by LiveMeetingIndicator. */
@@ -44,35 +50,48 @@ export function MeetingIndicatorPill({
   elapsedSeconds,
   onPillClick,
   onDismiss,
+  sttHealth = "unknown",
 }: MeetingIndicatorPillProps) {
   const elapsed = formatMeetingIndicatorTime(elapsedSeconds);
   const displayTitle = title || "Recording";
 
+  // Dot color + animation reflect STT worker health when recording.
+  // healthy → red pulse (default). restarting → amber pulse. fallback → steady amber.
+  const degraded = sttHealth === "restarting" || sttHealth === "fallback";
+  const dotColor =
+    !isRecording
+      ? "hsl(var(--amber))"
+      : degraded
+        ? "hsl(var(--amber))"
+        : "hsl(var(--recording))";
+  const dotAnimation =
+    isRecording && sttHealth !== "fallback"
+      ? "meeting-indicator-pulse 1.5s ease-in-out infinite"
+      : undefined;
+  const statusTooltip =
+    sttHealth === "restarting"
+      ? "Transcription worker restarting"
+      : sttHealth === "fallback"
+        ? "Transcription running on backup engine"
+        : undefined;
+
   return (
     <>
-      <div onClick={onPillClick} style={pillStyle}>
-        {isRecording ? (
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "hsl(var(--recording))",
-              flexShrink: 0,
-              animation: "meeting-indicator-pulse 1.5s ease-in-out infinite",
-            }}
-          />
-        ) : (
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "hsl(var(--amber))",
-              flexShrink: 0,
-            }}
-          />
-        )}
+      <div
+        onClick={onPillClick}
+        style={pillStyle}
+        title={statusTooltip ?? displayTitle}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: dotColor,
+            flexShrink: 0,
+            animation: dotAnimation,
+          }}
+        />
         <span
           style={{
             flex: 1,

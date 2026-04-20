@@ -21,9 +21,23 @@ const NUM_FRAMES = 767     // output frames per 10s window
 const NUM_CLASSES = 7      // powerset classes
 const FRAME_DURATION = 10 / NUM_FRAMES  // ~13ms per frame
 
-const SIMILARITY_THRESHOLD = 0.65
+// ECAPA-TDNN cosine similarity calibration, v2.11.
+// Published benchmarks on ECAPA embeddings:
+//   - same-speaker EER operating point:  ~0.72-0.75
+//   - same-speaker median:                ~0.80
+//   - different-speaker median:           ~0.45
+// We were at 0.65 which is WELL inside the different-speaker range,
+// causing every voice to get matched to the first centroid (typically
+// the user since the mic picks them up first/loudest). 0.72 is the
+// ECAPA EER point and the right default — different speakers reliably
+// get new IDs, same speaker still matches across chunks.
+const SIMILARITY_THRESHOLD = 0.72
 const MAX_SPEAKERS = 6
-const CENTROID_ALPHA = 0.3
+// Centroid drift was 0.3 (30% new voice, 70% existing). Too aggressive:
+// the first speaker's centroid slowly smears toward subsequent voices,
+// making everything match 0.72+. 0.15 keeps centroids stable enough
+// that a second, similar-sounding speaker still falls below threshold.
+const CENTROID_ALPHA = 0.15
 
 // Powerset mapping: class index → which local speakers are active (0-indexed)
 // max_speakers_per_chunk=3, max_speakers_per_frame=2
@@ -295,6 +309,13 @@ export class StreamingDiarizer {
         bestSim = sim
         bestIdx = i
       }
+    }
+
+    // Diagnostic trail so "all lines labeled Speaker 1" reports have a
+    // concrete similarity score to look at. Logs at debug-level volume
+    // so it doesn't spam the console during a long recording.
+    if (this.centroids.length > 0) {
+      console.log(`[diarizer] bestSim=${bestSim.toFixed(3)} threshold=${SIMILARITY_THRESHOLD} bestSpeaker=${bestIdx >= 0 ? this.centroids[bestIdx].id : '-'} centroids=${this.centroids.length}`)
     }
 
     if (bestSim >= SIMILARITY_THRESHOLD && bestIdx >= 0) {

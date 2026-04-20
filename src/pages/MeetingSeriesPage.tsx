@@ -254,7 +254,10 @@ export default function MeetingSeriesPage() {
                         <div className="text-xs text-muted-foreground text-center py-2">Loading cross-meeting data...</div>
                       )}
                       {details && !details.decisions?.length && !details.commitments?.length && (
-                        <div className="text-xs text-muted-foreground text-center py-2">No decisions or commitments extracted from these meetings yet.</div>
+                        <div className="text-xs text-muted-foreground text-center py-3">
+                          <div>No decisions or commitments extracted yet.</div>
+                          <div className="mt-1 opacity-70">They'll appear once meetings in this series have summaries.</div>
+                        </div>
                       )}
                     </div>
                   )}

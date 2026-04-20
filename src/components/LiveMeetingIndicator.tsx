@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { loadPreferences } from "@/pages/SettingsPage";
 import { SYAG_PREFS_UPDATED } from "@/lib/preferences-events";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
+import { useSTTHealth } from "@/hooks/useSTTHealth";
 import { MeetingIndicatorPill } from "@/components/MeetingIndicatorPill";
 
 export function LiveMeetingIndicator() {
@@ -24,6 +25,7 @@ export function LiveMeetingIndicator() {
     activeSession?.startTime ?? null,
     activeSession?.isRecording ?? false,
   );
+  const sttHealth = useSTTHealth(activeSession?.isRecording ?? false);
 
   useEffect(() => {
     setManuallyHidden(false);
@@ -74,6 +76,7 @@ export function LiveMeetingIndicator() {
         elapsedSeconds={elapsedSeconds}
         onPillClick={handleGoToNote}
         onDismiss={() => setManuallyHidden(true)}
+        sttHealth={sttHealth}
       />
     </div>
   );
