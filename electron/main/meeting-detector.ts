@@ -2,6 +2,7 @@ import { exec } from 'child_process'
 import { BrowserWindow } from 'electron'
 import { getSetting } from './storage/database'
 import { showMeetingDetectedNotification, showMeetingStartingSoonNotification, updateTrayMeetingInfo } from './tray'
+import { detectMeetingWindow, hasScreenRecordingPermission } from './meeting-windows'
 
 // Known meeting app process substrings -> [display name, alwaysRunning]
 // alwaysRunning = true means the app keeps background processes even when not in a call,
@@ -173,6 +174,39 @@ async function checkForMeetings(): Promise<void> {
   isChecking = true
 
   try {
+    // Tier 0 — window-title detection (primary signal when Screen
+    // Recording permission is granted). This is Granola's approach and
+    // it's the only signal that reliably catches Google Meet in a
+    // browser. If it returns a match, we use that as authoritative and
+    // short-circuit the process-based tiers.
+    if (hasScreenRecordingPermission()) {
+      const winMatch = await detectMeetingWindow()
+      if (winMatch) {
+        const now = Date.now()
+        const inCooldown = now - appLaunchTime < LAUNCH_COOLDOWN_MS
+        const autoDetectEnabled = getSetting('meeting-auto-detect') !== 'false'
+        if (!notifiedApps.has(winMatch.app) && !inCooldown && autoDetectEnabled) {
+          console.log(`[MeetingDetector] Window-title match: ${winMatch.app} — "${winMatch.title}"`)
+          activeMeetingApp = winMatch.app
+          meetingStartTime = now
+          notifiedForCurrentMeeting = true
+          notifiedApps.add(winMatch.app)
+          const calEvent = findCurrentCalendarEvent()
+          const useCalendarTitle = calEvent && now >= calEvent.start - 2 * 60 * 1000 && now <= calEvent.end + 5 * 60 * 1000
+          const meetingTitle = useCalendarTitle && calEvent ? calEvent.title : winMatch.title
+          showMeetingDetectedNotification(meetingTitle, winMatch.app)
+          mainWindow?.webContents.send('meeting:detected', {
+            app: winMatch.app,
+            title: meetingTitle,
+            calendarEvent: calEvent,
+            startTime: now,
+          })
+          isChecking = false
+          return
+        }
+      }
+    }
+
     // Tier 1: async process scan
     const raw = await execAsync('ps -axo comm= 2>/dev/null')
     if (!raw) { isChecking = false; return }
