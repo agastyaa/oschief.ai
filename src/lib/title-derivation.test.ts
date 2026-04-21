@@ -59,13 +59,36 @@ describe('deriveTitleFromText', () => {
 
   it('splits on multiple boundary chars (. ! ? ; , newline)', () => {
     expect(deriveTitleFromText('First bit; second bit')).toBe('First bit')
-    expect(deriveTitleFromText('Hello there! Second sentence.')).toBe('Hello there')
+    // "Hello there" is a pleasantry and gets skipped so the real topic surfaces.
+    expect(deriveTitleFromText('Hello there! Second sentence.')).toBe('Second sentence')
     expect(deriveTitleFromText('Line one\nline two')).toBe('Line one')
   })
 
   it('respects custom minLen/maxLen', () => {
     expect(deriveTitleFromText('short.', { minLen: 20 })).toBeNull()
     expect(deriveTitleFromText('just enough here', { minLen: 5, maxLen: 20 })).toBe('just enough here')
+  })
+
+  // v2.11.1 — skip pleasantry openers AND strip leading filler words so the
+  // real topic surfaces. "Hey how are you today, so I wanted to walk through
+  // the Q3 roadmap" becomes "I wanted to walk through the Q3 roadmap", not
+  // "Hey how are you today" and not "so I wanted to walk through the Q3
+  // roadmap" — both the greeting and the "so" are shaved.
+  it.each([
+    ['Hey how are you doing today, so I wanted to walk through the Q3 roadmap', 'I wanted to walk through the Q3 roadmap'],
+    ['Good morning everyone, today we are going to discuss the buyer flow', 'today we are going to discuss the buyer flow'],
+    ["Yeah we did so both mobile and app are about fifty fifty", 'we did so both mobile and app are about fifty fifty'],
+    ['Thanks for joining. Let us dive into the mailing schedule decision', 'Let us dive into the mailing schedule decision'],
+    ['Um so uh the form logic needs a rewrite before we ship', 'the form logic needs a rewrite before we ship'],
+    ['OK great. The tech team unblocked the QR code flow', 'The tech team unblocked the QR code flow'],
+  ])('skips pleasantry opener in %s', (input, expected) => {
+    expect(deriveTitleFromText(input)).toBe(expected)
+  })
+
+  it('falls back to the first clause when every clause looks like a pleasantry', () => {
+    // Degenerate case — we still return something so the caller has a title to show.
+    const result = deriveTitleFromText('Hey hi hello there, good morning, yeah sure')
+    expect(result).toBeTruthy()
   })
 })
 

@@ -378,24 +378,36 @@ export function AsanaIntegrationRow() {
   const api = getElectronAPI()
   const [connected, setConnected] = useState(false)
   const [displayName, setDisplayName] = useState('')
+  const [defaultProjectName, setDefaultProjectName] = useState('')
   const [showDialog, setShowDialog] = useState(false)
 
-  useEffect(() => {
+  const reloadConfig = () => {
     api?.keychain?.get('asana-config').then((raw) => {
       if (raw) {
         try {
           const config = JSON.parse(raw) as AsanaConfig
           setConnected(true)
           setDisplayName(config.workspaceName || config.name || 'Connected')
+          setDefaultProjectName(config.defaultProjectName || '')
         } catch { /* ignore */ }
+      } else {
+        setConnected(false)
+        setDisplayName('')
+        setDefaultProjectName('')
       }
     })
+  }
+
+  useEffect(() => {
+    reloadConfig()
   }, [api])
 
   const handleDisconnect = async () => {
     await api?.keychain?.delete('asana-config')
+    try { localStorage.removeItem('asana-default-project') } catch {}
     setConnected(false)
     setDisplayName('')
+    setDefaultProjectName('')
     toast.success('Asana disconnected')
   }
 
@@ -411,7 +423,11 @@ export function AsanaIntegrationRow() {
           <div>
             <span className="text-body-sm font-medium text-foreground">Asana</span>
             <p className="text-[11px] text-muted-foreground">
-              {connected ? `Connected — ${displayName}` : 'Create tasks from action items'}
+              {connected
+                ? (defaultProjectName
+                    ? `${displayName} · Default project: ${defaultProjectName}`
+                    : `${displayName} · No default project set`)
+                : 'Create tasks from action items'}
             </p>
           </div>
         </div>
@@ -420,6 +436,13 @@ export function AsanaIntegrationRow() {
             <span className="flex items-center gap-1 text-[10px] text-green">
               <Check className="h-3 w-3" /> Connected
             </span>
+            <button
+              onClick={() => setShowDialog(true)}
+              className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              title="Change default workspace or project"
+            >
+              Change
+            </button>
             <button
               onClick={handleDisconnect}
               className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
@@ -442,8 +465,12 @@ export function AsanaIntegrationRow() {
         onConnected={(config) => {
           setConnected(true)
           setDisplayName(config.workspaceName || config.name || 'Connected')
+          setDefaultProjectName(config.defaultProjectName || '')
           setShowDialog(false)
-          toast.success('Asana connected successfully')
+          toast.success(config.defaultProjectName
+            ? `Asana connected · Default project: ${config.defaultProjectName}`
+            : 'Asana connected successfully'
+          )
         }}
       />
     </>

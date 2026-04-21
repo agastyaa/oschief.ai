@@ -22,7 +22,7 @@ import { useElapsedTime } from "@/hooks/useElapsedTime";
 import { toast } from "sonner";
 import type { SummaryData } from "@/components/EditableSummary";
 import { groupTranscriptBySpeaker, getSpeakerColor, getSpeakerDisplayLabel } from "@/lib/transcript-utils";
-import { deriveTitleFromTranscript, isGenericTitle as isGenericTitleFn } from "@/lib/title-derivation";
+import { deriveTitleFromTranscript, deriveTitleFromText, isGenericTitle as isGenericTitleFn } from "@/lib/title-derivation";
 import { useNameMentionContext } from "@/hooks/useNameMentionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppVisibility } from "@/hooks/useAppVisibility";
@@ -695,16 +695,34 @@ export default function NewNotePage() {
     }
 
     setSummary(readySummary);
-    // Post-summary, upgrade the title if:
-    // 1. User hasn't manually edited it, AND
-    // 2. Summary produced a non-generic title, AND
-    // 3. Current title is still generic (including auto-derived working titles and date-based fallbacks)
-    if (!userHasEditedTitleRef.current && readySummary.title && !isGenericTitleFn(readySummary.title)) {
-      setTitle(readySummary.title);
-      updateNote(noteId, { title: readySummary.title });
+    // Post-summary, upgrade the title when the summary produced a real title
+    // and the user hasn't manually edited it. The summary title is a semantic
+    // distillation of what the meeting was about and should win over:
+    //  - transcript-opening derivations (which used to capture "Hey how are
+    //    you" style first lines — the v2.11.0 bug)
+    //  - date-based fallbacks ("Meeting — Apr 21, 10:30 AM")
+    //  - calendar event titles (often generic like "Sync" or "1:1")
+    // Previously this gate required the CURRENT title to still be generic,
+    // which meant a bad transcript-derived title locked the real title out.
+    if (!userHasEditedTitleRef.current) {
+      let nextTitle: string | null = null;
+      if (readySummary.title && !isGenericTitleFn(readySummary.title)) {
+        nextTitle = readySummary.title;
+      } else {
+        // LLM didn't produce a title (or produced a generic one). Derive
+        // one from the summary overview or tldr — those are semantic
+        // distillations of the meeting, unlike the transcript opening.
+        const overview = (readySummary as any).overview || (readySummary as any).tldr || "";
+        const derived = overview ? deriveTitleFromText(overview, { minLen: 8, maxLen: 60 }) : null;
+        if (derived && !isGenericTitleFn(derived)) nextTitle = derived;
+      }
+      if (nextTitle && nextTitle !== title) {
+        setTitle(nextTitle);
+        updateNote(noteId, { title: nextTitle });
+      }
     }
     setIsSummarizing(false);
-  }, [lastSummaryReady, noteId, api, selectedAIModel, updateNote]);
+  }, [lastSummaryReady, noteId, api, selectedAIModel, updateNote, title]);
 
   // Load summary from DB when returning to a note that already has one (handles race condition
   // where summary was generated while user was on a different note)
@@ -720,6 +738,19 @@ export default function NewNotePage() {
           }
         }
         setIsSummarizing(false);
+
+        // v2.11.1 — reconcile action items → commitments on load. The primary
+        // sync fires in ipc/llm.ts after background summarize, but if that
+        // call failed (DB lock, IPC error, crash mid-write), the note ended
+        // up with action items in the summary but no commitments in the
+        // table. syncActionItemsToCommitments is idempotent (matches by
+        // position), so calling it again is a safe self-heal.
+        const actionItems = note.summary.actionItems || note.summary.nextSteps || [];
+        if (actionItems.length > 0 && api?.memory?.commitments?.syncActionItems) {
+          api.memory.commitments.syncActionItems(noteId, actionItems).catch((err: any) => {
+            console.warn("[commitments] Reconciliation sync on summary load failed:", err);
+          });
+        }
       }
     }).catch(() => {});
   }, [api, noteId]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -4,6 +4,27 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.11.1] — 2026-04-21
+
+Patch release — three user-reported bugs from the v2.11.0 field. No new features.
+
+### Fixed
+- **Meeting title no longer picks up pleasantries as the first line.** Auto-derived working titles were running the transcript opening through a naive "first substantive clause" heuristic, so you'd end up with titles like "Hey how are you doing today" or "Yeah we did so both mobile and". Two changes:
+  - `deriveTitleFromText` now skips pleasantry openers ("Hi / Hey / Hello / Good morning / Thanks for joining / How are you") and strips leading filler words ("so", "um", "uh", "yeah", "ok") so the real topic surfaces.
+  - Post-summary, the title upgrade now runs even when the summary's explicit `title` field is missing — in that case we derive from `summary.overview` or `summary.tldr`, which are semantic distillations of the meeting content. Previously a bad transcript-derived working title could stick forever if the LLM didn't include a title in its summary.
+  - 7 new fixture tests lock the new behavior against the exact failure modes seen in the field.
+- **Asana default project is now configured once in Settings, not re-asked every time.** `AsanaConfig` gained `defaultProjectGid` + `defaultProjectName`. The connect flow has a new third step ("Choose default project") after workspace selection — the dialog fetches projects for the selected workspace and lets you pick the one action-item tasks should land in. Settings → Connections → Asana now shows the configured default project and a "Change" button to pick a different one without disconnecting.
+- **Action items sometimes didn't become commitments.** Two fixes:
+  - `syncActionItemsToCommitments` used the raw input array in one branch after filtering (`for (... ; i < actionItems.length; ...)` then `ai = actionItems[i]` after a filter step was added). Items with empty text no longer leave the loop in a mismatched state, and the delete-beyond-count boundary now uses the filtered count.
+  - When a note loads with a summary from the DB (e.g., you reopened a note summarized in a prior session), we now reconcile action-items → commitments as a one-shot heal. The sync is idempotent (position-matched), so this doesn't duplicate existing commitments — it just backfills any that failed to create on the original summarize pass.
+  - Defensive null-guard so passing `undefined` instead of `[]` logs a clear `[commitment-sync]` line instead of silently throwing inside the loop.
+- **Asana Create Task dialog** (from the v2.11.0 end) — the button no longer silently does nothing when config / API / workspace is missing. Each missing prerequisite now surfaces a specific error; notes textarea grew to 5 rows with `resize-y`; modal shell scrolls on short viewports so the Create button is always reachable.
+
+### Testing
+- 601 tests green (was 594 in v2.11.0). The 7 additional tests cover pleasantry-skip + filler-strip in `deriveTitleFromText`.
+
+---
+
 ## [2.11.0] — 2026-04-20
 
 **Theme: Solid.** Reliability + polish release. Force-quit mid-recording no longer loses transcripts. Teams/Zoom/Meet calls (including Google Meet in a browser) surface native macOS notifications the moment they start. Commitments filter decoupled mine-vs-others from open-vs-done so you actually find what's actionable. Ask-OSChief chat survives app restarts, and natural-language edits to the summary work across far more phrasings.

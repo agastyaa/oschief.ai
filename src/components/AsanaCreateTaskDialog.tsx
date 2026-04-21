@@ -59,10 +59,16 @@ export function AsanaCreateTaskDialog({
         const projs = await api.asana.getProjects(cfg.token, cfg.workspaceGid);
         setProjects(projs);
 
-        // Restore saved default
-        const savedDefault = localStorage.getItem("asana-default-project");
-        if (savedDefault && projs.some((p) => p.gid === savedDefault)) {
-          setSelectedProject(savedDefault);
+        // Priority order for the default selection:
+        //   1. defaultProjectGid set in Settings → Connections → Asana (v2.11.1+)
+        //   2. Legacy localStorage default (set by previous task-creation flow)
+        //   3. First project in the list
+        const settingsDefault = cfg.defaultProjectGid;
+        const legacyDefault = localStorage.getItem("asana-default-project");
+        if (settingsDefault && projs.some((p) => p.gid === settingsDefault)) {
+          setSelectedProject(settingsDefault);
+        } else if (legacyDefault && projs.some((p) => p.gid === legacyDefault)) {
+          setSelectedProject(legacyDefault);
         } else if (projs.length > 0) {
           setSelectedProject(projs[0].gid);
         }

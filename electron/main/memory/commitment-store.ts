@@ -163,6 +163,19 @@ export function syncActionItemsToCommitments(
     asanaTaskUrl?: string
   }>
 ): { created: number; updated: number; removed: number } {
+  // v2.11.1 — defensive null/undefined guard. Callers currently pass `|| []`
+  // but a future caller that forgets would throw inside the loop and leave
+  // the sync half-done, which is how action items silently failed to become
+  // commitments in the "rare case" field report.
+  const items = Array.isArray(actionItems) ? actionItems.filter((ai) => ai && typeof ai.text === 'string' && ai.text.trim().length > 0) : []
+  if (items.length === 0 && (!actionItems || actionItems.length === 0)) {
+    console.log(`[commitment-sync] ${noteId} — no action items to sync`)
+    return { created: 0, updated: 0, removed: 0 }
+  }
+  if (Array.isArray(actionItems) && items.length < actionItems.length) {
+    console.log(`[commitment-sync] ${noteId} — filtered ${actionItems.length - items.length} empty action items`)
+  }
+
   const db = getDb()
   const existing = db.prepare('SELECT * FROM commitments WHERE note_id = ? ORDER BY created_at ASC').all(noteId) as any[]
   const now = new Date().toISOString()
@@ -172,8 +185,8 @@ export function syncActionItemsToCommitments(
   let removed = 0
 
   // Match existing commitments to action items by position (index order)
-  for (let i = 0; i < actionItems.length; i++) {
-    const ai = actionItems[i]
+  for (let i = 0; i < items.length; i++) {
+    const ai = items[i]
     const assigneeName = ai.assignee && ai.assignee !== 'Unassigned' ? ai.assignee : null
     const status = ai.done ? 'completed' : 'open'
 
@@ -229,7 +242,7 @@ export function syncActionItemsToCommitments(
   }
 
   // Remove extra commitments if action items were deleted
-  for (let i = actionItems.length; i < existing.length; i++) {
+  for (let i = items.length; i < existing.length; i++) {
     const c = existing[i]
     db.prepare('DELETE FROM commitments WHERE id = ?').run(c.id)
     logCommitmentSync('DELETE', c.id, null)
