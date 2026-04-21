@@ -163,9 +163,14 @@ function rebuildMenu(): void {
             setQuittingForUpdate()
             const pkg = await import('electron-updater')
             const au = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
-            au?.quitAndInstall(false, true)
+            // v2.11.2 — app.relaunch() + isSilent=true to avoid the unsigned-
+            // macOS relaunch failure. See auto-updater.ts for the full note.
+            app.relaunch()
+            au?.quitAndInstall(true, true)
           } catch (err) {
             console.error('[tray] quitAndInstall failed:', err)
+            try { app.relaunch() } catch {}
+            try { app.exit(0) } catch {}
           }
         },
       })

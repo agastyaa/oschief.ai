@@ -170,10 +170,36 @@ export function registerAppHandlers(): void {
     }
   })
   ipcMain.handle('app:install-update', async () => {
+    // v2.11.2 — on unsigned macOS alpha builds, autoUpdater.quitAndInstall
+    // fails to relaunch the app after install because Squirrel.Mac's helper
+    // can't pass Gatekeeper for the replaced binary. The app quits, install
+    // completes, but the relaunch is silently blocked. Fix: schedule a
+    // relaunch via app.relaunch() BEFORE quitAndInstall, so the OS queues
+    // the relaunch independently of Squirrel's helper.
     const { setQuittingForUpdate } = await import('../windows')
     setQuittingForUpdate()
     const pkg = await import('electron-updater')
     const autoUpdater = pkg.default?.autoUpdater ?? (pkg as any).autoUpdater
-    autoUpdater?.quitAndInstall(false, true)
+    if (!autoUpdater) {
+      console.error('[auto-updater] autoUpdater not available on install-update')
+      return
+    }
+    try {
+      // Belt: tell Electron to re-launch after the current process exits.
+      // Works regardless of whether Squirrel's post-install helper runs.
+      app.relaunch()
+      // Suspenders: run the installer. isSilent=true on macOS skips the
+      // built-in restart dialog (we've already committed to restart at the
+      // UI layer). isForceRunAfter=true asks Squirrel to relaunch too —
+      // belt-and-suspenders with app.relaunch().
+      autoUpdater.quitAndInstall(true, true)
+    } catch (err) {
+      console.error('[auto-updater] quitAndInstall threw:', err)
+      // Fallback: relaunch the current binary (user will still have the old
+      // version but at least the app comes back up and the update will
+      // auto-apply on next quit via autoInstallOnAppQuit=true).
+      try { app.relaunch() } catch { /* no-op */ }
+      try { app.exit(0) } catch { /* no-op */ }
+    }
   })
 }

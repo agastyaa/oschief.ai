@@ -16,6 +16,7 @@ import { KBSuggestionsPanel, type KBSuggestion } from "@/components/KBSuggestion
 import { useFolders } from "@/contexts/FolderContext";
 import { useNotes, useRegisterActiveNewNotePage } from "@/contexts/NotesContext";
 import { useRecording } from "@/contexts/RecordingContext";
+import { useSidebarVisibility } from "@/contexts/SidebarVisibilityContext";
 import { useModelSettings, localModels } from "@/contexts/ModelSettingsContext";
 import { isElectron, getElectronAPI } from "@/lib/electron-api";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
@@ -168,6 +169,43 @@ export default function NewNotePage() {
   });
   const [transcriptVisible, setTranscriptVisible] = useState(isElectron);
   const [sttHealth, setSTTHealth] = useState<'healthy' | 'restarting' | 'fallback'>('healthy');
+
+  // v2.11.2 — auto-collapse the sidebar when the transcript panel is visible
+  // during recording so the center column has room for both notes + transcript.
+  // Remember the user's prior sidebar state and restore it when we leave the
+  // recording/transcript view.
+  const { sidebarOpen, setSidebarOpen } = useSidebarVisibility();
+  const prevSidebarOpenRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const shouldAutoCollapse =
+      recordingState === "recording" &&
+      transcriptVisible &&
+      isElectron;
+    if (shouldAutoCollapse && sidebarOpen) {
+      prevSidebarOpenRef.current = true;
+      setSidebarOpen(false);
+    } else if (!shouldAutoCollapse && prevSidebarOpenRef.current === true) {
+      // Restore only if we were the ones who collapsed it.
+      setSidebarOpen(true);
+      prevSidebarOpenRef.current = null;
+    }
+    // We intentionally do NOT depend on sidebarOpen — we only want to
+    // trigger on recordingState / transcriptVisible transitions. Listening
+    // to sidebarOpen would fight the user if they manually re-open it
+    // during a recording.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordingState, transcriptVisible]);
+  useEffect(() => {
+    // When the component unmounts (navigation away), restore the sidebar
+    // if we collapsed it. Covers the case where the user navigates to
+    // another page without stopping the recording.
+    return () => {
+      if (prevSidebarOpenRef.current === true) {
+        setSidebarOpen(true);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Poll STT health every 10s during recording
   useEffect(() => {
     if (recordingState !== 'recording') return;

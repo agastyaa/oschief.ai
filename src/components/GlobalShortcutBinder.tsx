@@ -27,6 +27,8 @@ export function GlobalShortcutBinder() {
   useShortcut("app.go-people", () => navigate("/people"));
   useShortcut("app.go-calendar", () => navigate("/calendar"));
   useShortcut("app.go-settings", () => navigate("/settings"));
+  useShortcut("app.go-projects", () => navigate("/projects"));
+  useShortcut("app.go-decisions", () => navigate("/decisions"));
 
   // Recording toggle — start or stop depending on state.
   useShortcut(

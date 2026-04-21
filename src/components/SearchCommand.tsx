@@ -27,46 +27,14 @@ export function SearchCommandProvider({ children }: { children: React.ReactNode 
 
   const openSearch = useCallback(() => setOpen(true), []);
 
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey;
-      // Cmd+K — search
-      if (e.key === "k" && meta) {
-        e.preventDefault();
-        setOpen((o) => !o);
-        return;
-      }
-      // Don't intercept shortcuts when typing in an input
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
-      // Cmd+N — quick note
-      if (e.key === "n" && meta) {
-        e.preventDefault();
-        navigate("/new-note?startFresh=1");
-        return;
-      }
-      // Cmd+Shift+P — projects
-      if (e.key === "p" && meta && e.shiftKey) {
-        e.preventDefault();
-        navigate("/projects");
-        return;
-      }
-      // Cmd+Shift+D — decisions
-      if (e.key === "d" && meta && e.shiftKey) {
-        e.preventDefault();
-        navigate("/decisions");
-        return;
-      }
-      // Cmd+, — settings
-      if (e.key === "," && meta) {
-        e.preventDefault();
-        navigate("/settings");
-        return;
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [navigate]);
+  // v2.11.2 — the legacy shortcut listener that used to live here has been
+  // removed. It was registered at document-level BEFORE the ShortcutProvider's
+  // own listener, called preventDefault on every match, and the provider's
+  // `if (ev.defaultPrevented) return` check meant the registry-based
+  // shortcuts (Cmd+K / Cmd+N / Cmd+, / Cmd+Shift+P / Cmd+Shift+D) silently
+  // never fired. See `src/components/GlobalShortcutBinder.tsx` for the
+  // active wiring. Any new shortcut goes in `src/lib/keyboard/registry.ts`
+  // and binds in GlobalShortcutBinder — not here.
 
   const handleSelect = useCallback(
     (noteId: string) => {

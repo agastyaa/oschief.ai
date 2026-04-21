@@ -127,6 +127,20 @@ export const SHORTCUT_DEFS: readonly ShortcutDef[] = [
     group: 'Navigation',
   },
   {
+    id: 'app.go-projects',
+    label: 'Go to Projects',
+    scope: 'global',
+    defaultBinding: 'g then j',
+    group: 'Navigation',
+  },
+  {
+    id: 'app.go-decisions',
+    label: 'Go to Decisions',
+    scope: 'global',
+    defaultBinding: 'g then d',
+    group: 'Navigation',
+  },
+  {
     id: 'app.cancel',
     label: 'Cancel / close',
     description: 'Close dialogs, menus, and overlays',

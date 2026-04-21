@@ -4,6 +4,20 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.11.2] — 2026-04-21
+
+Patch release — three user-reported bugs from v2.11.1. No new features.
+
+### Fixed
+- **In-app keyboard shortcuts now fire.** The shortcut registry (Cmd+K, Cmd+N, Cmd+`,`, the new Cmd+Shift+P / Cmd+Shift+D navigation, and the rebindable shortcuts in Settings → Keyboard) was being silently pre-empted by a legacy document-level keydown listener in `SearchCommand.tsx` that called `preventDefault()` on every match. Because `ShortcutContext` correctly bails when `ev.defaultPrevented` is true, nothing in the registry ever fired. Removed the legacy listener — all shortcut handling now flows through `GlobalShortcutBinder` + the registry. Added `app.go-projects` (G then J) and `app.go-decisions` (G then D) to the registry so those bindings aren't orphaned.
+- **Sidebar auto-collapses during recording when the transcript panel is visible.** On macOS laptop-sized windows, the center column got squeezed between the nav sidebar and the transcript panel, leaving the Ask OSChief pill and transcript both cramped. Now: when a recording is active AND the transcript panel is open, the sidebar collapses. When the user stops recording / closes the panel / navigates away, the previous sidebar state is restored. If the user manually re-opens the sidebar during a recording, we respect that — we don't fight their choice.
+- **Auto-update now relaunches reliably.** `autoUpdater.quitAndInstall(false, true)` fails silently on unsigned macOS builds: the app quits, the install completes, but Squirrel.Mac's helper can't pass Gatekeeper for the replaced binary so the post-install relaunch never fires. Users saw the update banner, clicked "Restart", and the app just... vanished. Fix: call `app.relaunch()` BEFORE `quitAndInstall(true, true)` so Electron queues the relaunch independently of Squirrel. The helper still attempts the clean path first; `app.relaunch()` is the belt to Squirrel's suspenders. Applied to all three entry points: the in-app Settings button, the native "Restart Now" dialog in auto-updater.ts, and the tray's "Restart & install" menu item.
+
+### Testing
+- 601 tests green (unchanged from v2.11.1 — no test-affecting behavior changed, only bindings and lifecycle effects).
+
+---
+
 ## [2.11.1] — 2026-04-21
 
 Patch release — three user-reported bugs from the v2.11.0 field. No new features.

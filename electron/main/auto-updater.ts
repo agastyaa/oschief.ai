@@ -1,6 +1,6 @@
 import pkg from 'electron-updater'
 const { autoUpdater } = pkg
-import { BrowserWindow, dialog } from 'electron'
+import { BrowserWindow, dialog, app } from 'electron'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
@@ -103,7 +103,18 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
     }).then(({ response }) => {
       if (response === 0) {
         setQuittingForUpdate()
-        autoUpdater.quitAndInstall(false, true)
+        try {
+          // v2.11.2 — app.relaunch() as belt-and-suspenders against the
+          // unsigned-macOS case where Squirrel's helper can't relaunch the
+          // app after install. isSilent=true skips the built-in restart
+          // dialog since we've already confirmed above.
+          app.relaunch()
+          autoUpdater.quitAndInstall(true, true)
+        } catch (err) {
+          console.error('[auto-updater] quitAndInstall threw:', err)
+          try { app.relaunch() } catch {}
+          try { app.exit(0) } catch {}
+        }
       }
     })
   })
