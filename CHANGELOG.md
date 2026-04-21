@@ -4,6 +4,29 @@ All notable changes to OSChief are documented here. **Keep this file updated wit
 
 ---
 
+## [2.11.3] — 2026-04-21
+
+Hotfix. The v2.11.2 auto-update fix was necessary but not sufficient — the actual silent-failure was an **uncaught exception** in the update-downloaded handler.
+
+### Fixed
+- **Auto-updater was crashing on `update-downloaded`, not just failing to relaunch.** Observed trace:
+  ```
+  TypeError: Object has been destroyed
+    at MacUpdater.<anonymous> (.../out/main/index.js:12751:22)
+    at MacUpdater.emit
+    at MacUpdater.dispatchUpdateDownloaded
+  ```
+  The handler checked `mainWindow.isDestroyed()` once at the top before calling `webContents.send(...)`, then accessed `mainWindow.isVisible()` and `dialog.showMessageBox(mainWindow, ...)` later — without re-checking. On user setups where the window was hidden or closed between those calls (tray-driven workflow, long-idle sessions, multi-window states), the later accesses threw and the exception bubbled out through the event emitter as uncaught. The whole auto-update flow died silently: the tray banner would set, but clicking "Restart & install" then did nothing because the event chain had already been broken.
+
+  Every auto-updater event handler is now wrapped in try/catch AND uses `safeSend` / `windowIsAlive` / `windowIsVisible` helpers that re-check `mainWindow.isDestroyed()` at every access point, never once at the top. `setPendingUpdate()` is also guarded because the tray banner is the user's recovery path when the dialog can't render.
+
+- **Fallback behavior improved.** If the restart dialog can't show (window destroyed, not visible) we now log a one-liner explaining why and leave the tray banner set so the user still has a path. Before: silent skip.
+
+### Testing
+- 601 tests green (unchanged from 2.11.2).
+
+---
+
 ## [2.11.2] — 2026-04-21
 
 Patch release — three user-reported bugs from v2.11.1. No new features.

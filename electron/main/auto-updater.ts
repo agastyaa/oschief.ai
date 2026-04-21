@@ -47,67 +47,89 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {})
   }, 4 * 60 * 60 * 1000)
 
+  // v2.11.3 — every auto-updater event handler is now wrapped in a
+  // try/catch AND gated on `mainWindow.isDestroyed()` AT the access point,
+  // not once at the top. The old code called mainWindow.isVisible() and
+  // dialog.showMessageBox(mainWindow, ...) after a stale isDestroyed check,
+  // which threw "TypeError: Object has been destroyed" as an uncaught
+  // exception into the event emitter — crashing the whole auto-update
+  // flow silently. See also `safeWindowCall` below.
+  const safeSend = (channel: string, ...args: unknown[]) => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send(channel, ...args)
+      }
+    } catch (err) {
+      console.warn(`[auto-updater] safeSend(${channel}) failed:`, err instanceof Error ? err.message : err)
+    }
+  }
+  const windowIsAlive = (): boolean => {
+    try {
+      return !!mainWindow && !mainWindow.isDestroyed()
+    } catch { return false }
+  }
+  const windowIsVisible = (): boolean => {
+    try {
+      return windowIsAlive() && mainWindow.isVisible()
+    } catch { return false }
+  }
+
   autoUpdater.on('update-available', (info) => {
-    console.log(`[auto-updater] Update available: v${info.version}`)
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-available', info.version)
+    try {
+      console.log(`[auto-updater] Update available: v${info.version}`)
+      safeSend('update-available', info.version)
+    } catch (err) {
+      console.error('[auto-updater] update-available handler threw:', err)
     }
   })
 
   autoUpdater.on('download-progress', (progress) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-download-progress', {
+    try {
+      safeSend('update-download-progress', {
         percent: Math.round(progress.percent),
         bytesPerSecond: progress.bytesPerSecond,
         transferred: progress.transferred,
         total: progress.total,
       })
+    } catch (err) {
+      console.error('[auto-updater] download-progress handler threw:', err)
     }
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log(`[auto-updater] Update downloaded: v${info.version} — surfacing`)
+    try {
+      console.log(`[auto-updater] Update downloaded: v${info.version} — surfacing`)
 
-    // Tell the tray so it shows "Restart & install vX.Y.Z" at the top of
-    // its menu. This is the persistent, always-reachable entry point — it
-    // stays there until the user restarts. If a recording is active, the
-    // tray shows a disabled banner instead.
-    setPendingUpdate(info.version)
+      // Tray banner is persistent — survives mainWindow being destroyed or
+      // hidden. Always set it first so the user has a path to restart even
+      // if the dialog path below no-ops.
+      try { setPendingUpdate(info.version) } catch (err) {
+        console.warn('[auto-updater] setPendingUpdate failed:', err)
+      }
 
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-downloaded', info.version)
-    }
+      safeSend('update-downloaded', info.version)
 
-    // Skip the restart dialog during an active recording — no popup that
-    // could interrupt a meeting. The tray banner still shows the pending
-    // update; user can restart from there when they're done.
-    if (isRecordingActive) {
-      console.log('[auto-updater] Recording active — deferring restart prompt until meeting ends')
-      return
-    }
+      if (isRecordingActive) {
+        console.log('[auto-updater] Recording active — deferring restart prompt until meeting ends')
+        return
+      }
 
-    // Also skip if the main window isn't visible (user is using the tray
-    // workflow). Dialog would pop in the background and confuse. Tray
-    // banner + the in-app banner cover that case.
-    if (!mainWindow.isVisible()) {
-      return
-    }
+      if (!windowIsVisible()) {
+        console.log('[auto-updater] Main window not visible — skipping restart dialog (tray banner still set)')
+        return
+      }
 
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Ready',
-      message: `OSChief v${info.version} has been downloaded.`,
-      detail: 'Restart now to install the update.',
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-    }).then(({ response }) => {
-      if (response === 0) {
-        setQuittingForUpdate()
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `OSChief v${info.version} has been downloaded.`,
+        detail: 'Restart now to install the update.',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+      }).then(({ response }) => {
+        if (response !== 0) return
         try {
-          // v2.11.2 — app.relaunch() as belt-and-suspenders against the
-          // unsigned-macOS case where Squirrel's helper can't relaunch the
-          // app after install. isSilent=true skips the built-in restart
-          // dialog since we've already confirmed above.
+          setQuittingForUpdate()
           app.relaunch()
           autoUpdater.quitAndInstall(true, true)
         } catch (err) {
@@ -115,21 +137,27 @@ export function setupAutoUpdater(mainWindow: BrowserWindow) {
           try { app.relaunch() } catch {}
           try { app.exit(0) } catch {}
         }
-      }
-    })
+      }).catch((err) => {
+        console.error('[auto-updater] showMessageBox rejected:', err)
+      })
+    } catch (err) {
+      console.error('[auto-updater] update-downloaded handler threw:', err)
+    }
   })
 
   autoUpdater.on('update-not-available', () => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-not-available')
+    try { safeSend('update-not-available') } catch (err) {
+      console.error('[auto-updater] update-not-available handler threw:', err)
     }
   })
 
   autoUpdater.on('error', (err) => {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('[auto-updater] Error:', message)
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-error', message)
+    try {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[auto-updater] Error:', message)
+      safeSend('update-error', message)
+    } catch (inner) {
+      console.error('[auto-updater] error handler itself threw:', inner)
     }
   })
 }

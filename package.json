@@ -1,7 +1,7 @@
 {
   "name": "oschief",
   "private": true,
-  "version": "2.11.2",
+  "version": "2.11.3",
   "description": "On-device chief of staff — meetings, memory, and action for macOS",
   "author": "OSChief",
   "type": "module",
